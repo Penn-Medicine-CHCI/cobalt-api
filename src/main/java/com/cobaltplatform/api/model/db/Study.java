@@ -57,6 +57,14 @@ public class Study {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private Boolean sendReminderNotification;
+	@Nullable
+	private Integer reminderNotificationMinutes;
+	@Nullable
+	private String reminderNotificationMessageTitle;
+	@Nullable
+	private String reminderNotificationMessageBody;
 
 	@Nullable
 	public UUID getStudyId() {
@@ -173,5 +181,41 @@ public class Study {
 
 	public void setCoordinatorAvailability(@Nullable String coordinatorAvailability) {
 		this.coordinatorAvailability = coordinatorAvailability;
+	}
+
+	@Nullable
+	public Boolean getSendReminderNotification() {
+		return sendReminderNotification;
+	}
+
+	public void setSendReminderNotification(@Nullable Boolean sendReminderNotification) {
+		this.sendReminderNotification = sendReminderNotification;
+	}
+
+	@Nullable
+	public Integer getReminderNotificationMinutes() {
+		return reminderNotificationMinutes;
+	}
+
+	public void setReminderNotificationMinutes(@Nullable Integer reminderNotificationMinutes) {
+		this.reminderNotificationMinutes = reminderNotificationMinutes;
+	}
+
+	@Nullable
+	public String getReminderNotificationMessageTitle() {
+		return reminderNotificationMessageTitle;
+	}
+
+	public void setReminderNotificationMessageTitle(@Nullable String reminderNotificationMessageTitle) {
+		this.reminderNotificationMessageTitle = reminderNotificationMessageTitle;
+	}
+
+	@Nullable
+	public String getReminderNotificationMessageBody() {
+		return reminderNotificationMessageBody;
+	}
+
+	public void setReminderNotificationMessageBody(@Nullable String reminderNotificationMessageBody) {
+		this.reminderNotificationMessageBody = reminderNotificationMessageBody;
 	}
 }

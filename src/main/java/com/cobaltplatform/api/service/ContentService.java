@@ -686,13 +686,13 @@ public class ContentService implements AutoCloseable {
 			if (!isBackgroundTaskStarted())
 				return false;
 
-			getLogger().trace("Stopping group session background task...");
+			getLogger().trace("Stopping Study Service background task...");
 
 			getBackgroundTaskExecutorService().get().shutdownNow();
 			this.backgroundTaskExecutorService = null;
 			this.backgroundTaskStarted = false;
 
-			getLogger().trace("Group session background task stopped.");
+			getLogger().trace("Study Service background task stopped.");
 
 			return true;
 		}

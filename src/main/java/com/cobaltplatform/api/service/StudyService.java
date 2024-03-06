@@ -20,9 +20,16 @@
 package com.cobaltplatform.api.service;
 
 
+import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.messaging.push.PushMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
@@ -34,6 +41,8 @@ import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
+import com.cobaltplatform.api.model.db.ClientDevicePushToken;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
@@ -44,6 +53,7 @@ import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -63,6 +73,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -70,6 +81,9 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
@@ -81,7 +95,7 @@ import static java.util.Objects.requireNonNull;
  */
 @Singleton
 @ThreadSafe
-public class StudyService {
+public class StudyService implements AutoCloseable {
 	@Nonnull
 	private static final DateTimeFormatter STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER;
 
@@ -97,9 +111,26 @@ public class StudyService {
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
+	@Nonnull
+	private final Provider<StudyServiceNotificationTask> studyServiceNotificationTaskProvider;
+	@Nonnull
+	private final Object backgroundTaskLock;
+	@Nonnull
+	private Boolean backgroundTaskStarted;
+	@Nullable
+	private ScheduledExecutorService backgroundTaskExecutorService;
+
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	@Nonnull
+	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private final Provider<MessageService> messageServiceProvider;
 
 	static {
 		STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US).withZone(ZoneId.of("UTC"));
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L;
+		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
 	}
 
 	@Inject
@@ -107,12 +138,15 @@ public class StudyService {
 											@Nonnull Strings strings,
 											@Nonnull Authenticator authenticator,
 											@Nonnull Provider<AccountService> accountServiceProvider,
-											@Nonnull Provider<SystemService> systemServiceProvider) {
+											@Nonnull Provider<SystemService> systemServiceProvider,
+											@Nonnull Provider<StudyServiceNotificationTask> studyServiceNotificationTaskProvider,
+											@Nonnull Provider<MessageService> messageServiceProvider) {
 		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 		requireNonNull(authenticator);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(systemServiceProvider);
+		requireNonNull(messageServiceProvider);
 
 		this.databaseProvider = databaseProvider;
 		this.strings = strings;
@@ -120,6 +154,10 @@ public class StudyService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.studyServiceNotificationTaskProvider = studyServiceNotificationTaskProvider;
+		this.backgroundTaskLock = new Object();
+		this.backgroundTaskStarted = false;
+		this.messageServiceProvider = messageServiceProvider;
 	}
 
 	@Nonnull
@@ -476,7 +514,7 @@ public class StudyService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM account_check_in_action
+				FROM v_account_check_in_action
 				WHERE account_check_in_action_id = ?
 				""", AccountCheckInAction.class, accountCheckInActionId);
 	}
@@ -488,7 +526,7 @@ public class StudyService {
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM account_check_in
+				FROM v_account_check_in
 				WHERE account_check_in_id = ?
 				""", AccountCheckIn.class, accountCheckInId);
 	}
@@ -531,15 +569,16 @@ public class StudyService {
 		if (!accountCheckInAction.isPresent())
 			validationException.add(new FieldError("accountCheckInAction", getStrings().get("Account check-in action not found.")));
 
+		Optional<AccountCheckIn> accountCheckIn = null;
 		if (accountCheckInAction.isPresent()) {
-			Optional<AccountCheckIn> accountCheckIn = findAccountCheckInById(accountCheckInAction.get().getAccountCheckInId());
+			accountCheckIn = findAccountCheckInById(accountCheckInAction.get().getAccountCheckInId());
 			if (!accountCheckIn.isPresent())
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
 			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
 			else if (accountCheckInAction.get().getCheckInActionStatusId().compareTo(CheckInActionStatusId.IN_PROGRESS) != 0) {
 				if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
-					validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is not permitted at this time.")));
+					validationException.add(new FieldError("accountCheckIn", getStrings().get("Check-in is not permitted at this time.")));
 			}
 		}
 
@@ -555,9 +594,33 @@ public class StudyService {
 				WHERE account_check_in_action_id=?
 				""", checkInActionStatusId, request.getAccountCheckInActionId());
 
-		// If a check-in action is being completed, check if all the actions are complete
-		// and set the check-in to complete if they are.
-		if (request.getCheckInActionStatusId().equals(CheckInActionStatusId.COMPLETE))
+		if (request.getCheckInActionStatusId().equals(CheckInActionStatusId.COMPLETE)) {
+			// If this check-in has a followup notification to be sent and we have not already sent one, schedule that now
+			if (accountCheckInAction.get().getSendFollowupNotification() && !followupNotificationSentForAccountCheckInAction(request.getAccountCheckInActionId())) {
+				List<ClientDevicePushToken> clientDevicePushTokens = getAccountService().findClientDevicePushTokensForAccountId(account.getAccountId());
+				Map<String, Object> standardMessageContext = new HashMap<>();
+				standardMessageContext.put("condition", format("Check-In %s", accountCheckIn.get().getCheckInNumber()));
+
+				getLogger().debug(format("Scheduling a micro-intervention for accountCheckInActionId %s", accountCheckInAction.get().getAccountCheckInActionId()));
+				for (ClientDevicePushToken clientDevicePushToken : clientDevicePushTokens) {
+					PushMessage pushMessage = new PushMessage.Builder(account.getInstitutionId(), PushMessageTemplate.MICROINTERVENTION,
+							clientDevicePushToken.getClientDevicePushTokenTypeId(), clientDevicePushToken.getPushToken(), Locale.US)
+							.messageContext(standardMessageContext).build();
+					UUID scheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+						setMessage(pushMessage);
+						setTimeZone(account.getTimeZone());
+						setScheduledAt(LocalDateTime.now(account.getTimeZone()).plusMinutes(accountCheckInAction.get().getFollowupNotificationMinutes()));
+					}});
+
+					getDatabase().execute("""
+							INSERT INTO account_check_in_action_scheduled_message
+							  (account_check_in_action_id, scheduled_message_id)
+							VALUES
+							  (?,?)""", accountCheckInAction.get().getAccountCheckInActionId(), scheduledMessageId);
+				}
+			}
+			// If a check-in action is being completed, check if all the actions are complete
+			// and set the check-in to complete if they are.
 			if (checkInComplete(accountCheckInAction.get().getAccountCheckInId())) {
 				LocalDateTime completedDateTime = LocalDateTime.now(account.getTimeZone());
 				getDatabase().execute("""
@@ -566,6 +629,19 @@ public class StudyService {
 						WHERE account_check_in_id = ?
 						""", CheckInStatusId.COMPLETE.toString(), completedDateTime, accountCheckInAction.get().getAccountCheckInId());
 			}
+		}
+
+		if (!accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.IN_PROGRESS))
+			updateCheckInStatusId(accountCheckIn.get().getAccountCheckInId(), CheckInStatusId.IN_PROGRESS);
+	}
+
+	@Nonnull
+	private Boolean followupNotificationSentForAccountCheckInAction(@Nonnull UUID accountaCheckInActionId) {
+		return getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM account_check_in_action_scheduled_message
+				WHERE account_check_in_action_id = ?
+				""", Boolean.class, accountaCheckInActionId).get();
 	}
 
 	@Nonnull
@@ -748,6 +824,200 @@ public class StudyService {
 				""", Study.class, accountId);
 	}
 
+	@Override
+	public void close() throws Exception {
+		stopBackgroundTask();
+	}
+
+	@Nonnull
+	public Boolean startBackgroundTask() {
+		synchronized (getBackgroundTaskLock()) {
+			if (isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Starting Study Service background task...");
+
+			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("study-service-background-task").build());
+			this.backgroundTaskStarted = true;
+			getBackgroundTaskExecutorService().get().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						getStudyServiceNotificationTask().run();
+					} catch (Exception e) {
+						getLogger().warn(format("Unable to complete Study Service background task - will retry in %s seconds", String.valueOf(getBackgroundTaskIntervalInSeconds())), e);
+					}
+				}
+			}, getBackgroundTaskInitialDelayInSeconds(), getBackgroundTaskIntervalInSeconds(), TimeUnit.SECONDS);
+
+			getLogger().trace("Study Service background task started.");
+
+			return true;
+		}
+	}
+
+	@Nonnull
+	public Boolean stopBackgroundTask() {
+		synchronized (getBackgroundTaskLock()) {
+			if (!isBackgroundTaskStarted())
+				return false;
+
+			getLogger().trace("Stopping Study Service background task...");
+
+			getBackgroundTaskExecutorService().get().shutdownNow();
+			this.backgroundTaskExecutorService = null;
+			this.backgroundTaskStarted = false;
+
+			getLogger().trace("Study Service background task stopped.");
+
+			return true;
+		}
+	}
+
+	@ThreadSafe
+	protected static class StudyServiceNotificationTask implements Runnable {
+		@Nonnull
+		private final CurrentContextExecutor currentContextExecutor;
+		@Nonnull
+		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final DatabaseProvider databaseProvider;
+		@Nonnull
+		private final Configuration configuration;
+		@Nonnull
+		private final Logger logger;
+		@Nonnull
+		private final AccountService accountService;
+
+		@Nonnull
+		private final MessageService messageService;
+
+		@Inject
+		public StudyServiceNotificationTask(@Nonnull CurrentContextExecutor currentContextExecutor,
+																				@Nonnull ErrorReporter errorReporter,
+																				@Nonnull DatabaseProvider databaseProvider,
+																				@Nonnull Configuration configuration,
+																				@Nonnull AccountService accountService,
+																				@Nonnull MessageService messageService) {
+			requireNonNull(currentContextExecutor);
+			requireNonNull(errorReporter);
+			requireNonNull(databaseProvider);
+			requireNonNull(configuration);
+			requireNonNull(accountService);
+			requireNonNull(messageService);
+
+			this.currentContextExecutor = currentContextExecutor;
+			this.errorReporter = errorReporter;
+			this.databaseProvider = databaseProvider;
+			this.configuration = configuration;
+			this.logger = LoggerFactory.getLogger(getClass());
+			this.accountService = accountService;
+			this.messageService = messageService;
+		}
+
+		@Override
+		public void run() {
+			CurrentContext currentContext = new CurrentContext.Builder(InstitutionId.COBALT,
+					getConfiguration().getDefaultLocale(), getConfiguration().getDefaultTimeZone()).build();
+
+			getCurrentContextExecutor().execute(currentContext, () -> {
+				try {
+					scheduleCheckInNotificationReminder();
+				} catch (Exception e) {
+					getLogger().error("Unable to schedule study check-in reminders", e);
+					getErrorReporter().report(e);
+				}
+			});
+		}
+
+		protected void scheduleCheckInNotificationReminder() {
+			List<AccountStudy> accountStudies = getDatabase().queryForList("""
+					SELECT ast.*
+					FROM v_account_study ast, study s
+					WHERE ast.study_id = s.study_id
+					AND s.send_check_in_reminder_notification = true
+					AND ast.password_reset_required = false
+					AND NOT EXISTS
+					(SELECT 'X'
+					FROM v_account_check_in vaci
+					WHERE ast.account_study_id = vaci.account_study_id
+					AND EXTRACT(EPOCH FROM NOW() - vaci.completed_date) / 60 <  s.check_in_reminder_notification_minutes)
+					AND NOT EXISTS
+					(SELECT 'X'
+					FROM account_study_scheduled_message ass, scheduled_message sm
+					WHERE ass.scheduled_message_id = sm.scheduled_message_id
+					AND ast.account_study_id = ass.account_study_id
+					AND EXTRACT(EPOCH FROM NOW() - ass.created) / 60 < s.check_in_reminder_notification_minutes)
+					AND NOT EXISTS
+					(SELECT assm.account_study_id
+					FROM account_study_scheduled_message assm
+					WHERE ast.account_study_id = assm.account_study_id
+					GROUP BY assm.account_study_id
+					HAVING COUNT(*) >= s.max_check_in_reminder)
+					""", AccountStudy.class);
+
+			for (AccountStudy accountStudy : accountStudies) {
+				getLogger().debug(format("Scheduling account check-in reminder for accountId %s", accountStudy.getAccountId()));
+
+				Map<String, Object> standardMessageContext = new HashMap<>();
+				standardMessageContext.put("condition", format("accountId %s", accountStudy.getAccountId()));
+
+				List<ClientDevicePushToken> clientDevicePushTokens = accountService.findClientDevicePushTokensForAccountId(accountStudy.getAccountId());
+
+				for (ClientDevicePushToken clientDevicePushToken : clientDevicePushTokens) {
+					PushMessage pushMessage = new PushMessage.Builder(accountStudy.getInstitutionId(), PushMessageTemplate.STUDY_CHECK_IN_REMINDER,
+							clientDevicePushToken.getClientDevicePushTokenTypeId(), clientDevicePushToken.getPushToken(), Locale.US)
+							.messageContext(standardMessageContext).build();
+					UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
+						setMessage(pushMessage);
+						setTimeZone(accountStudy.getTimeZone());
+						setScheduledAt(LocalDateTime.now(accountStudy.getTimeZone()));
+					}});
+
+					getDatabase().execute("""
+							INSERT INTO account_study_scheduled_message
+							  (account_study_id, scheduled_message_id)
+							VALUES
+							  (?,?)""", accountStudy.getAccountStudyId(), scheduledMessageId);
+				}
+
+			}
+			getLogger().debug(format("Done scheduling account check-in reminders for %s", LocalDateTime.now()));
+		}
+
+		@Nonnull
+		protected CurrentContextExecutor getCurrentContextExecutor() {
+			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected ErrorReporter getErrorReporter() {
+			return this.errorReporter;
+		}
+
+		@Nonnull
+		protected Database getDatabase() {
+			return this.databaseProvider.get();
+		}
+
+		@Nonnull
+		protected Configuration getConfiguration() {
+			return this.configuration;
+		}
+
+		@Nonnull
+		protected Logger getLogger() {
+			return this.logger;
+		}
+	}
+
+	@Nonnull
+	public Boolean isBackgroundTaskStarted() {
+		synchronized (getBackgroundTaskLock()) {
+			return this.backgroundTaskStarted;
+		}
+	}
+
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
@@ -776,5 +1046,35 @@ public class StudyService {
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
+	}
+
+	@Nonnull
+	protected Long getBackgroundTaskIntervalInSeconds() {
+		return BACKGROUND_TASK_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Long getBackgroundTaskInitialDelayInSeconds() {
+		return BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected StudyServiceNotificationTask getStudyServiceNotificationTask() {
+		return this.studyServiceNotificationTaskProvider.get();
+	}
+
+	@Nonnull
+	protected Object getBackgroundTaskLock() {
+		return this.backgroundTaskLock;
+	}
+
+	@Nonnull
+	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
+		return Optional.ofNullable(this.backgroundTaskExecutorService);
+	}
+
+	@Nonnull
+	protected MessageService getMessageService() {
+		return this.messageServiceProvider.get();
 	}
 }

@@ -1074,6 +1074,9 @@ public class MessageService implements AutoCloseable {
 							} else if (scheduledMessage.getMessageTypeId() == MessageTypeId.CALL) {
 								CallMessage callMessage = getCallMessageSerializer().deserializeMessage(scheduledMessage.getSerializedMessage());
 								getMessageService().enqueueMessage(callMessage);
+							} else if (scheduledMessage.getMessageTypeId() == MessageTypeId.PUSH) {
+								PushMessage pushMessage = getPushMessageSerializer().deserializeMessage(scheduledMessage.getSerializedMessage());
+								getMessageService().enqueueMessage(pushMessage);
 							} else {
 								throw new IllegalStateException(format("Sorry, %s.%s is not yet supported.",
 										MessageTypeId.class.getSimpleName(), scheduledMessage.getMessageTypeId().name()));

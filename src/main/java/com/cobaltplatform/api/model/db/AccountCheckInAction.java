@@ -72,6 +72,15 @@ public class AccountCheckInAction {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private Boolean sendFollowupNotification;
+	@Nullable
+	private Integer followupNotificationMinutes;
+	@Nullable
+	private String followupNotificationMessageTitle;
+	@Nullable
+	private String followupNotificationMessageBody;
+
 
 	@Nullable
 	public UUID getAccountCheckInActionId() {
@@ -216,4 +225,41 @@ public class AccountCheckInAction {
 	public void setMaxVideoTimeSeconds(@Nullable Integer maxVideoTimeSeconds) {
 		this.maxVideoTimeSeconds = maxVideoTimeSeconds;
 	}
+
+	@Nullable
+	public Boolean getSendFollowupNotification() {
+		return sendFollowupNotification;
+	}
+
+	public void setSendFollowupNotification(@Nullable Boolean sendFollowupNotification) {
+		this.sendFollowupNotification = sendFollowupNotification;
+	}
+
+	@Nullable
+	public Integer getFollowupNotificationMinutes() {
+		return followupNotificationMinutes;
+	}
+
+	public void setFollowupNotificationMinutes(@Nullable Integer followupNotificationMinutes) {
+		this.followupNotificationMinutes = followupNotificationMinutes;
+	}
+
+	@Nullable
+	public String getFollowupNotificationMessageTitle() {
+		return followupNotificationMessageTitle;
+	}
+
+	public void setFollowupNotificationMessageTitle(@Nullable String followupNotificationMessageTitle) {
+		this.followupNotificationMessageTitle = followupNotificationMessageTitle;
+	}
+
+	@Nullable
+	public String getFollowupNotificationMessageBody() {
+		return followupNotificationMessageBody;
+	}
+
+	public void setFollowupNotificationMessageBody(@Nullable String followupNotificationMessageBody) {
+		this.followupNotificationMessageBody = followupNotificationMessageBody;
+	}
+
 }
