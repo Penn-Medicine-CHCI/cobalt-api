@@ -299,6 +299,9 @@ public class Institution {
 	@Nullable
 	private String tableauEmailAddress;
 
+	@Nullable
+	private UUID integratedCareSafetyPlanningManagerAccountId;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1400,5 +1403,14 @@ public class Institution {
 
 	public void setTableauEmailAddress(@Nullable String tableauEmailAddress) {
 		this.tableauEmailAddress = tableauEmailAddress;
+	}
+
+	@Nullable
+	public UUID getIntegratedCareSafetyPlanningManagerAccountId() {
+		return this.integratedCareSafetyPlanningManagerAccountId;
+	}
+
+	public void setIntegratedCareSafetyPlanningManagerAccountId(@Nullable UUID integratedCareSafetyPlanningManagerAccountId) {
+		this.integratedCareSafetyPlanningManagerAccountId = integratedCareSafetyPlanningManagerAccountId;
 	}
 }

@@ -42,7 +42,6 @@ import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdN
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedCompositeIdWithCheckDigit;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedPersonName;
 import com.cobaltplatform.api.integration.hl7.model.type.Hl7ExtendedTelecommunicationNumber;
-import com.cobaltplatform.api.integration.hl7.model.type.Hl7PersonLocation;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -153,6 +152,7 @@ import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.Encounter;
+import com.cobaltplatform.api.model.service.EpicDepartmentPatientOrderImportDisabledException;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
@@ -4377,24 +4377,6 @@ public class PatientOrderService implements AutoCloseable {
 
 			// Example:
 			//
-			// "enterersLocation": {
-			//   "pointOfCare": "5102001",
-			//   "facility": {
-			//      "namespaceId": "510200001"
-			//    },
-			//    "locationDescription": "CC PENTAHEALTH COLONIAL FAMILY PRACTICE"
-			// }
-
-			Hl7PersonLocation encounterDepartmentLocation = order.getCommonOrder().getEnterersLocation();
-			patientOrderRequest.setEncounterDepartmentName(encounterDepartmentLocation.getLocationDescription());
-			patientOrderRequest.setEncounterDepartmentId(trimToNull(encounterDepartmentLocation.getPointOfCare()));
-
-			// Same as above
-			patientOrderRequest.setReferringPracticeId(encounterDepartmentLocation.getPointOfCare());
-			patientOrderRequest.setReferringPracticeName(encounterDepartmentLocation.getLocationDescription());
-
-			// Example:
-			//
 			// "orderingProvider": [
 			//   {
 			//     "idNumber": "1588691968",
@@ -4605,43 +4587,7 @@ public class PatientOrderService implements AutoCloseable {
 			//   ]
 			// }]
 
-			List<String> reasonsForReferral = new ArrayList<>();
-			Set<String> uniqueReasonsForReferral = new HashSet<>();
-
-			for (Hl7NotesAndCommentsSegment notesAndComments : order.getOrderDetail().getNotesAndComments()) {
-				for (String comment : notesAndComments.getComment()) {
-					comment = trimToNull(comment);
-
-					if (comment == null)
-						continue;
-
-					if (comment.startsWith("Reason(s) for referral:")) {
-						comment = comment.replace("Reason(s) for referral: (Click on drop down menu for other reasons for consult)->", "").trim();
-
-						for (String reasonForReferral : comment.split(",")) {
-							reasonForReferral = trimToNull(reasonForReferral);
-
-							if (reasonForReferral != null) {
-								// Prevent duplicates for this order
-								if (uniqueReasonsForReferral.contains(reasonsForReferral))
-									continue;
-
-								uniqueReasonsForReferral.add(reasonForReferral);
-								reasonsForReferral.add(reasonForReferral);
-							}
-						}
-					}
-				}
-			}
-
-			if (!getConfiguration().isProduction()) {
-				if (reasonsForReferral.size() == 0) {
-					getLogger().warn("HL7 Order is missing reason for referral. Filling in an example one...");
-					reasonsForReferral.add("Mood or depression symptoms");
-				}
-			}
-
-			patientOrderRequest.setReasonsForReferral(reasonsForReferral);
+			// Above is handled by IC enterprise plugin
 
 			// Example:
 			//
@@ -5102,7 +5048,7 @@ public class PatientOrderService implements AutoCloseable {
 			validationException.add(new FieldError("primaryPlanName", getStrings().get("Primary plan name is required.")));
 
 		if (encounterDepartmentId == null) {
-			validationException.add(new FieldError("encounterDepartmentId", getStrings().get("Encounter department ID is required.")));
+			throw new EpicDepartmentPatientOrderImportDisabledException(getStrings().get("Encounter department ID is required."));
 		} else {
 			List<EpicDepartment> epicDepartments = findEpicDepartmentsByInstitutionId(institutionId);
 
@@ -5113,17 +5059,9 @@ public class PatientOrderService implements AutoCloseable {
 				}
 			}
 
-			if (epicDepartmentId == null) {
-				if (getConfiguration().isProduction()) {
-					validationException.add(new FieldError("encounterDepartmentId", getStrings().get("Unsupported encounter department ID '{{encounterDepartmentId}}' was specified.",
-							Map.of("encounterDepartmentId", encounterDepartmentId))));
-				} else {
-					EpicDepartment fallbackEpicDepartment = epicDepartments.get(0);
-					getLogger().warn("Unsupported encounter department ID '{}' was specified, going to default to fallback '{}' instead.",
-							encounterDepartmentId, fallbackEpicDepartment.getDepartmentId());
-					epicDepartmentId = fallbackEpicDepartment.getEpicDepartmentId();
-				}
-			}
+			if (epicDepartmentId == null)
+				throw new EpicDepartmentPatientOrderImportDisabledException(getStrings().get("Unsupported encounter department ID '{{encounterDepartmentId}}' was specified.",
+						Map.of("encounterDepartmentId", encounterDepartmentId)));
 		}
 
 		if (validationException.hasErrors())
@@ -5843,7 +5781,7 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@NotThreadSafe
-	protected static class CsvName {
+	public static class CsvName {
 		@Nullable
 		private final String lastName;
 		@Nullable

@@ -13,4 +13,6 @@ INSERT INTO patient_order_closure_reason VALUES ('SCHEDULED_WITH_BHS', 'Schedule
 -- Example: some institutions might need special UI-driven modifiers, e.g. start a "Standard" vs "Abbreviated" screening session
 ALTER TABLE screening_session ADD COLUMN metadata JSONB NULL;
 
+ALTER TABLE institution ADD COLUMN integrated_care_safety_planning_manager_account_id UUID REFERENCES account (account_id);
+
 COMMIT;
