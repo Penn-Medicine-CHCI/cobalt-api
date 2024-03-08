@@ -2306,6 +2306,10 @@ public class ScreeningService {
 			}
 		}
 
+		// Expose any custom metadata for this session, or the empty object if there is none
+		Map<String, Object> metadata = screeningSession.getMetadata();
+		context.put("metadata", metadata == null ? Map.of() : metadata);
+
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);
 		} catch (JavascriptExecutionException e) {
