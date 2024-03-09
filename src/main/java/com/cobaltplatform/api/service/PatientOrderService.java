@@ -4766,9 +4766,7 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		}
 
-		return new
-
-				PatientOrderImportResult(patientOrderImportId, patientOrderIds);
+		return new PatientOrderImportResult(patientOrderImportId, patientOrderIds);
 	}
 
 	@Nullable
