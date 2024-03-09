@@ -1880,6 +1880,7 @@ public class ScreeningService {
 				request.setPatientOrderId(patientOrderId);
 				request.setTargetAccountId(screeningSession.getTargetAccountId());
 				request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
+				request.setMetadata(screeningSession.getMetadata()); // Carry over metadata from the intake screening session
 
 				UUID icClinicalScreeningSessionId = createScreeningSession(request);
 
