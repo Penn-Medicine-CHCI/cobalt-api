@@ -1593,6 +1593,14 @@ public class ScreeningService {
 									.build();
 							getMessageService().enqueueMessage(callMessage);
 						}
+
+						// Also automatically assign to the institution's designated safety manager, if one exists
+						UUID integratedCareSafetyPlanningManagerAccountId = institution.getIntegratedCareSafetyPlanningManagerAccountId();
+
+						if (integratedCareSafetyPlanningManagerAccountId != null) {
+							Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+							getPatientOrderService().assignPatientOrderToPanelAccount(patientOrder.getPatientOrderId(), integratedCareSafetyPlanningManagerAccountId, serviceAccount.getAccountId());
+						}
 					}
 
 					// TODO: write to patient order event table to keep track of when this happened
