@@ -51,18 +51,14 @@ import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.MessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
-import com.cobaltplatform.api.messaging.call.ConsoleCallMessageSender;
-import com.cobaltplatform.api.messaging.call.TwilioCallMessageSender;
 import com.cobaltplatform.api.messaging.email.AmazonSesEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.ConsoleEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
 import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
-import com.cobaltplatform.api.messaging.sms.ConsoleSmsMessageSender;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
-import com.cobaltplatform.api.messaging.sms.TwilioSmsMessageSender;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountCheckInActionApiResponse.AccountCheckInActionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
@@ -163,7 +159,6 @@ import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.HttpLoggingInterceptor;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.JsonMapper.MappingNullability;
-import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.util.db.WritableMaster;
 import com.cobaltplatform.api.web.filter.AuthorizationFilter;
@@ -627,47 +622,9 @@ public class AppModule extends AbstractModule {
 	@Provides
 	@Singleton
 	@Nonnull
-	public MessageSender<SmsMessage> provideSmsMessageSender(@Nonnull Configuration configuration,
-																													 @Nonnull Normalizer normalizer) {
-		requireNonNull(configuration);
-		requireNonNull(normalizer);
-
-		if (getConfiguration().getShouldSendRealSmsMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/sms"))
-					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
-					.build();
-
-			return new TwilioSmsMessageSender(handlebarsTemplater, normalizer, configuration);
-		}
-
-		return new ConsoleSmsMessageSender();
-	}
-
-	@Provides
-	@Singleton
-	@Nonnull
 	public MessageSerializer<CallMessage> provideCallMessageSerializer(@Nonnull CallMessageSerializer callMessageSerializer) {
 		requireNonNull(callMessageSerializer);
 		return callMessageSerializer;
-	}
-
-	@Provides
-	@Singleton
-	@Nonnull
-	public MessageSender<CallMessage> provideCallMessageSender(@Nonnull Configuration configuration,
-																														 @Nonnull Normalizer normalizer) {
-		requireNonNull(configuration);
-		requireNonNull(normalizer);
-
-		if (getConfiguration().getShouldSendRealCallMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/call"))
-					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
-					.build();
-
-			return new TwilioCallMessageSender(handlebarsTemplater, normalizer, configuration);
-		}
-
-		return new ConsoleCallMessageSender();
 	}
 
 	@Provides

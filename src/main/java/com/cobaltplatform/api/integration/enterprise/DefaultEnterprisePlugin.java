@@ -50,10 +50,18 @@ import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
 import com.cobaltplatform.api.integration.tableau.DefaultTableauClient;
 import com.cobaltplatform.api.integration.tableau.TableauClient;
 import com.cobaltplatform.api.integration.tableau.TableauDirectTrustCredential;
+import com.cobaltplatform.api.integration.twilio.DefaultTwilioRequestValidator;
+import com.cobaltplatform.api.integration.twilio.MockTwilioRequestValidator;
+import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.messaging.call.CallMessage;
+import com.cobaltplatform.api.messaging.call.ConsoleCallMessageSender;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
 import com.cobaltplatform.api.messaging.push.GoogleFcmPushMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.messaging.sms.ConsoleSmsMessageSender;
+import com.cobaltplatform.api.messaging.sms.SmsMessage;
+import com.cobaltplatform.api.messaging.sms.TwilioSmsMessageSender;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType;
 import com.cobaltplatform.api.model.db.Institution;
@@ -168,6 +176,24 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	@Nonnull
+	@Override
+	public MessageSender<SmsMessage> smsMessageSender() {
+		return (MessageSender<SmsMessage>) getExpensiveClientCache().get(ExpensiveClientCacheKey.TWILIO_SMS_MESSAGE_SENDER);
+	}
+
+	@Nonnull
+	@Override
+	public MessageSender<CallMessage> callMessageSender() {
+		return (MessageSender<CallMessage>) getExpensiveClientCache().get(ExpensiveClientCacheKey.TWILIO_CALL_MESSAGE_SENDER);
+	}
+
+	@Nonnull
+	@Override
+	public TwilioRequestValidator twilioRequestValidator() {
+		return (TwilioRequestValidator) getExpensiveClientCache().get(ExpensiveClientCacheKey.TWILIO_REQUEST_VALIDATOR);
+	}
+
+	@Nonnull
 	protected LoadingCache<ExpensiveClientCacheKey, Object> createExpensiveClientCache() {
 		// Keep expensive clients around for a little bit so we don't recreate them constantly.
 		// We keep expiration short so changes to configuration/database (for example) can be reflected
@@ -195,6 +221,12 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 						return uncachedEpicClientForBackendService();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_FCM_PUSH_MESSAGE_SENDER)
 						return uncachedGoogleFcmPushMessageSender();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.TWILIO_SMS_MESSAGE_SENDER)
+						return uncachedTwilioSmsMessageSender();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.TWILIO_CALL_MESSAGE_SENDER)
+						return uncachedTwilioCallMessageSender();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.TWILIO_REQUEST_VALIDATOR)
+						return uncachedTwilioRequestValidator();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.TABLEAU)
 						return uncachedTableauClient();
 
@@ -324,6 +356,54 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	}
 
 	@Nonnull
+	protected MessageSender<SmsMessage> uncachedTwilioSmsMessageSender() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		if (!institution.getSmsMessagesEnabled() || institution.getTwilioAccountSid() == null || institution.getTwilioFromNumber() == null)
+			return new ConsoleSmsMessageSender();
+
+		// Read client secret from AWS Secrets Manager
+		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
+				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+
+		if (twilioAuthToken != null)
+			throw new IllegalStateException("NOT SENDING FOR NOW");
+
+		return new TwilioSmsMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
+				.twilioFromNumber(institution.getTwilioFromNumber())
+				.twilioStatusCallbackUrl(format("%s/twilio/sms-status-callback", getConfiguration().getBaseUrl()))
+				.build();
+	}
+
+	@Nonnull
+	protected MessageSender<CallMessage> uncachedTwilioCallMessageSender() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		if (!institution.getCallMessagesEnabled() || institution.getTwilioAccountSid() == null || institution.getTwilioFromNumber() == null)
+			return new ConsoleCallMessageSender();
+
+		// Read client secret from AWS Secrets Manager
+		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
+				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+
+		throw new UnsupportedOperationException("TODO: implement");
+	}
+
+	@Nonnull
+	protected TwilioRequestValidator uncachedTwilioRequestValidator() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		if (institution.getTwilioAccountSid() == null)
+			return new MockTwilioRequestValidator();
+
+		// Read client secret from AWS Secrets Manager
+		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
+				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+
+		return new DefaultTwilioRequestValidator(twilioAuthToken);
+	}
+
+	@Nonnull
 	protected Optional<MicrosoftClient> uncachedMicrosoftTeamsClientForDaemon() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
@@ -406,6 +486,9 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		MICROSOFT_TEAMS_CLIENT_FOR_DAEMON,
 		EPIC_CLIENT_FOR_BACKEND_SERVICE,
 		GOOGLE_FCM_PUSH_MESSAGE_SENDER,
+		TWILIO_SMS_MESSAGE_SENDER,
+		TWILIO_CALL_MESSAGE_SENDER,
+		TWILIO_REQUEST_VALIDATOR,
 		TABLEAU
 	}
 }

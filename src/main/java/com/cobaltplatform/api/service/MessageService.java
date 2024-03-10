@@ -121,11 +121,7 @@ public class MessageService implements AutoCloseable {
 	@Nonnull
 	private final SmsMessageSerializer smsMessageSerializer;
 	@Nonnull
-	private final MessageSender<SmsMessage> smsMessageSender;
-	@Nonnull
 	private final CallMessageSerializer callMessageSerializer;
-	@Nonnull
-	private final MessageSender<CallMessage> callMessageSender;
 	@Nonnull
 	private final PushMessageSerializer pushMessageSerializer;
 	@Nonnull
@@ -170,9 +166,7 @@ public class MessageService implements AutoCloseable {
 												@Nonnull EmailMessageSerializer emailMessageSerializer,
 												@Nonnull MessageSender<EmailMessage> emailMessageSender,
 												@Nonnull SmsMessageSerializer smsMessageSerializer,
-												@Nonnull MessageSender<SmsMessage> smsMessageSender,
 												@Nonnull CallMessageSerializer callMessageSerializer,
-												@Nonnull MessageSender<CallMessage> callMessageSender,
 												@Nonnull PushMessageSerializer pushMessageSerializer,
 												@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull Configuration configuration,
@@ -187,9 +181,7 @@ public class MessageService implements AutoCloseable {
 		requireNonNull(emailMessageSerializer);
 		requireNonNull(emailMessageSender);
 		requireNonNull(smsMessageSerializer);
-		requireNonNull(smsMessageSender);
 		requireNonNull(callMessageSerializer);
-		requireNonNull(callMessageSender);
 		requireNonNull(pushMessageSerializer);
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
@@ -205,9 +197,7 @@ public class MessageService implements AutoCloseable {
 		this.emailMessageSerializer = emailMessageSerializer;
 		this.emailMessageSender = emailMessageSender;
 		this.smsMessageSerializer = smsMessageSerializer;
-		this.smsMessageSender = smsMessageSender;
 		this.callMessageSerializer = callMessageSerializer;
-		this.callMessageSender = callMessageSender;
 		this.pushMessageSerializer = pushMessageSerializer;
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
@@ -364,10 +354,12 @@ public class MessageService implements AutoCloseable {
 			messageVendorId = getEmailMessageSender().getMessageVendorId();
 		} else if (message.getMessageTypeId() == MessageTypeId.SMS) {
 			serializedMessage = getSmsMessageSerializer().serializeMessage((SmsMessage) message);
-			messageVendorId = getSmsMessageSender().getMessageVendorId();
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(message.getInstitutionId());
+			messageVendorId = enterprisePlugin.callMessageSender().getMessageVendorId();
 		} else if (message.getMessageTypeId() == MessageTypeId.CALL) {
 			serializedMessage = getCallMessageSerializer().serializeMessage((CallMessage) message);
-			messageVendorId = getCallMessageSender().getMessageVendorId();
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(message.getInstitutionId());
+			messageVendorId = enterprisePlugin.callMessageSender().getMessageVendorId();
 		} else if (message.getMessageTypeId() == MessageTypeId.PUSH) {
 			PushMessage pushMessage = (PushMessage) message;
 			serializedMessage = getPushMessageSerializer().serializeMessage(pushMessage);
@@ -782,10 +774,10 @@ public class MessageService implements AutoCloseable {
 				messageSender = getEmailMessageSender();
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.SMS) {
 				deserializedMessage = getSmsMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
-				messageSender = getSmsMessageSender();
+				messageSender = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution().smsMessageSender();
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.CALL) {
 				deserializedMessage = getCallMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
-				messageSender = getCallMessageSender();
+				messageSender = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution().callMessageSender();
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.PUSH) {
 				deserializedMessage = getPushMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
 				PushMessage pushMessage = (PushMessage) deserializedMessage;
@@ -919,18 +911,8 @@ public class MessageService implements AutoCloseable {
 		}
 
 		@Nonnull
-		protected MessageSender<SmsMessage> getSmsMessageSender() {
-			return this.smsMessageSender;
-		}
-
-		@Nonnull
 		protected SmsMessageSerializer getSmsMessageSerializer() {
 			return this.smsMessageSerializer;
-		}
-
-		@Nonnull
-		protected MessageSender<CallMessage> getCallMessageSender() {
-			return this.callMessageSender;
 		}
 
 		@Nonnull
@@ -1230,18 +1212,8 @@ public class MessageService implements AutoCloseable {
 	}
 
 	@Nonnull
-	protected MessageSender<SmsMessage> getSmsMessageSender() {
-		return this.smsMessageSender;
-	}
-
-	@Nonnull
 	protected CallMessageSerializer getCallMessageSerializer() {
 		return this.callMessageSerializer;
-	}
-
-	@Nonnull
-	protected MessageSender<CallMessage> getCallMessageSender() {
-		return this.callMessageSender;
 	}
 
 	@Nonnull

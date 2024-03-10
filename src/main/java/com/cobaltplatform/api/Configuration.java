@@ -250,14 +250,6 @@ public class Configuration {
 	@Nonnull
 	private final Long acuityVideoconferenceFormFieldId;
 	@Nonnull
-	private final String twilioFromNumber;
-	@Nonnull
-	private final String twilioSid;
-	@Nonnull
-	private final String twilioAccountSid;
-	@Nonnull
-	private final String twilioAuthToken;
-	@Nonnull
 	private final String way2HealthAccessToken;
 	@Nonnull
 	private final Way2HealthEnvironment way2HealthEnvironment;
@@ -434,11 +426,6 @@ public class Configuration {
 		this.acuityUserId = valueFor("com.cobaltplatform.api.acuity.userId", String.class);
 		this.acuityApiKey = valueFor("com.cobaltplatform.api.acuity.apiKey", String.class);
 		this.acuityVideoconferenceFormFieldId = valueFor("com.cobaltplatform.api.acuity.videoconferenceFormFieldId", Long.class);
-
-		this.twilioFromNumber = valueFor("com.cobaltplatform.api.twilio.fromNumber", String.class);
-		this.twilioSid = valueFor("com.cobaltplatform.api.twilio.sid", String.class);
-		this.twilioAccountSid = valueFor("com.cobaltplatform.api.twilio.accountSid", String.class);
-		this.twilioAuthToken = valueFor("com.cobaltplatform.api.twilio.authToken", String.class);
 
 		this.way2HealthAccessToken = valueFor("com.cobaltplatform.api.way2health.accessToken", String.class);
 		this.way2HealthEnvironment = valueFor("com.cobaltplatform.api.way2health.environment", Way2HealthEnvironment.class);
@@ -1385,27 +1372,6 @@ public class Configuration {
 	@Nonnull
 	public Long getAcuityVideoconferenceFormFieldId() {
 		return acuityVideoconferenceFormFieldId;
-	}
-
-
-	@Nonnull
-	public String getTwilioFromNumber() {
-		return twilioFromNumber;
-	}
-
-	@Nonnull
-	public String getTwilioSid() {
-		return twilioSid;
-	}
-
-	@Nonnull
-	public String getTwilioAccountSid() {
-		return twilioAccountSid;
-	}
-
-	@Nonnull
-	public String getTwilioAuthToken() {
-		return twilioAuthToken;
 	}
 
 	@Nonnull
