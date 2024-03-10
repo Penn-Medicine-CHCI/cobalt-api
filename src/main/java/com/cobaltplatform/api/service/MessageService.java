@@ -652,11 +652,7 @@ public class MessageService implements AutoCloseable {
 		@Nonnull
 		private final EmailMessageSerializer emailMessageSerializer;
 		@Nonnull
-		private final MessageSender<SmsMessage> smsMessageSender;
-		@Nonnull
 		private final SmsMessageSerializer smsMessageSerializer;
-		@Nonnull
-		private final MessageSender<CallMessage> callMessageSender;
 		@Nonnull
 		private final CallMessageSerializer callMessageSerializer;
 		@Nonnull
@@ -681,9 +677,7 @@ public class MessageService implements AutoCloseable {
 													 @Nonnull EmailMessageSerializer emailMessageSerializer,
 													 @Nonnull MessageSender<EmailMessage> emailMessageSender,
 													 @Nonnull SmsMessageSerializer smsMessageSerializer,
-													 @Nonnull MessageSender<SmsMessage> smsMessageSender,
 													 @Nonnull CallMessageSerializer callMessageSerializer,
-													 @Nonnull MessageSender<CallMessage> callMessageSender,
 													 @Nonnull PushMessageSerializer pushMessageSerializer,
 													 @Nonnull DatabaseProvider databaseProvider,
 													 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
@@ -695,9 +689,7 @@ public class MessageService implements AutoCloseable {
 			requireNonNull(emailMessageSerializer);
 			requireNonNull(emailMessageSender);
 			requireNonNull(smsMessageSerializer);
-			requireNonNull(smsMessageSender);
 			requireNonNull(callMessageSerializer);
-			requireNonNull(callMessageSender);
 			requireNonNull(pushMessageSerializer);
 			requireNonNull(databaseProvider);
 			requireNonNull(enterprisePluginProvider);
@@ -710,10 +702,8 @@ public class MessageService implements AutoCloseable {
 			this.emailMessageSerializer = emailMessageSerializer;
 			this.emailMessageSender = emailMessageSender;
 			this.smsMessageSerializer = smsMessageSerializer;
-			this.smsMessageSender = smsMessageSender;
 			this.callMessageSerializer = callMessageSerializer;
 			this.pushMessageSerializer = pushMessageSerializer;
-			this.callMessageSender = callMessageSender;
 			this.databaseProvider = databaseProvider;
 			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
