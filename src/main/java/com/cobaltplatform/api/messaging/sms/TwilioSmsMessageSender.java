@@ -156,7 +156,7 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 				.collect(Collectors.joining("&"));
 
 		HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.POST, requestUrl)
-				.contentType("application/json; charset=utf-8")
+				.contentType("application/x-www-form-urlencoded; charset=utf-8")
 				.headers(requestHeaders)
 				.body(requestBody)
 				.build();

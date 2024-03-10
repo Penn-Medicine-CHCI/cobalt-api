@@ -41,6 +41,8 @@ import java.util.Locale;
 import java.util.Map;
 
 import static com.soklet.util.LoggingUtils.initializeLogback;
+import static java.lang.String.format;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -56,8 +58,14 @@ public class TwilioTests {
 	public void sendSmsMessage() {
 		TwilioTestConfig twilioTestConfig = loadTwilioTestConfig();
 
+		String twilioStatusCallbackUrl = trimToNull(twilioTestConfig.getTwilioStatusCallbackBaseUrl());
+
+		if (twilioStatusCallbackUrl != null)
+			twilioStatusCallbackUrl = format("%s/twilio/%s/message-status-callback", twilioStatusCallbackUrl, InstitutionId.COBALT_IC);
+
 		TwilioSmsMessageSender twilioSmsMessageSender = new TwilioSmsMessageSender.Builder(twilioTestConfig.getTwilioAccountSid(), twilioTestConfig.getTwilioAuthToken())
 				.twilioFromNumber(twilioTestConfig.getFromPhoneNumber())
+				.twilioStatusCallbackUrl(twilioStatusCallbackUrl)
 				.build();
 
 		SmsMessage smsMessage = new SmsMessage.Builder(InstitutionId.COBALT, SmsMessageTemplate.IC_WELCOME, twilioTestConfig.getToPhoneNumber(), Locale.US)
@@ -89,6 +97,8 @@ public class TwilioTests {
 		@Nullable
 		private String twilioAuthToken;
 		@Nullable
+		private String twilioStatusCallbackBaseUrl;
+		@Nullable
 		private String toPhoneNumber;
 		@Nullable
 		private String fromPhoneNumber;
@@ -109,6 +119,15 @@ public class TwilioTests {
 
 		public void setTwilioAuthToken(@Nullable String twilioAuthToken) {
 			this.twilioAuthToken = twilioAuthToken;
+		}
+
+		@Nullable
+		public String getTwilioStatusCallbackBaseUrl() {
+			return this.twilioStatusCallbackBaseUrl;
+		}
+
+		public void setTwilioStatusCallbackBaseUrl(@Nullable String twilioStatusCallbackBaseUrl) {
+			this.twilioStatusCallbackBaseUrl = twilioStatusCallbackBaseUrl;
 		}
 
 		@Nullable
