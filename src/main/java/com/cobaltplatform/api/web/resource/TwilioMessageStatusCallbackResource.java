@@ -21,16 +21,20 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.twilio.TwilioError;
 import com.cobaltplatform.api.integration.twilio.TwilioErrorResolver;
 import com.cobaltplatform.api.integration.twilio.TwilioMessageStatus;
-import com.cobaltplatform.api.integration.twilio.TwilioRequestBody;
+import com.cobaltplatform.api.integration.twilio.TwilioMessageWebhookRequestBody;
 import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageLog;
 import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.util.WebUtility;
 import com.soklet.web.annotation.POST;
+import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.RequestHeader;
 import com.soklet.web.annotation.Resource;
@@ -57,13 +61,13 @@ import static java.util.Objects.requireNonNull;
 @Resource
 @Singleton
 @ThreadSafe
-public class TwilioSmsStatusCallbackResource {
+public class TwilioMessageStatusCallbackResource {
 	@Nonnull
 	private final MessageService messageService;
 	@Nonnull
 	private final ErrorReporter errorReporter;
 	@Nonnull
-	private final TwilioRequestValidator twilioRequestValidator;
+	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final TwilioErrorResolver twilioErrorResolver;
 	@Nonnull
@@ -72,39 +76,41 @@ public class TwilioSmsStatusCallbackResource {
 	private final Logger logger;
 
 	@Inject
-	public TwilioSmsStatusCallbackResource(@Nonnull MessageService messageService,
-																				 @Nonnull ErrorReporter errorReporter,
-																				 @Nonnull TwilioRequestValidator twilioRequestValidator,
-																				 @Nonnull TwilioErrorResolver twilioErrorResolver,
-																				 @Nonnull Configuration configuration) {
+	public TwilioMessageStatusCallbackResource(@Nonnull MessageService messageService,
+																						 @Nonnull ErrorReporter errorReporter,
+																						 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+																						 @Nonnull TwilioErrorResolver twilioErrorResolver,
+																						 @Nonnull Configuration configuration) {
 		requireNonNull(messageService);
 		requireNonNull(errorReporter);
-		requireNonNull(twilioRequestValidator);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(twilioErrorResolver);
 		requireNonNull(configuration);
 
 		this.messageService = messageService;
 		this.errorReporter = errorReporter;
-		this.twilioRequestValidator = twilioRequestValidator;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.twilioErrorResolver = twilioErrorResolver;
 		this.configuration = configuration;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	// Twilio sends an application/x-www-form-urlencoded POST to us
-	@POST("/twilio/sms-status-callback")
+	@POST("/twilio/{institutionId}/message-status-callback")
 	public void smsStatusCallback(@Nonnull HttpServletRequest httpServletRequest,
+																@Nonnull @PathParameter InstitutionId institutionId,
 																@Nonnull @RequestHeader("X-Twilio-Signature") String twilioSignature,
 																@Nonnull @RequestHeader("I-Twilio-Idempotency-Token") Optional<String> twilioIdempotencyToken,
 																@Nonnull @RequestBody String requestBody) {
 		requireNonNull(httpServletRequest);
+		requireNonNull(institutionId);
 		requireNonNull(twilioSignature);
 		requireNonNull(twilioIdempotencyToken);
 		requireNonNull(requestBody);
 
 		String requestUrl = getConfiguration().getBaseUrl() + WebUtility.httpServletRequestUrl(httpServletRequest);
 
-		getLogger().info("Received SMS status callback from Twilio. Signature is '{}', idempotency token is '{}', request body is '{}'",
+		getLogger().info("Received message status callback from Twilio. Signature is '{}', idempotency token is '{}', request body is '{}'",
 				twilioSignature, twilioIdempotencyToken.orElse(null), requestBody);
 
 		Map<String, String> requestHeaders = new HashMap<>();
@@ -114,16 +120,19 @@ public class TwilioSmsStatusCallbackResource {
 			requestHeaders.put(headerName, httpServletRequest.getHeader(headerName));
 		}
 
-		boolean valid = getTwilioRequestValidator().validateRequest(requestUrl, twilioSignature, requestBody);
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+		TwilioRequestValidator twilioRequestValidator = enterprisePlugin.twilioRequestValidator();
+
+		boolean valid = twilioRequestValidator.validateRequest(requestUrl, twilioSignature, requestBody);
 
 		if (!valid) {
 			getErrorReporter().report(format("Unable to validate Twilio webhook with request body: %s", requestBody));
 			throw new AuthorizationException();
 		}
 
-		TwilioRequestBody twilioRequestBody = new TwilioRequestBody(requestBody);
+		TwilioMessageWebhookRequestBody twilioMessageWebhookRequestBody = new TwilioMessageWebhookRequestBody(requestBody);
 
-		String vendorAssignedId = twilioRequestBody.getParameters().get("MessageSid");
+		String vendorAssignedId = twilioMessageWebhookRequestBody.getParameters().get("MessageSid");
 		MessageVendorId messageVendorId = MessageVendorId.TWILIO;
 		MessageLog messageLog = getMessageService().findMessageLogByVendorAssignedId(vendorAssignedId, messageVendorId).orElse(null);
 
@@ -139,7 +148,7 @@ public class TwilioSmsStatusCallbackResource {
 			// Based on notification, update message status
 			getMessageService().createMessageLogEvent(messageLog.getMessageId(), requestHeaders, requestBody);
 
-			TwilioMessageStatus twilioMessageStatus = twilioRequestBody.getTwilioMessageStatus().orElse(null);
+			TwilioMessageStatus twilioMessageStatus = twilioMessageWebhookRequestBody.getTwilioMessageStatus().orElse(null);
 
 			boolean deliverySucceeded = twilioMessageStatus == TwilioMessageStatus.DELIVERED;
 
@@ -152,7 +161,7 @@ public class TwilioSmsStatusCallbackResource {
 			} else if (deliveryFailed) {
 				String deliveryFailedReason = "Unknown error";
 
-				String errorCode = twilioRequestBody.getParameters().get("ErrorCode");
+				String errorCode = twilioMessageWebhookRequestBody.getParameters().get("ErrorCode");
 				TwilioError twilioError = getTwilioErrorResolver().resolveTwilioErrorForErrorCode(errorCode).orElse(null);
 
 				if (twilioError != null) {
@@ -181,8 +190,8 @@ public class TwilioSmsStatusCallbackResource {
 	}
 
 	@Nonnull
-	protected TwilioRequestValidator getTwilioRequestValidator() {
-		return this.twilioRequestValidator;
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull

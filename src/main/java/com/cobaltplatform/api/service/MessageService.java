@@ -26,7 +26,7 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestBody;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
-import com.cobaltplatform.api.integration.twilio.TwilioRequestBody;
+import com.cobaltplatform.api.integration.twilio.TwilioMessageWebhookRequestBody;
 import com.cobaltplatform.api.messaging.Message;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.call.CallMessage;
@@ -559,7 +559,7 @@ public class MessageService implements AutoCloseable {
 		Map<String, Object> webhookPayload = new HashMap<>();
 
 		if (messageLog.getMessageVendorId() == MessageVendorId.TWILIO) {
-			TwilioRequestBody twilioRequestBody = new TwilioRequestBody(webhookRequestBody);
+			TwilioMessageWebhookRequestBody twilioRequestBody = new TwilioMessageWebhookRequestBody(webhookRequestBody);
 			webhookPayload.putAll(twilioRequestBody.getParameters());
 		} else if (messageLog.getMessageVendorId() == MessageVendorId.AMAZON_SES) {
 			AmazonSnsRequestBody amazonSnsRequestBody = new AmazonSnsRequestBody(webhookRequestBody);

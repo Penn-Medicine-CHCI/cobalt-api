@@ -68,7 +68,7 @@ public class DefaultTwilioRequestValidator implements TwilioRequestValidator {
 		// 4. Sign the resulting string with HMAC-SHA1 using your AuthToken as the key (remember, your AuthToken's case matters!).
 		// 5. Base64 encode the resulting hash value.
 		// 6. Compare your hash to ours, submitted in the X-Twilio-Signature header. If they match, then you're good to go.
-		TwilioRequestBody twilioRequestBody = new TwilioRequestBody(requestBody);
+		TwilioMessageWebhookRequestBody twilioRequestBody = new TwilioMessageWebhookRequestBody(requestBody);
 		SortedMap<String, String> sortedRequestBodyParameters = new TreeMap<>(twilioRequestBody.getParameters());
 
 		String hashableString = requestUrl + sortedRequestBodyParameters.entrySet().stream()

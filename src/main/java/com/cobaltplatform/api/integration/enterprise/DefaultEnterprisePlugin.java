@@ -371,7 +371,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 
 		return new TwilioSmsMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
 				.twilioFromNumber(institution.getTwilioFromNumber())
-				.twilioStatusCallbackUrl(format("%s/twilio/sms-status-callback", getConfiguration().getBaseUrl()))
+				.twilioStatusCallbackUrl(format("%s/twilio/%s/message-status-callback", getConfiguration().getBaseUrl(), getInstitutionId().name()))
 				.build();
 	}
 

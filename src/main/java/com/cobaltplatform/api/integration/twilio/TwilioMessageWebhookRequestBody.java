@@ -37,13 +37,13 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
-public class TwilioRequestBody {
+public class TwilioMessageWebhookRequestBody {
 	@Nullable
 	private final TwilioMessageStatus twilioMessageStatus;
 	@Nonnull
 	private final Map<String, String> parameters;
 
-	public TwilioRequestBody(@Nonnull String requestBody) {
+	public TwilioMessageWebhookRequestBody(@Nonnull String requestBody) {
 		requireNonNull(requestBody);
 
 		Map<String, String> parameters = new HashMap<>();
@@ -58,7 +58,7 @@ public class TwilioRequestBody {
 		this.twilioMessageStatus = twilioMessageStatusFromParameters(this.parameters).orElse(null);
 	}
 
-	public TwilioRequestBody(@Nonnull Map<String, String> parameters) {
+	public TwilioMessageWebhookRequestBody(@Nonnull Map<String, String> parameters) {
 		requireNonNull(parameters);
 
 		this.parameters = Collections.unmodifiableMap(new HashMap<>(parameters));
