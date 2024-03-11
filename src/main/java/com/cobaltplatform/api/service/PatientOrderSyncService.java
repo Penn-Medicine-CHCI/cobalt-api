@@ -276,7 +276,7 @@ public class PatientOrderSyncService implements AutoCloseable {
 								importRequest.setInstitutionId(institution.getInstitutionId());
 								importRequest.setAccountId(serviceAccount.getAccountId());
 								importRequest.setHl7GeneralOrderTriggerEventMessage(generalOrderHl7AsString);
-								importRequest.setAutomaticallyAssignToPanelAccounts(true);
+								importRequest.setAutomaticallyAssignToPanelAccounts(false);
 								importRequest.setFilename(s3Object.key());
 
 								getPatientOrderService().createPatientOrderImport(importRequest);

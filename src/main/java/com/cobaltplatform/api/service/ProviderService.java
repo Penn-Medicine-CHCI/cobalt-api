@@ -428,6 +428,7 @@ public class ProviderService {
 		boolean includePastAvailability = request.getIncludePastAvailability() == null ? false : request.getIncludePastAvailability();
 		LocalDateTime currentDateTime = includePastAvailability ? LocalDateTime.of(startDate, startTime) : LocalDateTime.now(account.getTimeZone());
 		LocalDate currentDate = currentDateTime.toLocalDate();
+		UUID patientOrderId = request.getPatientOrderId();
 		ValidationException validationException = new ValidationException();
 		UUID institutionLocationId = request.getInstitutionLocationId();
 
@@ -472,7 +473,10 @@ public class ProviderService {
 			if (visitTypeIds.size() > 0)
 				query.append(", provider_appointment_type pat, v_appointment_type at");
 
-			query.append(" WHERE institution_id=? AND p.active=TRUE");
+			if (patientOrderId != null)
+				query.append(", patient_order po");
+
+			query.append(" WHERE p.institution_id=? AND p.active=TRUE");
 			parameters.add(institutionId);
 
 			if (supportRoleIds.size() > 0) {
@@ -526,6 +530,19 @@ public class ProviderService {
 				query.append(") ");
 			}
 
+			// If this is an IC order, only expose providers that are currently associated with the order's department
+			if (patientOrderId != null) {
+				query.append("""
+						AND p.provider_id IN (
+						  SELECT ped.provider_id
+						  FROM provider_epic_department ped, patient_order po
+						  WHERE po.epic_department_id=ped.epic_department_id
+						  AND po.patient_order_id=?
+						)
+						""");
+				parameters.add(patientOrderId);
+			}
+
 			query.append(" AND p.system_affinity_id=? ");
 			parameters.add(systemAffinityId);
 
@@ -534,7 +551,7 @@ public class ProviderService {
 			providers = getDatabase().queryForList(query.toString(), Provider.class, parameters.toArray(new Object[]{}));
 
 			if (getLogger().isTraceEnabled()) {
-				getLogger().trace("Query: {}\nParameters: {}", query.toString(), parameters);
+				getLogger().trace("Query: {}\nParameters: {}", query, parameters);
 				getLogger().trace("Providers: {}", providers.stream().map(provider -> provider.getName()).collect(Collectors.toList()));
 			}
 		}
@@ -710,6 +727,19 @@ public class ProviderService {
 			datesCommand.setCurrentDate(currentDate);
 			datesCommand.setDaysOfWeek(daysOfWeek);
 			datesCommand.setAvailability(availability);
+			datesCommand.setEpicDepartmentIds(Set.of());
+
+			// For IC, we discard any availability slots that are not relevant for the order's Epic department
+			if (patientOrderId != null) {
+				UUID patientOrderEpicDepartmentId = getDatabase().queryForObject("""
+									SELECT epic_department_id
+									FROM patient_order
+									WHERE patient_order_id=?
+						""", UUID.class, patientOrderId).orElse(null);
+
+				if (patientOrderEpicDepartmentId != null)
+					datesCommand.setEpicDepartmentIds(Set.of(patientOrderEpicDepartmentId));
+			}
 
 			List<AvailabilityDate> dates = new ArrayList<>();
 
@@ -1707,6 +1737,13 @@ public class ProviderService {
 			providerAvailabilityParameters.addAll(command.getVisitTypeIds());
 		}
 
+		if (command.getEpicDepartmentIds().size() > 0) {
+			providerAvailabilityQuery.append(" AND pa.epic_department_id IN ");
+			providerAvailabilityQuery.append(sqlInListPlaceholders(command.getEpicDepartmentIds()));
+
+			providerAvailabilityParameters.addAll(command.getEpicDepartmentIds());
+		}
+
 		providerAvailabilities = getDatabase().queryForList(providerAvailabilityQuery.toString(), ProviderAvailability.class, providerAvailabilityParameters.toArray(new Object[]{}));
 
 		Map<LocalDate, AvailabilityDate> availabilityDatesByDate = new HashMap<>(14);
@@ -1924,6 +1961,8 @@ public class ProviderService {
 		@Nullable
 		private Set<DayOfWeek> daysOfWeek;
 		@Nullable
+		private Set<UUID> epicDepartmentIds;
+		@Nullable
 		private ProviderFindAvailability availability;
 
 		@Override
@@ -2002,6 +2041,15 @@ public class ProviderService {
 
 		public void setDaysOfWeek(@Nullable Set<DayOfWeek> daysOfWeek) {
 			this.daysOfWeek = daysOfWeek;
+		}
+
+		@Nullable
+		public Set<UUID> getEpicDepartmentIds() {
+			return this.epicDepartmentIds;
+		}
+
+		public void setEpicDepartmentIds(@Nullable Set<UUID> epicDepartmentIds) {
+			this.epicDepartmentIds = epicDepartmentIds;
 		}
 
 		@Nullable

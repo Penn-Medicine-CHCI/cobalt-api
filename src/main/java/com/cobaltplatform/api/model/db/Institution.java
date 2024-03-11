@@ -302,6 +302,15 @@ public class Institution {
 	@Nullable
 	private UUID integratedCareSafetyPlanningManagerAccountId;
 
+	@Nullable
+	private String twilioAccountSid;
+	@Nullable
+	private String twilioFromNumber;
+	@Nullable
+	private Boolean callMessagesEnabled;
+	@Nullable
+	private Boolean smsMessagesEnabled;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1412,5 +1421,41 @@ public class Institution {
 
 	public void setIntegratedCareSafetyPlanningManagerAccountId(@Nullable UUID integratedCareSafetyPlanningManagerAccountId) {
 		this.integratedCareSafetyPlanningManagerAccountId = integratedCareSafetyPlanningManagerAccountId;
+	}
+
+	@Nullable
+	public String getTwilioAccountSid() {
+		return this.twilioAccountSid;
+	}
+
+	public void setTwilioAccountSid(@Nullable String twilioAccountSid) {
+		this.twilioAccountSid = twilioAccountSid;
+	}
+
+	@Nullable
+	public String getTwilioFromNumber() {
+		return this.twilioFromNumber;
+	}
+
+	public void setTwilioFromNumber(@Nullable String twilioFromNumber) {
+		this.twilioFromNumber = twilioFromNumber;
+	}
+
+	@Nullable
+	public Boolean getCallMessagesEnabled() {
+		return this.callMessagesEnabled;
+	}
+
+	public void setCallMessagesEnabled(@Nullable Boolean callMessagesEnabled) {
+		this.callMessagesEnabled = callMessagesEnabled;
+	}
+
+	@Nullable
+	public Boolean getSmsMessagesEnabled() {
+		return this.smsMessagesEnabled;
+	}
+
+	public void setSmsMessagesEnabled(@Nullable Boolean smsMessagesEnabled) {
+		this.smsMessagesEnabled = smsMessagesEnabled;
 	}
 }

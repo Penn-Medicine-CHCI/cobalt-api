@@ -19,9 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint;
 import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
-import com.cobaltplatform.api.model.db.ScreeningAnswerFormat;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 

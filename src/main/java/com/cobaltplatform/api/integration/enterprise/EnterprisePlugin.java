@@ -33,10 +33,16 @@ import com.cobaltplatform.api.integration.microsoft.MicrosoftClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MockMixpanelClient;
 import com.cobaltplatform.api.integration.tableau.TableauClient;
+import com.cobaltplatform.api.integration.twilio.MockTwilioRequestValidator;
+import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.messaging.call.CallMessage;
+import com.cobaltplatform.api.messaging.call.ConsoleCallMessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
+import com.cobaltplatform.api.messaging.sms.ConsoleSmsMessageSender;
+import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
@@ -167,6 +173,21 @@ public interface EnterprisePlugin {
 	@Nonnull
 	default MessageSender<PushMessage> pushMessageSenderForPushTokenTypeId(@Nonnull ClientDevicePushTokenTypeId clientDevicePushTokenTypeId) {
 		return new ConsolePushMessageSender();
+	}
+
+	@Nonnull
+	default MessageSender<SmsMessage> smsMessageSender() {
+		return new ConsoleSmsMessageSender();
+	}
+
+	@Nonnull
+	default MessageSender<CallMessage> callMessageSender() {
+		return new ConsoleCallMessageSender();
+	}
+
+	@Nonnull
+	default TwilioRequestValidator twilioRequestValidator() {
+		return new MockTwilioRequestValidator();
 	}
 
 	@Nonnull

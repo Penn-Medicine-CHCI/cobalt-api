@@ -100,7 +100,6 @@ import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
-import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType;
@@ -803,6 +802,12 @@ public class AppointmentService {
 				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
 		}
 
+		// Short-circuit right away if no account
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
 		if (date == null)
 			validationException.add(new FieldError("date", getStrings().get("Date is required.")));
 
@@ -810,7 +815,7 @@ public class AppointmentService {
 			validationException.add(new FieldError("time", getStrings().get("Time is required.")));
 
 		// If account has no email address and none was passed in, force user to provide one (unless they are IC users...then it's optional)
-		if (emailAddress == null && account != null && account.getEmailAddress() == null && account.getSourceSystemId() != SourceSystemId.IC) {
+		if (emailAddress == null && account != null && account.getEmailAddress() == null && !institution.getIntegratedCareEnabled()) {
 			validationException.add(new FieldError("emailAddress", getStrings().get("An email address is required to book an appointment.")));
 
 			Map<String, Object> metadata = new HashMap<>();
@@ -845,7 +850,6 @@ public class AppointmentService {
 			throw validationException;
 
 		Provider provider = getProviderService().findProviderById(providerId).get();
-		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR && epicAppointmentFhirId == null)
@@ -854,29 +858,33 @@ public class AppointmentService {
 		if (appointmentReasonId == null)
 			appointmentReasonId = findNotSpecifiedAppointmentReasonByInstitutionId(institution.getInstitutionId()).getAppointmentReasonId();
 
-		// If email address was provided, update the account's email on file
-		if (emailAddress != null) {
-			String pinnedEmailAddress = emailAddress;
-			getAccountService().updateAccountEmailAddress(new UpdateAccountEmailAddressRequest() {{
-				setAccountId(accountId);
-				setEmailAddress(pinnedEmailAddress);
-			}});
-		} else {
-			emailAddress = account.getEmailAddress();
-		}
+		// Update account data for non-IC institutions
+		if (!institution.getIntegratedCareEnabled()) {
+			// If email address was provided for non-IC scenarios, update the account's email on file
+			if (emailAddress != null) {
+				String pinnedEmailAddress = emailAddress;
+				getAccountService().updateAccountEmailAddress(new UpdateAccountEmailAddressRequest() {{
+					setAccountId(accountId);
+					setEmailAddress(pinnedEmailAddress);
+				}});
+			} else {
+				emailAddress = account.getEmailAddress();
+			}
 
-		if (!getAccountService().isEmailAddressVerifiedForAccountId(emailAddress, accountId))
-			throw new ValidationException(getStrings().get("Sorry, you must validate your email address before booking an appointment."));
+			// Only care about validated email addresses for non-IC accounts
+			if (!getAccountService().isEmailAddressVerifiedForAccountId(emailAddress, accountId))
+				throw new ValidationException(getStrings().get("Sorry, you must validate your email address before booking an appointment."));
 
-		// If phone number was provided and account has no phone number, permit updating the account's phone number on file
-		if (phoneNumber != null && account.getPhoneNumber() == null) {
-			String pinnedPhoneNumber = phoneNumber;
-			getAccountService().updateAccountPhoneNumber(new UpdateAccountPhoneNumberRequest() {{
-				setAccountId(accountId);
-				setPhoneNumber(pinnedPhoneNumber);
-			}});
-		} else {
-			phoneNumber = account.getPhoneNumber();
+			// If phone number was provided and account has no phone number, permit updating the account's phone number on file
+			if (phoneNumber != null && account.getPhoneNumber() == null) {
+				String pinnedPhoneNumber = phoneNumber;
+				getAccountService().updateAccountPhoneNumber(new UpdateAccountPhoneNumberRequest() {{
+					setAccountId(accountId);
+					setPhoneNumber(pinnedPhoneNumber);
+				}});
+			} else {
+				phoneNumber = account.getPhoneNumber();
+			}
 		}
 
 		AcuityAppointmentType acuityAppointmentType = null;
@@ -1689,6 +1697,12 @@ public class AppointmentService {
 
 		if (appointment.getVideoconferencePlatformId() == VideoconferencePlatformId.SWITCHBOARD) {
 			getLogger().debug("Appointment ID {} is Switchboard-backed, so don't send out booking emails.", appointment.getAppointmentId());
+			return;
+		}
+
+		// Failsafe; we shouldn't get here
+		if (appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC || appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
+			getLogger().warn("Appointment ID {} is Epic-backed, so don't send out booking emails.", appointment.getAppointmentId());
 			return;
 		}
 

@@ -148,7 +148,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
-import com.cobaltplatform.api.model.db.ScreeningType;
+import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.Encounter;
@@ -2783,24 +2783,8 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrder == null)
 			return List.of();
 
-		// TODO: remove, this is for testing
-		if (getConfiguration().isLocal()) {
-			Encounter mockEncounter = new Encounter();
-			mockEncounter.setCsn("123456789");
-			mockEncounter.setStatus("finished");
-			mockEncounter.setSubjectDisplay("Pbtest, Aetna");
-			mockEncounter.setClassDisplay("Appointment");
-			mockEncounter.setPeriodStart(LocalDateTime.of(LocalDate.of(2022, 6, 29), LocalTime.of(10, 20)));
-			mockEncounter.setPeriodEnd(LocalDateTime.of(LocalDate.of(2022, 6, 29), LocalTime.of(10, 40)));
-
-			return List.of(mockEncounter);
-		}
-
 		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(patientOrder.getInstitutionId());
-
-		// TODO: remove, this is for testing
-		// patientOrder.setPatientUniqueId("XXXX");
 
 		EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 		PatientSearchResponse patientSearchResponse = epicClient.patientSearchFhirR4(patientOrder.getPatientUniqueIdType(), patientOrder.getPatientUniqueId());
@@ -2837,6 +2821,9 @@ public class PatientOrderService implements AutoCloseable {
 
 					if (resource.getClassValue() != null)
 						encounter.setClassDisplay(trimToNull(resource.getClassValue().getDisplay()));
+
+					if (resource.getType() != null && resource.getType().size() > 0)
+						encounter.setFirstTypeText(trimToNull(resource.getType().get(0).getText()));
 
 					if (resource.getServiceType() != null)
 						encounter.setServiceTypeText(trimToNull(resource.getServiceType().getText()));
@@ -3818,11 +3805,6 @@ public class PatientOrderService implements AutoCloseable {
 		lines.add("-----------------------------------------------");
 		lines.add(getStrings().get("VISIT SUMMARY / TREATMENT PLAN"));
 
-		if (institution.getIntegratedCareClinicalReportDisclaimer() != null) {
-			lines.add("");
-			lines.add(institution.getIntegratedCareClinicalReportDisclaimer());
-		}
-
 		lines.add("");
 		lines.add(getStrings().get("PATIENT: {{name}} (MRN {{mrn}})",
 				Map.of("name", Normalizer.normalizeName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null),
@@ -3830,8 +3812,9 @@ public class PatientOrderService implements AutoCloseable {
 				)
 		));
 		lines.add("");
-		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{ageInYears}} year old patient completed the {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
+		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{ageInYears}} year old patient completed the {{platform}} {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
 				Map.of(
+						"platform", (completedScreeningSession.getCreatedByAccountId().equals(completedScreeningSession.getTargetAccountId()) ? getStrings().get("digital") : getStrings().get("phone")),
 						"ageInYears", patientOrder.getPatientAgeOnOrderDate(),
 						"integratedCareProgramName", institution.getIntegratedCareProgramName(),
 						"assessmentDate", getFormatter().formatTimestamp(completedScreeningSession.getCompletedAt(), FormatStyle.FULL, FormatStyle.SHORT, institution.getTimeZone()),
@@ -3936,9 +3919,9 @@ public class PatientOrderService implements AutoCloseable {
 
 		for (ScreeningSessionScreeningResult screeningSessionScreeningResult : screeningSessionResult.getScreeningSessionScreeningResults()) {
 			// We don't care about these scores for the clinical report
-			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO
-					|| screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO_SYMPTOMS
-					|| screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO_CONDITIONS)
+			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.IC_INTRO
+					|| screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.IC_INTRO_SYMPTOMS
+					|| screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.IC_INTRO_CONDITIONS)
 				continue;
 
 			lines.add(getStrings().get("* {{screeningName}} ({{score}})", Map.of(
@@ -3955,7 +3938,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		for (ScreeningSessionScreeningResult screeningSessionScreeningResult : screeningSessionResult.getScreeningSessionScreeningResults()) {
 			// We don't care about these scores for the clinical report
-			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningType.ScreeningTypeId.IC_INTRO)
+			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.IC_INTRO)
 				continue;
 
 			lines.add("");
@@ -3984,6 +3967,11 @@ public class PatientOrderService implements AutoCloseable {
 						.map(screeningAnswerResult -> screeningAnswerResult.getText() == null ? screeningAnswerResult.getAnswerOptionText() : format("%s (%s)", screeningAnswerResult.getAnswerOptionText(), screeningAnswerResult.getText()))
 						.collect(Collectors.joining(", ")))));
 			}
+		}
+
+		if (institution.getIntegratedCareClinicalReportDisclaimer() != null) {
+			lines.add("");
+			lines.add(institution.getIntegratedCareClinicalReportDisclaimer());
 		}
 
 		return lines.stream().collect(Collectors.joining("\n"));
@@ -4766,9 +4754,7 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		}
 
-		return new
-
-				PatientOrderImportResult(patientOrderImportId, patientOrderIds);
+		return new PatientOrderImportResult(patientOrderImportId, patientOrderIds);
 	}
 
 	@Nullable

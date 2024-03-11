@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.integration.twilio;
 
-import com.cobaltplatform.api.Configuration;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.io.BaseEncoding;
@@ -27,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
 import java.nio.charset.StandardCharsets;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -37,6 +37,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * @author Transmogrify, LLC.
  */
+@ThreadSafe
 public class DefaultTwilioRequestValidator implements TwilioRequestValidator {
 	@Nonnull
 	private final String twilioAuthToken;
@@ -47,13 +48,6 @@ public class DefaultTwilioRequestValidator implements TwilioRequestValidator {
 		requireNonNull(twilioAuthToken);
 
 		this.twilioAuthToken = twilioAuthToken;
-		this.logger = LoggerFactory.getLogger(getClass());
-	}
-
-	public DefaultTwilioRequestValidator(@Nonnull Configuration configuration) {
-		requireNonNull(configuration);
-
-		this.twilioAuthToken = configuration.getTwilioAuthToken();
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -74,7 +68,7 @@ public class DefaultTwilioRequestValidator implements TwilioRequestValidator {
 		// 4. Sign the resulting string with HMAC-SHA1 using your AuthToken as the key (remember, your AuthToken's case matters!).
 		// 5. Base64 encode the resulting hash value.
 		// 6. Compare your hash to ours, submitted in the X-Twilio-Signature header. If they match, then you're good to go.
-		TwilioRequestBody twilioRequestBody = new TwilioRequestBody(requestBody);
+		TwilioMessageWebhookRequestBody twilioRequestBody = new TwilioMessageWebhookRequestBody(requestBody);
 		SortedMap<String, String> sortedRequestBodyParameters = new TreeMap<>(twilioRequestBody.getParameters());
 
 		String hashableString = requestUrl + sortedRequestBodyParameters.entrySet().stream()

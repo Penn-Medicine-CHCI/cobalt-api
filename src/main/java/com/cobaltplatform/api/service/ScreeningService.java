@@ -1593,6 +1593,14 @@ public class ScreeningService {
 									.build();
 							getMessageService().enqueueMessage(callMessage);
 						}
+
+						// Also automatically assign to the institution's designated safety manager, if one exists
+						UUID integratedCareSafetyPlanningManagerAccountId = institution.getIntegratedCareSafetyPlanningManagerAccountId();
+
+						if (integratedCareSafetyPlanningManagerAccountId != null) {
+							Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+							getPatientOrderService().assignPatientOrderToPanelAccount(patientOrder.getPatientOrderId(), integratedCareSafetyPlanningManagerAccountId, serviceAccount.getAccountId());
+						}
 					}
 
 					// TODO: write to patient order event table to keep track of when this happened
@@ -1880,6 +1888,7 @@ public class ScreeningService {
 				request.setPatientOrderId(patientOrderId);
 				request.setTargetAccountId(screeningSession.getTargetAccountId());
 				request.setCreatedByAccountId(screeningSession.getCreatedByAccountId());
+				request.setMetadata(screeningSession.getMetadata()); // Carry over metadata from the intake screening session
 
 				UUID icClinicalScreeningSessionId = createScreeningSession(request);
 
@@ -2305,6 +2314,10 @@ public class ScreeningService {
 				context.put("askContentSatisfaction", accountCheckIn.get().getCheckInNumber() == null ? false : accountCheckIn.get().getCheckInNumber() > 1);
 			}
 		}
+
+		// Expose any custom metadata for this session, or the empty object if there is none
+		Map<String, Object> metadata = screeningSession.getMetadata();
+		context.put("metadata", metadata == null ? Map.of() : metadata);
 
 		try {
 			screeningFlowFunctionResult = getJavascriptExecutor().execute(screeningFlowFunctionJavascript, context, screeningFlowFunctionResultType);

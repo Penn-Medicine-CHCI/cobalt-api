@@ -76,6 +76,8 @@ public class ProviderFindRequest {
 	private UUID institutionLocationId;
 	@Nullable
 	private Set<AppointmentTimeId> appointmentTimeIds; // Empty means no appointment time restrictions
+	@Nullable
+	private UUID patientOrderId;
 
 	public enum ProviderFindAvailability {
 		ALL,
@@ -260,5 +262,14 @@ public class ProviderFindRequest {
 
 	public void setAppointmentTimeIds(@Nullable Set<AppointmentTimeId> appointmentTimeIds) {
 		this.appointmentTimeIds = appointmentTimeIds;
+	}
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
+	}
+
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
 	}
 }

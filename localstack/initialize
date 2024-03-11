@@ -96,4 +96,11 @@ then
     aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-google-fcm-service-account-private-key-COBALT"  --description "Cobalt FCM Service Account Private Key for COBALT institution" --secret-string file:///localstack/secrets/cobalt-local-google-fcm-service-account-private-key-COBALT --region ${REGION}  1> /dev/null
 fi
 
+if [ -e /localstack/secrets/cobalt-local-twilio-auth-token-COBALT_IC ]
+then
+    echo "Using Localstack secret value for cobalt-local-twilio-auth-token-COBALT_IC..."
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-twilio-auth-token-COBALT_IC"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-twilio-auth-token-COBALT_IC"  --description "Twilio Auth Token for COBALT_IC institution" --secret-string file:///localstack/secrets/cobalt-local-twilio-auth-token-COBALT_IC --region ${REGION}  1> /dev/null
+fi
+
 echo "Localstack initialization complete."
