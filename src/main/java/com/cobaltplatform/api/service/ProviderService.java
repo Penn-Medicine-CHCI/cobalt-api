@@ -727,6 +727,19 @@ public class ProviderService {
 			datesCommand.setCurrentDate(currentDate);
 			datesCommand.setDaysOfWeek(daysOfWeek);
 			datesCommand.setAvailability(availability);
+			datesCommand.setEpicDepartmentIds(Set.of());
+
+			// For IC, we discard any availability slots that are not relevant for the order's Epic department
+			if (patientOrderId != null) {
+				UUID patientOrderEpicDepartmentId = getDatabase().queryForObject("""
+									SELECT epic_department_id
+									FROM patient_order
+									WHERE patient_order_id=?
+						""", UUID.class, patientOrderId).orElse(null);
+
+				if (patientOrderEpicDepartmentId != null)
+					datesCommand.setEpicDepartmentIds(Set.of(patientOrderEpicDepartmentId));
+			}
 
 			List<AvailabilityDate> dates = new ArrayList<>();
 
@@ -1724,6 +1737,13 @@ public class ProviderService {
 			providerAvailabilityParameters.addAll(command.getVisitTypeIds());
 		}
 
+		if (command.getEpicDepartmentIds().size() > 0) {
+			providerAvailabilityQuery.append(" AND pa.epic_department_id IN ");
+			providerAvailabilityQuery.append(sqlInListPlaceholders(command.getEpicDepartmentIds()));
+
+			providerAvailabilityParameters.addAll(command.getEpicDepartmentIds());
+		}
+
 		providerAvailabilities = getDatabase().queryForList(providerAvailabilityQuery.toString(), ProviderAvailability.class, providerAvailabilityParameters.toArray(new Object[]{}));
 
 		Map<LocalDate, AvailabilityDate> availabilityDatesByDate = new HashMap<>(14);
@@ -1941,6 +1961,8 @@ public class ProviderService {
 		@Nullable
 		private Set<DayOfWeek> daysOfWeek;
 		@Nullable
+		private Set<UUID> epicDepartmentIds;
+		@Nullable
 		private ProviderFindAvailability availability;
 
 		@Override
@@ -2019,6 +2041,15 @@ public class ProviderService {
 
 		public void setDaysOfWeek(@Nullable Set<DayOfWeek> daysOfWeek) {
 			this.daysOfWeek = daysOfWeek;
+		}
+
+		@Nullable
+		public Set<UUID> getEpicDepartmentIds() {
+			return this.epicDepartmentIds;
+		}
+
+		public void setEpicDepartmentIds(@Nullable Set<UUID> epicDepartmentIds) {
+			this.epicDepartmentIds = epicDepartmentIds;
 		}
 
 		@Nullable
