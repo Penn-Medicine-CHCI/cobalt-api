@@ -72,6 +72,7 @@ public class Account {
 	@Nullable
 	private AccountSourceId accountSourceId;
 	@Nullable
+	@Deprecated // We used to use this for Integrated Care, no longer do.  Legacy data will have it
 	private SourceSystemId sourceSystemId;
 	@Nullable
 	private BetaStatusId betaStatusId;
@@ -191,6 +192,7 @@ public class Account {
 		private Set<UUID> interactionIds;
 		@Nullable
 		private Set<UUID> interactionInstanceIds;
+
 		@Nonnull
 		public static StandardMetadata emptyInstance() {
 			StandardMetadata standardMetadata = new StandardMetadata();
@@ -254,10 +256,12 @@ public class Account {
 	}
 
 	@Nullable
+	@Deprecated
 	public SourceSystemId getSourceSystemId() {
 		return sourceSystemId;
 	}
 
+	@Deprecated
 	public void setSourceSystemId(@Nullable SourceSystemId sourceSystemId) {
 		this.sourceSystemId = sourceSystemId;
 	}
