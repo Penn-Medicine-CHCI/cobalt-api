@@ -19,19 +19,41 @@
 
 package com.cobaltplatform.api.messaging.call;
 
-import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.http.DefaultHttpClient;
+import com.cobaltplatform.api.http.HttpClient;
+import com.cobaltplatform.api.http.HttpMethod;
+import com.cobaltplatform.api.http.HttpRequest;
+import com.cobaltplatform.api.http.HttpResponse;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.Normalizer;
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -41,63 +63,258 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class TwilioCallMessageSender implements MessageSender<CallMessage> {
 	@Nonnull
+	private final String twilioAccountSid;
+	@Nonnull
+	private final String twilioAuthToken;
+	@Nonnull
+	private final String twilioFromNumber;
+	@Nullable
+	private final String twilioStatusCallbackUrl;
+	@Nonnull
+	private final HttpClient httpClient;
+	@Nonnull
 	private final HandlebarsTemplater handlebarsTemplater;
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
-	private final Configuration configuration;
+	private final Gson gson;
 	@Nonnull
 	private final Logger logger;
 
-	public TwilioCallMessageSender(@Nonnull HandlebarsTemplater handlebarsTemplater,
-																 @Nonnull Configuration configuration) {
-		this(handlebarsTemplater, new Normalizer(), configuration);
-	}
 
-	public TwilioCallMessageSender(@Nonnull HandlebarsTemplater handlebarsTemplater,
-																 @Nonnull Normalizer normalizer,
-																 @Nonnull Configuration configuration) {
-		requireNonNull(handlebarsTemplater);
-		requireNonNull(normalizer);
-		requireNonNull(configuration);
+	private TwilioCallMessageSender(@Nonnull Builder builder) {
+		requireNonNull(builder);
 
-		this.handlebarsTemplater = handlebarsTemplater;
-		this.normalizer = normalizer;
-		this.configuration = configuration;
+		this.twilioAccountSid = requireNonNull(builder.twilioAccountSid);
+		this.twilioAuthToken = requireNonNull(builder.twilioAuthToken);
+		this.twilioStatusCallbackUrl = builder.twilioStatusCallbackUrl;
+		this.httpClient = builder.httpClient == null ? new DefaultHttpClient("twilio-call") : builder.httpClient;
+		this.handlebarsTemplater = builder.handlebarsTemplater == null ? new HandlebarsTemplater.Builder(Paths.get("messages/call")).build() : builder.handlebarsTemplater;
+		this.normalizer = builder.normalizer == null ? new Normalizer() : builder.normalizer;
+		this.gson = new Gson();
 		this.logger = LoggerFactory.getLogger(getClass());
+
+		String normalizedFromNumber = getNormalizer().normalizePhoneNumberToE164(builder.twilioFromNumber, Locale.US).orElse(null);
+
+		// In the future, we might want to support a messaging service ID instead of/in combination with "from number".
+		// For now, just require the "from number" exists and is valid.
+		if (normalizedFromNumber == null)
+			throw new IllegalArgumentException("Valid Twilio 'from number' is required.");
+
+		this.twilioFromNumber = normalizedFromNumber;
 	}
 
 	@Override
 	public String sendMessage(@Nonnull CallMessage callMessage) {
 		requireNonNull(callMessage);
 
-		// Temporarily...
-		throw new UnsupportedOperationException();
+		Map<String, Object> messageContext = new HashMap<>(callMessage.getMessageContext());
+		String body = getHandlebarsTemplater().mergeTemplate(callMessage.getMessageTemplate().name(), "body", callMessage.getLocale(), messageContext).get();
+		String normalizedToNumber = getNormalizer().normalizePhoneNumberToE164(callMessage.getToNumber(), Locale.US).get();
 
-//		Map<String, Object> messageContext = new HashMap<>(callMessage.getMessageContext());
-//		String body = getHandlebarsTemplater().mergeTemplate(callMessage.getMessageTemplate().name(), "body", callMessage.getLocale(), messageContext).get();
-//		String normalizedToNumber = getNormalizer().normalizePhoneNumberToE164(callMessage.getToNumber(), Locale.US).get();
-//
-//		getLogger().debug("Placing phone call from {} to {} using Twilio. Message is '{}'...", getConfiguration().getTwilioFromNumber(), normalizedToNumber, callMessage);
-//
-//		long time = System.currentTimeMillis();
-//
-//		try {
-//			Call call = Call.creator(
-//							getConfiguration().getTwilioAccountSid(),
-//							new PhoneNumber(normalizedToNumber),
-//							new PhoneNumber(getConfiguration().getTwilioFromNumber()),
-//							new Twiml(format("<Response><Say>%s</Say></Response>", body)))
-//					.setMachineDetection("DetectMessageEnd") // Leaves voicemail if no one picks up
-//					.create();
-//
-//			getLogger().info("Successfully placed Twilio phone call (SID {}) in {} ms.", call.getSid(), System.currentTimeMillis() - time);
-//
-//			return call.getSid();
-//		} catch (RuntimeException e) {
-//			getLogger().error(format("Unable to place phone call to %s", normalizedToNumber), e);
-//			throw e;
-//		}
+		if ("+12155551212".equals(normalizedToNumber)) {
+			getLogger().debug("Fake-placing call from {} to {} because the destination number is a test number. Message is '{}'...", getTwilioFromNumber(), normalizedToNumber, callMessage);
+			return format("fake-%s", UUID.randomUUID());
+		}
+
+		getLogger().debug("Placing call from {} to {} using Twilio. Message is '{}'...", getTwilioFromNumber(), normalizedToNumber, callMessage);
+
+		// See https://www.twilio.com/docs/voice/api/call-resource#create-a-call-resource
+		String requestUrl = format("https://api.twilio.com/2010-04-01/Accounts/%s/Calls.json", getTwilioAccountSid());
+
+		String basicAuthCredentials = format("%s:%s", getTwilioAccountSid(), getTwilioAuthToken());
+		String encodedBasicAuthCredentials = Base64.getEncoder().encodeToString(basicAuthCredentials.getBytes(StandardCharsets.UTF_8));
+
+		Map<String, Object> requestHeaders = Map.of(
+				"Authorization", format("Basic %s", encodedBasicAuthCredentials)
+		);
+
+		String twilioStatusCallbackUrl = getTwilioStatusCallbackUrl().orElse(null);
+
+		String twiml = format("<Response><Say>%s</Say></Response>", body);
+
+		Map<String, String> requestBodyComponents = new LinkedHashMap<>();
+		requestBodyComponents.put("To", normalizedToNumber);
+		requestBodyComponents.put("From", getTwilioFromNumber());
+		requestBodyComponents.put("Twiml", twiml);
+
+		if (twilioStatusCallbackUrl != null)
+			requestBodyComponents.put("StatusCallback", twilioStatusCallbackUrl);
+
+		// "Old time" HTML FORM POST body
+		String requestBody = requestBodyComponents.entrySet().stream()
+				.map(entry -> {
+					String name = entry.getKey();
+					String value = entry.getValue();
+
+					try {
+						value = URLEncoder.encode(value, "UTF-8");
+					} catch (UnsupportedEncodingException e) {
+						throw new IllegalStateException("Platform does not support UTF-8", e);
+					}
+
+					return format("%s=%s", name, value);
+				})
+				.collect(Collectors.joining("&"));
+
+		HttpRequest httpRequest = new HttpRequest.Builder(HttpMethod.POST, requestUrl)
+				.contentType("application/x-www-form-urlencoded; charset=utf-8")
+				.headers(requestHeaders)
+				.body(requestBody)
+				.build();
+
+		try {
+			long time = System.currentTimeMillis();
+
+			HttpResponse httpResponse = getHttpClient().execute(httpRequest);
+
+			long elapsedTime = System.currentTimeMillis() - time;
+
+			byte[] responseBodyAsBytes = httpResponse.getBody().orElse(null);
+			String responseBody = responseBodyAsBytes == null ? null : new String(responseBodyAsBytes, StandardCharsets.UTF_8).trim();
+
+			if (httpResponse.getStatus() >= 400)
+				throw new RuntimeException(format("Unable to place call to %s. Response body was: %s", normalizedToNumber, responseBody));
+
+			String sid;
+
+			try {
+				TwilioSendCallResponse twilioSendCallResponse = getGson().fromJson(responseBody, TwilioSendCallResponse.class);
+				sid = twilioSendCallResponse.getSid();
+
+				if (sid == null)
+					throw new Exception("Response is missing 'sid' field.");
+			} catch (Exception e) {
+				throw new RuntimeException(format("Unable parse Twilio response to 'Place Call' for %s. Response body was: %s", normalizedToNumber, responseBody));
+			}
+
+			getLogger().info("Successfully placed call (SID {}) in {} ms.", sid, elapsedTime);
+
+			return sid;
+		} catch (IOException e) {
+			throw new UncheckedIOException(format("Unable to place call to %s", normalizedToNumber), e);
+		}
+	}
+
+	@NotThreadSafe
+	protected static class TwilioSendCallResponse {
+		@Nullable
+		private String sid;
+
+		// In the future, add other fields as needed.
+		//
+		// Response example:
+		// {
+		//  "account_sid": "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+		//  "answered_by": null,
+		//  "api_version": "2010-04-01",
+		//  "caller_name": null,
+		//  "date_created": "Tue, 31 Aug 2010 20:36:28 +0000",
+		//  "date_updated": "Tue, 31 Aug 2010 20:36:44 +0000",
+		//  "direction": "inbound",
+		//  "duration": "15",
+		//  "end_time": "Tue, 31 Aug 2010 20:36:44 +0000",
+		//  "forwarded_from": "+141586753093",
+		//  "from": "+15552223214",
+		//  "from_formatted": "(555) 222-3214",
+		//  "group_sid": null,
+		//  "parent_call_sid": null,
+		//  "phone_number_sid": "PNXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+		//  "price": "-0.03000",
+		//  "price_unit": "USD",
+		//  "sid": "CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+		//  "start_time": "Tue, 31 Aug 2010 20:36:29 +0000",
+		//  "status": "completed",
+		//  "subresource_uris": {
+		//    "notifications": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Notifications.json",
+		//    "recordings": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Recordings.json",
+		//    "payments": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Payments.json",
+		//    "events": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Events.json",
+		//    "siprec": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Siprec.json",
+		//    "streams": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Streams.json",
+		//    "user_defined_message_subscriptions": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/UserDefinedMessageSubscriptions.json",
+		//    "user_defined_messages": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/UserDefinedMessages.json"
+		//  },
+		//  "to": "+15558675310",
+		//  "to_formatted": "(555) 867-5310",
+		//  "trunk_sid": null,
+		//  "uri": "/2010-04-01/Accounts/ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Calls/CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.json",
+		//  "queue_time": "1000"
+		// }
+
+		// Example of an error response for a 400:
+		// {"code": 21604, "message": "A 'To' phone number is required.", "more_info": "https://www.twilio.com/docs/errors/21604", "status": 400}
+
+		@Nullable
+		public String getSid() {
+			return this.sid;
+		}
+
+		public void setSid(@Nullable String sid) {
+			this.sid = sid;
+		}
+	}
+
+	@NotThreadSafe
+	public static class Builder {
+		@Nonnull
+		private final String twilioAccountSid;
+		@Nonnull
+		private final String twilioAuthToken;
+		@Nullable
+		private String twilioFromNumber;
+		@Nullable
+		private String twilioStatusCallbackUrl;
+		@Nullable
+		private HttpClient httpClient;
+		@Nonnull
+		private HandlebarsTemplater handlebarsTemplater;
+		@Nullable
+		private Normalizer normalizer;
+
+		public Builder(@Nonnull String twilioAccountSid,
+									 @Nonnull String twilioAuthToken) {
+			requireNonNull(twilioAccountSid);
+			requireNonNull(twilioAuthToken);
+
+			this.twilioAccountSid = twilioAccountSid;
+			this.twilioAuthToken = twilioAuthToken;
+		}
+
+		@Nonnull
+		public Builder twilioFromNumber(@Nullable String twilioFromNumber) {
+			this.twilioFromNumber = twilioFromNumber;
+			return this;
+		}
+
+		@Nonnull
+		public Builder twilioStatusCallbackUrl(@Nullable String twilioStatusCallbackUrl) {
+			this.twilioStatusCallbackUrl = twilioStatusCallbackUrl;
+			return this;
+		}
+
+		@Nonnull
+		public Builder httpClient(@Nullable HttpClient httpClient) {
+			this.httpClient = httpClient;
+			return this;
+		}
+
+		@Nonnull
+		public Builder handlebarsTemplater(@Nullable HandlebarsTemplater handlebarsTemplater) {
+			this.handlebarsTemplater = handlebarsTemplater;
+			return this;
+		}
+
+		@Nonnull
+		public Builder normalizer(@Nullable Normalizer normalizer) {
+			this.normalizer = normalizer;
+			return this;
+		}
+
+		@Nonnull
+		public TwilioCallMessageSender build() {
+			return new TwilioCallMessageSender(this);
+		}
 	}
 
 	@Nonnull
@@ -113,6 +330,31 @@ public class TwilioCallMessageSender implements MessageSender<CallMessage> {
 	}
 
 	@Nonnull
+	protected String getTwilioAccountSid() {
+		return this.twilioAccountSid;
+	}
+
+	@Nonnull
+	protected String getTwilioAuthToken() {
+		return this.twilioAuthToken;
+	}
+
+	@Nonnull
+	protected String getTwilioFromNumber() {
+		return this.twilioFromNumber;
+	}
+
+	@Nonnull
+	protected Optional<String> getTwilioStatusCallbackUrl() {
+		return Optional.ofNullable(this.twilioStatusCallbackUrl);
+	}
+
+	@Nonnull
+	protected HttpClient getHttpClient() {
+		return this.httpClient;
+	}
+
+	@Nonnull
 	protected HandlebarsTemplater getHandlebarsTemplater() {
 		return handlebarsTemplater;
 	}
@@ -123,8 +365,8 @@ public class TwilioCallMessageSender implements MessageSender<CallMessage> {
 	}
 
 	@Nonnull
-	protected Configuration getConfiguration() {
-		return configuration;
+	protected Gson getGson() {
+		return this.gson;
 	}
 
 	@Nonnull

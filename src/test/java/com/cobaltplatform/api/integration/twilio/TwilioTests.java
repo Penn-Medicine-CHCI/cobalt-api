@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.twilio;
 
+import com.cobaltplatform.api.messaging.call.CallMessage;
+import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
+import com.cobaltplatform.api.messaging.call.TwilioCallMessageSender;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.messaging.sms.TwilioSmsMessageSender;
@@ -68,7 +71,7 @@ public class TwilioTests {
 				.twilioStatusCallbackUrl(twilioStatusCallbackUrl)
 				.build();
 
-		SmsMessage smsMessage = new SmsMessage.Builder(InstitutionId.COBALT, SmsMessageTemplate.IC_WELCOME, twilioTestConfig.getToPhoneNumber(), Locale.US)
+		SmsMessage smsMessage = new SmsMessage.Builder(InstitutionId.COBALT_IC, SmsMessageTemplate.IC_WELCOME, twilioTestConfig.getToPhoneNumber(), Locale.US)
 				.messageContext(Map.of(
 						"integratedCarePrimaryCareName", "Cobalt Integrated Care",
 						"webappBaseUrl", "https://www.cobaltinnovations.org",
@@ -76,6 +79,30 @@ public class TwilioTests {
 				)).build();
 
 		String messageId = twilioSmsMessageSender.sendMessage(smsMessage);
+
+		System.out.println("Message ID: " + messageId);
+	}
+
+	@Test
+	public void sendCallMessage() {
+		TwilioTestConfig twilioTestConfig = loadTwilioTestConfig();
+
+		String twilioStatusCallbackUrl = trimToNull(twilioTestConfig.getTwilioStatusCallbackBaseUrl());
+
+		if (twilioStatusCallbackUrl != null)
+			twilioStatusCallbackUrl = format("%s/twilio/%s/call-status-callback", twilioStatusCallbackUrl, InstitutionId.COBALT_IC);
+
+		TwilioCallMessageSender twilioCallMessageSender = new TwilioCallMessageSender.Builder(twilioTestConfig.getTwilioAccountSid(), twilioTestConfig.getTwilioAuthToken())
+				.twilioFromNumber(twilioTestConfig.getFromPhoneNumber())
+				.twilioStatusCallbackUrl(twilioStatusCallbackUrl)
+				.build();
+
+		CallMessage callMessage = new CallMessage.Builder(InstitutionId.COBALT_IC, CallMessageTemplate.IC_CRISIS, twilioTestConfig.getToPhoneNumber(), Locale.US)
+				.messageContext(Map.of(
+						"additionalDetails", "Extra sentence for testing."
+				)).build();
+
+		String messageId = twilioCallMessageSender.sendMessage(callMessage);
 
 		System.out.println("Message ID: " + messageId);
 	}

@@ -37,13 +37,13 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
-public class TwilioMessageWebhookRequestBody {
+public class TwilioCallWebhookRequestBody {
 	@Nullable
-	private final TwilioMessageStatus twilioMessageStatus;
+	private final TwilioCallStatus twilioCallStatus;
 	@Nonnull
 	private final Map<String, String> parameters;
 
-	public TwilioMessageWebhookRequestBody(@Nonnull String requestBody) {
+	public TwilioCallWebhookRequestBody(@Nonnull String requestBody) {
 		requireNonNull(requestBody);
 
 		Map<String, String> parameters = new HashMap<>();
@@ -57,24 +57,24 @@ public class TwilioMessageWebhookRequestBody {
 		}
 
 		this.parameters = Collections.unmodifiableMap(parameters);
-		this.twilioMessageStatus = twilioMessageStatusFromParameters(this.parameters).orElse(null);
+		this.twilioCallStatus = twilioCallStatusFromParameters(this.parameters).orElse(null);
 	}
 
-	public TwilioMessageWebhookRequestBody(@Nonnull Map<String, String> parameters) {
+	public TwilioCallWebhookRequestBody(@Nonnull Map<String, String> parameters) {
 		requireNonNull(parameters);
 
 		this.parameters = Collections.unmodifiableMap(new HashMap<>(parameters));
-		this.twilioMessageStatus = twilioMessageStatusFromParameters(this.parameters).orElse(null);
+		this.twilioCallStatus = twilioCallStatusFromParameters(this.parameters).orElse(null);
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{twilioMessageStatus=%s, parameters=%s}", getClass().getSimpleName(), getTwilioMessageStatus(), getParameters());
+		return format("%s{twilioCallStatus=%s, parameters=%s}", getClass().getSimpleName(), getTwilioCallStatus(), getParameters());
 	}
 
 	@Nonnull
-	public Optional<TwilioMessageStatus> getTwilioMessageStatus() {
-		return Optional.ofNullable(this.twilioMessageStatus);
+	public Optional<TwilioCallStatus> getTwilioCallStatus() {
+		return Optional.ofNullable(this.twilioCallStatus);
 	}
 
 	@Nonnull
@@ -83,12 +83,12 @@ public class TwilioMessageWebhookRequestBody {
 	}
 
 	@Nonnull
-	protected Optional<TwilioMessageStatus> twilioMessageStatusFromParameters(@Nonnull Map<String, String> parameters) {
+	protected Optional<TwilioCallStatus> twilioCallStatusFromParameters(@Nonnull Map<String, String> parameters) {
 		requireNonNull(parameters);
 
 		for (Entry<String, String> entry : parameters.entrySet())
-			if (entry.getKey().equalsIgnoreCase("MessageStatus"))
-				return TwilioMessageStatus.fromName(entry.getValue());
+			if (entry.getKey().equalsIgnoreCase("CallStatus"))
+				return TwilioCallStatus.fromName(entry.getValue());
 
 		return Optional.empty();
 	}

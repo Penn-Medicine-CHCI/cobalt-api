@@ -56,6 +56,7 @@ import com.cobaltplatform.api.integration.twilio.TwilioRequestValidator;
 import com.cobaltplatform.api.messaging.MessageSender;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.ConsoleCallMessageSender;
+import com.cobaltplatform.api.messaging.call.TwilioCallMessageSender;
 import com.cobaltplatform.api.messaging.push.ConsolePushMessageSender;
 import com.cobaltplatform.api.messaging.push.GoogleFcmPushMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
@@ -366,9 +367,6 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
 				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
 
-		if (twilioAuthToken != null)
-			throw new IllegalStateException("NOT SENDING FOR NOW");
-
 		return new TwilioSmsMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
 				.twilioFromNumber(institution.getTwilioFromNumber())
 				.twilioStatusCallbackUrl(format("%s/twilio/%s/message-status-callback", getConfiguration().getBaseUrl(), getInstitutionId().name()))
@@ -386,7 +384,10 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
 				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
 
-		throw new UnsupportedOperationException("TODO: implement");
+		return new TwilioCallMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
+				.twilioFromNumber(institution.getTwilioFromNumber())
+				.twilioStatusCallbackUrl(format("%s/twilio/%s/call-status-callback", getConfiguration().getBaseUrl(), getInstitutionId().name()))
+				.build();
 	}
 
 	@Nonnull
