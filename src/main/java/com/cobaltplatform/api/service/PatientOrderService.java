@@ -3805,11 +3805,6 @@ public class PatientOrderService implements AutoCloseable {
 		lines.add("-----------------------------------------------");
 		lines.add(getStrings().get("VISIT SUMMARY / TREATMENT PLAN"));
 
-		if (institution.getIntegratedCareClinicalReportDisclaimer() != null) {
-			lines.add("");
-			lines.add(institution.getIntegratedCareClinicalReportDisclaimer());
-		}
-
 		lines.add("");
 		lines.add(getStrings().get("PATIENT: {{name}} (MRN {{mrn}})",
 				Map.of("name", Normalizer.normalizeName(patientOrder.getPatientFirstName(), null, patientOrder.getPatientLastName()).orElse(null),
@@ -3817,8 +3812,9 @@ public class PatientOrderService implements AutoCloseable {
 				)
 		));
 		lines.add("");
-		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{ageInYears}} year old patient completed the {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
+		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{ageInYears}} year old patient completed the {{platform}} {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
 				Map.of(
+						"platform", (completedScreeningSession.getCreatedByAccountId().equals(completedScreeningSession.getTargetAccountId()) ? getStrings().get("digital") : getStrings().get("phone")),
 						"ageInYears", patientOrder.getPatientAgeOnOrderDate(),
 						"integratedCareProgramName", institution.getIntegratedCareProgramName(),
 						"assessmentDate", getFormatter().formatTimestamp(completedScreeningSession.getCompletedAt(), FormatStyle.FULL, FormatStyle.SHORT, institution.getTimeZone()),
@@ -3971,6 +3967,11 @@ public class PatientOrderService implements AutoCloseable {
 						.map(screeningAnswerResult -> screeningAnswerResult.getText() == null ? screeningAnswerResult.getAnswerOptionText() : format("%s (%s)", screeningAnswerResult.getAnswerOptionText(), screeningAnswerResult.getText()))
 						.collect(Collectors.joining(", ")))));
 			}
+		}
+
+		if (institution.getIntegratedCareClinicalReportDisclaimer() != null) {
+			lines.add("");
+			lines.add(institution.getIntegratedCareClinicalReportDisclaimer());
 		}
 
 		return lines.stream().collect(Collectors.joining("\n"));
