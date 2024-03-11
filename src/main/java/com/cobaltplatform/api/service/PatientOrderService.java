@@ -1978,13 +1978,16 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(accountId);
 
 		// "Resettable" means inactive triages that were initially sourced by Cobalt, e.g.
-		// via automated analysis of screening session answers
+		// via automated analysis of screening session answers.
+		// There might be multiples, e.g. if the screening has been taken multiple times by an MHIC, so pick the most recent.
 		PatientOrderTriageGroup resettablePatientOrderTriageGroup = getDatabase().queryForObject("""
 				SELECT *
 				FROM patient_order_triage_group
 				WHERE patient_order_id=?
 				AND patient_order_triage_source_id=?
 				AND active=FALSE
+				ORDER BY created DESC
+				LIMIT 1
 				""", PatientOrderTriageGroup.class, patientOrderId, PatientOrderTriageSourceId.COBALT).orElse(null);
 
 		if (resettablePatientOrderTriageGroup == null)
