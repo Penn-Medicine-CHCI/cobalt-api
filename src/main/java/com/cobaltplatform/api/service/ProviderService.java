@@ -428,6 +428,7 @@ public class ProviderService {
 		boolean includePastAvailability = request.getIncludePastAvailability() == null ? false : request.getIncludePastAvailability();
 		LocalDateTime currentDateTime = includePastAvailability ? LocalDateTime.of(startDate, startTime) : LocalDateTime.now(account.getTimeZone());
 		LocalDate currentDate = currentDateTime.toLocalDate();
+		UUID patientOrderId = request.getPatientOrderId();
 		ValidationException validationException = new ValidationException();
 		UUID institutionLocationId = request.getInstitutionLocationId();
 
@@ -472,7 +473,10 @@ public class ProviderService {
 			if (visitTypeIds.size() > 0)
 				query.append(", provider_appointment_type pat, v_appointment_type at");
 
-			query.append(" WHERE institution_id=? AND p.active=TRUE");
+			if (patientOrderId != null)
+				query.append(", patient_order po");
+
+			query.append(" WHERE p.institution_id=? AND p.active=TRUE");
 			parameters.add(institutionId);
 
 			if (supportRoleIds.size() > 0) {
@@ -526,6 +530,19 @@ public class ProviderService {
 				query.append(") ");
 			}
 
+			// If this is an IC order, only expose providers that are currently associated with the order's department
+			if (patientOrderId != null) {
+				query.append("""
+						AND p.provider_id IN (
+						  SELECT ped.provider_id
+						  FROM provider_epic_department ped, patient_order po
+						  WHERE po.epic_department_id=ped.epic_department_id
+						  AND po.patient_order_id=?
+						)
+						""");
+				parameters.add(patientOrderId);
+			}
+
 			query.append(" AND p.system_affinity_id=? ");
 			parameters.add(systemAffinityId);
 
@@ -534,7 +551,7 @@ public class ProviderService {
 			providers = getDatabase().queryForList(query.toString(), Provider.class, parameters.toArray(new Object[]{}));
 
 			if (getLogger().isTraceEnabled()) {
-				getLogger().trace("Query: {}\nParameters: {}", query.toString(), parameters);
+				getLogger().trace("Query: {}\nParameters: {}", query, parameters);
 				getLogger().trace("Providers: {}", providers.stream().map(provider -> provider.getName()).collect(Collectors.toList()));
 			}
 		}

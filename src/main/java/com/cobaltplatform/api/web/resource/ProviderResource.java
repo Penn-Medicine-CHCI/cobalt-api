@@ -294,6 +294,10 @@ public class ProviderResource {
 		request.setInstitutionId(institution.getInstitutionId());
 		request.setIncludePastAvailability(false);
 
+		// Prevent non-IC institutions from specifying order information
+		if (!institution.getIntegratedCareEnabled())
+			request.setPatientOrderId(null);
+
 		if (request.getStartDate() != null && request.getEndDate() == null)
 			request.setEndDate(request.getStartDate().plusWeeks(defaultNumberOfWeeksToSearch));
 
