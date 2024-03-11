@@ -2783,24 +2783,8 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrder == null)
 			return List.of();
 
-		// TODO: remove, this is for testing
-		if (getConfiguration().isLocal()) {
-			Encounter mockEncounter = new Encounter();
-			mockEncounter.setCsn("123456789");
-			mockEncounter.setStatus("finished");
-			mockEncounter.setSubjectDisplay("Pbtest, Aetna");
-			mockEncounter.setClassDisplay("Appointment");
-			mockEncounter.setPeriodStart(LocalDateTime.of(LocalDate.of(2022, 6, 29), LocalTime.of(10, 20)));
-			mockEncounter.setPeriodEnd(LocalDateTime.of(LocalDate.of(2022, 6, 29), LocalTime.of(10, 40)));
-
-			return List.of(mockEncounter);
-		}
-
 		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(patientOrder.getInstitutionId());
-
-		// TODO: remove, this is for testing
-		// patientOrder.setPatientUniqueId("XXXX");
 
 		EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 		PatientSearchResponse patientSearchResponse = epicClient.patientSearchFhirR4(patientOrder.getPatientUniqueIdType(), patientOrder.getPatientUniqueId());
@@ -2837,6 +2821,9 @@ public class PatientOrderService implements AutoCloseable {
 
 					if (resource.getClassValue() != null)
 						encounter.setClassDisplay(trimToNull(resource.getClassValue().getDisplay()));
+
+					if (resource.getType() != null && resource.getType().size() > 0)
+						encounter.setFirstTypeText(trimToNull(resource.getType().get(0).getText()));
 
 					if (resource.getServiceType() != null)
 						encounter.setServiceTypeText(trimToNull(resource.getServiceType().getText()));

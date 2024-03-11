@@ -52,6 +52,8 @@ public class EncounterApiResponse {
 	@Nullable
 	private final String classDisplay;
 	@Nullable
+	private final String firstTypeText;
+	@Nullable
 	private final String serviceTypeText;
 	@Nullable
 	private final LocalDateTime periodStart;
@@ -83,6 +85,7 @@ public class EncounterApiResponse {
 		this.status = encounter.getStatus();
 		this.subjectDisplay = encounter.getSubjectDisplay();
 		this.classDisplay = encounter.getClassDisplay();
+		this.firstTypeText = encounter.getFirstTypeText();
 		this.serviceTypeText = encounter.getServiceTypeText();
 		this.periodStart = encounter.getPeriodStart();
 		this.periodStartDescription = encounter.getPeriodStart() == null ? null : formatter.formatDateTime(encounter.getPeriodStart(), FormatStyle.MEDIUM, FormatStyle.SHORT);
@@ -90,19 +93,17 @@ public class EncounterApiResponse {
 		this.periodEndDescription = encounter.getPeriodEnd() == null ? null : formatter.formatDateTime(encounter.getPeriodEnd(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 		List<String> descriptions = new ArrayList<>();
-		descriptions.add(strings.get("CSN {{csn}}", Map.of("csn", encounter.getCsn())));
 
-		if (getPeriodStartDescription() != null)
-			descriptions.add(getPeriodStartDescription());
+		if (getFirstTypeText() != null)
+			descriptions.add(strings.get("Type: {{type}}", Map.of("type", getFirstTypeText())));
+		else if (getServiceTypeText() != null)
+			descriptions.add(strings.get("Service Type: {{serviceType}}", Map.of("serviceType", getServiceTypeText())));
 
 		if (getStatus() != null)
 			descriptions.add(strings.get("Status: {{status}}", Map.of("status", getStatus())));
 
-		if (getClassDisplay() != null)
-			descriptions.add(strings.get("Class: {{classDisplay}}", Map.of("classDisplay", getClassDisplay())));
-
-		if (getServiceTypeText() != null)
-			descriptions.add(strings.get("Service Type: {{serviceType}}", Map.of("serviceType", getServiceTypeText())));
+		if (getPeriodStartDescription() != null)
+			descriptions.add(strings.get("Start Date: {{startDate}}", Map.of("startDate", getPeriodStartDescription())));
 
 		this.description = descriptions.stream().collect(Collectors.joining(", "));
 	}
@@ -125,6 +126,11 @@ public class EncounterApiResponse {
 	@Nullable
 	public String getClassDisplay() {
 		return this.classDisplay;
+	}
+
+	@Nullable
+	public String getFirstTypeText() {
+		return this.firstTypeText;
 	}
 
 	@Nullable
