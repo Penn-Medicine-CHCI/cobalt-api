@@ -3907,11 +3907,16 @@ public class PatientOrderService implements AutoCloseable {
 				"careType", applicablePatientOrderTriageGroup.getPatientOrderCareTypeDescription()
 		)));
 
-		for (PatientOrderTriageGroupFocusApiResponse focusType : applicablePatientOrderTriageGroup.getPatientOrderFocusTypes()) {
-			lines.add(getStrings().get("* {{focusType}}: (Reason: {{reasons}})", Map.of(
-					"focusType", focusType.getPatientOrderFocusTypeDescription(),
-					"reasons", focusType.getReasons().stream().collect(Collectors.joining(", "))
-			)));
+		// Turn these off for now, might bring back later
+		boolean showTriageReasons = false;
+
+		if (showTriageReasons) {
+			for (PatientOrderTriageGroupFocusApiResponse focusType : applicablePatientOrderTriageGroup.getPatientOrderFocusTypes()) {
+				lines.add(getStrings().get("* {{focusType}}: (Reason: {{reasons}})", Map.of(
+						"focusType", focusType.getPatientOrderFocusTypeDescription(),
+						"reasons", focusType.getReasons().stream().collect(Collectors.joining(", "))
+				)));
+			}
 		}
 
 		lines.add("");
