@@ -2006,8 +2006,8 @@ public class PatientOrderService implements AutoCloseable {
 				UPDATE patient_order_triage_group
 				SET active=TRUE
 				WHERE patient_order_id=?
-				AND patient_order_triage_source_id=?
-				""", patientOrderId, PatientOrderTriageSourceId.COBALT) > 0;
+				AND patient_order_triage_group_id=?
+				""", patientOrderId, resettablePatientOrderTriageGroup.getPatientOrderTriageGroupId()) > 0;
 
 		// TODO: track events
 
