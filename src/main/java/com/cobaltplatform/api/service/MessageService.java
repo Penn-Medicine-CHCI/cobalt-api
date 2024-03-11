@@ -764,10 +764,10 @@ public class MessageService implements AutoCloseable {
 				messageSender = getEmailMessageSender();
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.SMS) {
 				deserializedMessage = getSmsMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
-				messageSender = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution().smsMessageSender();
+				messageSender = getEnterprisePluginProvider().enterprisePluginForInstitutionId(deserializedMessage.getInstitutionId()).smsMessageSender();
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.CALL) {
 				deserializedMessage = getCallMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
-				messageSender = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution().callMessageSender();
+				messageSender = getEnterprisePluginProvider().enterprisePluginForInstitutionId(deserializedMessage.getInstitutionId()).callMessageSender();
 			} else if (messageLog.getMessageTypeId() == MessageTypeId.PUSH) {
 				deserializedMessage = getPushMessageSerializer().deserializeMessage(messageLog.getSerializedMessage());
 				PushMessage pushMessage = (PushMessage) deserializedMessage;
