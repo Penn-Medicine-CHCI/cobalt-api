@@ -594,11 +594,13 @@ public class PatientOrderService implements AutoCloseable {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT DISTINCT UPPER(referring_practice_name) referring_practice_name, referring_practice_id
-				FROM patient_order
-				WHERE institution_id=?
-				ORDER BY UPPER(referring_practice_name)
-				""", ReferringPractice.class, institutionId);
+				SELECT DISTINCT UPPER(ed.name) referring_practice_name, ed.department_id AS referring_practice_id
+				FROM patient_order po, epic_department ed
+				WHERE po.institution_id=?
+				AND po.patient_order_disposition_id != ?
+				AND po.epic_department_id=ed.epic_department_id
+				ORDER BY UPPER(ed.name)
+				""", ReferringPractice.class, institutionId, PatientOrderDispositionId.ARCHIVED);
 	}
 
 	@Nonnull
