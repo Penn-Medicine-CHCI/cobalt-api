@@ -32,6 +32,9 @@ import javax.inject.Singleton;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.soklet.util.StringUtils.trimToNull;
@@ -71,6 +74,10 @@ public class Hl7Client {
 			// Patient order messages must have CRLF endings, otherwise parsing will fail.  Ensure that here.
 			generalOrderHl7AsString = generalOrderHl7AsString.trim().lines().collect(Collectors.joining("\r\n"));
 
+			// Rewrite illegally-formatted messages where GT1 (guarantor) appears before IN1, IN2, IN3 (insurance)
+			// by swapping them
+			generalOrderHl7AsString = ensureInsuranceAppearsBeforeGuarantorForGeneralOrderHl7(generalOrderHl7AsString);
+
 			try {
 				message = parser.parse(generalOrderHl7AsString);
 			} catch (Exception e) {
@@ -99,5 +106,47 @@ public class Hl7Client {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	@Nonnull
+	public String ensureInsuranceAppearsBeforeGuarantorForGeneralOrderHl7(@Nonnull String generalOrderHl7AsString) {
+		requireNonNull(generalOrderHl7AsString);
+
+		List<String> originalLines = new ArrayList<>(Arrays.asList(generalOrderHl7AsString.split("\\r\\n")));
+		List<String> rewrittenLines = new ArrayList<>(originalLines.size());
+		String guarantorLineToReposition = null;
+		boolean alreadyEncounteredInsuranceLine = false;
+		boolean previousLineWasInsuranceLine = false;
+
+		for (String originalLine : originalLines) {
+			if (originalLine.startsWith("GT1|")) {
+				if (alreadyEncounteredInsuranceLine) {
+					// The guarantor line is already in the right place, because insurance info came first.
+					// Don't need to do anything special.
+					rewrittenLines.add(originalLine);
+				} else {
+					// We haven't seen an insurance line yet - hold on to the guarantor line so we can
+					// later insert it after the last insurance line
+					guarantorLineToReposition = originalLine;
+				}
+			} else if (originalLine.startsWith("IN1|") || originalLine.startsWith("IN2|") || originalLine.startsWith("IN3|")) {
+				// Insurance line?  We can have many of them.  Keep track of state so when to re-insert the guarantor line (if needed)
+				alreadyEncounteredInsuranceLine = true;
+				previousLineWasInsuranceLine = true;
+				rewrittenLines.add(originalLine);
+			} else {
+				// If we are not in a guarantor or insurance line, and we just finished the insurance section and have a guarantor
+				// to insert, do it.
+				if (guarantorLineToReposition != null && previousLineWasInsuranceLine) {
+					rewrittenLines.add(guarantorLineToReposition);
+					guarantorLineToReposition = null;
+				}
+
+				// Write the original line
+				rewrittenLines.add(originalLine);
+			}
+		}
+
+		return rewrittenLines.stream().collect(Collectors.joining("\r\n"));
 	}
 }

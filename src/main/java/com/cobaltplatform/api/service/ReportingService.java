@@ -710,17 +710,18 @@ public class ReportingService {
 		List<DescriptionWithCountRecord> assessmentOverridePatientOrders = getDatabase().queryForList(
 				format("""
 						WITH pot_reason AS
-						(SELECT DISTINCT pot.patient_order_id, pot.reason
-						FROM patient_order_triage pot, v_patient_order vpo
+						(SELECT DISTINCT potg.patient_order_id, potor.description as reason
+						FROM patient_order_triage_group potg, v_patient_order vpo, patient_order_triage_override_reason potor
 						%s
-						AND pot.patient_order_id = vpo.patient_order_id
-						AND pot.patient_order_triage_source_id = '%s'
-						and pot.active = true)
+						AND potg.patient_order_id = vpo.patient_order_id
+						AND potg.patient_order_triage_source_id='%s'
+						AND potg.patient_order_triage_override_reason_id=potor.patient_order_triage_override_reason_id
+						AND potg.active = true)
 						SELECT reason as description, count(*) as count
 						FROM pot_reason
 						GROUP BY reason
 						ORDER BY reason
-						""", whereClauseWithParameters.getWhereClause(), patientOrderTriageSourceId.toString()),
+						""", whereClauseWithParameters.getWhereClause(), patientOrderTriageSourceId.name()),
 				DescriptionWithCountRecord.class, whereClauseWithParameters.getParameters().toArray());
 
 		return assessmentOverridePatientOrders;
