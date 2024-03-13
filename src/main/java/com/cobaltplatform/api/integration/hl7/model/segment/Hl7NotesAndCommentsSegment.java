@@ -76,6 +76,8 @@ public class Hl7NotesAndCommentsSegment extends Hl7Object {
 						.map(comment -> trimToNull(comment.getValueOrEmpty()))
 						.filter(comment -> comment != null)
 						.collect(Collectors.toList()));
+			else
+				setComment(List.of());
 
 			if (Hl7CodedElement.isPresent(nte.getCommentType()))
 				this.commentType = new Hl7CodedElement(nte.getCommentType());
