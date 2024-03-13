@@ -155,12 +155,14 @@ public class AuthorizationService {
 		Set<AccountCapabilityTypeId> accountCapabilityTypeIds = account.getAccountCapabilityTypeIds();
 
 		AccountCapabilityFlags accountCapabilityFlags = new AccountCapabilityFlags();
-		accountCapabilityFlags.setCanEditIcTriages(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+		accountCapabilityFlags.setCanEditIcTriages(account.getRoleId() == RoleId.MHIC); // All MHICs can do this
 		accountCapabilityFlags.setCanEditIcSafetyPlanning(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN)
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_SAFETY_PLANNING_ADMIN));
-		accountCapabilityFlags.setCanViewIcReports(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
+		accountCapabilityFlags.setCanViewIcReports(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN)
+				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_REPORT_VIEWER));
 		accountCapabilityFlags.setCanImportIcPatientOrders(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN));
-		accountCapabilityFlags.setCanAdministerIcDepartments(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_DEPARTMENT_ADMIN));
+		accountCapabilityFlags.setCanAdministerIcDepartments(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN)
+				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_DEPARTMENT_ADMIN));
 		accountCapabilityFlags.setCanAdministerContent(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.CONTENT_ADMIN));
 		accountCapabilityFlags.setCanAdministerGroupSessions(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.GROUP_SESSION_ADMIN));
 		accountCapabilityFlags.setCanViewAnalytics(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.ANALYTICS_VIEWER));
