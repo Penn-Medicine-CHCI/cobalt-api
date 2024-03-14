@@ -65,6 +65,8 @@ public class Study {
 	private String reminderNotificationMessageTitle;
 	@Nullable
 	private String reminderNotificationMessageBody;
+	@Nullable
+	private Boolean resetAfterFinalCheckIn;
 
 	@Nullable
 	public UUID getStudyId() {
@@ -217,5 +219,14 @@ public class Study {
 
 	public void setReminderNotificationMessageBody(@Nullable String reminderNotificationMessageBody) {
 		this.reminderNotificationMessageBody = reminderNotificationMessageBody;
+	}
+
+	@Nullable
+	public Boolean getResetAfterFinalCheckIn() {
+		return resetAfterFinalCheckIn;
+	}
+
+	public void setResetAfterFinalCheckIn(@Nullable Boolean resetAfterFinalCheckIn) {
+		this.resetAfterFinalCheckIn = resetAfterFinalCheckIn;
 	}
 }

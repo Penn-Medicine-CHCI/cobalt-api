@@ -105,7 +105,7 @@ public class BeiweDataDownloader {
 
 				accountStudies = database.queryForList(format("""
 						SELECT acs.*
-						FROM account_study acs, account a
+						FROM v_account_study acs, account a
 						WHERE acs.study_id=?
 						AND acs.account_id=a.account_id
 						AND a.username IN %s
@@ -114,7 +114,7 @@ public class BeiweDataDownloader {
 			} else {
 				accountStudies = database.queryForList("""
 						SELECT *
-						FROM account_study
+						FROM v_account_study
 						WHERE study_id=?
 						ORDER BY account_id
 						""", AccountStudy.class, studyId);
@@ -124,7 +124,7 @@ public class BeiweDataDownloader {
 
 			List<EncryptionKeypair> encryptionKeypairs = database.queryForList("""
 					SELECT ek.*
-					FROM encryption_keypair ek, account_study acs
+					FROM encryption_keypair ek, v_account_study acs
 					WHERE ek.encryption_keypair_id=acs.encryption_keypair_id
 					AND acs.study_id=?
 					""", EncryptionKeypair.class, studyId);

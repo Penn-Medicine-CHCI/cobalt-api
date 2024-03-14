@@ -56,6 +56,9 @@ public class AccountStudy {
 	@Nonnull
 	private Instant lastUpdated;
 
+	@Nonnull
+	private Boolean deleted;
+
 	@Nullable
 	public UUID getAccountStudyId() {
 		return this.accountStudyId;
@@ -162,5 +165,14 @@ public class AccountStudy {
 
 	public void setCheckInReminderNotificationMessageBody(@Nullable String checkInReminderNotificationMessageBody) {
 		this.checkInReminderNotificationMessageBody = checkInReminderNotificationMessageBody;
+	}
+
+	@Nonnull
+	public Boolean getDeleted() {
+		return deleted;
+	}
+
+	public void setDeleted(@Nonnull Boolean deleted) {
+		this.deleted = deleted;
 	}
 }
