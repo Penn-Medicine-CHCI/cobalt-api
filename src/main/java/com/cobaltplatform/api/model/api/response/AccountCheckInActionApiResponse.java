@@ -80,6 +80,10 @@ public class AccountCheckInActionApiResponse {
 	private Integer maxVideoTimeSeconds;
 	@Nullable
 	private String maxVideoTimeSecondsDescription;
+	@Nullable
+	private String audioPrompt;
+	@Nullable
+	private String recordingTypePrompt;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -111,6 +115,8 @@ public class AccountCheckInActionApiResponse {
 		this.minVideoTimeSecondsDescription = this.minVideoTimeSeconds == null ? null : formatter.formatDuration(this.minVideoTimeSeconds);
 		this.maxVideoTimeSeconds = accountCheckInAction.getMaxVideoTimeSeconds();
 		this.maxVideoTimeSecondsDescription = this.maxVideoTimeSeconds == null ? null : formatter.formatDuration(this.maxVideoTimeSeconds);
+		this.audioPrompt = accountCheckInAction.getAudioPrompt();
+		this.recordingTypePrompt = accountCheckInAction.getRecordingTypePrompt();
 	}
 
 	@Nullable
@@ -181,5 +187,15 @@ public class AccountCheckInActionApiResponse {
 	@Nullable
 	public String getMaxVideoTimeSecondsDescription() {
 		return this.maxVideoTimeSecondsDescription;
+	}
+
+	@Nullable
+	public String getAudioPrompt() {
+		return audioPrompt;
+	}
+
+	@Nullable
+	public String getRecordingTypePrompt() {
+		return recordingTypePrompt;
 	}
 }

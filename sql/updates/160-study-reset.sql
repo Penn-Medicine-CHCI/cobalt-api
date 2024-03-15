@@ -5,6 +5,9 @@ ALTER TABLE study ADD COLUMN reset_after_final_check_in BOOLEAN NOT NULL DEFAULT
 
 ALTER TABLE account_study ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
 
+ALTER TABLE study_check_in_action ADD COLUMN recording_type_prompt VARCHAR;
+ALTER TABLE study_check_in_action ADD COLUMN audio_prompt VARCHAR;
+
 DROP VIEW v_account_study;
 
 CREATE OR REPLACE VIEW v_account_study
@@ -37,7 +40,7 @@ SELECT ac.*, a.account_id, sci.study_id, sc.check_in_type_id,
 cit.description as check_in_type_description, cis.description as check_in_action_status_description,
 ss.screening_session_id, sc.screening_flow_id, sc.video_prompt, sc.video_script, video_intro, min_video_time_seconds, max_video_time_seconds,
 sc.send_followup_notification, sc.followup_notification_message_title, sc.followup_notification_message_body,
-sc.followup_notification_minutes
+sc.followup_notification_minutes, sc.recording_type_prompt, sc.audio_prompt
 FROM account_check_in_action ac
 LEFT OUTER JOIN screening_session ss ON ac.account_check_in_action_id = ss.account_check_in_action_id,
 study_check_in_action sc, study_check_in sci, account_check_in aci,
