@@ -80,7 +80,10 @@ public class AccountCheckInAction {
 	private String followupNotificationMessageTitle;
 	@Nullable
 	private String followupNotificationMessageBody;
-
+	@Nullable
+	private String audioPrompt;
+	@Nullable
+	private String recordingTypePrompt;
 
 	@Nullable
 	public UUID getAccountCheckInActionId() {
@@ -262,4 +265,21 @@ public class AccountCheckInAction {
 		this.followupNotificationMessageBody = followupNotificationMessageBody;
 	}
 
+	@Nullable
+	public String getAudioPrompt() {
+		return audioPrompt;
+	}
+
+	public void setAudioPrompt(@Nullable String audioPrompt) {
+		this.audioPrompt = audioPrompt;
+	}
+
+	@Nullable
+	public String getRecordingTypePrompt() {
+		return recordingTypePrompt;
+	}
+
+	public void setRecordingTypePrompt(@Nullable String recordingTypePrompt) {
+		this.recordingTypePrompt = recordingTypePrompt;
+	}
 }

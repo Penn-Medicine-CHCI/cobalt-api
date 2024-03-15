@@ -320,7 +320,6 @@ public class StudyService implements AutoCloseable {
 				setInstitutionId(account.getInstitutionId());
 				setUsername(accountUsername);
 				setPassword(getAuthenticator().hashPassword(accountPassword));
-				setTestAccount(true);
 				setPasswordResetRequired(true);
 			}});
 
@@ -347,7 +346,7 @@ public class StudyService implements AutoCloseable {
 
 		Boolean accountAlreadyInStudy = getDatabase().queryForObject("""
 				SELECT COUNT(*) > 0
-				FROM account_study
+				FROM v_account_study
 				WHERE account_id = ?
 				AND study_id = ?
 				""", Boolean.class, account.getAccountId(), studyId).get();
@@ -429,6 +428,7 @@ public class StudyService implements AutoCloseable {
 		LocalDateTime currentDateTime = LocalDateTime.now(account.getTimeZone());
 		LocalDateTime newStartDateTime = currentDateTime;
 		Optional<Study> study = findStudyById(studyId);
+		Boolean resetCheckIns = false;
 
 		if (!study.isPresent())
 			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
@@ -460,6 +460,9 @@ public class StudyService implements AutoCloseable {
 				getLogger().debug(format("Check-in %s is complete so continuing to next check-in", accountCheckIn.getCheckInNumber()));
 				newStartDateTime = accountCheckIn.getCompletedDate();
 				checkInCount = 1;
+
+				if (accountCheckIn.getCheckInNumber() == accountCheckIns.size())
+					resetCheckIns = true;
 				continue;
 			} else if (accountCheckExpired(account, accountCheckIn) && !rescheduleFirstCheckIn) {
 				getLogger().debug(format("Check-in %s has expired so continuing to next check-in", accountCheckIn.getCheckInNumber()));
@@ -469,6 +472,9 @@ public class StudyService implements AutoCloseable {
 					getLogger().debug(format("Check-in %s was not set to expired so expiring", accountCheckIn.getCheckInNumber()));
 					updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
 				}
+
+				if (accountCheckIn.getCheckInNumber() == accountCheckIns.size())
+					resetCheckIns = true;
 				continue;
 			}
 
@@ -493,6 +499,25 @@ public class StudyService implements AutoCloseable {
 			checkInCount++;
 		}
 
+		if (resetCheckIns && study.get().getResetAfterFinalCheckIn()) {
+			getLogger().debug("Final check-in reached, resetting check-ins");
+			resetCheckIns(account, studyId);
+		}
+	}
+
+
+	@Nonnull
+	private void resetCheckIns(@Nonnull Account account, @Nonnull UUID studyId) {
+		requireNonNull(account);
+		requireNonNull(studyId);
+		getLogger().debug(format("Setting account_study to deleted for account_id %s and study_id %s", account.getAccountId(), studyId));
+		getDatabase().execute("""
+				UPDATE account_study 
+				SET deleted=true 
+				WHERE account_id=? AND study_id =? 
+				AND deleted=false""", account.getAccountId(), studyId);
+
+		addAccountToStudy(account, studyId);
 	}
 
 	@Nonnull
@@ -652,7 +677,7 @@ public class StudyService implements AutoCloseable {
 
 		return getDatabase().queryForObject("""
 				  SELECT *
-				  FROM account_study
+				  FROM v_account_study
 				  WHERE account_id=?
 				  AND study_id=?
 				""", AccountStudy.class, accountId, studyId);
@@ -818,7 +843,7 @@ public class StudyService implements AutoCloseable {
 
 		return getDatabase().queryForList("""
 				SELECT s.*
-				FROM study s, account_study a
+				FROM study s, v_account_study a
 				WHERE s.study_id = a.study_id
 				AND a.account_id = ?
 				""", Study.class, accountId);
