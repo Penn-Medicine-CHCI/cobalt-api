@@ -53,4 +53,6 @@ ORDER BY aci.check_in_start_date_time, sc.action_order ASC;
 
 DROP INDEX idx_account_study_account_id;
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tag_content_content_id_tag_id ON tag_content (tag_id, content_id);
+
 COMMIT;
