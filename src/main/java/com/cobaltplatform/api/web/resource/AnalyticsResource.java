@@ -1912,7 +1912,7 @@ public class AnalyticsResource {
 		requireNonNull(contentId);
 
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.STAFF).get();
-		return format("%s/admin/my-content/create?contentId=%s&editing=true", webappBaseUrl, contentId);
+		return format("%s/admin/resources/edit/%s", webappBaseUrl, contentId);
 	}
 
 	@Nonnull
