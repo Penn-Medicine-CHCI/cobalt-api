@@ -323,18 +323,19 @@ public class StudyService implements AutoCloseable {
 				setPasswordResetRequired(true);
 			}});
 
-			addAccountToStudy(getAccountService().findAccountById(accountId).get(), studyId);
+			addAccountToStudy(accountId, studyId);
 		}
 
 		return studyAccounts;
 	}
 
 	@Nonnull
-	public void addAccountToStudy(@Nonnull Account account,
+	public void addAccountToStudy(@Nonnull UUID accountId,
 																@Nonnull UUID studyId) {
-		requireNonNull(account);
+		requireNonNull(accountId);
 		requireNonNull(studyId);
 
+		Account account = getAccountService().findAccountById(accountId).get();
 		ValidationException validationException = new ValidationException();
 		List<StudyCheckIn> studyCheckIns = getDatabase().queryForList("SELECT * FROM study_check_in WHERE study_id = ? ORDER BY check_in_number ASC", StudyCheckIn.class, studyId);
 		LocalDateTime currentDate = LocalDateTime.now(account.getTimeZone());
@@ -517,7 +518,7 @@ public class StudyService implements AutoCloseable {
 				WHERE account_id=? AND study_id =? 
 				AND deleted=false""", account.getAccountId(), studyId);
 
-		addAccountToStudy(account, studyId);
+		addAccountToStudy(account.getAccountId(), studyId);
 	}
 
 	@Nonnull

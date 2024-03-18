@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
+import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -126,8 +127,8 @@ public class StudyResource {
 	@Nonnull
 	@POST("/studies/{studyId}/generate-accounts")
 	@AuthenticationRequired
-	public ApiResponse addCurrentAccountToStudy(@Nonnull @PathParameter UUID studyId,
-																							@Nonnull @QueryParameter Optional<Integer> count) {
+	public ApiResponse generateAccounts(@Nonnull @PathParameter UUID studyId,
+																			@Nonnull @QueryParameter Optional<Integer> count) {
 		requireNonNull(studyId);
 		requireNonNull(count);
 
@@ -138,6 +139,28 @@ public class StudyResource {
 					getStudyAccountApiResponseFactory().create(studyAccount)).collect(Collectors.toList()));
 		}});
 	}
+
+	@Nonnull
+	@POST("/studies/{studyId}/add-account/{accountId}")
+	@AuthenticationRequired
+	public ApiResponse addAccountToStudy(@Nonnull @PathParameter UUID studyId,
+																			 @Nonnull @PathParameter UUID accountId) {
+		requireNonNull(studyId);
+		requireNonNull(accountId);
+
+		Account account = getCurrentContext().getAccount().get();
+		if (account.getRoleId() != Role.RoleId.ADMINISTRATOR) {
+			throw new AuthorizationException();
+		}
+
+		getStudyService().addAccountToStudy(accountId, studyId);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("studies", getStudyService().findStudiesForAccountId(accountId)
+					.stream().map(accountStudies -> getStudyApiResponseFactory().create(accountStudies)).collect(Collectors.toList()));
+		}});
+	}
+
+
 
 	@Nonnull
 	@GET("/studies/{studyId}/check-in-list")
