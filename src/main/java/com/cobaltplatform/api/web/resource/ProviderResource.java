@@ -891,7 +891,7 @@ public class ProviderResource {
 		List<Object> availabilities = List.of(availabilityAll, availabilityOnlyAvailable);
 
 		LocalDate startDate = startDateOverride.orElse(LocalDate.now(getCurrentContext().getTimeZone()));
-		LocalDate endDate = endDateOverride.orElse(startDate.plusWeeks(6));
+		LocalDate endDate = endDateOverride.orElse(institution.getEpicFhirEnabled() ? startDate.plusDays(90) : startDate.plusWeeks(6));
 
 		LocalTime startTime = LocalTime.of(6, 00);
 		LocalTime endTime = LocalTime.of(20, 00);
