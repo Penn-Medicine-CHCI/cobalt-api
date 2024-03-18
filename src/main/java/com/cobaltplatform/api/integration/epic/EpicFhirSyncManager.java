@@ -107,7 +107,7 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 	private ScheduledExecutorService availabilitySyncExecutorService;
 
 	static {
-		AVAILABILITY_SYNC_NUMBER_OF_DAYS_AHEAD = 60;
+		AVAILABILITY_SYNC_NUMBER_OF_DAYS_AHEAD = 90;
 		AVAILABILITY_SYNC_INTERVAL_IN_SECONDS = 60L;
 		AVAILABILITY_SYNC_INITIAL_DELAY_IN_SECONDS = 10L;
 	}
