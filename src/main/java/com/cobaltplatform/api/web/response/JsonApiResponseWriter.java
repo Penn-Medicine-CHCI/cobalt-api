@@ -178,6 +178,10 @@ public class JsonApiResponseWriter implements ApiResponseWriter {
 
 			httpServletResponse.setHeader("X-Cobalt-Checksum", checksum);
 
+			// HSTS support
+			// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+			httpServletResponse.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+
 			try {
 				copyStreamCloseAfterwards(new ByteArrayInputStream(json.getBytes(UTF_8)),
 						httpServletResponse.getOutputStream());
