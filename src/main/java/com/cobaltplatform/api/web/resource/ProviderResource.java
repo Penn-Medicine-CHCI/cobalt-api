@@ -288,7 +288,7 @@ public class ProviderResource {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
-		int defaultNumberOfWeeksToSearch = 4;
+		final int DEFAULT_NUMBER_OF_DAYS_TO_SEARCH = 90;
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
 		request.setInstitutionId(institution.getInstitutionId());
@@ -299,7 +299,7 @@ public class ProviderResource {
 			request.setPatientOrderId(null);
 
 		if (request.getStartDate() != null && request.getEndDate() == null)
-			request.setEndDate(request.getStartDate().plusWeeks(defaultNumberOfWeeksToSearch));
+			request.setEndDate(request.getStartDate().plusDays(DEFAULT_NUMBER_OF_DAYS_TO_SEARCH));
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
@@ -391,7 +391,7 @@ public class ProviderResource {
 		// results for that date (UI prefers to show "no providers available for this date" kind of message in that scenario)
 		if (institution.getFeaturesEnabled()) {
 			LocalDate startDate = request.getStartDate() == null ? LocalDate.now(account.getTimeZone()) : request.getStartDate();
-			LocalDate endDate = request.getEndDate() == null ? startDate.plusWeeks(defaultNumberOfWeeksToSearch) : request.getEndDate();
+			LocalDate endDate = request.getEndDate() == null ? startDate.plusDays(DEFAULT_NUMBER_OF_DAYS_TO_SEARCH) : request.getEndDate();
 
 			for (LocalDate currentDate = startDate;
 					 currentDate.isBefore(endDate) || currentDate.isEqual(endDate);

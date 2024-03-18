@@ -941,7 +941,7 @@ public class ProviderService {
 			}
 
 			LocalDate startDate = command.getStartDate() != null ? command.getStartDate() : LocalDate.now(account.getTimeZone());
-			LocalDate endDate = command.getEndDate() != null ? command.getEndDate() : startDate.plusDays(60);
+			LocalDate endDate = command.getEndDate() != null ? command.getEndDate() : startDate.plusDays(90);
 
 			// Instead of calling Epic FHIR directly to find appointments, look at our local cache of serialized responses.
 			// Calling Epic over a date range like this for all providers would be prohibitively slow
