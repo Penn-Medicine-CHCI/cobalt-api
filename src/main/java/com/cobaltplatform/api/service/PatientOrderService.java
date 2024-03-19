@@ -4477,12 +4477,12 @@ public class PatientOrderService implements AutoCloseable {
 				//     "organizationName": "MEDICARE"
 				//   }
 				// ]
-				primaryPayorId = insurance.getInsuranceCompanyId().stream()
+				primaryPayorId = insurance.getInsuranceCompanyId() == null ? null : insurance.getInsuranceCompanyId().stream()
 						.map(insuranceCompanyId -> insuranceCompanyId.getIdNumber())
 						.findFirst()
 						.orElse(null);
 
-				primaryPayorName = insurance.getInsuranceCompanyName().stream()
+				primaryPayorName = insurance.getInsuranceCompanyName() == null ? null : insurance.getInsuranceCompanyName().stream()
 						.map(insuranceCompanyName -> insuranceCompanyName.getOrganizationName())
 						.findFirst()
 						.orElse(null);
@@ -4493,8 +4493,8 @@ public class PatientOrderService implements AutoCloseable {
 				//   "identifier": "137003",
 				//   "text": "MEDICARE PART A & B"
 				// }
-				primaryPlanId = insurance.getInsurancePlanId().getIdentifier();
-				primaryPlanName = insurance.getInsurancePlanId().getText();
+				primaryPlanId = insurance.getInsurancePlanId() == null ? null : insurance.getInsurancePlanId().getIdentifier();
+				primaryPlanName = insurance.getInsurancePlanId() == null ? null : insurance.getInsurancePlanId().getText();
 			}
 
 			// TODO: confirm this is OK
