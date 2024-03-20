@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUp
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
+import com.cobaltplatform.api.model.api.request.CreateStudyAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
@@ -47,6 +48,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
+import com.cobaltplatform.api.model.db.StudyCheckInAction;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
@@ -283,25 +285,50 @@ public class StudyService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<StudyAccount> generateAccountsForStudy(@Nonnull UUID studyId,
-																										 @Nonnull Integer count,
-																										 @Nonnull Account account) {
-		requireNonNull(studyId);
-		requireNonNull(count);
+	public List<StudyAccount> generateAccountsForStudies(@Nonnull CreateStudyAccountRequest request,
+																											 @Nonnull Account account) {
+		requireNonNull(request);
+		requireNonNull(account);
+
+		List<UUID> studyIds = request.getStudyIds();
+		Integer participantCount = request.getParticipantCount();
 
 		ValidationException validationException = new ValidationException();
-		Optional<Study> study = findStudyById(studyId);
-		List<StudyAccount> studyAccounts = new ArrayList<>();
 
-		if (!study.isPresent())
-			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
-		else if (study.get().getInstitutionId() != account.getInstitutionId())
-			validationException.add(new FieldError("institutionId", getStrings().get("You can only create accounts for studies in your institution.")));
+		if (studyIds == null || studyIds.size() == 0)
+			validationException.add(new FieldError("studyIds", getStrings().get("At least one study id is required.")));
+		if (participantCount == null)
+			validationException.add(new FieldError("participantCount", getStrings().get("Participant count is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		List<StudyAccount> studyAccounts = generateAccountsForStudy(participantCount, account);
+
+		for (StudyAccount studyAccount : studyAccounts)
+			for (UUID studyId : studyIds) {
+				addAccountToStudy(studyAccount.getAccountId(), studyId);
+			}
+
+		return studyAccounts;
+	}
+
+	@Nonnull
+	public List<StudyAccount> generateAccountsForStudy(@Nonnull Integer participantCount,
+																										 @Nonnull Account account) {
+		requireNonNull(participantCount);
+		requireNonNull(account);
+
+		ValidationException validationException = new ValidationException();
+		List<StudyAccount> studyAccounts = new ArrayList<>();
 
 		if (!account.getRoleId().equals(RoleId.ADMINISTRATOR))
 			validationException.add(new FieldError("accountId", getStrings().get("Only administrators can create Study accounts.")));
 
-		for (int i = 0; i < count; ++i) {
+		if (validationException.hasErrors())
+			throw validationException;
+
+		for (int i = 0; i < participantCount; ++i) {
 			String accountUsername = new Random().ints(10, 97, 122)
 					.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
 					.toString();
@@ -310,10 +337,6 @@ public class StudyService implements AutoCloseable {
 					.toString();
 
 			getLogger().debug(format("Adding %s with password %s", accountUsername, accountPassword));
-			studyAccounts.add(new StudyAccount() {{
-				setUsername(accountUsername);
-				setPassword(accountPassword);
-			}});
 			UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
 				setAccountSourceId(AccountSourceId.USERNAME);
 				setRoleId(RoleId.PATIENT);
@@ -322,13 +345,25 @@ public class StudyService implements AutoCloseable {
 				setPassword(getAuthenticator().hashPassword(accountPassword));
 				setPasswordResetRequired(true);
 			}});
-
-			addAccountToStudy(accountId, studyId);
+			studyAccounts.add(new StudyAccount() {{
+				setAccountId(accountId);
+				setUsername(accountUsername);
+				setPassword(accountPassword);
+			}});
 		}
 
 		return studyAccounts;
 	}
 
+	@Nonnull
+	public Optional<StudyCheckInAction> findStudyCheckInActionById (@Nonnull UUID studyCheckInActionId) {
+		requireNonNull(studyCheckInActionId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM study_check_in_action
+				WHERE study_check_in_action_id = ?""", StudyCheckInAction.class, studyCheckInActionId);
+	}
 	@Nonnull
 	public void addAccountToStudy(@Nonnull UUID accountId,
 																@Nonnull UUID studyId) {
@@ -337,7 +372,11 @@ public class StudyService implements AutoCloseable {
 
 		Account account = getAccountService().findAccountById(accountId).get();
 		ValidationException validationException = new ValidationException();
-		List<StudyCheckIn> studyCheckIns = getDatabase().queryForList("SELECT * FROM study_check_in WHERE study_id = ? ORDER BY check_in_number ASC", StudyCheckIn.class, studyId);
+		List<StudyCheckIn> studyCheckIns = getDatabase().queryForList("""
+				SELECT * 
+				FROM study_check_in 
+				WHERE study_id = ? 
+				ORDER BY check_in_number ASC""", StudyCheckIn.class, studyId);
 		LocalDateTime currentDate = LocalDateTime.now(account.getTimeZone());
 		LocalDateTime checkInStartDateTime;
 		LocalDateTime checkInEndDateTime;
@@ -625,11 +664,15 @@ public class StudyService implements AutoCloseable {
 			if (accountCheckInAction.get().getSendFollowupNotification() && !followupNotificationSentForAccountCheckInAction(request.getAccountCheckInActionId())) {
 				List<ClientDevicePushToken> clientDevicePushTokens = getAccountService().findClientDevicePushTokensForAccountId(account.getAccountId());
 				Map<String, Object> standardMessageContext = new HashMap<>();
+				StudyCheckInAction studyCheckInAction = findStudyCheckInActionById(accountCheckInAction.get().getStudyCheckInActionId()).get();
+
 				standardMessageContext.put("condition", format("Check-In %s", accountCheckIn.get().getCheckInNumber()));
+				standardMessageContext.put("title", studyCheckInAction.getFollowupNotificationMessageTitle());
+				standardMessageContext.put("body", studyCheckInAction.getFollowupNotificationMessageBody());
 
 				getLogger().debug(format("Scheduling a micro-intervention for accountCheckInActionId %s", accountCheckInAction.get().getAccountCheckInActionId()));
 				for (ClientDevicePushToken clientDevicePushToken : clientDevicePushTokens) {
-					PushMessage pushMessage = new PushMessage.Builder(account.getInstitutionId(), PushMessageTemplate.MICROINTERVENTION,
+					PushMessage pushMessage = new PushMessage.Builder(account.getInstitutionId(), PushMessageTemplate.FREEFORM,
 							clientDevicePushToken.getClientDevicePushTokenTypeId(), clientDevicePushToken.getPushToken(), Locale.US)
 							.messageContext(standardMessageContext).build();
 					UUID scheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
@@ -987,11 +1030,13 @@ public class StudyService implements AutoCloseable {
 
 				Map<String, Object> standardMessageContext = new HashMap<>();
 				standardMessageContext.put("condition", format("accountId %s", accountStudy.getAccountId()));
+				standardMessageContext.put("title", accountStudy.getCheckInReminderNotificationMessageTitle());
+				standardMessageContext.put("body", accountStudy.getCheckInReminderNotificationMessageBody());
 
 				List<ClientDevicePushToken> clientDevicePushTokens = accountService.findClientDevicePushTokensForAccountId(accountStudy.getAccountId());
 
 				for (ClientDevicePushToken clientDevicePushToken : clientDevicePushTokens) {
-					PushMessage pushMessage = new PushMessage.Builder(accountStudy.getInstitutionId(), PushMessageTemplate.STUDY_CHECK_IN_REMINDER,
+					PushMessage pushMessage = new PushMessage.Builder(accountStudy.getInstitutionId(), PushMessageTemplate.FREEFORM,
 							clientDevicePushToken.getClientDevicePushTokenTypeId(), clientDevicePushToken.getPushToken(), Locale.US)
 							.messageContext(standardMessageContext).build();
 					UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{

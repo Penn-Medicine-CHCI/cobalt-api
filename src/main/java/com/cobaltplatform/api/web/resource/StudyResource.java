@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.CreateStudyAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
@@ -125,17 +126,15 @@ public class StudyResource {
 	}
 
 	@Nonnull
-	@POST("/studies/{studyId}/generate-accounts")
+	@POST("/studies/generate-accounts")
 	@AuthenticationRequired
-	public ApiResponse generateAccounts(@Nonnull @PathParameter UUID studyId,
-																			@Nonnull @QueryParameter Optional<Integer> count) {
-		requireNonNull(studyId);
-		requireNonNull(count);
+	public ApiResponse generateAccounts(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		int finalCount = count.orElse(10);
+		CreateStudyAccountRequest request = getRequestBodyParser().parse(requestBody, CreateStudyAccountRequest.class);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("accounts", getStudyService().generateAccountsForStudy(studyId, finalCount, account).stream().map(studyAccount ->
+			put("accounts", getStudyService().generateAccountsForStudies(request, account).stream().map(studyAccount ->
 					getStudyAccountApiResponseFactory().create(studyAccount)).collect(Collectors.toList()));
 		}});
 	}

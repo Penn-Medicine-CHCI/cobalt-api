@@ -17,48 +17,41 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.api.request;
+
+import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.Study;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
+import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
-@ThreadSafe
-public class StudyAccount {
+@NotThreadSafe
+public class CreateStudyAccountRequest {
 	@Nullable
-	private UUID accountId;
+	private Integer participantCount;
 	@Nullable
-	private String username;
-	@Nullable
-	private String password;
+	private List<UUID> studyIds;
 
 	@Nullable
-	public UUID getAccountId() {
-		return accountId;
+	public Integer getParticipantCount() {
+		return participantCount;
 	}
 
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
-	}
-
-	@Nullable
-	public String getUsername() {
-		return username;
-	}
-
-	public void setUsername(@Nullable String username) {
-		this.username = username;
+	public void setParticipantCount(@Nullable Integer participantCount) {
+		this.participantCount = participantCount;
 	}
 
 	@Nullable
-	public String getPassword() {
-		return password;
+	public List<UUID> getStudyIds() {
+		return studyIds;
 	}
 
-	public void setPassword(@Nullable String password) {
-		this.password = password;
+	public void setStudyIds(@Nullable List<UUID> studyIds) {
+		this.studyIds = studyIds;
 	}
 }

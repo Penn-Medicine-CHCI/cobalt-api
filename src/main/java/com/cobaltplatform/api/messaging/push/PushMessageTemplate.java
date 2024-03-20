@@ -24,6 +24,5 @@ package com.cobaltplatform.api.messaging.push;
  */
 public enum PushMessageTemplate {
 	FREEFORM,
-	MICROINTERVENTION,
-	STUDY_CHECK_IN_REMINDER
+	MICROINTERVENTION
 }
