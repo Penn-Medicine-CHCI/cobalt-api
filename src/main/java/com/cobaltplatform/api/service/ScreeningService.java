@@ -1574,8 +1574,10 @@ public class ScreeningService {
 							WHERE patient_order_id=?
 							""", PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING, patientOrder.getPatientOrderId());
 
+					boolean selfAdministered = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
+
 					// Notify any "crisis handlers" for this institution if a patient is self-screening and indicated crisis
-					if (isScreeningSessionSelfAdministered(screeningSession)) {
+					if (selfAdministered) {
 						List<PatientOrderCrisisHandler> patientOrderCrisisHandlers = getPatientOrderService().findPatientOrderCrisisHandlersByInstitutionId(patientOrder.getInstitutionId());
 
 						getLogger().info("Notifying {} IC crisis handlers for institution ID {}...", patientOrderCrisisHandlers.size(), institution.getInstitutionId());
