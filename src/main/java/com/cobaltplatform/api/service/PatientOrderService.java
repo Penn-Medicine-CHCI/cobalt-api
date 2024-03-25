@@ -2868,7 +2868,7 @@ public class PatientOrderService implements AutoCloseable {
 				.filter(encounter -> encounter != null)
 				// TODO: re-enable for prod?
 				// .filter(encounter -> !encounter.getPeriodStart().toLocalDate().isBefore(patientOrder.getOrderDate()))
-				.limit(5L) // Only show 5 most recent
+				.limit(20L) // Show max of 20 upcoming/most recent
 				.collect(Collectors.toList());
 	}
 
