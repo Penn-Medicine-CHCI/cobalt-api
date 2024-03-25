@@ -301,6 +301,8 @@ public class Institution {
 
 	@Nullable
 	private UUID integratedCareSafetyPlanningManagerAccountId;
+	@Nullable
+	private Integer integratedCareOrderImportDelayInSeconds;
 
 	@Nullable
 	private String twilioAccountSid;
@@ -1421,6 +1423,15 @@ public class Institution {
 
 	public void setIntegratedCareSafetyPlanningManagerAccountId(@Nullable UUID integratedCareSafetyPlanningManagerAccountId) {
 		this.integratedCareSafetyPlanningManagerAccountId = integratedCareSafetyPlanningManagerAccountId;
+	}
+
+	@Nullable
+	public Integer getIntegratedCareOrderImportDelayInSeconds() {
+		return this.integratedCareOrderImportDelayInSeconds;
+	}
+
+	public void setIntegratedCareOrderImportDelayInSeconds(@Nullable Integer integratedCareOrderImportDelayInSeconds) {
+		this.integratedCareOrderImportDelayInSeconds = integratedCareOrderImportDelayInSeconds;
 	}
 
 	@Nullable
