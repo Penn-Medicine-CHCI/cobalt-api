@@ -197,6 +197,8 @@ public class GroupSessionApiResponse {
 	private final String registrationEndDateTimeDescription;
 	@Nonnull
 	private final Boolean registrationEndDateTimeHasPassed;
+	@Nullable
+	private final UUID imageFileUploadId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -364,6 +366,7 @@ public class GroupSessionApiResponse {
 
 		this.timeZone = groupSession.getTimeZone();
 		this.imageUrl = groupSession.getImageFileUploadUrl();
+		this.imageFileUploadId = groupSession.getImageFileUploadId();
 		this.videoconferenceUrl = groupSession.getVideoconferenceUrl();
 		this.scheduleUrl = groupSession.getScheduleUrl();
 		this.confirmationEmailContent = groupSession.getConfirmationEmailContent();
@@ -734,5 +737,10 @@ public class GroupSessionApiResponse {
 	@Nonnull
 	public Boolean getRegistrationEndDateTimeHasPassed() {
 		return this.registrationEndDateTimeHasPassed;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
+		return this.imageFileUploadId;
 	}
 }
