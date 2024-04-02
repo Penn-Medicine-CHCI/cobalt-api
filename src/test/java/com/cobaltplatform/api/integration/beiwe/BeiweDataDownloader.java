@@ -55,9 +55,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -239,7 +241,11 @@ public class BeiweDataDownloader {
 						else
 							throw new IllegalStateException("Not sure what this upload is...");
 
-						Path file = storageDirectory.resolve(fileUpload.getFilename());
+						DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US)
+								.withZone(accountStudy.getTimeZone());
+
+						// Prepend timestamp to filename for easier sorting and in the event that devices choose non-unique filename
+						Path file = storageDirectory.resolve(format("%s-%s", dateTimeFormatter.format(fileUpload.getCreated()), fileUpload.getFilename()));
 
 						try (OutputStream outputStream = new FileOutputStream(file.toFile())) {
 							IOUtils.copy(s3Object, outputStream);
