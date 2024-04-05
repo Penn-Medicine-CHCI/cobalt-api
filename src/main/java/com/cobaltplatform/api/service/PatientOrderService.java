@@ -4728,10 +4728,9 @@ public class PatientOrderService implements AutoCloseable {
 		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
-		for (
-				PatientOrder importedPatientOrder : importedPatientOrders) {
-			// If the order's insurance and region (state in US) are OK, then send the welcome message...
-			if (importedPatientOrder.getPrimaryPlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted()) {
+		for (PatientOrder importedPatientOrder : importedPatientOrders) {
+			// If the order's insurance and region (state in US) are OK and patient is old enough, then send the welcome message...
+			if (importedPatientOrder.getPrimaryPlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted() && !importedPatientOrder.getPatientBelowAgeThreshold()) {
 				getLogger().info("Patient Order ID {} has an accepted region and insurance - automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
 
 				Set<MessageTypeId> messageTypeIds = new HashSet<>();
