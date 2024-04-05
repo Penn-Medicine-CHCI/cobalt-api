@@ -158,7 +158,9 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String secureFilesharingPlatformUrl;
 	@Nullable
-	private String tinymceApiKey;
+	private final String tinymceApiKey;
+	@Nonnull
+	private final Boolean tableauEnabled;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
 
@@ -265,6 +267,7 @@ public class InstitutionApiResponse {
 		this.secureFilesharingPlatformUrl = institution.getSecureFilesharingPlatformUrl();
 
 		this.tinymceApiKey = configuration.getTinymceApiKey();
+		this.tableauEnabled = institution.getTableauEnabled();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -545,5 +548,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getTinymceApiKey() {
 		return this.tinymceApiKey;
+	}
+
+	@Nonnull
+	public Boolean getTableauEnabled() {
+		return this.tableauEnabled;
 	}
 }

@@ -21,6 +21,10 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.tableau.TableauClient;
+import com.cobaltplatform.api.integration.tableau.TableauException;
+import com.cobaltplatform.api.integration.tableau.request.AccessTokenRequest;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -61,12 +65,14 @@ import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
+import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.CustomResponse;
 import org.apache.commons.io.IOUtils;
@@ -137,6 +143,8 @@ public class AnalyticsResource {
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Formatter formatter;
@@ -153,6 +161,7 @@ public class AnalyticsResource {
 													 @Nonnull AlertApiResponseFactory alertApiResponseFactory,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
+													 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													 @Nonnull Strings strings,
 													 @Nonnull Formatter formatter) {
 		requireNonNull(analyticsService);
@@ -164,6 +173,7 @@ public class AnalyticsResource {
 		requireNonNull(alertApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 
@@ -176,6 +186,7 @@ public class AnalyticsResource {
 		this.alertApiResponseFactory = alertApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.strings = strings;
 		this.formatter = formatter;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -1879,6 +1890,48 @@ public class AnalyticsResource {
 	}
 
 	@Nonnull
+	@GET("/analytics/tableau")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse analyticsTableau() throws TableauException {
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
+			throw new AuthorizationException();
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
+		if (!institution.getTableauEnabled())
+			throw new ValidationException(getStrings().get("Tableau is not enabled for the {{institutionName}} institution.",
+					Map.of("institutionName", institution.getName())
+			));
+
+		TableauClient tableauClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).tableauClient().orElse(null);
+
+		if (tableauClient == null)
+			throw new NotFoundException();
+
+		String tableauJwt = tableauClient.generateDirectTrustJwt(new AccessTokenRequest.Builder(institution.getTableauEmailAddress())
+				.scopes(List.of("tableau:views:embed"))
+				.claims(Map.of("https://tableau.com/oda", "true"))
+				.build());
+
+		// Verify that this JWT is legal
+		tableauClient.authenticateUsingDirectTrustJwt(tableauJwt, institution.getTableauContentUrl());
+
+		return new ApiResponse(Map.of(
+				"tableauJwt", tableauJwt,
+				"tableauClientId", institution.getTableauClientId(),
+				"tableauEmailAddress", institution.getTableauEmailAddress(),
+				"tableauApiBaseUrl", institution.getTableauApiBaseUrl(),
+				"tableauContentUrl", institution.getTableauContentUrl(),
+				"tableauViewName", institution.getTableauViewName(),
+				"tableauReportName", institution.getTableauReportName()
+		));
+	}
+
+	@Nonnull
 	protected CustomResponse writeMockJsonResponse(@Nonnull HttpServletResponse httpServletResponse,
 																								 @Nonnull String json) {
 		requireNonNull(httpServletResponse);
@@ -2321,6 +2374,11 @@ public class AnalyticsResource {
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull
