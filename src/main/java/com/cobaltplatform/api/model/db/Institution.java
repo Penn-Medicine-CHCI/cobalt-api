@@ -298,6 +298,10 @@ public class Institution {
 	private String tableauContentUrl;
 	@Nullable
 	private String tableauEmailAddress;
+	@Nullable
+	private String tableauViewName;
+	@Nullable
+	private String tableauReportName;
 
 	@Nullable
 	private UUID integratedCareSafetyPlanningManagerAccountId;
@@ -1405,6 +1409,24 @@ public class Institution {
 
 	public void setTableauContentUrl(@Nullable String tableauContentUrl) {
 		this.tableauContentUrl = tableauContentUrl;
+	}
+
+	@Nullable
+	public String getTableauViewName() {
+		return this.tableauViewName;
+	}
+
+	public void setTableauViewName(@Nullable String tableauViewName) {
+		this.tableauViewName = tableauViewName;
+	}
+
+	@Nullable
+	public String getTableauReportName() {
+		return this.tableauReportName;
+	}
+
+	public void setTableauReportName(@Nullable String tableauReportName) {
+		this.tableauReportName = tableauReportName;
 	}
 
 	@Nullable

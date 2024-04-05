@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('161-ic-updates', NULL, NULL);
+SELECT _v.register_patch('162-ic-updates', NULL, NULL);
 
 -- How long to wait after a referral order message is placed before importing into the system.
 -- Why do we need this?  Because without a delay, a patient can be referred in and receive an SMS

@@ -415,18 +415,19 @@ public class SystemResource {
 		// Verify that this JWT is legal
 		tableauClient.authenticateUsingDirectTrustJwt(jwt, institution.getTableauContentUrl());
 
-		// TODO: finalize data modeling for Tableau reports, e.g. CobaltAdminAnalytics/Sheet1
 		String html = """
 				<html>
 				<head></head>
 					<script type='module' src='$TABLEAU_API_BASE_URL/javascripts/api/tableau.embedding.3.latest.min.js'></script>
-					<tableau-viz id='tableau-viz' token='$TABLEAU_JWT' src='$TABLEAU_API_BASE_URL/t/$TABLEAU_CONTENT_URL/views/CobaltAdminAnalytics/Sheet1' width='1399' height='723' hide-tabs toolbar='bottom' ></tableau-viz>
+					<tableau-viz id='tableau-viz' token='$TABLEAU_JWT' src='$TABLEAU_API_BASE_URL/t/$TABLEAU_CONTENT_URL/views/$TABLEAU_VIEW_NAME/$TABLEAU_REPORT_NAME' hide-tabs toolbar='hidden'></tableau-viz>
 				<body></body>
 				</html>
 				"""
 				.replace("$TABLEAU_JWT", jwt)
 				.replace("$TABLEAU_API_BASE_URL", institution.getTableauApiBaseUrl())
-				.replace("$TABLEAU_CONTENT_URL", institution.getTableauContentUrl());
+				.replace("$TABLEAU_CONTENT_URL", institution.getTableauContentUrl())
+				.replace("$TABLEAU_VIEW_NAME", institution.getTableauViewName())
+				.replace("$TABLEAU_REPORT_NAME", institution.getTableauReportName());
 
 		return ResponseGenerator.utf8Response(html, "text/html");
 	}

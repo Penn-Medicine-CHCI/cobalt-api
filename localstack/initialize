@@ -103,4 +103,18 @@ then
     aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-twilio-auth-token-COBALT_IC"  --description "Twilio Auth Token for COBALT_IC institution" --secret-string file:///localstack/secrets/cobalt-local-twilio-auth-token-COBALT_IC --region ${REGION}  1> /dev/null
 fi
 
+if [ -e /localstack/secrets/cobalt-local-tableau-secret-id-COBALT ]
+then
+    echo "Using Localstack secret value for cobalt-local-tableau-secret-id-COBALT..."
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-tableau-secret-id-COBALT"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-tableau-secret-id-COBALT"  --description "Tableau Secret ID for COBALT institution" --secret-string file:///localstack/secrets/cobalt-local-tableau-secret-id-COBALT --region ${REGION}  1> /dev/null
+fi
+
+if [ -e /localstack/secrets/cobalt-local-tableau-secret-value-COBALT ]
+then
+    echo "Using Localstack secret value for cobalt-local-tableau-secret-value-COBALT..."
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-tableau-secret-value-COBALT"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-tableau-secret-value-COBALT"  --description "Tableau Secret Value for COBALT institution" --secret-string file:///localstack/secrets/cobalt-local-tableau-secret-value-COBALT --region ${REGION}  1> /dev/null
+fi
+
 echo "Localstack initialization complete."
