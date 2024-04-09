@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAc
 import com.cobaltplatform.api.model.api.response.StudyApiResponse.StudyApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
+import com.cobaltplatform.api.model.db.AccountCheckInActionFileUpload;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
@@ -37,11 +38,13 @@ import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
+import com.cobaltplatform.api.model.db.StudyFileUpload;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
@@ -63,8 +66,10 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -103,6 +108,8 @@ public class StudyResource {
 	private final StudyApiResponseFactory studyApiResponseFactory;
 	@Nonnull
 	private final Strings strings;
+	@Nonnull
+	private final Formatter formatter;
 
 	@Inject
 	public StudyResource(@Nonnull AccountService accountService,
@@ -114,7 +121,8 @@ public class StudyResource {
 											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											 @Nonnull StudyApiResponseFactory studyApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser,
-											 @Nonnull Strings strings) {
+											 @Nonnull Strings strings,
+											 @Nonnull Formatter formatter) {
 		requireNonNull(accountService);
 		requireNonNull(studyService);
 		requireNonNull(systemService);
@@ -125,6 +133,7 @@ public class StudyResource {
 		requireNonNull(fileUploadResultApiResponseFactory);
 		requireNonNull(studyApiResponseFactory);
 		requireNonNull(strings);
+		requireNonNull(formatter);
 
 		this.accountService = accountService;
 		this.studyService = studyService;
@@ -137,6 +146,7 @@ public class StudyResource {
 		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 		this.studyApiResponseFactory = studyApiResponseFactory;
 		this.strings = strings;
+		this.formatter = formatter;
 	}
 
 	@Nonnull
@@ -403,26 +413,89 @@ public class StudyResource {
 		for (Study study : studies) {
 			AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(accountId, study.getStudyId()).get();
 			EncryptionKeypair encryptionKeypair = getSystemService().findEncryptionKeypairById(accountStudy.getEncryptionKeypairId()).get();
+			List<StudyFileUpload> studyFileUploads = getStudyService().findStudyFileUploadsByAccountStudyId(accountStudy.getAccountStudyId());
+			List<AccountCheckInActionFileUpload> accountCheckInActionFileUploads = getStudyService().findAccountCheckInActionFileUploadsByAccountStudyId(accountStudy.getAccountStudyId());
 
-			Map<String, Object> encryptionKeypairJson = new HashMap<>();
+			Map<String, Object> encryptionKeypairJson = new LinkedHashMap<>();
 			encryptionKeypairJson.put("encryptionKeypairId", encryptionKeypair.getEncryptionKeypairId());
 			encryptionKeypairJson.put("publicKeyFormatId", encryptionKeypair.getPublicKeyFormatId());
 			encryptionKeypairJson.put("publicKey", encryptionKeypair.getPublicKeyAsString());
 
-			Map<String, Object> accountStudyJson = new HashMap<>();
+			Map<String, Object> accountStudyJson = new LinkedHashMap<>();
 			accountStudyJson.put("accountId", accountStudy.getAccountId());
 			accountStudyJson.put("username", account.getUsername());
 			accountStudyJson.put("timeZone", accountStudy.getTimeZone());
 			accountStudyJson.put("encryptionKeypair", encryptionKeypairJson);
 
-			List<Map<String, Object>> fileUploadsJson = new ArrayList<>();
+			List<Map<String, Object>> studyFileUploadsJson = new ArrayList<>();
 
-			Map<String, Object> studyJson = new HashMap<>();
+			for (StudyFileUpload studyFileUpload : studyFileUploads) {
+				Map<String, Object> studyFileUploadJson = new LinkedHashMap<>();
+				studyFileUploadJson.put("fileUploadId", studyFileUpload.getFileUploadId());
+				studyFileUploadJson.put("fileUploadTypeId", studyFileUpload.getFileUploadTypeId());
+				studyFileUploadJson.put("fileUploadFilename", studyFileUpload.getFileUploadFilename());
+				studyFileUploadJson.put("fileUploadContentType", studyFileUpload.getFileUploadContentType());
+
+				if (studyFileUpload.getFileUploadFilesize() != null) {
+					studyFileUploadJson.put("fileUploadFilesize", studyFileUpload.getFileUploadFilesize());
+					studyFileUploadJson.put("fileUploadFilesizeDescription", getFormatter().formatFilesize(studyFileUpload.getFileUploadFilesize()));
+				}
+
+				studyFileUploadJson.put("fileUploadCreated", studyFileUpload.getFileUploadCreated());
+				studyFileUploadJson.put("fileUploadCreatedDescription", getFormatter().formatTimestamp(studyFileUpload.getFileUploadCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
+
+				studyFileUploadsJson.add(studyFileUploadJson);
+			}
+
+			List<Map<String, Object>> accountCheckInActionFileUploadsJson = new ArrayList<>();
+
+			for (AccountCheckInActionFileUpload accountCheckInActionFileUpload : accountCheckInActionFileUploads) {
+				Map<String, Object> accountCheckInActionFileUploadJson = new LinkedHashMap<>();
+				accountCheckInActionFileUploadJson.put("studyCheckInId", accountCheckInActionFileUpload.getStudyCheckInId());
+				accountCheckInActionFileUploadJson.put("studyCheckInNumber", accountCheckInActionFileUpload.getStudyCheckInNumber());
+				accountCheckInActionFileUploadJson.put("studyCheckInActionId", accountCheckInActionFileUpload.getStudyCheckInActionId());
+				accountCheckInActionFileUploadJson.put("accountCheckInId", accountCheckInActionFileUpload.getAccountCheckInId());
+				accountCheckInActionFileUploadJson.put("accountCheckInStatusId", accountCheckInActionFileUpload.getAccountCheckInStatusId());
+				accountCheckInActionFileUploadJson.put("accountCheckInStartDateTime", accountCheckInActionFileUpload.getAccountCheckInStartDateTime());
+				accountCheckInActionFileUploadJson.put("accountCheckInStartDateTimeDescription", getFormatter().formatTimestamp(accountCheckInActionFileUpload.getAccountCheckInStartDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
+				accountCheckInActionFileUploadJson.put("accountCheckInEndDateTime", accountCheckInActionFileUpload.getAccountCheckInEndDateTime());
+				accountCheckInActionFileUploadJson.put("accountCheckInEndDateTimeDescription", getFormatter().formatTimestamp(accountCheckInActionFileUpload.getAccountCheckInEndDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
+
+				if (accountCheckInActionFileUpload.getAccountCheckInCompletedDate() != null) {
+					accountCheckInActionFileUploadJson.put("accountCheckInCompletedDate", accountCheckInActionFileUpload.getAccountCheckInCompletedDate());
+					accountCheckInActionFileUploadJson.put("accountCheckInCompletedDateDescription", getFormatter().formatTimestamp(accountCheckInActionFileUpload.getAccountCheckInCompletedDate(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
+				}
+
+				accountCheckInActionFileUploadJson.put("accountCheckInActionId", accountCheckInActionFileUpload.getAccountCheckInActionId());
+				accountCheckInActionFileUploadJson.put("accountCheckInActionStatusId", accountCheckInActionFileUpload.getAccountCheckInActionStatusId());
+				accountCheckInActionFileUploadJson.put("accountCheckInActionCreated", accountCheckInActionFileUpload.getAccountCheckInActionCreated());
+				accountCheckInActionFileUploadJson.put("accountCheckInActionCreated", getFormatter().formatTimestamp(accountCheckInActionFileUpload.getAccountCheckInActionCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
+				accountCheckInActionFileUploadJson.put("accountCheckInActionLastUpdated", accountCheckInActionFileUpload.getAccountCheckInActionLastUpdated());
+				accountCheckInActionFileUploadJson.put("accountCheckInActionLastUpdated", getFormatter().formatTimestamp(accountCheckInActionFileUpload.getAccountCheckInActionLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
+
+				accountCheckInActionFileUploadJson.put("fileUploadId", accountCheckInActionFileUpload.getFileUploadId());
+				accountCheckInActionFileUploadJson.put("fileUploadTypeId", accountCheckInActionFileUpload.getFileUploadTypeId());
+				accountCheckInActionFileUploadJson.put("fileUploadFilename", accountCheckInActionFileUpload.getFileUploadFilename());
+				accountCheckInActionFileUploadJson.put("fileUploadContentType", accountCheckInActionFileUpload.getFileUploadContentType());
+
+				if (accountCheckInActionFileUpload.getFileUploadFilesize() != null) {
+					accountCheckInActionFileUploadJson.put("fileUploadFilesize", accountCheckInActionFileUpload.getFileUploadFilesize());
+					accountCheckInActionFileUploadJson.put("fileUploadFilesizeDescription", getFormatter().formatFilesize(accountCheckInActionFileUpload.getFileUploadFilesize()));
+				}
+
+				accountCheckInActionFileUploadJson.put("fileUploadCreated", accountCheckInActionFileUpload.getFileUploadCreated());
+				accountCheckInActionFileUploadJson.put("fileUploadCreatedDescription", getFormatter().formatTimestamp(accountCheckInActionFileUpload.getFileUploadCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
+
+				accountCheckInActionFileUploadsJson.add(accountCheckInActionFileUploadJson);
+			}
+
+			Map<String, Object> studyJson = new LinkedHashMap<>();
 			studyJson.put("studyId", study.getStudyId());
 			studyJson.put("urlName", study.getUrlName());
 			studyJson.put("name", study.getName());
 			studyJson.put("accountStudy", accountStudyJson);
-			studyJson.put("fileUploads", fileUploadsJson);
+			studyJson.put("studyFileUploads", studyFileUploadsJson);
+			studyJson.put("accountCheckInActionFileUploads", accountCheckInActionFileUploadsJson);
 
 			studiesJson.add(studyJson);
 		}
@@ -485,5 +558,10 @@ public class StudyResource {
 	@Nonnull
 	protected Strings getStrings() {
 		return this.strings;
+	}
+
+	@Nonnull
+	protected Formatter getFormatter() {
+		return this.formatter;
 	}
 }
