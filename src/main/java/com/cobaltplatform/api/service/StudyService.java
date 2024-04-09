@@ -816,6 +816,7 @@ public class StudyService implements AutoCloseable {
 		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setFilesize(request.getFilesize());
 		fileUploadRequest.setPublicRead(false);
 		fileUploadRequest.setStorageKeyPrefix(format("account-check-in-actions/%s/%s%s", accountCheckInAction.getAccountCheckInActionId(),
 				request.getAccountId(), STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
@@ -864,6 +865,7 @@ public class StudyService implements AutoCloseable {
 		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setFilesize(request.getFilesize());
 		fileUploadRequest.setPublicRead(false);
 		fileUploadRequest.setStorageKeyPrefix(format("studies/%s/%s/%s", study.getStudyId(), request.getAccountId(),
 				STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
