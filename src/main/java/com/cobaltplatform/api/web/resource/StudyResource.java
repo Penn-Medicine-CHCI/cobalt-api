@@ -441,6 +441,7 @@ public class StudyResource {
 					studyFileUploadJson.put("fileUploadFilesizeDescription", getFormatter().formatFilesize(studyFileUpload.getFileUploadFilesize()));
 				}
 
+				studyFileUploadJson.put("fileUploadUrl", studyFileUpload.getFileUploadUrl());
 				studyFileUploadJson.put("fileUploadCreated", studyFileUpload.getFileUploadCreated());
 				studyFileUploadJson.put("fileUploadCreatedDescription", getFormatter().formatTimestamp(studyFileUpload.getFileUploadCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
 
@@ -483,6 +484,7 @@ public class StudyResource {
 					accountCheckInActionFileUploadJson.put("fileUploadFilesizeDescription", getFormatter().formatFilesize(accountCheckInActionFileUpload.getFileUploadFilesize()));
 				}
 
+				accountCheckInActionFileUploadJson.put("fileUploadUrl", accountCheckInActionFileUpload.getFileUploadUrl());
 				accountCheckInActionFileUploadJson.put("fileUploadCreated", accountCheckInActionFileUpload.getFileUploadCreated());
 				accountCheckInActionFileUploadJson.put("fileUploadCreatedDescription", getFormatter().formatTimestamp(accountCheckInActionFileUpload.getFileUploadCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT, accountStudy.getTimeZone()));
 
