@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
+import com.cobaltplatform.api.model.db.AccountCheckInActionFileUpload;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
@@ -49,6 +50,7 @@ import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
 import com.cobaltplatform.api.model.db.StudyCheckInAction;
+import com.cobaltplatform.api.model.db.StudyFileUpload;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
@@ -356,7 +358,7 @@ public class StudyService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Optional<StudyCheckInAction> findStudyCheckInActionById (@Nonnull UUID studyCheckInActionId) {
+	public Optional<StudyCheckInAction> findStudyCheckInActionById(@Nonnull UUID studyCheckInActionId) {
 		requireNonNull(studyCheckInActionId);
 
 		return getDatabase().queryForObject("""
@@ -364,6 +366,7 @@ public class StudyService implements AutoCloseable {
 				FROM study_check_in_action
 				WHERE study_check_in_action_id = ?""", StudyCheckInAction.class, studyCheckInActionId);
 	}
+
 	@Nonnull
 	public void addAccountToStudy(@Nonnull UUID accountId,
 																@Nonnull UUID studyId) {
@@ -813,6 +816,7 @@ public class StudyService implements AutoCloseable {
 		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setFilesize(request.getFilesize());
 		fileUploadRequest.setPublicRead(false);
 		fileUploadRequest.setStorageKeyPrefix(format("account-check-in-actions/%s/%s%s", accountCheckInAction.getAccountCheckInActionId(),
 				request.getAccountId(), STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
@@ -861,6 +865,7 @@ public class StudyService implements AutoCloseable {
 		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
 		fileUploadRequest.setContentType(request.getContentType());
 		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setFilesize(request.getFilesize());
 		fileUploadRequest.setPublicRead(false);
 		fileUploadRequest.setStorageKeyPrefix(format("studies/%s/%s/%s", study.getStudyId(), request.getAccountId(),
 				STUDY_FILE_UPLOAD_TIMESTAMP_FORMATTER.format(Instant.now())));
@@ -891,6 +896,32 @@ public class StudyService implements AutoCloseable {
 				WHERE s.study_id = a.study_id
 				AND a.account_id = ?
 				""", Study.class, accountId);
+	}
+
+	@Nonnull
+	public List<StudyFileUpload> findStudyFileUploadsByAccountStudyId(@Nullable UUID accountStudyId) {
+		if (accountStudyId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_study_file_upload
+				WHERE account_study_id=?
+				ORDER BY file_upload_created
+				""", StudyFileUpload.class, accountStudyId);
+	}
+
+	@Nonnull
+	public List<AccountCheckInActionFileUpload> findAccountCheckInActionFileUploadsByAccountStudyId(@Nullable UUID accountStudyId) {
+		if (accountStudyId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_account_check_in_action_file_upload
+				WHERE account_study_id=?
+				ORDER BY file_upload_created
+				""", AccountCheckInActionFileUpload.class, accountStudyId);
 	}
 
 	@Override

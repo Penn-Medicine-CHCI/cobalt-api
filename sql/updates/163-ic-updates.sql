@@ -1,12 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('162-ic-updates', NULL, NULL);
-
--- How long to wait after a referral order message is placed before importing into the system.
--- Why do we need this?  Because without a delay, a patient can be referred in and receive an SMS
--- while still at the doctor's office, which may be confusing or lead to lower engagement.
--- Default is 1 hour
-ALTER TABLE institution ADD COLUMN integrated_care_order_import_delay_in_seconds INTEGER NOT NULL DEFAULT 3600;
-
+SELECT _v.register_patch('163-ic-updates', NULL, NULL);
 
 
 DROP VIEW v_patient_order;
