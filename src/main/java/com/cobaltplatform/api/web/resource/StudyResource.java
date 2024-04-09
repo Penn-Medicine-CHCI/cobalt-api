@@ -34,14 +34,17 @@ import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
-import com.cobaltplatform.api.model.db.Role;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -60,7 +63,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -77,6 +82,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class StudyResource {
 	@Nonnull
+	private final AccountService accountService;
+	@Nonnull
 	private final StudyService studyService;
 	@Nonnull
 	private final SystemService systemService;
@@ -92,19 +99,23 @@ public class StudyResource {
 	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
-
 	@Nonnull
 	private final StudyApiResponseFactory studyApiResponseFactory;
+	@Nonnull
+	private final Strings strings;
 
 	@Inject
-	public StudyResource(@Nonnull StudyService studyService,
+	public StudyResource(@Nonnull AccountService accountService,
+											 @Nonnull StudyService studyService,
 											 @Nonnull SystemService systemService,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
 											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											 @Nonnull StudyApiResponseFactory studyApiResponseFactory,
-											 @Nonnull RequestBodyParser requestBodyParser) {
+											 @Nonnull RequestBodyParser requestBodyParser,
+											 @Nonnull Strings strings) {
+		requireNonNull(accountService);
 		requireNonNull(studyService);
 		requireNonNull(systemService);
 		requireNonNull(currentContextProvider);
@@ -113,7 +124,9 @@ public class StudyResource {
 		requireNonNull(studyAccountApiResponseFactory);
 		requireNonNull(fileUploadResultApiResponseFactory);
 		requireNonNull(studyApiResponseFactory);
+		requireNonNull(strings);
 
+		this.accountService = accountService;
 		this.studyService = studyService;
 		this.systemService = systemService;
 		this.currentContextProvider = currentContextProvider;
@@ -123,6 +136,7 @@ public class StudyResource {
 		this.studyAccountApiResponseFactory = studyAccountApiResponseFactory;
 		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 		this.studyApiResponseFactory = studyApiResponseFactory;
+		this.strings = strings;
 	}
 
 	@Nonnull
@@ -148,7 +162,7 @@ public class StudyResource {
 		requireNonNull(accountId);
 
 		Account account = getCurrentContext().getAccount().get();
-		if (account.getRoleId() != Role.RoleId.ADMINISTRATOR) {
+		if (account.getRoleId() != RoleId.ADMINISTRATOR) {
 			throw new AuthorizationException();
 		}
 
@@ -158,8 +172,6 @@ public class StudyResource {
 					.stream().map(accountStudies -> getStudyApiResponseFactory().create(accountStudies)).collect(Collectors.toList()));
 		}});
 	}
-
-
 
 	@Nonnull
 	@GET("/studies/{studyId}/check-in-list")
@@ -343,6 +355,84 @@ public class StudyResource {
 	}
 
 	@Nonnull
+	@GET("/studies/{studyId}/file-uploads")
+	@AuthenticationRequired
+	public ApiResponse studyFileUploads(@Nonnull @PathParameter UUID studyId,
+																			@Nonnull @QueryParameter("accountId") Optional<UUID> providedAccountId,
+																			@Nonnull @QueryParameter("username") Optional<String> providedUsername) {
+		requireNonNull(studyId);
+		requireNonNull(providedAccountId);
+		requireNonNull(providedUsername);
+
+		Account account = getCurrentContext().getAccount().get();
+		UUID accountId = account.getAccountId();
+
+		// Administrators can override by providing an "accountId" query parameter
+		if (providedAccountId.isPresent() || providedUsername.isPresent()) {
+			if (account.getRoleId() != RoleId.ADMINISTRATOR)
+				throw new AuthorizationException();
+
+			if (providedAccountId.isPresent() && providedUsername.isPresent())
+				throw new ValidationException("You cannot provide both 'accountId' and 'username' query parameters.");
+
+			if (providedAccountId.isPresent()) {
+				Account accountForAccountId = getAccountService().findAccountById(providedAccountId.get()).orElse(null);
+
+				if (accountForAccountId == null)
+					throw new ValidationException("Account ID is invalid.");
+
+				if (!account.getInstitutionId().equals(accountForAccountId.getInstitutionId()))
+					throw new AuthorizationException();
+
+				accountId = accountForAccountId.getAccountId();
+			} else if (providedUsername.isPresent()) {
+				Account accountForUsername = getAccountService().findAccountByUsernameAndAccountSourceId(providedUsername.get(), AccountSourceId.USERNAME, account.getInstitutionId()).orElse(null);
+
+				if (accountForUsername == null)
+					throw new ValidationException("Account username is invalid.");
+
+				accountId = accountForUsername.getAccountId();
+			} else {
+				throw new IllegalStateException();
+			}
+		}
+
+		List<Study> studies = getStudyService().findStudiesForAccountId(accountId);
+		List<Map<String, Object>> studiesJson = new ArrayList<>(studies.size());
+
+		for (Study study : studies) {
+			AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(accountId, study.getStudyId()).get();
+			EncryptionKeypair encryptionKeypair = getSystemService().findEncryptionKeypairById(accountStudy.getEncryptionKeypairId()).get();
+
+			Map<String, Object> encryptionKeypairJson = new HashMap<>();
+			encryptionKeypairJson.put("encryptionKeypairId", encryptionKeypair.getEncryptionKeypairId());
+			encryptionKeypairJson.put("publicKeyFormatId", encryptionKeypair.getPublicKeyFormatId());
+			encryptionKeypairJson.put("publicKey", encryptionKeypair.getPublicKeyAsString());
+
+			Map<String, Object> accountStudyJson = new HashMap<>();
+			accountStudyJson.put("accountId", accountStudy.getAccountId());
+			accountStudyJson.put("username", account.getUsername());
+			accountStudyJson.put("timeZone", accountStudy.getTimeZone());
+			accountStudyJson.put("encryptionKeypair", encryptionKeypairJson);
+
+			List<Map<String, Object>> fileUploadsJson = new ArrayList<>();
+
+			Map<String, Object> studyJson = new HashMap<>();
+			studyJson.put("studyId", study.getStudyId());
+			studyJson.put("urlName", study.getUrlName());
+			studyJson.put("name", study.getName());
+			studyJson.put("accountStudy", accountStudyJson);
+			studyJson.put("fileUploads", fileUploadsJson);
+
+			studiesJson.add(studyJson);
+		}
+
+		return new ApiResponse(Map.of(
+				"studies", studiesJson
+		));
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
 	}
@@ -350,6 +440,11 @@ public class StudyResource {
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountService;
 	}
 
 	@Nonnull
@@ -385,5 +480,10 @@ public class StudyResource {
 	@Nonnull
 	protected StudyApiResponseFactory getStudyApiResponseFactory() {
 		return this.studyApiResponseFactory;
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return this.strings;
 	}
 }

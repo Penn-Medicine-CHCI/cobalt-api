@@ -356,7 +356,7 @@ public class StudyService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Optional<StudyCheckInAction> findStudyCheckInActionById (@Nonnull UUID studyCheckInActionId) {
+	public Optional<StudyCheckInAction> findStudyCheckInActionById(@Nonnull UUID studyCheckInActionId) {
 		requireNonNull(studyCheckInActionId);
 
 		return getDatabase().queryForObject("""
@@ -364,6 +364,7 @@ public class StudyService implements AutoCloseable {
 				FROM study_check_in_action
 				WHERE study_check_in_action_id = ?""", StudyCheckInAction.class, studyCheckInActionId);
 	}
+
 	@Nonnull
 	public void addAccountToStudy(@Nonnull UUID accountId,
 																@Nonnull UUID studyId) {
