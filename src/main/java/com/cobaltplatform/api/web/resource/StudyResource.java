@@ -566,7 +566,7 @@ public class StudyResource {
 	@AuthenticationRequired
 	public CustomResponse studyFileDownload(@Nonnull @PathParameter String studyIdentifier,
 																					@Nonnull @PathParameter UUID fileUploadId,
-																					@Nonnull @PathParameter Optional<Boolean> decrypt,
+																					@Nonnull @QueryParameter Optional<Boolean> decrypt,
 																					@Nonnull HttpServletResponse httpServletResponse) {
 		requireNonNull(studyIdentifier);
 		requireNonNull(fileUploadId);
@@ -628,7 +628,7 @@ public class StudyResource {
 	@AuthenticationRequired
 	public CustomResponse accountCheckInActionFileDownload(@Nonnull @PathParameter UUID accountCheckInActionId,
 																												 @Nonnull @PathParameter UUID fileUploadId,
-																												 @Nonnull @PathParameter Optional<Boolean> decrypt,
+																												 @Nonnull @QueryParameter Optional<Boolean> decrypt,
 																												 @Nonnull HttpServletResponse httpServletResponse) {
 		requireNonNull(accountCheckInActionId);
 		requireNonNull(fileUploadId);
