@@ -75,7 +75,6 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -95,8 +94,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPOutputStream;
 
+import static com.soklet.util.IoUtils.copyStreamCloseAfterwards;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -609,13 +608,12 @@ public class StudyResource {
 			}
 		}
 
-		httpServletResponse.setContentType(studyFileUpload.getFileUploadContentType());
-		httpServletResponse.setHeader("Content-Encoding", "gzip");
 		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", studyFileUpload.getFileUploadFilename()));
+		httpServletResponse.setContentType(studyFileUpload.getFileUploadContentType());
+		httpServletResponse.setContentLength(studyFile.length);
 
-		try (BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
-			bufferedOutputStream.write(studyFile);
-			bufferedOutputStream.flush();
+		try (ByteArrayInputStream studyFileInputStream = new ByteArrayInputStream(studyFile)) {
+			copyStreamCloseAfterwards(studyFileInputStream, httpServletResponse.getOutputStream());
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
@@ -667,15 +665,14 @@ public class StudyResource {
 		if (accountCheckInActionFileUpload == null)
 			throw new NotFoundException();
 
-		byte[] studyFile = getSystemService().downloadFileUploadToByteArray(accountCheckInActionFileUpload.getFileUploadId());
+		byte[] accountCheckInActionFile = getSystemService().downloadFileUploadToByteArray(accountCheckInActionFileUpload.getFileUploadId());
 
-		httpServletResponse.setContentType(accountCheckInActionFileUpload.getFileUploadContentType());
-		httpServletResponse.setHeader("Content-Encoding", "gzip");
 		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", accountCheckInActionFileUpload.getFileUploadFilename()));
+		httpServletResponse.setContentType(accountCheckInActionFileUpload.getFileUploadContentType());
+		httpServletResponse.setContentLength(accountCheckInActionFile.length);
 
-		try (BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
-			bufferedOutputStream.write(studyFile);
-			bufferedOutputStream.flush();
+		try (ByteArrayInputStream studyFileInputStream = new ByteArrayInputStream(accountCheckInActionFile)) {
+			copyStreamCloseAfterwards(studyFileInputStream, httpServletResponse.getOutputStream());
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
