@@ -717,6 +717,18 @@ public class StudyService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<AccountStudy> findAccountStudyById(@Nullable UUID accountStudyId) {
+		if (accountStudyId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				  SELECT *
+				  FROM v_account_study
+				  WHERE account_study_id=?
+				""", AccountStudy.class, accountStudyId);
+	}
+
+	@Nonnull
 	public Optional<AccountStudy> findAccountStudyByAccountIdAndStudyId(@Nullable UUID accountId,
 																																			@Nullable UUID studyId) {
 		if (accountId == null || studyId == null)
@@ -912,6 +924,20 @@ public class StudyService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<StudyFileUpload> findStudyFileUploadByStudyIdAndFileUploadId(@Nullable UUID studyId,
+																																							 @Nullable UUID fileUploadId) {
+		if (studyId == null || fileUploadId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_study_file_upload
+				WHERE study_id=?
+				AND file_upload_id=?
+				""", StudyFileUpload.class, studyId, fileUploadId);
+	}
+
+	@Nonnull
 	public List<AccountCheckInActionFileUpload> findAccountCheckInActionFileUploadsByAccountStudyId(@Nullable UUID accountStudyId) {
 		if (accountStudyId == null)
 			return List.of();
@@ -922,6 +948,20 @@ public class StudyService implements AutoCloseable {
 				WHERE account_study_id=?
 				ORDER BY file_upload_created
 				""", AccountCheckInActionFileUpload.class, accountStudyId);
+	}
+
+	@Nonnull
+	public Optional<AccountCheckInActionFileUpload> findAccountCheckInActionFileUploadByAccountCheckInActionIdAndFileUploadId(@Nullable UUID accountCheckInActionId,
+																																																														@Nullable UUID fileUploadId) {
+		if (accountCheckInActionId == null || fileUploadId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_account_check_in_action_file_upload
+				WHERE account_check_in_action_id=?
+				AND file_upload_id=?
+				""", AccountCheckInActionFileUpload.class, accountCheckInActionId, fileUploadId);
 	}
 
 	@Override

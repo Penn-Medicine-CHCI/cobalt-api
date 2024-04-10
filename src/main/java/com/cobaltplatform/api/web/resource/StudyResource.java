@@ -19,7 +19,9 @@
 
 package com.cobaltplatform.api.web.resource;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.beiwe.BeiweCryptoManager;
 import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
@@ -48,6 +50,7 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.util.CryptoUtility;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -62,6 +65,7 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.CustomResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +74,17 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
+import java.security.PrivateKey;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,7 +95,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -101,6 +118,8 @@ public class StudyResource {
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
+	private final Configuration configuration;
+	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final AccountCheckInApiResponseFactory accountCheckInApiResponseFactory;
@@ -118,6 +137,8 @@ public class StudyResource {
 	private final Strings strings;
 	@Nonnull
 	private final Formatter formatter;
+	@Nonnull
+	private final BeiweCryptoManager beiweCryptoManager;
 
 	@Inject
 	public StudyResource(@Nonnull AccountService accountService,
@@ -125,6 +146,7 @@ public class StudyResource {
 											 @Nonnull ClientDeviceService clientDeviceService,
 											 @Nonnull SystemService systemService,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
+											 @Nonnull Configuration configuration,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
 											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
@@ -132,12 +154,14 @@ public class StudyResource {
 											 @Nonnull ClientDeviceApiResponseFactory clientDeviceApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser,
 											 @Nonnull Strings strings,
-											 @Nonnull Formatter formatter) {
+											 @Nonnull Formatter formatter,
+											 @Nonnull BeiweCryptoManager beiweCryptoManager) {
 		requireNonNull(accountService);
 		requireNonNull(studyService);
 		requireNonNull(clientDeviceService);
 		requireNonNull(systemService);
 		requireNonNull(currentContextProvider);
+		requireNonNull(configuration);
 		requireNonNull(accountCheckInApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(studyAccountApiResponseFactory);
@@ -146,12 +170,14 @@ public class StudyResource {
 		requireNonNull(clientDeviceApiResponseFactory);
 		requireNonNull(strings);
 		requireNonNull(formatter);
+		requireNonNull(beiweCryptoManager);
 
 		this.accountService = accountService;
 		this.studyService = studyService;
 		this.clientDeviceService = clientDeviceService;
 		this.systemService = systemService;
 		this.currentContextProvider = currentContextProvider;
+		this.configuration = configuration;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.accountCheckInApiResponseFactory = accountCheckInApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
@@ -161,6 +187,7 @@ public class StudyResource {
 		this.clientDeviceApiResponseFactory = clientDeviceApiResponseFactory;
 		this.strings = strings;
 		this.formatter = formatter;
+		this.beiweCryptoManager = beiweCryptoManager;
 	}
 
 	@Nonnull
@@ -379,11 +406,11 @@ public class StudyResource {
 	}
 
 	@Nonnull
-	@GET("/studies/{studyIdentifier}/file-uploads")
+	@GET("/studies/{studyIdentifier}/account-report")
 	@AuthenticationRequired
-	public ApiResponse studyFileUploads(@Nonnull @PathParameter String studyIdentifier,
-																			@Nonnull @QueryParameter("accountId") Optional<UUID> providedAccountId,
-																			@Nonnull @QueryParameter("username") Optional<String> providedUsername) {
+	public ApiResponse studyAccountReport(@Nonnull @PathParameter String studyIdentifier,
+																				@Nonnull @QueryParameter("accountId") Optional<UUID> providedAccountId,
+																				@Nonnull @QueryParameter("username") Optional<String> providedUsername) {
 		requireNonNull(studyIdentifier);
 		requireNonNull(providedAccountId);
 		requireNonNull(providedUsername);
@@ -393,10 +420,15 @@ public class StudyResource {
 		if (study == null)
 			throw new NotFoundException();
 
+		// Unless overridden, you can only pull data for your own account
 		Account currentAccount = getCurrentContext().getAccount().get();
 		UUID accountId = currentAccount.getAccountId();
 
-		// Administrators can override by providing an "accountId" query parameter
+		// Cannot call this in the production environment unless you are an administrator
+		if (getConfiguration().isProduction() && currentAccount.getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		// Administrators can override "current account" by providing an "accountId" or "username" query parameter
 		if (providedAccountId.isPresent() || providedUsername.isPresent()) {
 			if (currentAccount.getRoleId() != RoleId.ADMINISTRATOR)
 				throw new AuthorizationException();
@@ -530,8 +562,135 @@ public class StudyResource {
 	}
 
 	@Nonnull
+	@GET("/studies/{studyIdentifier}/file-uploads/{fileUploadId}/download")
+	@AuthenticationRequired
+	public CustomResponse studyFileDownload(@Nonnull @PathParameter String studyIdentifier,
+																					@Nonnull @PathParameter UUID fileUploadId,
+																					@Nonnull @PathParameter Optional<Boolean> decrypt,
+																					@Nonnull HttpServletResponse httpServletResponse) {
+		requireNonNull(studyIdentifier);
+		requireNonNull(fileUploadId);
+		requireNonNull(decrypt);
+		requireNonNull(httpServletResponse);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		// Cannot call this in the production environment unless you are an administrator
+		if (getConfiguration().isProduction() && currentAccount.getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier).orElse(null);
+
+		if (study == null)
+			throw new NotFoundException();
+
+		StudyFileUpload studyFileUpload = getStudyService().findStudyFileUploadByStudyIdAndFileUploadId(study.getStudyId(), fileUploadId).orElse(null);
+
+		if (studyFileUpload == null)
+			throw new NotFoundException();
+
+		byte[] studyFile = getSystemService().downloadFileUploadToByteArray(studyFileUpload.getFileUploadId());
+
+		// If we should decrypt, pull the account-study keypair's private key and apply it to the raw bytes of the downloaded file
+		if (decrypt.isPresent() && decrypt.get()) {
+			AccountStudy accountStudy = getStudyService().findAccountStudyById(studyFileUpload.getAccountStudyId()).get();
+			EncryptionKeypair encryptionKeypair = getSystemService().findEncryptionKeypairById(accountStudy.getEncryptionKeypairId()).get();
+			PrivateKey privateKey = CryptoUtility.toPrivateKey(encryptionKeypair.getPrivateKeyAsString());
+
+			try (ByteArrayOutputStream decryptedByteArrayOutputStream = new ByteArrayOutputStream();
+					 BufferedReader encryptedInputBufferedReader = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(studyFile)));
+					 BufferedWriter decryptedOutputBufferedWriter = new BufferedWriter(new OutputStreamWriter(decryptedByteArrayOutputStream))) {
+				getBeiweCryptoManager().decryptBeiweTextFile(encryptedInputBufferedReader, decryptedOutputBufferedWriter, privateKey);
+				decryptedOutputBufferedWriter.flush();
+				// Replace the encrypted file bytes with decrypted ones
+				studyFile = decryptedByteArrayOutputStream.toByteArray();
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		}
+
+		httpServletResponse.setContentType(studyFileUpload.getFileUploadContentType());
+		httpServletResponse.setHeader("Content-Encoding", "gzip");
+		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", studyFileUpload.getFileUploadFilename()));
+
+		try (BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
+			bufferedOutputStream.write(studyFile);
+			bufferedOutputStream.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+
+		return CustomResponse.instance();
+	}
+
+	@Nonnull
+	@GET("/account-check-in-actions/{accountCheckInActionId}/file-uploads/{fileUploadId}/download")
+	@AuthenticationRequired
+	public CustomResponse accountCheckInActionFileDownload(@Nonnull @PathParameter UUID accountCheckInActionId,
+																												 @Nonnull @PathParameter UUID fileUploadId,
+																												 @Nonnull @PathParameter Optional<Boolean> decrypt,
+																												 @Nonnull HttpServletResponse httpServletResponse) {
+		requireNonNull(accountCheckInActionId);
+		requireNonNull(fileUploadId);
+		requireNonNull(decrypt);
+		requireNonNull(httpServletResponse);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		// Cannot call this in the production environment unless you are an administrator
+		if (getConfiguration().isProduction() && currentAccount.getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		AccountCheckInAction accountCheckInAction = getStudyService().findAccountCheckInActionById(accountCheckInActionId).orElse(null);
+
+		if (accountCheckInAction == null)
+			throw new NotFoundException();
+
+		Study study = getStudyService().findStudyByStudyCheckInActionId(accountCheckInAction.getStudyCheckInActionId()).get();
+
+		// Administrators can only pull from their own institution
+		if (currentAccount.getRoleId() == RoleId.ADMINISTRATOR) {
+			if (!study.getInstitutionId().equals(currentAccount.getInstitutionId()))
+				throw new AuthorizationException();
+		}
+
+		// Non-administrators can only pull their own data
+		if (currentAccount.getRoleId() != RoleId.ADMINISTRATOR) {
+			AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(currentAccount.getAccountId(), study.getStudyId()).orElse(null);
+
+			if (accountStudy == null)
+				throw new AuthorizationException();
+		}
+
+		AccountCheckInActionFileUpload accountCheckInActionFileUpload = getStudyService().findAccountCheckInActionFileUploadByAccountCheckInActionIdAndFileUploadId(accountCheckInActionId, fileUploadId).orElse(null);
+
+		if (accountCheckInActionFileUpload == null)
+			throw new NotFoundException();
+
+		byte[] studyFile = getSystemService().downloadFileUploadToByteArray(accountCheckInActionFileUpload.getFileUploadId());
+
+		httpServletResponse.setContentType(accountCheckInActionFileUpload.getFileUploadContentType());
+		httpServletResponse.setHeader("Content-Encoding", "gzip");
+		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", accountCheckInActionFileUpload.getFileUploadFilename()));
+
+		try (BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
+			bufferedOutputStream.write(studyFile);
+			bufferedOutputStream.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+
+		return CustomResponse.instance();
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull
@@ -597,5 +756,10 @@ public class StudyResource {
 	@Nonnull
 	protected Formatter getFormatter() {
 		return this.formatter;
+	}
+
+	@Nonnull
+	protected BeiweCryptoManager getBeiweCryptoManager() {
+		return this.beiweCryptoManager;
 	}
 }
