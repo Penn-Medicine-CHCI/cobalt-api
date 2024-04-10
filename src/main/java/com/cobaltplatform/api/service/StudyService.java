@@ -1026,8 +1026,6 @@ public class StudyService implements AutoCloseable {
 					""", AccountStudy.class);
 
 			for (AccountStudy accountStudy : accountStudies) {
-				getLogger().debug(format("Scheduling account check-in reminder for accountId %s", accountStudy.getAccountId()));
-
 				Map<String, Object> standardMessageContext = new HashMap<>();
 				standardMessageContext.put("condition", format("accountId %s", accountStudy.getAccountId()));
 				standardMessageContext.put("title", accountStudy.getCheckInReminderNotificationMessageTitle());
@@ -1036,6 +1034,8 @@ public class StudyService implements AutoCloseable {
 				List<ClientDevicePushToken> clientDevicePushTokens = accountService.findClientDevicePushTokensForAccountId(accountStudy.getAccountId());
 
 				for (ClientDevicePushToken clientDevicePushToken : clientDevicePushTokens) {
+					getLogger().debug(format("Scheduling account check-in reminder for accountId %s", accountStudy.getAccountId()));
+
 					PushMessage pushMessage = new PushMessage.Builder(accountStudy.getInstitutionId(), PushMessageTemplate.FREEFORM,
 							clientDevicePushToken.getClientDevicePushTokenTypeId(), clientDevicePushToken.getPushToken(), Locale.US)
 							.messageContext(standardMessageContext).build();
@@ -1053,7 +1053,6 @@ public class StudyService implements AutoCloseable {
 				}
 
 			}
-			getLogger().debug(format("Done scheduling account check-in reminders for %s", LocalDateTime.now()));
 		}
 
 		@Nonnull

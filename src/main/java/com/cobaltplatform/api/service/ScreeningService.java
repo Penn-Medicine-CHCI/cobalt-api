@@ -102,6 +102,7 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import com.pyranid.DatabaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -781,20 +782,27 @@ public class ScreeningService {
 
 		String metadataAsJson = ScreeningSession.metadataToJson(metadata).orElse(null);
 
-		getDatabase().execute("""
-						INSERT INTO screening_session(
-							screening_session_id,
-							screening_flow_version_id,
-							target_account_id,
-							created_by_account_id,
-							patient_order_id,
-							group_session_id,
-							account_check_in_action_id,
-							metadata
-						)
-						VALUES (?,?,?,?,?,?,?,CAST(? AS JSONB))
-						""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId,
-				patientOrderId, groupSessionId, accountCheckInActionId, metadataAsJson);
+		try {
+			getDatabase().execute("""
+							INSERT INTO screening_session(
+								screening_session_id,
+								screening_flow_version_id,
+								target_account_id,
+								created_by_account_id,
+								patient_order_id,
+								group_session_id,
+								account_check_in_action_id,
+								metadata
+							)
+							VALUES (?,?,?,?,?,?,?,CAST(? AS JSONB))
+							""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId,
+					patientOrderId, groupSessionId, accountCheckInActionId, metadataAsJson);
+		} catch (DatabaseException e) {
+			getErrorReporter().report(e);
+			getLogger().error(format("Unable to create screening session for screeningFlowVersion %s and accountCheckInActionId %s", screeningFlowVersion.getScreeningFlowVersionId(), accountCheckInActionId), e);
+			validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Cannot start assessment at this time. Please try again later")));
+			throw validationException;
+		}
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
 		// If we're not immediately skipping, create an initial screening session screening
