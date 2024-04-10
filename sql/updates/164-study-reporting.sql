@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('163-study-reporting', NULL, NULL);
+SELECT _v.register_patch('164-study-reporting', NULL, NULL);
 
 DROP VIEW v_study_file_upload;
 
