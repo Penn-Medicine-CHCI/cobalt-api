@@ -25,6 +25,8 @@ import com.cobaltplatform.api.model.api.request.CreateStudyAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyAccountApiResponse.StudyAccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.StudyApiResponse.StudyApiResponseFactory;
@@ -34,6 +36,7 @@ import com.cobaltplatform.api.model.db.AccountCheckInActionFileUpload;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
+import com.cobaltplatform.api.model.db.ClientDevice;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
@@ -42,6 +45,7 @@ import com.cobaltplatform.api.model.db.StudyFileUpload;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.service.StudyService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
@@ -91,6 +95,8 @@ public class StudyResource {
 	@Nonnull
 	private final StudyService studyService;
 	@Nonnull
+	private final ClientDeviceService clientDeviceService;
+	@Nonnull
 	private final SystemService systemService;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -103,6 +109,8 @@ public class StudyResource {
 	@Nonnull
 	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 	@Nonnull
+	private final ClientDeviceApiResponseFactory clientDeviceApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final StudyApiResponseFactory studyApiResponseFactory;
@@ -114,17 +122,20 @@ public class StudyResource {
 	@Inject
 	public StudyResource(@Nonnull AccountService accountService,
 											 @Nonnull StudyService studyService,
+											 @Nonnull ClientDeviceService clientDeviceService,
 											 @Nonnull SystemService systemService,
 											 @Nonnull Provider<CurrentContext> currentContextProvider,
 											 @Nonnull AccountCheckInApiResponseFactory accountCheckInApiResponseFactory,
 											 @Nonnull StudyAccountApiResponseFactory studyAccountApiResponseFactory,
 											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											 @Nonnull StudyApiResponseFactory studyApiResponseFactory,
+											 @Nonnull ClientDeviceApiResponseFactory clientDeviceApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser,
 											 @Nonnull Strings strings,
 											 @Nonnull Formatter formatter) {
 		requireNonNull(accountService);
 		requireNonNull(studyService);
+		requireNonNull(clientDeviceService);
 		requireNonNull(systemService);
 		requireNonNull(currentContextProvider);
 		requireNonNull(accountCheckInApiResponseFactory);
@@ -132,11 +143,13 @@ public class StudyResource {
 		requireNonNull(studyAccountApiResponseFactory);
 		requireNonNull(fileUploadResultApiResponseFactory);
 		requireNonNull(studyApiResponseFactory);
+		requireNonNull(clientDeviceApiResponseFactory);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 
 		this.accountService = accountService;
 		this.studyService = studyService;
+		this.clientDeviceService = clientDeviceService;
 		this.systemService = systemService;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -145,6 +158,7 @@ public class StudyResource {
 		this.studyAccountApiResponseFactory = studyAccountApiResponseFactory;
 		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 		this.studyApiResponseFactory = studyApiResponseFactory;
+		this.clientDeviceApiResponseFactory = clientDeviceApiResponseFactory;
 		this.strings = strings;
 		this.formatter = formatter;
 	}
@@ -379,12 +393,12 @@ public class StudyResource {
 		if (study == null)
 			throw new NotFoundException();
 
-		Account account = getCurrentContext().getAccount().get();
-		UUID accountId = account.getAccountId();
+		Account currentAccount = getCurrentContext().getAccount().get();
+		UUID accountId = currentAccount.getAccountId();
 
 		// Administrators can override by providing an "accountId" query parameter
 		if (providedAccountId.isPresent() || providedUsername.isPresent()) {
-			if (account.getRoleId() != RoleId.ADMINISTRATOR)
+			if (currentAccount.getRoleId() != RoleId.ADMINISTRATOR)
 				throw new AuthorizationException();
 
 			if (providedAccountId.isPresent() && providedUsername.isPresent())
@@ -396,12 +410,12 @@ public class StudyResource {
 				if (accountForAccountId == null)
 					throw new ValidationException("Account ID is invalid.");
 
-				if (!account.getInstitutionId().equals(accountForAccountId.getInstitutionId()))
+				if (!currentAccount.getInstitutionId().equals(accountForAccountId.getInstitutionId()))
 					throw new AuthorizationException();
 
 				accountId = accountForAccountId.getAccountId();
 			} else if (providedUsername.isPresent()) {
-				Account accountForUsername = getAccountService().findAccountByUsernameAndAccountSourceId(providedUsername.get(), AccountSourceId.USERNAME, account.getInstitutionId()).orElse(null);
+				Account accountForUsername = getAccountService().findAccountByUsernameAndAccountSourceId(providedUsername.get(), AccountSourceId.USERNAME, currentAccount.getInstitutionId()).orElse(null);
 
 				if (accountForUsername == null)
 					throw new ValidationException("Account username is invalid.");
@@ -412,21 +426,23 @@ public class StudyResource {
 			}
 		}
 
-		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(accountId, study.getStudyId()).get();
+		Account account = getAccountService().findAccountById(accountId).get();
+		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(account.getAccountId(), study.getStudyId()).get();
 		EncryptionKeypair encryptionKeypair = getSystemService().findEncryptionKeypairById(accountStudy.getEncryptionKeypairId()).get();
 		List<StudyFileUpload> studyFileUploads = getStudyService().findStudyFileUploadsByAccountStudyId(accountStudy.getAccountStudyId());
 		List<AccountCheckInActionFileUpload> accountCheckInActionFileUploads = getStudyService().findAccountCheckInActionFileUploadsByAccountStudyId(accountStudy.getAccountStudyId());
+		List<ClientDevice> clientDevices = getClientDeviceService().findClientDevicesByAccountId(account.getAccountId());
+
+		Map<String, Object> accountJson = new LinkedHashMap<>();
+		accountJson.put("accountId", account.getAccountId());
+		accountJson.put("username", account.getUsername());
+		accountJson.put("timeZone", account.getTimeZone().getId());
+		accountJson.put("locale", account.getLocale().toLanguageTag());
 
 		Map<String, Object> encryptionKeypairJson = new LinkedHashMap<>();
 		encryptionKeypairJson.put("encryptionKeypairId", encryptionKeypair.getEncryptionKeypairId());
 		encryptionKeypairJson.put("publicKeyFormatId", encryptionKeypair.getPublicKeyFormatId());
 		encryptionKeypairJson.put("publicKey", encryptionKeypair.getPublicKeyAsString());
-
-		Map<String, Object> accountStudyJson = new LinkedHashMap<>();
-		accountStudyJson.put("accountId", accountStudy.getAccountId());
-		accountStudyJson.put("username", account.getUsername());
-		accountStudyJson.put("timeZone", accountStudy.getTimeZone());
-		accountStudyJson.put("encryptionKeypair", encryptionKeypairJson);
 
 		List<Map<String, Object>> studyFileUploadsJson = new ArrayList<>();
 
@@ -496,11 +512,19 @@ public class StudyResource {
 		studyJson.put("studyId", study.getStudyId());
 		studyJson.put("urlName", study.getUrlName());
 		studyJson.put("name", study.getName());
-		studyJson.put("accountStudy", accountStudyJson);
 		studyJson.put("studyFileUploads", studyFileUploadsJson);
 		studyJson.put("accountCheckInActionFileUploads", accountCheckInActionFileUploadsJson);
 
 		return new ApiResponse(Map.of(
+				"account", accountJson,
+				"encryptionKeypair", encryptionKeypairJson,
+				"clientDevices", clientDevices.stream()
+						.map(clientDevice -> getClientDeviceApiResponseFactory().create(clientDevice, Set.of(
+										ClientDeviceApiResponseSupplement.CLIENT_DEVICE_PUSH_TOKENS,
+										ClientDeviceApiResponseSupplement.CLIENT_DEVICE_ACTIVITIES
+								))
+						)
+						.collect(Collectors.toList()),
 				"study", studyJson
 		));
 	}
@@ -526,6 +550,11 @@ public class StudyResource {
 	}
 
 	@Nonnull
+	protected ClientDeviceService getClientDeviceService() {
+		return this.clientDeviceService;
+	}
+
+	@Nonnull
 	protected SystemService getSystemService() {
 		return this.systemService;
 	}
@@ -548,6 +577,11 @@ public class StudyResource {
 	@Nonnull
 	protected FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
 		return this.fileUploadResultApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ClientDeviceApiResponseFactory getClientDeviceApiResponseFactory() {
+		return this.clientDeviceApiResponseFactory;
 	}
 
 	@Nonnull
