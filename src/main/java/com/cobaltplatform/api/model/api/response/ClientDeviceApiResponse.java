@@ -19,8 +19,13 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.api.response.ClientDeviceActivityApiResponse.ClientDeviceActivityApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.db.ClientDevice;
+import com.cobaltplatform.api.model.db.ClientDeviceActivity;
+import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
+import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -30,8 +35,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -63,20 +71,62 @@ public class ClientDeviceApiResponse {
 	@Nonnull
 	private final String lastUpdatedDescription;
 
+	// Via supplements
+
+	@Nullable
+	private final List<ClientDevicePushTokenApiResponse> clientDevicePushTokens;
+	@Nullable
+	private final List<ClientDeviceActivityApiResponse> clientDeviceActivities;
+
+	public enum ClientDeviceApiResponseSupplement {
+		CLIENT_DEVICE_PUSH_TOKENS,
+		CLIENT_DEVICE_ACTIVITIES
+	}
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface ClientDeviceApiResponseFactory {
 		@Nonnull
 		ClientDeviceApiResponse create(@Nonnull ClientDevice clientDevice);
+
+		@Nonnull
+		ClientDeviceApiResponse create(@Nonnull ClientDevice clientDevice,
+																	 @Nonnull Set<ClientDeviceApiResponseSupplement> supplements);
 	}
 
 	@AssistedInject
-	public ClientDeviceApiResponse(@Nonnull Formatter formatter,
+	public ClientDeviceApiResponse(@Nonnull ClientDeviceService clientDeviceService,
+																 @Nonnull ClientDevicePushTokenApiResponseFactory clientDevicePushTokenApiResponseFactory,
+																 @Nonnull ClientDeviceActivityApiResponseFactory clientDeviceActivityApiResponseFactory,
+																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Assisted @Nonnull ClientDevice clientDevice) {
+		this(clientDeviceService,
+				clientDevicePushTokenApiResponseFactory,
+				clientDeviceActivityApiResponseFactory,
+				formatter,
+				strings,
+				clientDevice,
+				null);
+	}
+
+	@AssistedInject
+	public ClientDeviceApiResponse(@Nonnull ClientDeviceService clientDeviceService,
+																 @Nonnull ClientDevicePushTokenApiResponseFactory clientDevicePushTokenApiResponseFactory,
+																 @Nonnull ClientDeviceActivityApiResponseFactory clientDeviceActivityApiResponseFactory,
+																 @Nonnull Formatter formatter,
+																 @Nonnull Strings strings,
+																 @Assisted @Nonnull ClientDevice clientDevice,
+																 @Assisted @Nullable Set<ClientDeviceApiResponseSupplement> supplements) {
+		requireNonNull(clientDeviceService);
+		requireNonNull(clientDevicePushTokenApiResponseFactory);
+		requireNonNull(clientDeviceActivityApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(clientDevice);
+
+		if (supplements == null)
+			supplements = Set.of();
 
 		this.clientDeviceId = clientDevice.getClientDeviceId();
 		this.clientDeviceTypeId = clientDevice.getClientDeviceTypeId();
@@ -89,6 +139,24 @@ public class ClientDeviceApiResponse {
 		this.createdDescription = formatter.formatTimestamp(clientDevice.getCreated());
 		this.lastUpdated = clientDevice.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(clientDevice.getLastUpdated());
+
+		if (supplements.contains(ClientDeviceApiResponseSupplement.CLIENT_DEVICE_PUSH_TOKENS)) {
+			List<ClientDevicePushToken> clientDevicePushTokens = clientDeviceService.findClientDevicePushTokensByClientDeviceId(clientDevice.getClientDeviceId());
+			this.clientDevicePushTokens = clientDevicePushTokens.stream()
+					.map(clientDevicePushToken -> clientDevicePushTokenApiResponseFactory.create(clientDevicePushToken))
+					.collect(Collectors.toList());
+		} else {
+			this.clientDevicePushTokens = null;
+		}
+
+		if (supplements.contains(ClientDeviceApiResponseSupplement.CLIENT_DEVICE_ACTIVITIES)) {
+			List<ClientDeviceActivity> clientDeviceActivities = clientDeviceService.findClientDeviceActivitiesByClientDeviceId(clientDevice.getClientDeviceId());
+			this.clientDeviceActivities = clientDeviceActivities.stream()
+					.map(clientDeviceActivity -> clientDeviceActivityApiResponseFactory.create(clientDeviceActivity))
+					.collect(Collectors.toList());
+		} else {
+			this.clientDeviceActivities = null;
+		}
 	}
 
 	@Nonnull
@@ -144,5 +212,15 @@ public class ClientDeviceApiResponse {
 	@Nonnull
 	public String getLastUpdatedDescription() {
 		return this.lastUpdatedDescription;
+	}
+
+	@Nonnull
+	public Optional<List<ClientDevicePushTokenApiResponse>> getClientDevicePushTokens() {
+		return Optional.ofNullable(this.clientDevicePushTokens);
+	}
+
+	@Nonnull
+	public Optional<List<ClientDeviceActivityApiResponse>> getClientDeviceActivities() {
+		return Optional.ofNullable(this.clientDeviceActivities);
 	}
 }

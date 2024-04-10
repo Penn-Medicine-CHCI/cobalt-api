@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.api.request.CreateMicrosoftTeamsMeetingReque
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
+import com.cobaltplatform.api.model.db.FileUpload;
 import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MicrosoftTeamsMeeting;
@@ -64,6 +65,10 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.security.KeyPair;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -497,6 +502,44 @@ public class SystemService {
 				""", fileUploadId, fileUploadTypeId, accountId, presignedUpload.getAccessUrl(), storageKey, filename, contentType, filesize);
 
 		return new FileUploadResult(fileUploadId, presignedUpload);
+	}
+
+	@Nonnull
+	public Optional<FileUpload> findFileUploadById(@Nullable UUID fileUploadId) {
+		if (fileUploadId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM file_upload
+				WHERE file_upload_id=?
+				""", FileUpload.class, fileUploadId);
+	}
+
+	public void downloadFileUpload(@Nonnull UUID fileUploadId,
+																 @Nonnull BufferedOutputStream bufferedOutputStream) {
+		requireNonNull(fileUploadId);
+		requireNonNull(bufferedOutputStream);
+
+		FileUpload fileUpload = findFileUploadById(fileUploadId).orElse(null);
+
+		if (fileUpload == null)
+			throw new ValidationException(getStrings().get("File Upload ID is invalid."));
+
+		getUploadManager().downloadFileLocatedByStorageKey(fileUpload.getStorageKey(), bufferedOutputStream);
+	}
+
+	// Convenience method for the above if we need to download the file in-memory
+	@Nonnull
+	public byte[] downloadFileUploadToByteArray(@Nonnull UUID fileUploadId) {
+		try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+				 BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(byteArrayOutputStream)) {
+			downloadFileUpload(fileUploadId, bufferedOutputStream);
+			bufferedOutputStream.flush();
+			return byteArrayOutputStream.toByteArray();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	@Nonnull
