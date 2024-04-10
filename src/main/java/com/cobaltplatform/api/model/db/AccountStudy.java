@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -40,7 +42,7 @@ public class AccountStudy {
 	@Nullable
 	private UUID encryptionKeypairId;
 	@Nullable
-	private Institution.InstitutionId institutionId;
+	private InstitutionId institutionId;
 	@Nullable
 	private ZoneId timeZone;
 	@Nullable
@@ -114,11 +116,11 @@ public class AccountStudy {
 	}
 
 	@Nullable
-	public Institution.InstitutionId getInstitutionId() {
+	public InstitutionId getInstitutionId() {
 		return institutionId;
 	}
 
-	public void setInstitutionId(@Nullable Institution.InstitutionId institutionId) {
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
 	}
 
