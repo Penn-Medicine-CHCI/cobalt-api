@@ -29,6 +29,7 @@ import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsReq
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
+import com.cobaltplatform.api.integration.epic.request.GetScheduleDaysForProviderRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
@@ -43,6 +44,7 @@ import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsRe
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAvailabilityResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.integration.epic.response.GetScheduleDaysForProviderResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
@@ -207,6 +209,10 @@ public interface EpicClient {
 	// epic/2012/Scheduling/Provider/GETPROVIDERAVAILABILITY/Availability
 	@Nonnull
 	GetProviderAvailabilityResponse getProviderAvailability(@Nonnull GetProviderAvailabilityRequest request);
+
+	// epic/2017/PatientAccess/External/GetScheduleDaysForProvider2/Scheduling/Open/Provider/GetScheduleDays2
+	@Nonnull
+	GetScheduleDaysForProviderResponse getScheduleDaysForProvider(@Nonnull GetScheduleDaysForProviderRequest request);
 
 	@Nonnull
 	LocalDate parseDateWithHyphens(@Nonnull String date);

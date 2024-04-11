@@ -29,6 +29,7 @@ import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsReq
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
+import com.cobaltplatform.api.integration.epic.request.GetScheduleDaysForProviderRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
@@ -43,6 +44,7 @@ import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsRe
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAvailabilityResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.integration.epic.response.GetScheduleDaysForProviderResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
@@ -197,6 +199,12 @@ public class MockEpicClient implements EpicClient {
 	@Nonnull
 	@Override
 	public GetProviderAppointmentsResponse getProviderAppointments(@Nonnull GetProviderAppointmentsRequest request) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	@Override
+	public GetScheduleDaysForProviderResponse getScheduleDaysForProvider(@Nonnull GetScheduleDaysForProviderRequest request) {
 		throw new UnsupportedOperationException();
 	}
 

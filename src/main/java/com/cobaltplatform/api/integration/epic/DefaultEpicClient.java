@@ -34,6 +34,7 @@ import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsReq
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
+import com.cobaltplatform.api.integration.epic.request.GetScheduleDaysForProviderRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
@@ -48,6 +49,7 @@ import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsRe
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAvailabilityResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.integration.epic.response.GetScheduleDaysForProviderResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
@@ -1086,6 +1088,27 @@ public class DefaultEpicClient implements EpicClient {
 
 		ApiCall<GetProviderAvailabilityResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public GetScheduleDaysForProviderResponse getScheduleDaysForProvider(@Nonnull GetScheduleDaysForProviderRequest request) {
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2017/PatientAccess/External/GetScheduleDaysForProvider2/Scheduling/Open/Provider/GetScheduleDays2";
+
+		Function<String, GetScheduleDaysForProviderResponse> responseBodyMapper = (responseBody) -> {
+			GetScheduleDaysForProviderResponse response = getGson().fromJson(responseBody, GetScheduleDaysForProviderResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
+
+		String requestBody = getGson().toJson(request);
+
+		ApiCall<GetScheduleDaysForProviderResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(requestBody)
 				.build();
 
 		return makeApiCall(apiCall);

@@ -27,28 +27,30 @@ import java.util.List;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class GetProviderAppointmentsRequest {
+public class GetScheduleDaysForProviderRequest {
 	@Nullable
 	private String UserID;
 	@Nullable
 	private String UserIDType;
 	@Nullable
-	private String StartDate; // 5/03/2020
+	private String ProviderID;
 	@Nullable
-	private String EndDate; // 5/03/2020
+	private String ProviderIDType;
 	@Nullable
-	private List<Provider> Providers;
+	private String StartDate; // 05/03/2020
+	@Nullable
+	private String EndDate; // 05/03/2020
+	@Nullable
+	private List<DepartmentID> DepartmentIDs;
+	@Nullable
+	private List<VisitTypeID> VisitTypeIDs;
 
 	@NotThreadSafe
-	public static class Provider {
+	public static class DepartmentID {
 		@Nullable
 		private String ID;
 		@Nullable
-		private String IDType;
-		@Nullable
-		private String DepartmentID;
-		@Nullable
-		private String DepartmentIDType;
+		private String Type;
 
 		@Nullable
 		public String getID() {
@@ -60,57 +62,40 @@ public class GetProviderAppointmentsRequest {
 		}
 
 		@Nullable
-		public String getIDType() {
-			return this.IDType;
+		public String getType() {
+			return this.Type;
 		}
 
-		public void setIDType(@Nullable String IDType) {
-			this.IDType = IDType;
-		}
-
-		@Nullable
-		public String getDepartmentID() {
-			return this.DepartmentID;
-		}
-
-		public void setDepartmentID(@Nullable String departmentID) {
-			DepartmentID = departmentID;
-		}
-
-		@Nullable
-		public String getDepartmentIDType() {
-			return this.DepartmentIDType;
-		}
-
-		public void setDepartmentIDType(@Nullable String departmentIDType) {
-			DepartmentIDType = departmentIDType;
+		public void setType(@Nullable String type) {
+			Type = type;
 		}
 	}
 
-	// "UserID":"15498182",
-	//
-	//"UserIDType":"CID",
-	//
-	//"StartDate":"05/03/2020",
-	//
-	////"EndDate":"",
-	//
-	////"CombineDepartments":"",
-	//
-	////"ResourceType":"",
-	//
-	////"Specialty":"",
-	//
-	////"ExtraItems":["8"],
-	//
-	//"Providers":[{"ID":"R09651","IDType":"External","DepartmentID":"603","DepartmentIDType":"EXTERNAL"}]
-	//
-	////"Departments":[{"ID":"10501101","Type":"External"}],
-	//
-	////"Subgroups":[{"ID":"","IDType":"","DepartmentID":"","DepartmentIDType":""}],
-	//
-	////"ExtraExtensions":[{"ID":"","Type":""}]}'
+	@NotThreadSafe
+	public static class VisitTypeID {
+		@Nullable
+		private String ID;
+		@Nullable
+		private String Type;
 
+		@Nullable
+		public String getID() {
+			return this.ID;
+		}
+
+		public void setID(@Nullable String ID) {
+			this.ID = ID;
+		}
+
+		@Nullable
+		public String getType() {
+			return this.Type;
+		}
+
+		public void setType(@Nullable String type) {
+			Type = type;
+		}
+	}
 
 	@Nullable
 	public String getUserID() {
@@ -128,6 +113,24 @@ public class GetProviderAppointmentsRequest {
 
 	public void setUserIDType(@Nullable String userIDType) {
 		UserIDType = userIDType;
+	}
+
+	@Nullable
+	public String getProviderID() {
+		return this.ProviderID;
+	}
+
+	public void setProviderID(@Nullable String providerID) {
+		ProviderID = providerID;
+	}
+
+	@Nullable
+	public String getProviderIDType() {
+		return this.ProviderIDType;
+	}
+
+	public void setProviderIDType(@Nullable String providerIDType) {
+		ProviderIDType = providerIDType;
 	}
 
 	@Nullable
@@ -149,11 +152,20 @@ public class GetProviderAppointmentsRequest {
 	}
 
 	@Nullable
-	public List<Provider> getProviders() {
-		return this.Providers;
+	public List<DepartmentID> getDepartmentIDs() {
+		return this.DepartmentIDs;
 	}
 
-	public void setProviders(@Nullable List<Provider> providers) {
-		Providers = providers;
+	public void setDepartmentIDs(@Nullable List<DepartmentID> departmentIDs) {
+		DepartmentIDs = departmentIDs;
+	}
+
+	@Nullable
+	public List<VisitTypeID> getVisitTypeIDs() {
+		return this.VisitTypeIDs;
+	}
+
+	public void setVisitTypeIDs(@Nullable List<VisitTypeID> visitTypeIDs) {
+		VisitTypeIDs = visitTypeIDs;
 	}
 }
