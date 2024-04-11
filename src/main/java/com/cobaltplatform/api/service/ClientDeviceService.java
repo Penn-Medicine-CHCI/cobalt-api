@@ -52,6 +52,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.sql.Savepoint;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -122,6 +123,46 @@ public class ClientDeviceService {
 				FROM client_device
 				WHERE fingerprint=?
 				""", ClientDevice.class, fingerprint);
+	}
+
+	@Nonnull
+	public List<ClientDevice> findClientDevicesByAccountId(@Nullable UUID accountId) {
+		if (accountId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT cd.*
+				FROM account_client_device acd, client_device cd
+				WHERE acd.account_id=?
+				AND acd.client_device_id=cd.client_device_id
+				ORDER BY acd.created
+				""", ClientDevice.class, accountId);
+	}
+
+	@Nonnull
+	public List<ClientDevicePushToken> findClientDevicePushTokensByClientDeviceId(@Nullable UUID clientDeviceId) {
+		if (clientDeviceId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM client_device_push_token
+				WHERE client_device_id=?
+				ORDER BY last_updated
+				""", ClientDevicePushToken.class, clientDeviceId);
+	}
+
+	@Nonnull
+	public List<ClientDeviceActivity> findClientDeviceActivitiesByClientDeviceId(@Nullable UUID clientDeviceId) {
+		if (clientDeviceId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM client_device_activity
+				WHERE client_device_id=?
+				ORDER BY created
+				""", ClientDeviceActivity.class, clientDeviceId);
 	}
 
 	@Nonnull

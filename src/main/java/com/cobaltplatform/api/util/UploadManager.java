@@ -23,9 +23,15 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.http.HttpMethod;
 import com.cobaltplatform.api.model.service.PresignedUpload;
 import com.lokalized.Strings;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -39,6 +45,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -57,7 +66,9 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class UploadManager {
 	@Nonnull
-	private final S3Presigner amazonS3;
+	private final S3Client s3Client;
+	@Nonnull
+	private final S3Presigner s3Presigner;
 	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
@@ -74,7 +85,8 @@ public class UploadManager {
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.amazonS3 = createAmazonS3();
+		this.s3Client = createS3Client();
+		this.s3Presigner = createS3Presigner();
 	}
 
 	@Nonnull
@@ -121,7 +133,7 @@ public class UploadManager {
 
 		getLogger().debug("Generating presigned S3 upload URL for key '{}' and metadata {}...", key, metadata);
 
-		PresignedPutObjectRequest presignedRequest = getAmazonS3().presignPutObject(presignRequest);
+		PresignedPutObjectRequest presignedRequest = getS3Presigner().presignPutObject(presignRequest);
 
 		String url = presignedRequest.url().toString();
 
@@ -149,12 +161,43 @@ public class UploadManager {
 				.getObjectRequest(getObjectRequest)
 				.build();
 
-		PresignedGetObjectRequest presignedGetObjectRequest = amazonS3.presignGetObject(getObjectPresignRequest);
+		PresignedGetObjectRequest presignedGetObjectRequest = s3Presigner.presignGetObject(getObjectPresignRequest);
 		return presignedGetObjectRequest.url().toString();
 	}
 
 	@Nonnull
-	protected S3Presigner createAmazonS3() {
+	public void downloadFileLocatedByStorageKey(@Nonnull String storageKey,
+																							@Nonnull BufferedOutputStream bufferedOutputStream) {
+		requireNonNull(storageKey);
+		requireNonNull(bufferedOutputStream);
+
+		GetObjectRequest objectRequest = GetObjectRequest.builder()
+				.bucket(getConfiguration().getAmazonS3BucketName())
+				.key(storageKey)
+				.build();
+
+		try (ResponseInputStream<GetObjectResponse> s3Object = getS3Client().getObject(objectRequest)) {
+			IOUtils.copy(s3Object, bufferedOutputStream);
+		} catch (NoSuchKeyException e) {
+			throw new ValidationException(getStrings().get("No file exists for storage key '{{storageKey}}'.",
+					Map.of("storageKey", storageKey)));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Nonnull
+	protected S3Client createS3Client() {
+		S3ClientBuilder s3ClientBuilder = S3Client.builder().region(getConfiguration().getAmazonS3Region());
+
+		if (getConfiguration().getAmazonUseLocalstack())
+			s3ClientBuilder.endpointOverride(URI.create(getConfiguration().getAmazonS3BaseUrl()));
+
+		return s3ClientBuilder.build();
+	}
+
+	@Nonnull
+	protected S3Presigner createS3Presigner() {
 		S3Presigner.Builder builder = S3Presigner.builder()
 				.region(getConfiguration().getAmazonS3Region());
 
@@ -165,8 +208,13 @@ public class UploadManager {
 	}
 
 	@Nonnull
-	protected S3Presigner getAmazonS3() {
-		return amazonS3;
+	protected S3Client getS3Client() {
+		return this.s3Client;
+	}
+
+	@Nonnull
+	protected S3Presigner getS3Presigner() {
+		return s3Presigner;
 	}
 
 	@Nonnull

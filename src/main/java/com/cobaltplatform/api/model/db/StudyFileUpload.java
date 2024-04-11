@@ -46,6 +46,8 @@ public class StudyFileUpload {
 	@Nullable
 	private String accountUsername;
 	@Nullable
+	private UUID accountStudyId;
+	@Nullable
 	private UUID fileUploadId;
 	@Nullable
 	private FileUploadTypeId fileUploadTypeId;
@@ -114,6 +116,15 @@ public class StudyFileUpload {
 
 	public void setAccountUsername(@Nullable String accountUsername) {
 		this.accountUsername = accountUsername;
+	}
+
+	@Nullable
+	public UUID getAccountStudyId() {
+		return this.accountStudyId;
+	}
+
+	public void setAccountStudyId(@Nullable UUID accountStudyId) {
+		this.accountStudyId = accountStudyId;
 	}
 
 	@Nullable
