@@ -867,7 +867,11 @@ public class DefaultEpicClient implements EpicClient {
 
 		HttpMethod httpMethod = HttpMethod.POST;
 		String url = "api/epic/2012/Scheduling/Provider/GETPROVIDERSCHEDULE/Schedule";
-		Function<String, GetProviderScheduleResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, GetProviderScheduleResponse.class);
+		Function<String, GetProviderScheduleResponse> responseBodyMapper = (responseBody) -> {
+			GetProviderScheduleResponse response = getGson().fromJson(responseBody, GetProviderScheduleResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
 
 		Map<String, Object> queryParameters = new HashMap<String, Object>() {{
 			put("ProviderID", request.getProviderID());

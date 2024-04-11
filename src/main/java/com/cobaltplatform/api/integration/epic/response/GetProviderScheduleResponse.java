@@ -29,6 +29,9 @@ import java.util.List;
 @NotThreadSafe
 public class GetProviderScheduleResponse {
 	@Nullable
+	private String rawJson;
+
+	@Nullable
 	private String Error;
 	@Nullable
 	private String ProviderName;
@@ -261,6 +264,15 @@ public class GetProviderScheduleResponse {
 		public void setType(@Nullable String type) {
 			Type = type;
 		}
+	}
+
+	@Nullable
+	public String getRawJson() {
+		return this.rawJson;
+	}
+
+	public void setRawJson(@Nullable String rawJson) {
+		this.rawJson = rawJson;
 	}
 
 	@Nullable
