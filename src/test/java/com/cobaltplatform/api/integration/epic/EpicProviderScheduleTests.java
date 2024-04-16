@@ -91,6 +91,9 @@ public class EpicProviderScheduleTests {
 
 		while (!date.isAfter(endDate)) {
 			for (TestProvider testProvider : epicProviderScheduleConfig.getTestProviders()) {
+				if (testProvider.getIgnored() != null && testProvider.getIgnored())
+					continue;
+
 				logger.info("Processing {} ({}) on {}...", testProvider.getName(), testProvider.getProviderId(), date);
 
 				if (testProvider.getEpicAppointmentFilterId() == EpicAppointmentFilterId.VISIT_TYPE) {
@@ -283,6 +286,8 @@ public class EpicProviderScheduleTests {
 			@Nullable
 			private String providerIdType;
 			@Nullable
+			private Boolean ignored;
+			@Nullable
 			private EpicAppointmentFilterId epicAppointmentFilterId;
 			@Nullable
 			private List<TestVisitType> testVisitTypes;
@@ -399,6 +404,15 @@ public class EpicProviderScheduleTests {
 
 			public void setProviderIdType(@Nullable String providerIdType) {
 				this.providerIdType = providerIdType;
+			}
+
+			@Nullable
+			public Boolean getIgnored() {
+				return this.ignored;
+			}
+
+			public void setIgnored(@Nullable Boolean ignored) {
+				this.ignored = ignored;
 			}
 
 			@Nullable
