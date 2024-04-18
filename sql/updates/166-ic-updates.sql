@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('165-ic-updates', NULL, NULL);
+SELECT _v.register_patch('166-ic-updates', NULL, NULL);
 
 
 DROP VIEW v_patient_order;
