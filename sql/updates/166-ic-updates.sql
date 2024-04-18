@@ -1,6 +1,14 @@
 BEGIN;
 SELECT _v.register_patch('166-ic-updates', NULL, NULL);
 
+-- Postgres 14+ compatibility, changing the deprecated string 'now' to now().
+-- Same process as 165-pg14-last-updated-trigger.sql
+CREATE OR REPLACE FUNCTION set_last_modified() RETURNS TRIGGER AS $$
+BEGIN
+	NEW.last_modified := now();
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
