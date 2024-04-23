@@ -20,12 +20,14 @@
 package com.cobaltplatform.api.integration.enterprise;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.hl7.model.segment.Hl7NotesAndCommentsSegment;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.db.EpicDepartment;
+import com.cobaltplatform.api.model.db.EpicDepartmentSynonym;
 import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.FlowsheetType.FlowsheetTypeId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -61,6 +63,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -75,6 +78,8 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Nonnull
 	private final PatientOrderService patientOrderService;
 	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final Strings strings;
 
 	@Inject
@@ -83,6 +88,7 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 																	@Nonnull Configuration configuration,
 																	@Nonnull ScreeningService screeningService,
 																	@Nonnull PatientOrderService patientOrderService,
+																	@Nonnull ErrorReporter errorReporter,
 																	@Nonnull Strings strings) {
 		super(institutionService, awsSecretManagerClient, configuration);
 
@@ -92,6 +98,7 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 
 		this.screeningService = screeningService;
 		this.patientOrderService = patientOrderService;
+		this.errorReporter = errorReporter;
 		this.strings = strings;
 	}
 
@@ -254,6 +261,17 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 		Map<String, EpicDepartment> enabledEpicDepartmentsByName = enabledEpicDepartments.stream()
 				.collect(Collectors.toMap(epicDepartment -> epicDepartment.getName().toUpperCase(Locale.ENGLISH), Function.identity()));
 
+		Map<UUID, EpicDepartment> enabledEpicDepartmentsById = enabledEpicDepartments.stream()
+				.collect(Collectors.toMap(epicDepartment -> epicDepartment.getEpicDepartmentId(), Function.identity()));
+
+		List<EpicDepartmentSynonym> enabledEpicDepartmentSynonyms = getInstitutionService().findEpicDepartmentSynonymsByInstitutionId(getInstitutionId()).stream()
+				.filter(enabledEpicDepartmentSynonym -> enabledEpicDepartmentsById.get(enabledEpicDepartmentSynonym.getEpicDepartmentId()) != null)
+				.collect(Collectors.toList());
+
+		// Referring department names come in via ALL_UPPERCASE, so enable quick lookup
+		Map<String, EpicDepartmentSynonym> enabledEpicDepartmentSynonymsByName = enabledEpicDepartmentSynonyms.stream()
+				.collect(Collectors.toMap(epicDepartmentSynonym -> epicDepartmentSynonym.getName().toUpperCase(Locale.ENGLISH), Function.identity()));
+
 		final String ROUTING_PREFIX = "What is the preferred type of assessment:->";
 		final String PREFERRED_PHONE_NUMBER_PREFIX = "Preferred phone number:->";
 		final String REFERRING_PRACTICE_PREFIX = "Referring Practice:->";
@@ -297,7 +315,32 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 			request.setPatientPhoneNumber(preferredPhoneNumberLine);
 
 		if (referringPracticeLine != null) {
+			referringPracticeLine = referringPracticeLine.toUpperCase(Locale.ENGLISH);
+
 			EpicDepartment epicDepartment = enabledEpicDepartmentsByName.get(referringPracticeLine);
+
+			// No match? Try a synonym
+			if (epicDepartment == null) {
+				EpicDepartmentSynonym epicDepartmentSynonym = enabledEpicDepartmentSynonymsByName.get(referringPracticeLine);
+
+				if (epicDepartmentSynonym != null) {
+					epicDepartment = enabledEpicDepartmentsById.get(epicDepartmentSynonym.getEpicDepartmentId());
+				} else {
+					// If there is no synonym, see if the referring practice line matches any department or synonym, regardless of enabled status.
+					// If it does not, send an error report - this is an unexpected referring practice name and a synonym should be added for it
+					List<EpicDepartment> allEpicDepartments = getInstitutionService().findEpicDepartmentsByInstitutionId(getInstitutionId());
+					List<EpicDepartmentSynonym> allEpicDepartmentSynonyms = getInstitutionService().findEpicDepartmentSynonymsByInstitutionId(getInstitutionId());
+
+					Map<String, EpicDepartment> allEpicDepartmentsByName = allEpicDepartments.stream()
+							.collect(Collectors.toMap(currentEpicDepartment -> currentEpicDepartment.getName().toUpperCase(Locale.ENGLISH), Function.identity()));
+					Map<String, EpicDepartmentSynonym> allEpicDepartmentSynonymsByName = allEpicDepartmentSynonyms.stream()
+							.collect(Collectors.toMap(currentEpicDepartmentSynonym -> currentEpicDepartmentSynonym.getName().toUpperCase(Locale.ENGLISH), Function.identity()));
+
+					// If there is no department or synonym that matches, send an error report so we can fix the data
+					if (!allEpicDepartmentsByName.containsKey(referringPracticeLine) && !allEpicDepartmentSynonymsByName.containsKey(referringPracticeLine))
+						getErrorReporter().report(format("Unexpected referring practice name '%s', please add a synonym", referringPracticeLine));
+				}
+			}
 
 			if (epicDepartment != null) {
 				request.setReferringPracticeId(epicDepartment.getDepartmentId());
@@ -328,6 +371,11 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderService;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull
