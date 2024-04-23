@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
+import com.cobaltplatform.api.model.db.EpicDepartmentSynonym;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -437,10 +438,25 @@ public class InstitutionService {
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-				SELECT * FROM epic_department
+				SELECT *
+				FROM epic_department
 				WHERE institution_id=?
 				ORDER BY name
 				""", EpicDepartment.class, institutionId);
+	}
+
+	@Nonnull
+	public List<EpicDepartmentSynonym> findEpicDepartmentSynonymsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT eds.*
+				FROM epic_department_synonym eds, epic_department ed
+				WHERE ed.institution_id=?
+				AND eds.epic_department_id=ed.epic_department_id
+				ORDER BY eds.name
+				""", EpicDepartmentSynonym.class, institutionId);
 	}
 
 	@Nonnull
