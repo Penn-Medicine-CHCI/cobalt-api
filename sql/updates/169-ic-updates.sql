@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('168-ic-updates', NULL, NULL);
+SELECT _v.register_patch('169-ic-updates', NULL, NULL);
 
 -- Postgres 14+ compatibility, changing the deprecated string 'now' to now().
 -- Same process as 165-pg14-last-updated-trigger.sql
@@ -114,7 +114,7 @@ recent_voicemail_task_query AS (
         patient_order poq
         join patient_order_voicemail_task povt ON poq.patient_order_id = povt.patient_order_id
         left join patient_order_voicemail_task povt2 ON povt.patient_order_id = povt2.patient_order_id
-        and povt.created > povt2.created
+        and povt.created < povt2.created
     where
         povt2.patient_order_voicemail_task_id IS NULL
 ),
