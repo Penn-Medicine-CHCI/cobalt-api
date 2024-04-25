@@ -276,6 +276,7 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 		final String PREFERRED_PHONE_NUMBER_PREFIX = "Preferred phone number:->";
 		final String REFERRING_PRACTICE_PREFIX = "Referring Practice:->";
 		final String REASONS_FOR_REFERRAL_PREFIX = "Reason(s) for referral: (Click on drop down menu for other reasons for consult)->";
+		final String REASONS_FOR_REFERRAL_ALTERNATE_PREFIX = "Reason(s) for referral:->";
 		final String BILLING_PROVIDER_PREFIX = "Billing provider (must be attending)->";
 
 		String routingLine = null;
@@ -297,8 +298,9 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 					preferredPhoneNumberLine = trimToNull(comment.replace(PREFERRED_PHONE_NUMBER_PREFIX, ""));
 				} else if (comment.startsWith(REFERRING_PRACTICE_PREFIX)) {
 					referringPracticeLine = trimToNull(comment.replace(REFERRING_PRACTICE_PREFIX, ""));
-				} else if (comment.startsWith(REASONS_FOR_REFERRAL_PREFIX)) {
+				} else if (comment.startsWith(REASONS_FOR_REFERRAL_PREFIX) || comment.startsWith(REASONS_FOR_REFERRAL_ALTERNATE_PREFIX)) {
 					String reasonForReferralLine = trimToNull(comment.replace(REASONS_FOR_REFERRAL_PREFIX, ""));
+					reasonForReferralLine = trimToNull(reasonForReferralLine.replace(REASONS_FOR_REFERRAL_ALTERNATE_PREFIX, ""));
 
 					if (reasonForReferralLine != null)
 						reasonsForReferralLines.add(reasonForReferralLine);
