@@ -344,6 +344,7 @@ public class StudyService implements AutoCloseable {
 				setRoleId(RoleId.PATIENT);
 				setInstitutionId(account.getInstitutionId());
 				setUsername(accountUsername);
+				setDisplayName(accountUsername);
 				setPassword(getAuthenticator().hashPassword(accountPassword));
 				setPasswordResetRequired(true);
 			}});
