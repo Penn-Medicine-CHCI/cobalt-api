@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFa
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Tag;
@@ -63,6 +64,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -405,49 +407,92 @@ public class ResourceLibraryResource {
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
 
-		// Support both tag group ID and URL name
-		TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
-				.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
-						|| potentialTagGroup.getUrlName().equals(tagGroupId))
-				.findFirst()
-				.orElse(null);
+		// TODO: remove this harcoded RECOMMENDED support - it's a temporary workaround for an iOS build
+		if (tagGroupId.toUpperCase(Locale.ENGLISH).equals("RECOMMENDED")) {
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
+			List<Content> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId());
 
-		if (tagGroup == null)
-			throw new NotFoundException();
+			Set<String> recommendedTagIds = new HashSet<>();
 
-		FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
-			{
-				setInstitutionId(account.getInstitutionId());
-				setSearchQuery(searchQuery.orElse(null));
-				setTagIds(new HashSet<>(tagIds.orElse(List.of())));
-				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
-				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
-				setPageNumber(pageNumber.orElse(0));
-				setPageSize(pageSize.orElse(0));
-				setTagGroupId(tagGroup.getTagGroupId());
-				setPrioritizeUnviewedForAccountId(account.getAccountId());
-			}
-		});
+			for (Content content : contents)
+				for (Tag tag : content.getTags())
+					recommendedTagIds.add(tag.getTagId());
 
-		List<ContentApiResponse> contents = new ArrayList<>();
-		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+			FindResult<Content> findResult = new FindResult<>(contents, contents.size());
 
-		for (Tag tag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
-			tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
+			Map<String, Object> findResultJson = new HashMap<>();
+			findResultJson.put("contents", contents);
+			findResultJson.put("totalCount", findResult.getTotalCount());
+			findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 
-		for (Content content : findResult.getResults())
-			contents.add(getContentApiResponseFactory().create(content));
+			Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+			List<Tag> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId());
 
-		Map<String, Object> findResultJson = new HashMap<>();
-		findResultJson.put("contents", contents);
-		findResultJson.put("totalCount", findResult.getTotalCount());
-		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+			for (Tag tag : tags)
+				tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
 
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("findResult", findResultJson);
-			put("tagsByTagId", tagsByTagId);
-			put("tagGroup", getTagGroupApiResponseFactory().create(tagGroup));
-		}});
+			List<Tag> recommendedTags = tags.stream()
+					.filter(tag -> recommendedTagIds.contains(tag.getTagId()))
+					.collect(Collectors.toList());
+
+			Map<String, Object> tagGroupJson = new HashMap<>();
+			tagGroupJson.put("tagGroupId", "RECOMMENDED");
+			tagGroupJson.put("colorId", ColorId.BRAND_PRIMARY);
+			tagGroupJson.put("name", "Recommended");
+			tagGroupJson.put("urlName", "recommended");
+			tagGroupJson.put("description", "Content recommendations for you.");
+			tagGroupJson.put("tags", recommendedTags);
+
+			return new ApiResponse(new HashMap<String, Object>() {{
+				put("findResult", findResultJson);
+				put("tagsByTagId", tagsByTagId);
+				put("tagGroup", tagGroupJson);
+			}});
+		} else {
+			// Support both tag group ID and URL name
+			TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+					.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
+							|| potentialTagGroup.getUrlName().equals(tagGroupId))
+					.findFirst()
+					.orElse(null);
+
+			if (tagGroup == null)
+				throw new NotFoundException();
+
+			FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
+				{
+					setInstitutionId(account.getInstitutionId());
+					setSearchQuery(searchQuery.orElse(null));
+					setTagIds(new HashSet<>(tagIds.orElse(List.of())));
+					setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
+					setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
+					setPageNumber(pageNumber.orElse(0));
+					setPageSize(pageSize.orElse(0));
+					setTagGroupId(tagGroup.getTagGroupId());
+					setPrioritizeUnviewedForAccountId(account.getAccountId());
+				}
+			});
+
+			List<ContentApiResponse> contents = new ArrayList<>();
+			Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+			for (Tag tag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
+				tagsByTagId.put(tag.getTagId(), getTagApiResponseFactory().create(tag));
+
+			for (Content content : findResult.getResults())
+				contents.add(getContentApiResponseFactory().create(content));
+
+			Map<String, Object> findResultJson = new HashMap<>();
+			findResultJson.put("contents", contents);
+			findResultJson.put("totalCount", findResult.getTotalCount());
+			findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+
+			return new ApiResponse(new HashMap<String, Object>() {{
+				put("findResult", findResultJson);
+				put("tagsByTagId", tagsByTagId);
+				put("tagGroup", getTagGroupApiResponseFactory().create(tagGroup));
+			}});
+		}
 	}
 
 	@Nonnull
@@ -528,26 +573,49 @@ public class ResourceLibraryResource {
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
 
-		// Support both tag group ID and URL name
-		TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
-				.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
-						|| potentialTagGroup.getUrlName().equals(tagGroupId))
-				.findFirst()
-				.orElse(null);
+		// TODO: remove this harcoded RECOMMENDED support - it's a temporary workaround for an iOS build
+		if (tagGroupId.toUpperCase(Locale.ENGLISH).equals("RECOMMENDED")) {
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
+			List<Content> contents = enterprisePlugin.recommendedContentForAccountId(account.getAccountId());
+			Set<String> tagIds = new HashSet<>();
 
-		if (tagGroup == null)
-			throw new NotFoundException();
+			for (Content content : contents)
+				for (Tag tag : content.getTags())
+					tagIds.add(tag.getTagId());
 
-		List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
-				.filter(tag -> tag.getTagGroupId().equals(tagGroup.getTagGroupId()))
-				.map(tag -> getTagApiResponseFactory().create(tag))
-				.collect(Collectors.toList());
+			List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+					.filter(tag -> tagIds.contains(tag.getTagId()))
+					.map(tag -> getTagApiResponseFactory().create(tag))
+					.collect(Collectors.toList());
 
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("contentDurations", availableContentDurations());
-			put("contentTypes", availableContentTypes());
-			put("tags", tags);
-		}});
+			return new ApiResponse(new HashMap<String, Object>() {{
+				put("contentDurations", availableContentDurations());
+				put("contentTypes", availableContentTypes());
+				put("tags", tags);
+			}});
+		} else {
+
+			// Support both tag group ID and URL name
+			TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+					.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
+							|| potentialTagGroup.getUrlName().equals(tagGroupId))
+					.findFirst()
+					.orElse(null);
+
+			if (tagGroup == null)
+				throw new NotFoundException();
+
+			List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+					.filter(tag -> tag.getTagGroupId().equals(tagGroup.getTagGroupId()))
+					.map(tag -> getTagApiResponseFactory().create(tag))
+					.collect(Collectors.toList());
+
+			return new ApiResponse(new HashMap<String, Object>() {{
+				put("contentDurations", availableContentDurations());
+				put("contentTypes", availableContentTypes());
+				put("tags", tags);
+			}});
+		}
 	}
 
 	@Nonnull
