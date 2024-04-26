@@ -86,8 +86,6 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScree
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse;
-import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
@@ -112,7 +110,6 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderFocusType;
-import com.cobaltplatform.api.model.db.PatientOrderFocusType.PatientOrderFocusTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderImport;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
@@ -3827,102 +3824,10 @@ public class PatientOrderService implements AutoCloseable {
 				)
 		));
 
-		// Collect information about triage.  Data looks like this:
-		// [
-		//  {
-		//    "patientOrderTriageSourceId": "COBALT",
-		//    "patientOrderCareTypeId": "SPECIALTY",
-		//    "patientOrderCareTypeDescription": "Specialty",
-		//    "patientOrderFocusTypes": [
-		//      {
-		//        "patientOrderFocusTypeId": "PSYCHOTHERAPY",
-		//        "patientOrderFocusTypeDescription": "Psychotherapy",
-		//        "reasons": [
-		//          "Patient requested help with bipolar disorder"
-		//        ]
-		//      }
-		//    ]
-		//  }
-		// ]
-		List<PatientOrderFocusType> patientOrderFocusTypes = findPatientOrderFocusTypes();
-		Map<PatientOrderFocusTypeId, PatientOrderFocusType> patientOrderFocusTypesById = patientOrderFocusTypes.stream()
-				.collect(Collectors.toMap(PatientOrderFocusType::getPatientOrderFocusTypeId, patientOrderFocusType -> patientOrderFocusType));
-		List<PatientOrderCareType> patientOrderCareTypes = findPatientOrderCareTypes();
-		Map<PatientOrderCareTypeId, PatientOrderCareType> patientOrderCareTypesById = patientOrderCareTypes.stream()
-				.collect(Collectors.toMap(PatientOrderCareType::getPatientOrderCareTypeId, patientOrderCareType -> patientOrderCareType));
-
-		Map<PatientOrderCareTypeId, List<PatientOrderTriage>> patientOrderTriagesByCareTypeIds = new LinkedHashMap<>();
-
-		for (PatientOrderTriage patientOrderTriage : patientOrderTriages) {
-			List<PatientOrderTriage> groupedPatientOrderTriages = patientOrderTriagesByCareTypeIds.get(patientOrderTriage.getPatientOrderCareTypeId());
-
-			if (groupedPatientOrderTriages == null) {
-				groupedPatientOrderTriages = new ArrayList<>();
-				patientOrderTriagesByCareTypeIds.put(patientOrderTriage.getPatientOrderCareTypeId(), groupedPatientOrderTriages);
-			}
-
-			groupedPatientOrderTriages.add(patientOrderTriage);
-		}
-
-		List<PatientOrderTriageGroupApiResponse> patientOrderTriageGroups = new ArrayList<>();
-
-		for (Entry<PatientOrderCareTypeId, List<PatientOrderTriage>> entry : patientOrderTriagesByCareTypeIds.entrySet()) {
-			PatientOrderCareTypeId patientOrderCareTypeId = entry.getKey();
-			PatientOrderCareType patientOrderCareType = patientOrderCareTypesById.get(patientOrderCareTypeId);
-			List<PatientOrderTriage> careTypePatientOrderTriages = entry.getValue();
-
-			// Within this care type, further group by focus type
-			Map<PatientOrderFocusTypeId, List<PatientOrderTriage>> patientOrderTriagesByFocusTypeIds = new LinkedHashMap<>();
-
-			for (PatientOrderTriage patientOrderTriage : careTypePatientOrderTriages) {
-				List<PatientOrderTriage> focusTypePatientOrderTriages = patientOrderTriagesByFocusTypeIds.get(patientOrderTriage.getPatientOrderFocusTypeId());
-
-				if (focusTypePatientOrderTriages == null) {
-					focusTypePatientOrderTriages = new ArrayList<>();
-					patientOrderTriagesByFocusTypeIds.put(patientOrderTriage.getPatientOrderFocusTypeId(), focusTypePatientOrderTriages);
-				}
-
-				focusTypePatientOrderTriages.add(patientOrderTriage);
-			}
-
-			List<PatientOrderTriageGroupFocusApiResponse> focusTypePatientOrderTriages = new ArrayList<>();
-
-			for (Entry<PatientOrderFocusTypeId, List<PatientOrderTriage>> focusEntry : patientOrderTriagesByFocusTypeIds.entrySet()) {
-				PatientOrderFocusTypeId patientOrderFocusTypeId = focusEntry.getKey();
-				List<PatientOrderTriage> focusPatientOrderTriages = focusEntry.getValue();
-
-				List<String> focusReasons = focusPatientOrderTriages.stream()
-						.map(focusPatientOrderTriage -> focusPatientOrderTriage.getReason())
-						.distinct()
-						.collect(Collectors.toList());
-
-				focusTypePatientOrderTriages.add(new PatientOrderTriageGroupFocusApiResponse(patientOrderFocusTypesById.get(patientOrderFocusTypeId), focusReasons));
-			}
-
-			patientOrderTriageGroups.add(new PatientOrderTriageGroupApiResponse(patientOrderTriageGroup.getPatientOrderTriageSourceId(), patientOrderCareType, focusTypePatientOrderTriages));
-		}
-
-		// Pick the first non-unspecified triage group
-		PatientOrderTriageGroupApiResponse applicablePatientOrderTriageGroup = patientOrderTriageGroups.stream()
-				.filter(potentialPatientOrderTriageGroup -> potentialPatientOrderTriageGroup.getPatientOrderCareTypeId() != PatientOrderCareTypeId.UNSPECIFIED)
-				.findFirst().get();
-
 		lines.add("");
-		lines.add(getStrings().get("ASSESSMENT TRIAGE: {{careType}} Care", Map.of(
-				"careType", applicablePatientOrderTriageGroup.getPatientOrderCareTypeDescription()
+		lines.add(getStrings().get("ASSESSMENT TRIAGE: {{careType}}", Map.of(
+				"careType", patientOrder.getPatientOrderTriageStatusDescription()
 		)));
-
-		// Turn these off for now, might bring back later
-		boolean showTriageReasons = false;
-
-		if (showTriageReasons) {
-			for (PatientOrderTriageGroupFocusApiResponse focusType : applicablePatientOrderTriageGroup.getPatientOrderFocusTypes()) {
-				lines.add(getStrings().get("* {{focusType}}: (Reason: {{reasons}})", Map.of(
-						"focusType", focusType.getPatientOrderFocusTypeDescription(),
-						"reasons", focusType.getReasons().stream().collect(Collectors.joining(", "))
-				)));
-			}
-		}
 
 		lines.add("");
 		lines.add("SUMMARY SCORES");
