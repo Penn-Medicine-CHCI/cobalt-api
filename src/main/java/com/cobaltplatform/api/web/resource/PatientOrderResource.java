@@ -1478,6 +1478,10 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
+		List<AccountApiResponse> orderServicerAccounts = getPatientOrderService().findOrderServicerAccountsByInstitutionId(institutionId).stream()
+				.map(orderServicerAccount -> getAccountApiResponseFactory().create(orderServicerAccount))
+				.collect(Collectors.toList());
+
 		List<AccountApiResponse> panelAccounts = getPatientOrderService().findPanelAccountsByInstitutionId(institutionId).stream()
 				.map(panelAccount -> getAccountApiResponseFactory().create(panelAccount))
 				.collect(Collectors.toList());
@@ -1505,6 +1509,7 @@ public class PatientOrderResource {
 		String overallOpenPatientOrderCountDescription = getFormatter().formatNumber(overallOpenPatientOrderCount);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
+			put("orderServicerAccounts", orderServicerAccounts);
 			put("panelAccounts", panelAccounts);
 			put("openPatientOrderCountsByPanelAccountId", openPatientOrderCountsByPanelAccountIdJson);
 			put("overallOpenPatientOrderCount", overallOpenPatientOrderCount);

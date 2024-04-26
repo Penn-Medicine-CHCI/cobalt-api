@@ -1,6 +1,30 @@
 BEGIN;
 SELECT _v.register_patch('169-ic-updates', NULL, NULL);
 
+-- Optionally restrict, for example, late-night orders coming through.
+-- This way patients don't get texts at midnight if a doctor is working late.
+-- Any order imports would queue up and fire once the start time rolls around.
+ALTER TABLE institution ADD COLUMN integrated_care_order_import_start_time_window TIME;
+ALTER TABLE institution ADD COLUMN integrated_care_order_import_end_time_window TIME;
+
+-- Set a default of 8AM-9PM for IC institutions
+UPDATE
+  institution
+SET
+  integrated_care_order_import_start_time_window='8:00',
+  integrated_care_order_import_end_time_window='21:00'
+WHERE
+  integrated_care_enabled=TRUE;
+
+-- Basically - can this MHIC be assigned to service orders?
+INSERT INTO account_capability_type VALUES ('MHIC_ORDER_SERVICER', 'MHIC Order Servicer');
+
+-- By default, let all MHICs service orders
+INSERT INTO account_capability (account_id, account_capability_type_id)
+SELECT account_id, 'MHIC_ORDER_SERVICER'
+FROM account
+WHERE role_id='MHIC';
+
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 

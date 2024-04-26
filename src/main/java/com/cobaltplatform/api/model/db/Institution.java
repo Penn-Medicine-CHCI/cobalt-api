@@ -317,6 +317,11 @@ public class Institution {
 	@Nullable
 	private Boolean smsMessagesEnabled;
 
+	@Nullable
+	private LocalTime integratedCareOrderImportStartTimeWindow;
+	@Nullable
+	private LocalTime integratedCareOrderImportEndTimeWindow;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1490,5 +1495,23 @@ public class Institution {
 
 	public void setSmsMessagesEnabled(@Nullable Boolean smsMessagesEnabled) {
 		this.smsMessagesEnabled = smsMessagesEnabled;
+	}
+
+	@Nullable
+	public LocalTime getIntegratedCareOrderImportStartTimeWindow() {
+		return this.integratedCareOrderImportStartTimeWindow;
+	}
+
+	public void setIntegratedCareOrderImportStartTimeWindow(@Nullable LocalTime integratedCareOrderImportStartTimeWindow) {
+		this.integratedCareOrderImportStartTimeWindow = integratedCareOrderImportStartTimeWindow;
+	}
+
+	@Nullable
+	public LocalTime getIntegratedCareOrderImportEndTimeWindow() {
+		return this.integratedCareOrderImportEndTimeWindow;
+	}
+
+	public void setIntegratedCareOrderImportEndTimeWindow(@Nullable LocalTime integratedCareOrderImportEndTimeWindow) {
+		this.integratedCareOrderImportEndTimeWindow = integratedCareOrderImportEndTimeWindow;
 	}
 }

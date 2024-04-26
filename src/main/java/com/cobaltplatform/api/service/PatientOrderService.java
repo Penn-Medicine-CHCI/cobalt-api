@@ -87,6 +87,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskR
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -147,6 +148,7 @@ import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
+import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.EpicDepartmentPatientOrderImportDisabledException;
@@ -270,6 +272,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
+	private final Provider<AuthorizationService> authorizationServiceProvider;
+	@Nonnull
 	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -307,6 +311,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 														 @Nonnull Provider<ScreeningService> screeningServiceProvider,
+														 @Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
@@ -322,6 +327,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(messageServiceProvider);
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(screeningServiceProvider);
+		requireNonNull(authorizationServiceProvider);
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
@@ -338,6 +344,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.messageServiceProvider = messageServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.screeningServiceProvider = screeningServiceProvider;
+		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
@@ -764,7 +771,8 @@ public class PatientOrderService implements AutoCloseable {
 			return List.of();
 
 		// Panel accounts are either MHICs or any account that has been assigned to manage a panel
-		// (this might be some kind of administrator, for example)
+		// (this might be some kind of administrator, for example).
+		// Different from "order servicers" because this list can include MHICs who have had their access removed.
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM account
@@ -772,6 +780,25 @@ public class PatientOrderService implements AutoCloseable {
 				AND (role_id=? OR account_id IN (SELECT panel_account_id FROM patient_order WHERE institution_id=?))
 				ORDER BY first_name, last_name, account_id
 				""", Account.class, institutionId, RoleId.MHIC, institutionId);
+	}
+
+	@Nonnull
+	public List<Account> findOrderServicerAccountsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		// People who are currently permitted to service orders.
+		// Different from "panel accounts" because this is the current set of people who can have orders assigned to them.
+		// Panel accounts can include, for example, MHICs who previously were assigned orders but have since had their access removed
+		return getDatabase().queryForList("""
+				SELECT a.*
+				FROM account a, account_capability ac
+				WHERE a.institution_id=?
+				AND a.role_id=?
+				AND a.account_id=ac.account_id
+				AND ac.account_capability_type_id=?
+				ORDER BY a.first_name, a.last_name, a.account_id
+				""", Account.class, institutionId, RoleId.MHIC, AccountCapabilityTypeId.MHIC_ORDER_SERVICER);
 	}
 
 	@Nonnull
@@ -1120,11 +1147,25 @@ public class PatientOrderService implements AutoCloseable {
 		if (assignedByAccountId == null)
 			validationException.add(new FieldError("assignedByAccountId", getStrings().get("Assigned-by Account ID is required.")));
 
-		if (panelAccountId == null)
+		if (panelAccountId == null) {
 			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+		} else {
+			Account panelAccount = getAccountService().findAccountById(panelAccountId).orElse(null);
+
+			if (panelAccount == null)
+				validationException.add(getStrings().get("Invalid account specified."));
+
+			AccountCapabilityFlags accountCapabilityFlags = getAuthorizationService().determineAccountCapabilityFlagsForAccount(panelAccount);
+
+			if (!accountCapabilityFlags.isCanServiceIcOrders())
+				validationException.add(getStrings().get("This account is not authorized to be assigned to an order."));
+		}
 
 		if (patientOrderIds.size() == 0)
 			validationException.add(new FieldError("patientOrderIds", getStrings().get("Please select at least one order to assign.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
 
 		int assignedCount = 0;
 
@@ -4612,7 +4653,7 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		if (automaticallyAssignToPanelAccounts) {
-			List<Account> panelAccounts = findPanelAccountsByInstitutionId(institutionId);
+			List<Account> panelAccounts = findOrderServicerAccountsByInstitutionId(institutionId);
 
 			if (panelAccounts.size() > 0) {
 				int i = 0;
@@ -5819,6 +5860,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected ScreeningService getScreeningService() {
 		return this.screeningServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationServiceProvider.get();
 	}
 
 	@Nonnull
