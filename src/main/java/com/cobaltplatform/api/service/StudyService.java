@@ -481,12 +481,14 @@ public class StudyService implements AutoCloseable {
 			throw validationException;
 
 		Boolean rescheduleFirstCheckIn = false;
+		Boolean leaveFirstCheckInOpenUntilStarted = study.get().getLeaveFirstCheckInOpenUntilStarted();
+		
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
 			if (accountCheckActive(account, accountCheckIn) && !rescheduleFirstCheckIn) {
 				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
-			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
+			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE) && leaveFirstCheckInOpenUntilStarted) {
 				//This is the first check-in and it has not been completed so check to see if it's been started
 				getLogger().debug("Hit first check-in and it's not complete, check if it's been started");
 				Boolean checkInStarted = accountCheckInStarted(account.getAccountId(), accountCheckIn.getAccountCheckInId());

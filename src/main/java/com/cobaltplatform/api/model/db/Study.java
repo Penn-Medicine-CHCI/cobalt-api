@@ -69,6 +69,9 @@ public class Study {
 	private Boolean resetAfterFinalCheckIn;
 
 	@Nullable
+	private Boolean leaveFirstCheckInOpenUntilStarted;
+
+	@Nullable
 	public UUID getStudyId() {
 		return studyId;
 	}
@@ -228,5 +231,14 @@ public class Study {
 
 	public void setResetAfterFinalCheckIn(@Nullable Boolean resetAfterFinalCheckIn) {
 		this.resetAfterFinalCheckIn = resetAfterFinalCheckIn;
+	}
+
+	@Nullable
+	public Boolean getLeaveFirstCheckInOpenUntilStarted() {
+		return leaveFirstCheckInOpenUntilStarted;
+	}
+
+	public void setLeaveFirstCheckInOpenUntilStarted(@Nullable Boolean leaveFirstCheckInOpenUntilStarted) {
+		this.leaveFirstCheckInOpenUntilStarted = leaveFirstCheckInOpenUntilStarted;
 	}
 }
