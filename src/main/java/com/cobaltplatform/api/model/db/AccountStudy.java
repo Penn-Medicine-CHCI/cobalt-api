@@ -53,6 +53,8 @@ public class AccountStudy {
 	private String checkInReminderNotificationMessageTitle;
 	@Nullable
 	private String checkInReminderNotificationMessageBody;
+	@Nullable
+	private Boolean studyStarted;
 	@Nonnull
 	private Instant created;
 	@Nonnull
@@ -176,5 +178,14 @@ public class AccountStudy {
 
 	public void setDeleted(@Nonnull Boolean deleted) {
 		this.deleted = deleted;
+	}
+
+	@Nullable
+	public Boolean getStudyStarted() {
+		return studyStarted;
+	}
+
+	public void setStudyStarted(@Nullable Boolean studyStarted) {
+		this.studyStarted = studyStarted;
 	}
 }
