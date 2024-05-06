@@ -45,6 +45,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -256,7 +257,12 @@ public class BeiweDataDownloader {
 						// Decrypt passive data
 						if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId())) {
 							PrivateKey privateKey = privateKeysByEncryptionKeypairId.get(accountStudy.getEncryptionKeypairId());
-							Path decryptedFile = storageDirectory.resolve(format("DECRYPTED-%s", fileUpload.getFilename()));
+
+							if (!fileUpload.getFilename().endsWith(".csv"))
+								throw new IllegalStateException("Unexpected filename: does not end in .csv");
+
+							String decryptedFilename = file.getFileName().toString().replace(".csv", ".DECRYPTED.csv");
+							Path decryptedFile = storageDirectory.resolve(decryptedFilename);
 
 							try {
 								beiweCryptoManager.decryptBeiweTextFile(file, decryptedFile, privateKey);
@@ -264,6 +270,8 @@ public class BeiweDataDownloader {
 							} catch (Exception e) {
 								logger.error("An error occurred during decryption", e);
 								beiweDownloadResult.decryptionFailures++;
+								String decryptionFailedFilename = decryptedFile.toAbsolutePath().toString().replace(".DECRYPTED.csv", ".DECRYPTION-FAILED.csv");
+								decryptedFile.toFile().renameTo(new File(decryptionFailedFilename));
 							}
 						}
 					} catch (NoSuchKeyException e) {
