@@ -1,26 +1,20 @@
-version: '3.8'
-
 services:
   localstack-cobalt:
-    image: localstack/localstack:2.0.2
+    image: localstack/localstack:3.4.0
     ports:
-      - "4801:4801"
-      - "${PORT_WEB_UI-9090}:${PORT_WEB_UI-9090}"
+      - "4801:4801"            # LocalStack Gateway
+      - "4710-4759:4710-4759"  # external services port range
     environment:
-      - SERVICES=${SERVICES-ses,s3,secretsmanager}
-      - EDGE_PORT=4801
-      - DEBUG=${DEBUG-1}
-      - DATA_DIR=${DATA_DIR- }
-      - PORT_WEB_UI=${PORT_WEB_UI-9090}
-      - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR- }
-      - KINESIS_ERROR_PROBABILITY=${KINESIS_ERROR_PROBABILITY- }
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      - GATEWAY_LISTEN=0.0.0.0:4801
+      - EXTERNAL_SERVICE_PORTS_START=4710
+      - EXTERNAL_SERVICE_PORTS_END=4759
+      - MAIN_CONTAINER_NAME=localstack-main-1
     volumes:
-      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
 
   postgres-cobalt:
-    image: postgres:12.9
+    image: postgres:16.2
     ports:
       - "5501:5432"
     environment:
