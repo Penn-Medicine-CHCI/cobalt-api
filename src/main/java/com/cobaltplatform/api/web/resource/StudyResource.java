@@ -232,6 +232,9 @@ public class StudyResource {
 		Account account = getCurrentContext().getAccount().get();
 
 		getStudyService().rescheduleAccountCheckIn(account, studyId);
+
+		// TODO: only call this the first time an account hits this endpoint
+		getStudyService().startStudyForAccount(account.getAccountId(), studyId);
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("checkIns", getStudyService().findAccountCheckInsForAccountAndStudy(account, studyId, checkInStatusGroupId)
 					.stream().map(accountCheckIn -> getAccountCheckInApiResponseFactory().create(accountCheckIn)).collect(Collectors.toList()));

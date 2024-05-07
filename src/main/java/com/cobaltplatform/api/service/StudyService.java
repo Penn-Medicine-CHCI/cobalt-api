@@ -472,21 +472,31 @@ public class StudyService implements AutoCloseable {
 		LocalDateTime currentDateTime = LocalDateTime.now(account.getTimeZone());
 		LocalDateTime newStartDateTime = currentDateTime;
 		Optional<Study> study = findStudyById(studyId);
+		Optional<AccountStudy> accountStudy = findAccountStudyByAccountIdAndStudyId(account.getAccountId(), studyId);
 		Boolean resetCheckIns = false;
 
 		if (!study.isPresent())
 			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
 
+		if (!accountStudy.isPresent())
+			validationException.add(new FieldError("accountId", getStrings().get("Account not part of this study.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		Boolean rescheduleFirstCheckIn = false;
+		// If this account has not started the study then we need to reschedule the check ins because start/stop times are set
+		// when accounts are originally generated. Otherwise defer to if the study is setup to leave the first check in open
+		// until the account starts the first check in
+		Boolean rescheduleFirstCheckInIfNeeded = !accountStudy.get().getStudyStarted() ? true : study.get().getLeaveFirstCheckInOpenUntilStarted();
+
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
 			if (accountCheckActive(account, accountCheckIn) && !rescheduleFirstCheckIn) {
 				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
-			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
+			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)
+					&& rescheduleFirstCheckInIfNeeded) {
 				//This is the first check-in and it has not been completed so check to see if it's been started
 				getLogger().debug("Hit first check-in and it's not complete, check if it's been started");
 				Boolean checkInStarted = accountCheckInStarted(account.getAccountId(), accountCheckIn.getAccountCheckInId());
@@ -963,6 +973,17 @@ public class StudyService implements AutoCloseable {
 				WHERE account_check_in_action_id=?
 				AND file_upload_id=?
 				""", AccountCheckInActionFileUpload.class, accountCheckInActionId, fileUploadId);
+	}
+
+	@Nonnull
+	public void startStudyForAccount(@Nullable UUID accountId,
+																	 @Nullable UUID studyId) {
+
+		getDatabase().execute("""
+				UPDATE account_study 
+				SET study_started = true
+				WHERE account_id = ? 
+				AND study_id=? """, accountId, studyId);
 	}
 
 	@Override
