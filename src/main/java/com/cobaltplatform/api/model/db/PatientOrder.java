@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
@@ -384,6 +385,10 @@ public class PatientOrder {
 	private String epicDepartmentDepartmentId;
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
+	@Nullable
+	private LocalDateTime nextFollowupScheduledAtDateTime;
+	@Nullable
+	private PatientOrderScheduledFollowupTypeId nextFollowupTypeId;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1823,5 +1828,23 @@ public class PatientOrder {
 
 	public void setPatientOrderEncounterDocumentationStatusId(@Nullable PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId) {
 		this.patientOrderEncounterDocumentationStatusId = patientOrderEncounterDocumentationStatusId;
+	}
+
+	@Nullable
+	public LocalDateTime getNextFollowupScheduledAtDateTime() {
+		return this.nextFollowupScheduledAtDateTime;
+	}
+
+	public void setNextFollowupScheduledAtDateTime(@Nullable LocalDateTime nextFollowupScheduledAtDateTime) {
+		this.nextFollowupScheduledAtDateTime = nextFollowupScheduledAtDateTime;
+	}
+
+	@Nullable
+	public PatientOrderScheduledFollowupTypeId getNextFollowupTypeId() {
+		return this.nextFollowupTypeId;
+	}
+
+	public void setNextFollowupTypeId(@Nullable PatientOrderScheduledFollowupTypeId nextFollowupTypeId) {
+		this.nextFollowupTypeId = nextFollowupTypeId;
 	}
 }

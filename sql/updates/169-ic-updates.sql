@@ -25,6 +25,44 @@ SELECT account_id, 'MHIC_ORDER_SERVICER'
 FROM account
 WHERE role_id='MHIC';
 
+-- MHICs can schedule an out-of-band followup.
+-- Currently this is just phone calls, might be other types in the future
+CREATE TABLE patient_order_scheduled_followup_type (
+  patient_order_scheduled_followup_type_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO patient_order_scheduled_followup_type VALUES ('PHONE_CALL', 'Phone Call', 1);
+
+-- Out-of-band followups can be either active, completed, or canceled
+CREATE TABLE patient_order_scheduled_followup_status (
+  patient_order_scheduled_followup_status_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO patient_order_scheduled_followup_status VALUES ('ACTIVE', 'Active');
+INSERT INTO patient_order_scheduled_followup_status VALUES ('COMPLETED', 'Completed');
+INSERT INTO patient_order_scheduled_followup_status VALUES ('CANCELED', 'Canceled');
+
+CREATE TABLE patient_order_scheduled_followup (
+  patient_order_scheduled_followup_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_order_id UUID NOT NULL REFERENCES patient_order,
+  patient_order_scheduled_followup_status_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_status DEFAULT 'ACTIVE',
+  patient_order_scheduled_followup_type_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_type,
+  created_by_account_id UUID NOT NULL REFERENCES account(account_id),
+  completed_by_account_id UUID REFERENCES account(account_id),
+  canceled_by_account_id UUID REFERENCES account(account_id),
+  scheduled_at_date_time TIMESTAMP NOT NULL,
+  comment TEXT,
+  completed_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_scheduled_followup FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
@@ -132,6 +170,22 @@ recent_voicemail_task_query AS (
         and povt.created < povt2.created
     where
         povt2.patient_order_voicemail_task_id IS NULL
+),
+next_scheduled_followup_query AS (
+    -- Pick the next active scheduled followup for each patient order
+    select
+        posf.patient_order_id,
+        MIN(posf.scheduled_at_date_time) as next_followup_scheduled_at_date_time,
+        posf.patient_order_scheduled_followup_type_id as next_followup_type_id
+    from
+        patient_order poq,
+        patient_order_scheduled_followup posf
+    where
+        poq.patient_order_id = posf.patient_order_id
+        and posf.patient_order_scheduled_followup_status_id = 'ACTIVE'
+    group by
+        posf.patient_order_id,
+        posf.patient_order_scheduled_followup_type_id
 ),
 ss_query AS (
     -- Pick the most recently-created clinical screening session for the patient order
@@ -408,6 +462,8 @@ select
     DATE_PART('day', (COALESCE(poq.episode_closed_at, now()) - (poq.order_date + make_interval(mins => poq.order_age_in_minutes)))) AS episode_duration_in_days,
     ed.name AS epic_department_name,
     ed.department_id AS epic_department_department_id,
+    nsfq.next_followup_scheduled_at_date_time,
+    nsfq.next_followup_type_id,
     poq.*
 from
     patient_order poq
@@ -432,6 +488,7 @@ from
     left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id
     left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id
     left outer join reason_for_referral_query rfrq on poq.patient_order_id=rfrq.patient_order_id
+    left outer join next_scheduled_followup_query nsfq ON poq.patient_order_id=nsfq.patient_order_id
     left outer join patient_order_scheduled_message_group posmg ON poq.resource_check_in_scheduled_message_group_id=posmg.patient_order_scheduled_message_group_id AND posmg.deleted = FALSE;
 
 CREATE or replace VIEW v_patient_order AS
