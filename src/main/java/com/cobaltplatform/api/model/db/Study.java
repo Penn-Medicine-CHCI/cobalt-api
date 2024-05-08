@@ -72,6 +72,9 @@ public class Study {
 	private Boolean leaveFirstCheckInOpenUntilStarted;
 
 	@Nullable
+	private Boolean checkInWindowsFixed;
+
+	@Nullable
 	public UUID getStudyId() {
 		return studyId;
 	}
@@ -240,5 +243,14 @@ public class Study {
 
 	public void setLeaveFirstCheckInOpenUntilStarted(@Nullable Boolean leaveFirstCheckInOpenUntilStarted) {
 		this.leaveFirstCheckInOpenUntilStarted = leaveFirstCheckInOpenUntilStarted;
+	}
+
+	@Nullable
+	public Boolean getCheckInWindowsFixed() {
+		return checkInWindowsFixed;
+	}
+
+	public void setCheckInWindowsFixed(@Nullable Boolean checkInWindowsFixed) {
+		this.checkInWindowsFixed = checkInWindowsFixed;
 	}
 }

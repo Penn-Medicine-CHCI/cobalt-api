@@ -484,6 +484,10 @@ public class StudyService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		//If this study is configured to have fixed check in windows and the user has already started the study then return immediately.
+		if (accountStudy.get().getStudyStarted() && study.get().getCheckInWindowsFixed())
+			return;
+
 		Boolean rescheduleFirstCheckIn = false;
 		// If this account has not started the study then we need to reschedule the check ins because start/stop times are set
 		// when accounts are originally generated. Otherwise defer to if the study is setup to leave the first check in open
