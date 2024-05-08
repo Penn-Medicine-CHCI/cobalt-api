@@ -33,8 +33,6 @@ public class UpdatePatientOrderVoicemailTaskRequest {
 	@Nullable
 	private UUID updatedByAccountId;
 	@Nullable
-	private UUID panelAccountId;
-	@Nullable
 	private String message;
 
 	@Nullable
@@ -54,16 +52,7 @@ public class UpdatePatientOrderVoicemailTaskRequest {
 	public void setUpdatedByAccountId(@Nullable UUID updatedByAccountId) {
 		this.updatedByAccountId = updatedByAccountId;
 	}
-
-	@Nullable
-	public UUID getPanelAccountId() {
-		return this.panelAccountId;
-	}
-
-	public void setPanelAccountId(@Nullable UUID panelAccountId) {
-		this.panelAccountId = panelAccountId;
-	}
-
+	
 	@Nullable
 	public String getMessage() {
 		return this.message;

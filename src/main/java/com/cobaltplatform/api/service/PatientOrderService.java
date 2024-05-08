@@ -3163,7 +3163,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
-		UUID panelAccountId = request.getPanelAccountId();
 		String message = trimToNull(request.getMessage());
 		PatientOrder patientOrder = null;
 		UUID patientOrderVoicemailTaskId = UUID.randomUUID();
@@ -3191,9 +3190,6 @@ public class PatientOrderService implements AutoCloseable {
 		if (createdByAccountId == null)
 			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-By Account ID is required.")));
 
-		if (panelAccountId == null)
-			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
-
 		if (message == null)
 			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
 
@@ -3209,15 +3205,6 @@ public class PatientOrderService implements AutoCloseable {
 				) VALUES (?,?,?,?)
 				""", patientOrderVoicemailTaskId, patientOrderId, createdByAccountId, message);
 
-		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
-			getLogger().debug("As a side effect of creating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
-					patientOrderId, panelAccountId);
-
-			assignPatientOrderToPanelAccount(patientOrderId, panelAccountId, createdByAccountId);
-		}
-
-		// TODO: track changes
-
 		return patientOrderVoicemailTaskId;
 	}
 
@@ -3227,7 +3214,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
 		UUID updatedByAccountId = request.getUpdatedByAccountId();
-		UUID panelAccountId = request.getPanelAccountId();
 		String message = trimToNull(request.getMessage());
 		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
 		PatientOrder patientOrder = null;
@@ -3251,9 +3237,6 @@ public class PatientOrderService implements AutoCloseable {
 		if (updatedByAccountId == null)
 			validationException.add(new FieldError("updatedByAccountId", getStrings().get("Updated-By Account ID is required.")));
 
-		if (panelAccountId == null)
-			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
-
 		if (message == null)
 			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
 
@@ -3265,15 +3248,6 @@ public class PatientOrderService implements AutoCloseable {
 				SET message=?
 				WHERE patient_order_voicemail_task_id=?
 				""", message, patientOrderVoicemailTaskId) > 0;
-
-		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
-			getLogger().debug("As a side effect of updating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
-					patientOrderVoicemailTask.getPatientOrderId(), panelAccountId);
-
-			assignPatientOrderToPanelAccount(patientOrderVoicemailTask.getPatientOrderId(), panelAccountId, updatedByAccountId);
-		}
-
-		// TODO: track changes
 
 		return updated;
 	}

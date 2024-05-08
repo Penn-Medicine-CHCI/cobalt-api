@@ -33,8 +33,6 @@ public class CreatePatientOrderVoicemailTaskRequest {
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
-	private UUID panelAccountId;
-	@Nullable
 	private String message;
 
 	@Nullable
@@ -53,15 +51,6 @@ public class CreatePatientOrderVoicemailTaskRequest {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public UUID getPanelAccountId() {
-		return this.panelAccountId;
-	}
-
-	public void setPanelAccountId(@Nullable UUID panelAccountId) {
-		this.panelAccountId = panelAccountId;
 	}
 
 	@Nullable
