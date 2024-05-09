@@ -60,11 +60,22 @@ public class PatientOrderScheduledFollowup {
 	@Nullable
 	private Instant completedAt;
 	@Nullable
-	private Instant deletedAt;
+	private Instant canceledAt;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	// Joined from v_patient_order_scheduled_followup
+
+	@Nullable
+	private String createdByAccountFirstName;
+	@Nullable
+	private String createdByAccountLastName;
+	@Nullable
+	private String completedByAccountFirstName;
+	@Nullable
+	private String completedByAccountLastName;
 
 	@Nullable
 	public UUID getPatientOrderScheduledFollowupId() {
@@ -175,12 +186,12 @@ public class PatientOrderScheduledFollowup {
 	}
 
 	@Nullable
-	public Instant getDeletedAt() {
-		return this.deletedAt;
+	public Instant getCanceledAt() {
+		return this.canceledAt;
 	}
 
-	public void setDeletedAt(@Nullable Instant deletedAt) {
-		this.deletedAt = deletedAt;
+	public void setCanceledAt(@Nullable Instant canceledAt) {
+		this.canceledAt = canceledAt;
 	}
 
 	@Nullable
@@ -199,5 +210,41 @@ public class PatientOrderScheduledFollowup {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getCreatedByAccountFirstName() {
+		return this.createdByAccountFirstName;
+	}
+
+	public void setCreatedByAccountFirstName(@Nullable String createdByAccountFirstName) {
+		this.createdByAccountFirstName = createdByAccountFirstName;
+	}
+
+	@Nullable
+	public String getCreatedByAccountLastName() {
+		return this.createdByAccountLastName;
+	}
+
+	public void setCreatedByAccountLastName(@Nullable String createdByAccountLastName) {
+		this.createdByAccountLastName = createdByAccountLastName;
+	}
+
+	@Nullable
+	public String getCompletedByAccountFirstName() {
+		return this.completedByAccountFirstName;
+	}
+
+	public void setCompletedByAccountFirstName(@Nullable String completedByAccountFirstName) {
+		this.completedByAccountFirstName = completedByAccountFirstName;
+	}
+
+	@Nullable
+	public String getCompletedByAccountLastName() {
+		return this.completedByAccountLastName;
+	}
+
+	public void setCompletedByAccountLastName(@Nullable String completedByAccountLastName) {
+		this.completedByAccountLastName = completedByAccountLastName;
 	}
 }

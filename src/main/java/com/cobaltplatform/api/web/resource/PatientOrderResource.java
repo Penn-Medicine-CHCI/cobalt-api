@@ -22,8 +22,10 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CompletePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
@@ -50,6 +52,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
@@ -68,6 +71,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledFollowupApiResponse.PatientOrderScheduledFollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
@@ -214,6 +218,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory;
 	@Nonnull
+	private final PatientOrderScheduledFollowupApiResponseFactory patientOrderScheduledFollowupApiResponseFactory;
+	@Nonnull
 	private final PatientOrderCsvGenerator patientOrderCsvGenerator;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -250,6 +256,7 @@ public class PatientOrderResource {
 															@Nonnull PatientOrderScheduledScreeningApiResponseFactory patientOrderScheduledScreeningApiResponseFactory,
 															@Nonnull ScreeningTypeApiResponseFactory screeningTypeApiResponseFactory,
 															@Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
+															@Nonnull PatientOrderScheduledFollowupApiResponseFactory patientOrderScheduledFollowupApiResponseFactory,
 															@Nonnull PatientOrderCsvGenerator patientOrderCsvGenerator,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull JsonMapper jsonMapper,
@@ -276,6 +283,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderScheduledScreeningApiResponseFactory);
 		requireNonNull(screeningTypeApiResponseFactory);
 		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
+		requireNonNull(patientOrderScheduledFollowupApiResponseFactory);
 		requireNonNull(patientOrderCsvGenerator);
 		requireNonNull(requestBodyParser);
 		requireNonNull(jsonMapper);
@@ -303,6 +311,7 @@ public class PatientOrderResource {
 		this.patientOrderScheduledScreeningApiResponseFactory = patientOrderScheduledScreeningApiResponseFactory;
 		this.screeningTypeApiResponseFactory = screeningTypeApiResponseFactory;
 		this.patientOrderVoicemailTaskApiResponseFactory = patientOrderVoicemailTaskApiResponseFactory;
+		this.patientOrderScheduledFollowupApiResponseFactory = patientOrderScheduledFollowupApiResponseFactory;
 		this.patientOrderCsvGenerator = patientOrderCsvGenerator;
 		this.requestBodyParser = requestBodyParser;
 		this.jsonMapper = jsonMapper;
@@ -1133,9 +1142,9 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@DELETE("/patient-order-voicemail-tasks/{patientOrderScheduledFollowupId}")
+	@POST("/patient-order-scheduled-followups/{patientOrderScheduledFollowupId}/cancel")
 	@AuthenticationRequired
-	public ApiResponse deletePatientOrderScheduledFollowup(@Nonnull @RequestBody String requestBody,
+	public ApiResponse cancelPatientOrderScheduledFollowup(@Nonnull @RequestBody String requestBody,
 																												 @Nonnull @PathParameter UUID patientOrderScheduledFollowupId) {
 		requireNonNull(requestBody);
 		requireNonNull(patientOrderScheduledFollowupId);
@@ -1147,7 +1156,7 @@ public class PatientOrderResource {
 		if (patientOrderScheduledFollowup == null)
 			throw new NotFoundException();
 
-		DeletePatientOrderScheduledFollowupRequest request = getRequestBodyParser().parse(requestBody, DeletePatientOrderScheduledFollowupRequest.class);
+		CancelPatientOrderScheduledFollowupRequest request = getRequestBodyParser().parse(requestBody, CancelPatientOrderScheduledFollowupRequest.class);
 		request.setDeletedByAccountId(account.getAccountId());
 		request.setPatientOrderScheduledFollowupId(patientOrderScheduledFollowupId);
 
@@ -1156,13 +1165,13 @@ public class PatientOrderResource {
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		getPatientOrderService().deletePatientOrderScheduledFollowup(request);
+		getPatientOrderService().cancelPatientOrderScheduledFollowup(request);
 
 		return new ApiResponse();
 	}
 
 	@Nonnull
-	@POST("/patient-order-scheduled-followup/{patientOrderScheduledFollowupId}/complete")
+	@POST("/patient-order-scheduled-followups/{patientOrderScheduledFollowupId}/complete")
 	@AuthenticationRequired
 	public ApiResponse completePatientOrderScheduledFollowup(@Nonnull @PathParameter UUID patientOrderScheduledFollowupId) {
 		requireNonNull(patientOrderScheduledFollowupId);
@@ -1187,7 +1196,7 @@ public class PatientOrderResource {
 		PatientOrderScheduledFollowup completedPatientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(completePatientOrderScheduledFollowup));
+			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(completedPatientOrderScheduledFollowup));
 		}});
 	}
 
@@ -2154,6 +2163,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected PatientOrderVoicemailTaskApiResponseFactory getPatientOrderVoicemailTaskApiResponseFactory() {
 		return this.patientOrderVoicemailTaskApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PatientOrderScheduledFollowupApiResponseFactory getPatientOrderScheduledFollowupApiResponseFactory() {
+		return this.patientOrderScheduledFollowupApiResponseFactory;
 	}
 
 	@Nonnull

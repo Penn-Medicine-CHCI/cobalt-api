@@ -25,18 +25,19 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.Patient
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePatientOrderScheduledFollowupRequest {
+public class UpdatePatientOrderScheduledFollowupRequest {
+	@Nullable
+	private UUID patientOrderScheduledFollowupId;
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
-	private UUID createdByAccountId;
+	private UUID updatedByAccountId;
 	@Nullable
 	private PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId;
 	@Nullable
@@ -44,9 +45,18 @@ public class CreatePatientOrderScheduledFollowupRequest {
 	@Nullable
 	private LocalDate scheduledAtDate;
 	@Nullable
-	private LocalTime scheduledAtTime;
+	private LocalDate scheduledAtTime;
 	@Nullable
-	private String message;
+	private String comment;
+
+	@Nullable
+	public UUID getPatientOrderScheduledFollowupId() {
+		return this.patientOrderScheduledFollowupId;
+	}
+
+	public void setPatientOrderScheduledFollowupId(@Nullable UUID patientOrderScheduledFollowupId) {
+		this.patientOrderScheduledFollowupId = patientOrderScheduledFollowupId;
+	}
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -58,12 +68,12 @@ public class CreatePatientOrderScheduledFollowupRequest {
 	}
 
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return this.createdByAccountId;
+	public UUID getUpdatedByAccountId() {
+		return this.updatedByAccountId;
 	}
 
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
+	public void setUpdatedByAccountId(@Nullable UUID updatedByAccountId) {
+		this.updatedByAccountId = updatedByAccountId;
 	}
 
 	@Nullable
@@ -94,20 +104,20 @@ public class CreatePatientOrderScheduledFollowupRequest {
 	}
 
 	@Nullable
-	public LocalTime getScheduledAtTime() {
+	public LocalDate getScheduledAtTime() {
 		return this.scheduledAtTime;
 	}
 
-	public void setScheduledAtTime(@Nullable LocalTime scheduledAtTime) {
+	public void setScheduledAtTime(@Nullable LocalDate scheduledAtTime) {
 		this.scheduledAtTime = scheduledAtTime;
 	}
 
 	@Nullable
-	public String getMessage() {
-		return this.message;
+	public String getComment() {
+		return this.comment;
 	}
 
-	public void setMessage(@Nullable String message) {
-		this.message = message;
+	public void setComment(@Nullable String comment) {
+		this.comment = comment;
 	}
 }

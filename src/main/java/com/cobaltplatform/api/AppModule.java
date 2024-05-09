@@ -121,6 +121,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiRespons
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledFollowupApiResponse.PatientOrderScheduledFollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageApiResponse.PatientOrderScheduledMessageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
@@ -337,6 +338,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(EpicDepartmentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(EncounterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ClientDeviceActivityApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PatientOrderScheduledFollowupApiResponseFactory.class)));
 	}
 
 	@Provides

@@ -48,8 +48,10 @@ import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ArchivePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CompletePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -59,6 +61,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
@@ -81,6 +84,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
@@ -128,6 +132,10 @@ import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrder
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowup;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupContactType.PatientOrderScheduledFollowupContactTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupStatus.PatientOrderScheduledFollowupStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
@@ -3321,6 +3329,227 @@ public class PatientOrderService implements AutoCloseable {
 				""", completedByAccountId, patientOrderVoicemailTaskId);
 
 		// TODO: track changes
+	}
+
+
+	@Nonnull
+	public Optional<PatientOrderScheduledFollowup> findPatientOrderScheduledFollowupById(@Nullable UUID patientOrderScheduledFollowupId) {
+		if (patientOrderScheduledFollowupId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_patient_order_scheduled_followup
+				WHERE patient_order_scheduled_followup_id=?
+				AND patient_order_scheduled_followup_status_id != ?
+				""", PatientOrderScheduledFollowup.class, patientOrderScheduledFollowupId, PatientOrderScheduledFollowupStatusId.CANCELED);
+	}
+
+	@Nonnull
+	public List<PatientOrderScheduledFollowup> findPatientOrderScheduledFollowupsByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_patient_order_scheduled_followup
+				WHERE patient_order_id=?
+				AND patient_order_scheduled_followup_status_id != ?
+				ORDER BY last_updated DESC
+				""", PatientOrderScheduledFollowup.class, patientOrderId, PatientOrderScheduledFollowupStatusId.CANCELED);
+	}
+
+	@Nonnull
+	public UUID createPatientOrderScheduledFollowup(@Nonnull CreatePatientOrderScheduledFollowupRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId = request.getPatientOrderScheduledFollowupTypeId();
+		PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId = request.getPatientOrderScheduledFollowupContactTypeId();
+		LocalDate scheduledAtDate = request.getScheduledAtDate();
+		LocalTime scheduledAtTime = request.getScheduledAtTime();
+		PatientOrder patientOrder = null;
+		UUID patientOrderScheduledFollowupId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (createdByAccountId == null)
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-By Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (patientOrderScheduledFollowupTypeId == null)
+			validationException.add(new FieldError("patientOrderScheduledFollowupTypeId", getStrings().get("Scheduled followup type is required.")));
+
+		if (patientOrderScheduledFollowupContactTypeId == null)
+			validationException.add(new FieldError("patientOrderScheduledFollowupContactTypeId", getStrings().get("Scheduled followup contact type is required.")));
+
+		if (scheduledAtDate == null)
+			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Date is required.")));
+
+		if (scheduledAtTime == null)
+			validationException.add(new FieldError("scheduledAtTime", getStrings().get("Time is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		LocalDateTime scheduledAtDateTime = LocalDateTime.of(scheduledAtDate, scheduledAtTime);
+
+		getDatabase().execute("""
+						INSERT INTO patient_order_scheduled_followup (
+						    patient_order_scheduled_followup_id,
+						    patient_order_id,
+						    patient_order_scheduled_followup_type_id,
+						    patient_order_scheduled_followup_contact_type_id,
+						    patient_order_scheduled_followup_status_id,
+						    created_by_account_id,
+						    scheduled_at_date_time,
+						    message
+						) VALUES (?,?,?,?,?,?,?,?)
+						""", patientOrderScheduledFollowupId, patientOrderId, patientOrderScheduledFollowupTypeId,
+				patientOrderScheduledFollowupContactTypeId, PatientOrderScheduledFollowupStatusId.ACTIVE, createdByAccountId,
+				scheduledAtDateTime, message);
+
+		return patientOrderScheduledFollowupId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderScheduledFollowup(@Nonnull UpdatePatientOrderScheduledFollowupRequest request) {
+		requireNonNull(request);
+
+		/*
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID updatedByAccountId = request.getUpdatedByAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		PatientOrder patientOrder = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null) {
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			} else {
+				patientOrder = findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).get();
+
+				if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+					validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot update past Patient Order Voicemail Tasks.")));
+			}
+		}
+
+		if (updatedByAccountId == null)
+			validationException.add(new FieldError("updatedByAccountId", getStrings().get("Updated-By Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET message=?
+				WHERE patient_order_voicemail_task_id=?
+				""", message, patientOrderVoicemailTaskId) > 0;
+
+		return updated;
+		 */
+
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	public Boolean cancelPatientOrderScheduledFollowup(@Nonnull CancelPatientOrderScheduledFollowupRequest request) {
+		requireNonNull(request);
+
+		/*
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID deletedByAccountId = request.getDeletedByAccountId();
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null)
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot delete past Patient Order Voicemail Tasks.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET deleted=TRUE,
+				deleted_by_account_id=?
+				WHERE patient_order_voicemail_task_id=?
+				""", deletedByAccountId, patientOrderVoicemailTaskId) > 0;
+
+		// TODO: track changes
+
+		return deleted;
+		 */
+
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	public void completePatientOrderScheduledFollowup(@Nonnull CompletePatientOrderScheduledFollowupRequest request) {
+		requireNonNull(request);
+		/*
+
+		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID completedByAccountId = request.getCompletedByAccountId();
+		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderVoicemailTaskId == null) {
+			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		} else {
+			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+
+			if (patientOrderVoicemailTask == null)
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot complete past Patient Order Voicemail Tasks.")));
+		}
+
+		if (completedByAccountId == null)
+			validationException.add(new FieldError("completedByAccountId", getStrings().get("Completed-By Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE patient_order_voicemail_task
+				SET completed=TRUE,
+				completed_by_account_id=?
+				WHERE patient_order_voicemail_task_id=?
+				""", completedByAccountId, patientOrderVoicemailTaskId);
+
+		// TODO: track changes
+
+		 */
+
+		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull

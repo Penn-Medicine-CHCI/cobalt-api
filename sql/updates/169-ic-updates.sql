@@ -62,18 +62,29 @@ CREATE TABLE patient_order_scheduled_followup (
   patient_order_scheduled_followup_contact_type_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_contact_type,
   patient_order_scheduled_followup_status_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_status DEFAULT 'ACTIVE',
   created_by_account_id UUID NOT NULL REFERENCES account(account_id),
-  updated_by_account_id UUID NOT NULL REFERENCES account(account_id),
+  updated_by_account_id UUID REFERENCES account(account_id),
   completed_by_account_id UUID REFERENCES account(account_id),
   canceled_by_account_id UUID REFERENCES account(account_id),
   scheduled_at_date_time TIMESTAMP NOT NULL,
   message TEXT,
   completed_at TIMESTAMPTZ,
-  deleted_at TIMESTAMPTZ,
+  canceled_at TIMESTAMPTZ,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_scheduled_followup FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE VIEW v_patient_order_scheduled_followup AS
+SELECT
+  posf.*,
+  acr.first_name as created_by_account_first_name,
+  acr.last_name as created_by_account_last_name,
+  aco.first_name as completed_by_account_first_name,
+  aco.last_name as completed_by_account_last_name
+FROM patient_order_scheduled_followup posf
+LEFT JOIN account acr ON posf.created_by_account_id = acr.account_id
+LEFT JOIN account aco ON posf.completed_by_account_id = aco.account_id;
 
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
