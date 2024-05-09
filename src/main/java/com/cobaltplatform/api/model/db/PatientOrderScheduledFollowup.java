@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupContactType.PatientOrderScheduledFollowupContactTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupStatus.PatientOrderScheduledFollowupStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
 
@@ -43,7 +44,11 @@ public class PatientOrderScheduledFollowup {
 	@Nullable
 	private PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId;
 	@Nullable
+	private PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId;
+	@Nullable
 	private UUID createdByAccountId;
+	@Nullable
+	private UUID updatedByAccountId;
 	@Nullable
 	private UUID completedByAccountId;
 	@Nullable
@@ -51,7 +56,7 @@ public class PatientOrderScheduledFollowup {
 	@Nonnull
 	private LocalDateTime scheduledAtDateTime;
 	@Nullable
-	private String comment;
+	private String message;
 	@Nullable
 	private Instant completedAt;
 	@Nullable
@@ -98,12 +103,30 @@ public class PatientOrderScheduledFollowup {
 	}
 
 	@Nullable
+	public PatientOrderScheduledFollowupContactTypeId getPatientOrderScheduledFollowupContactTypeId() {
+		return this.patientOrderScheduledFollowupContactTypeId;
+	}
+
+	public void setPatientOrderScheduledFollowupContactTypeId(@Nullable PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId) {
+		this.patientOrderScheduledFollowupContactTypeId = patientOrderScheduledFollowupContactTypeId;
+	}
+
+	@Nullable
 	public UUID getCreatedByAccountId() {
 		return this.createdByAccountId;
 	}
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public UUID getUpdatedByAccountId() {
+		return this.updatedByAccountId;
+	}
+
+	public void setUpdatedByAccountId(@Nullable UUID updatedByAccountId) {
+		this.updatedByAccountId = updatedByAccountId;
 	}
 
 	@Nullable
@@ -134,12 +157,12 @@ public class PatientOrderScheduledFollowup {
 	}
 
 	@Nullable
-	public String getComment() {
-		return this.comment;
+	public String getMessage() {
+		return this.message;
 	}
 
-	public void setComment(@Nullable String comment) {
-		this.comment = comment;
+	public void setMessage(@Nullable String message) {
+		this.message = message;
 	}
 
 	@Nullable

@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTas
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
@@ -89,6 +90,7 @@ import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
@@ -1002,7 +1004,7 @@ public class PatientOrderResource {
 		request.setUpdatedByAccountId(account.getAccountId());
 		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTaskId).orElse(null);
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1034,7 +1036,7 @@ public class PatientOrderResource {
 		request.setDeletedByAccountId(account.getAccountId());
 		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTaskId).orElse(null);
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1061,7 +1063,7 @@ public class PatientOrderResource {
 		request.setCompletedByAccountId(account.getAccountId());
 		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTaskId).orElse(null);
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1071,6 +1073,121 @@ public class PatientOrderResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrderVoicemailTask", getPatientOrderVoicemailTaskApiResponseFactory().create(completedPatientOrderVoicemailTask));
+		}});
+	}
+
+	@Nonnull
+	@POST("/patient-order-scheduled-followups")
+	@AuthenticationRequired
+	public ApiResponse createPatientOrderScheduledFollowup(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreatePatientOrderScheduledFollowupRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledFollowupRequest.class);
+		request.setCreatedByAccountId(account.getAccountId());
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		UUID patientOrderScheduledFollowupId = getPatientOrderService().createPatientOrderScheduledFollowup(request);
+		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(patientOrderScheduledFollowup));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/patient-order-scheduled-followups/{patientOrderScheduledFollowupId}")
+	@AuthenticationRequired
+	public ApiResponse updatePatientOrderScheduledFollowup(@Nonnull @RequestBody String requestBody,
+																												 @Nonnull @PathParameter UUID patientOrderScheduledFollowupId) {
+		requireNonNull(requestBody);
+		requireNonNull(patientOrderScheduledFollowupId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
+
+		if (patientOrderScheduledFollowup == null)
+			throw new NotFoundException();
+
+		UpdatePatientOrderScheduledFollowupRequest request = getRequestBodyParser().parse(requestBody, UpdatePatientOrderScheduledFollowupRequest.class);
+		request.setUpdatedByAccountId(account.getAccountId());
+		request.setPatientOrderScheduledFollowupId(patientOrderScheduledFollowupId);
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledFollowup.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().updatePatientOrderScheduledFollowup(request);
+		PatientOrderScheduledFollowup updatedPatientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(updatedPatientOrderScheduledFollowup));
+		}});
+	}
+
+	@Nonnull
+	@DELETE("/patient-order-voicemail-tasks/{patientOrderScheduledFollowupId}")
+	@AuthenticationRequired
+	public ApiResponse deletePatientOrderScheduledFollowup(@Nonnull @RequestBody String requestBody,
+																												 @Nonnull @PathParameter UUID patientOrderScheduledFollowupId) {
+		requireNonNull(requestBody);
+		requireNonNull(patientOrderScheduledFollowupId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
+
+		if (patientOrderScheduledFollowup == null)
+			throw new NotFoundException();
+
+		DeletePatientOrderScheduledFollowupRequest request = getRequestBodyParser().parse(requestBody, DeletePatientOrderScheduledFollowupRequest.class);
+		request.setDeletedByAccountId(account.getAccountId());
+		request.setPatientOrderScheduledFollowupId(patientOrderScheduledFollowupId);
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledFollowup.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().deletePatientOrderScheduledFollowup(request);
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
+	@POST("/patient-order-scheduled-followup/{patientOrderScheduledFollowupId}/complete")
+	@AuthenticationRequired
+	public ApiResponse completePatientOrderScheduledFollowup(@Nonnull @PathParameter UUID patientOrderScheduledFollowupId) {
+		requireNonNull(patientOrderScheduledFollowupId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
+
+		if (patientOrderScheduledFollowup == null)
+			throw new NotFoundException();
+
+		CompletePatientOrderScheduledFollowupRequest request = new CompletePatientOrderScheduledFollowupRequest();
+		request.setCompletedByAccountId(account.getAccountId());
+		request.setPatientOrderScheduledFollowupId(patientOrderScheduledFollowupId);
+
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledFollowup.getPatientOrderId()).orElse(null);
+
+		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
+			throw new AuthorizationException();
+
+		getPatientOrderService().completePatientOrderScheduledFollowup(request);
+		PatientOrderScheduledFollowup completedPatientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(completePatientOrderScheduledFollowup));
 		}});
 	}
 

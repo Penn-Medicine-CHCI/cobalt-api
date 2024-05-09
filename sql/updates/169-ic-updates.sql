@@ -26,14 +26,24 @@ FROM account
 WHERE role_id='MHIC';
 
 -- MHICs can schedule an out-of-band followup.
--- Currently this is just phone calls, might be other types in the future
 CREATE TABLE patient_order_scheduled_followup_type (
   patient_order_scheduled_followup_type_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL,
   display_order INTEGER NOT NULL
 );
 
+-- Currently this is just phone calls, might be other types in the future
 INSERT INTO patient_order_scheduled_followup_type VALUES ('PHONE_CALL', 'Phone Call', 1);
+
+-- Out-of-band followups can have different contact types
+CREATE TABLE patient_order_scheduled_followup_contact_type (
+  patient_order_scheduled_followup_contact_type_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+-- For now, only resource followups
+INSERT INTO patient_order_scheduled_followup_contact_type VALUES ('RESOURCE_FOLLOWUP', 'Resource Followup', 1);
 
 -- Out-of-band followups can be either active, completed, or canceled
 CREATE TABLE patient_order_scheduled_followup_status (
@@ -48,13 +58,15 @@ INSERT INTO patient_order_scheduled_followup_status VALUES ('CANCELED', 'Cancele
 CREATE TABLE patient_order_scheduled_followup (
   patient_order_scheduled_followup_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   patient_order_id UUID NOT NULL REFERENCES patient_order,
-  patient_order_scheduled_followup_status_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_status DEFAULT 'ACTIVE',
   patient_order_scheduled_followup_type_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_type,
+  patient_order_scheduled_followup_contact_type_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_contact_type,
+  patient_order_scheduled_followup_status_id VARCHAR NOT NULL REFERENCES patient_order_scheduled_followup_status DEFAULT 'ACTIVE',
   created_by_account_id UUID NOT NULL REFERENCES account(account_id),
+  updated_by_account_id UUID NOT NULL REFERENCES account(account_id),
   completed_by_account_id UUID REFERENCES account(account_id),
   canceled_by_account_id UUID REFERENCES account(account_id),
   scheduled_at_date_time TIMESTAMP NOT NULL,
-  comment TEXT,
+  message TEXT,
   completed_at TIMESTAMPTZ,
   deleted_at TIMESTAMPTZ,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -173,10 +185,12 @@ recent_voicemail_task_query AS (
 ),
 next_scheduled_followup_query AS (
     -- Pick the next active scheduled followup for each patient order
+    -- TODO: probably want to partition/rank() instead, e.g. https://dba.stackexchange.com/a/171941
     select
         posf.patient_order_id,
         MIN(posf.scheduled_at_date_time) as next_followup_scheduled_at_date_time,
-        posf.patient_order_scheduled_followup_type_id as next_followup_type_id
+        posf.patient_order_scheduled_followup_type_id as next_followup_type_id,
+        posf.patient_order_scheduled_followup_contact_type_id as next_followup_contact_type_id
     from
         patient_order poq,
         patient_order_scheduled_followup posf
@@ -185,7 +199,8 @@ next_scheduled_followup_query AS (
         and posf.patient_order_scheduled_followup_status_id = 'ACTIVE'
     group by
         posf.patient_order_id,
-        posf.patient_order_scheduled_followup_type_id
+        posf.patient_order_scheduled_followup_type_id,
+        posf.patient_order_scheduled_followup_contact_type_id
 ),
 ss_query AS (
     -- Pick the most recently-created clinical screening session for the patient order
@@ -464,6 +479,7 @@ select
     ed.department_id AS epic_department_department_id,
     nsfq.next_followup_scheduled_at_date_time,
     nsfq.next_followup_type_id,
+    nsfq.next_followup_contact_type_id,
     poq.*
 from
     patient_order poq

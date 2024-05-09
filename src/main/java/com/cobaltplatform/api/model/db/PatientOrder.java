@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupContactType.PatientOrderScheduledFollowupContactTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
@@ -389,6 +390,8 @@ public class PatientOrder {
 	private LocalDateTime nextFollowupScheduledAtDateTime;
 	@Nullable
 	private PatientOrderScheduledFollowupTypeId nextFollowupTypeId;
+	@Nullable
+	private PatientOrderScheduledFollowupContactTypeId nextFollowupContactTypeId;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1846,5 +1849,14 @@ public class PatientOrder {
 
 	public void setNextFollowupTypeId(@Nullable PatientOrderScheduledFollowupTypeId nextFollowupTypeId) {
 		this.nextFollowupTypeId = nextFollowupTypeId;
+	}
+
+	@Nullable
+	public PatientOrderScheduledFollowupContactTypeId getNextFollowupContactTypeId() {
+		return this.nextFollowupContactTypeId;
+	}
+
+	public void setNextFollowupContactTypeId(@Nullable PatientOrderScheduledFollowupContactTypeId nextFollowupContactTypeId) {
+		this.nextFollowupContactTypeId = nextFollowupContactTypeId;
 	}
 }
