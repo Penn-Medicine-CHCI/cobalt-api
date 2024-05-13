@@ -50,11 +50,13 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.Patient
 import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
@@ -511,6 +513,14 @@ public class PatientOrderApiResponse {
 	private String encounterSyncedAtDescription;
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
+	@Nullable
+	private LocalDateTime nextScheduledOutreachScheduledAtDateTime;
+	@Nullable
+	private String nextScheduledOutreachScheduledAtDateTimeDescription;
+	@Nullable
+	private PatientOrderOutreachTypeId nextScheduledOutreachTypeId;
+	@Nullable
+	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,

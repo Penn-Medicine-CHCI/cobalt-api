@@ -20,9 +20,9 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowup;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupContactType.PatientOrderScheduledFollowupContactTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupStatus.PatientOrderScheduledFollowupStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreach;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledFollowupContactTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledFollowupStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.Normalizer;
@@ -95,13 +95,13 @@ public class PatientOrderScheduledFollowupApiResponse {
 	@ThreadSafe
 	public interface PatientOrderScheduledFollowupApiResponseFactory {
 		@Nonnull
-		PatientOrderScheduledFollowupApiResponse create(@Nonnull PatientOrderScheduledFollowup patientOrderScheduledFollowup);
+		PatientOrderScheduledFollowupApiResponse create(@Nonnull PatientOrderScheduledOutreach patientOrderScheduledFollowup);
 	}
 
 	@AssistedInject
 	public PatientOrderScheduledFollowupApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
 																									@Nonnull Formatter formatter,
-																									@Assisted @Nonnull PatientOrderScheduledFollowup patientOrderScheduledFollowup) {
+																									@Assisted @Nonnull PatientOrderScheduledOutreach patientOrderScheduledFollowup) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(patientOrderScheduledFollowup);

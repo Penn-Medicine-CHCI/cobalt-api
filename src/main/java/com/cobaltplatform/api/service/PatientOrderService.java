@@ -132,9 +132,9 @@ import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrder
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowup;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupContactType.PatientOrderScheduledFollowupContactTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupStatus.PatientOrderScheduledFollowupStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreach;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledFollowupContactTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledFollowupStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
@@ -3333,7 +3333,7 @@ public class PatientOrderService implements AutoCloseable {
 
 
 	@Nonnull
-	public Optional<PatientOrderScheduledFollowup> findPatientOrderScheduledFollowupById(@Nullable UUID patientOrderScheduledFollowupId) {
+	public Optional<PatientOrderScheduledOutreach> findPatientOrderScheduledFollowupById(@Nullable UUID patientOrderScheduledFollowupId) {
 		if (patientOrderScheduledFollowupId == null)
 			return Optional.empty();
 
@@ -3342,11 +3342,11 @@ public class PatientOrderService implements AutoCloseable {
 				FROM v_patient_order_scheduled_followup
 				WHERE patient_order_scheduled_followup_id=?
 				AND patient_order_scheduled_followup_status_id != ?
-				""", PatientOrderScheduledFollowup.class, patientOrderScheduledFollowupId, PatientOrderScheduledFollowupStatusId.CANCELED);
+				""", PatientOrderScheduledOutreach.class, patientOrderScheduledFollowupId, PatientOrderScheduledFollowupStatusId.CANCELED);
 	}
 
 	@Nonnull
-	public List<PatientOrderScheduledFollowup> findPatientOrderScheduledFollowupsByPatientOrderId(@Nullable UUID patientOrderId) {
+	public List<PatientOrderScheduledOutreach> findPatientOrderScheduledFollowupsByPatientOrderId(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return List.of();
 
@@ -3356,7 +3356,7 @@ public class PatientOrderService implements AutoCloseable {
 				WHERE patient_order_id=?
 				AND patient_order_scheduled_followup_status_id != ?
 				ORDER BY last_updated DESC
-				""", PatientOrderScheduledFollowup.class, patientOrderId, PatientOrderScheduledFollowupStatusId.CANCELED);
+				""", PatientOrderScheduledOutreach.class, patientOrderId, PatientOrderScheduledFollowupStatusId.CANCELED);
 	}
 
 	@Nonnull

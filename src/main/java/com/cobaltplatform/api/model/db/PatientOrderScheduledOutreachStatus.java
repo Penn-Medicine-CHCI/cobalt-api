@@ -28,30 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderScheduledFollowupType {
+public class PatientOrderScheduledOutreachStatus {
 	@Nullable
-	private PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId;
+	private PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Integer displayOrder;
 
-	public enum PatientOrderScheduledFollowupTypeId {
-		PHONE_CALL
+	public enum PatientOrderScheduledOutreachStatusId {
+		SCHEDULED,
+		COMPLETED,
+		CANCELED
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderScheduledFollowupTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderScheduledFollowupTypeId(), getDescription());
+		return format("%s{patientOrderScheduledOutreachStatusId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderScheduledOutreachStatusId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderScheduledFollowupTypeId getPatientOrderScheduledFollowupTypeId() {
-		return this.patientOrderScheduledFollowupTypeId;
+	public PatientOrderScheduledOutreachStatusId getPatientOrderScheduledOutreachStatusId() {
+		return this.patientOrderScheduledOutreachStatusId;
 	}
 
-	public void setPatientOrderScheduledFollowupTypeId(@Nullable PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId) {
-		this.patientOrderScheduledFollowupTypeId = patientOrderScheduledFollowupTypeId;
+	public void setPatientOrderScheduledOutreachStatusId(@Nullable PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId) {
+		this.patientOrderScheduledOutreachStatusId = patientOrderScheduledOutreachStatusId;
 	}
 
 	@Nullable
@@ -61,14 +61,5 @@ public class PatientOrderScheduledFollowupType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return this.displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 }

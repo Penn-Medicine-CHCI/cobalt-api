@@ -28,30 +28,31 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderScheduledFollowupContactType {
+public class PatientOrderScheduledOutreachReason {
 	@Nullable
-	private PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId;
+	private PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum PatientOrderScheduledFollowupContactTypeId {
-		RESOURCE_FOLLOWUP
+	public enum PatientOrderScheduledOutreachReasonId {
+		RESOURCE_FOLLOWUP,
+		OTHER
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderScheduledFollowupContactTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderScheduledFollowupContactTypeId(), getDescription());
+		return format("%s{patientOrderScheduledOutreachReasonId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderScheduledOutreachReasonId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderScheduledFollowupContactTypeId getPatientOrderScheduledFollowupContactTypeId() {
-		return this.patientOrderScheduledFollowupContactTypeId;
+	public PatientOrderScheduledOutreachReasonId getPatientOrderScheduledOutreachReasonId() {
+		return this.patientOrderScheduledOutreachReasonId;
 	}
 
-	public void setPatientOrderScheduledFollowupContactTypeId(@Nullable PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId) {
-		this.patientOrderScheduledFollowupContactTypeId = patientOrderScheduledFollowupContactTypeId;
+	public void setPatientOrderScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId) {
+		this.patientOrderScheduledOutreachReasonId = patientOrderScheduledOutreachReasonId;
 	}
 
 	@Nullable

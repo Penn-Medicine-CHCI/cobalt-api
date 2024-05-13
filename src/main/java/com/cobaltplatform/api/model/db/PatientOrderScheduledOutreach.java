@@ -19,9 +19,9 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupContactType.PatientOrderScheduledFollowupContactTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupStatus.PatientOrderScheduledFollowupStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledOutreachStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,17 +34,17 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderScheduledFollowup {
+public class PatientOrderScheduledOutreach {
 	@Nullable
-	private UUID patientOrderScheduledFollowupId;
+	private UUID patientOrderScheduledOutreachId;
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
-	private PatientOrderScheduledFollowupStatusId patientOrderScheduledFollowupStatusId;
+	private PatientOrderOutreachTypeId patientOrderOutreachTypeId;
 	@Nullable
-	private PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId;
+	private PatientOrderScheduledOutreachTypeId patientOrderScheduledOutreachTypeId;
 	@Nullable
-	private PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId;
+	private PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId;
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
@@ -66,7 +66,7 @@ public class PatientOrderScheduledFollowup {
 	@Nullable
 	private Instant lastUpdated;
 
-	// Joined from v_patient_order_scheduled_followup
+	// Joined from v_patient_order_scheduled_outreach
 
 	@Nullable
 	private String createdByAccountFirstName;
@@ -78,12 +78,12 @@ public class PatientOrderScheduledFollowup {
 	private String completedByAccountLastName;
 
 	@Nullable
-	public UUID getPatientOrderScheduledFollowupId() {
-		return this.patientOrderScheduledFollowupId;
+	public UUID getPatientOrderScheduledOutreachId() {
+		return this.patientOrderScheduledOutreachId;
 	}
 
-	public void setPatientOrderScheduledFollowupId(@Nullable UUID patientOrderScheduledFollowupId) {
-		this.patientOrderScheduledFollowupId = patientOrderScheduledFollowupId;
+	public void setPatientOrderScheduledOutreachId(@Nullable UUID patientOrderScheduledOutreachId) {
+		this.patientOrderScheduledOutreachId = patientOrderScheduledOutreachId;
 	}
 
 	@Nullable
@@ -96,30 +96,30 @@ public class PatientOrderScheduledFollowup {
 	}
 
 	@Nullable
-	public PatientOrderScheduledFollowupStatusId getPatientOrderScheduledFollowupStatusId() {
-		return this.patientOrderScheduledFollowupStatusId;
+	public PatientOrderOutreachTypeId getPatientOrderOutreachTypeId() {
+		return this.patientOrderOutreachTypeId;
 	}
 
-	public void setPatientOrderScheduledFollowupStatusId(@Nullable PatientOrderScheduledFollowupStatusId patientOrderScheduledFollowupStatusId) {
-		this.patientOrderScheduledFollowupStatusId = patientOrderScheduledFollowupStatusId;
-	}
-
-	@Nullable
-	public PatientOrderScheduledFollowupTypeId getPatientOrderScheduledFollowupTypeId() {
-		return this.patientOrderScheduledFollowupTypeId;
-	}
-
-	public void setPatientOrderScheduledFollowupTypeId(@Nullable PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId) {
-		this.patientOrderScheduledFollowupTypeId = patientOrderScheduledFollowupTypeId;
+	public void setPatientOrderOutreachTypeId(@Nullable PatientOrderOutreachTypeId patientOrderOutreachTypeId) {
+		this.patientOrderOutreachTypeId = patientOrderOutreachTypeId;
 	}
 
 	@Nullable
-	public PatientOrderScheduledFollowupContactTypeId getPatientOrderScheduledFollowupContactTypeId() {
-		return this.patientOrderScheduledFollowupContactTypeId;
+	public PatientOrderScheduledOutreachTypeId getPatientOrderScheduledOutreachTypeId() {
+		return this.patientOrderScheduledOutreachTypeId;
 	}
 
-	public void setPatientOrderScheduledFollowupContactTypeId(@Nullable PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId) {
-		this.patientOrderScheduledFollowupContactTypeId = patientOrderScheduledFollowupContactTypeId;
+	public void setPatientOrderScheduledOutreachTypeId(@Nullable PatientOrderScheduledOutreachTypeId patientOrderScheduledOutreachTypeId) {
+		this.patientOrderScheduledOutreachTypeId = patientOrderScheduledOutreachTypeId;
+	}
+
+	@Nullable
+	public PatientOrderScheduledOutreachStatusId getPatientOrderScheduledOutreachStatusId() {
+		return this.patientOrderScheduledOutreachStatusId;
+	}
+
+	public void setPatientOrderScheduledOutreachStatusId(@Nullable PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId) {
+		this.patientOrderScheduledOutreachStatusId = patientOrderScheduledOutreachStatusId;
 	}
 
 	@Nullable

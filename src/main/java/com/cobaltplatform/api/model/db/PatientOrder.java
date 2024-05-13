@@ -34,12 +34,12 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.Patient
 import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupContactType.PatientOrderScheduledFollowupContactTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
@@ -387,11 +387,11 @@ public class PatientOrder {
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
 	@Nullable
-	private LocalDateTime nextFollowupScheduledAtDateTime;
+	private LocalDateTime nextScheduledOutreachScheduledAtDateTime;
 	@Nullable
-	private PatientOrderScheduledFollowupTypeId nextFollowupTypeId;
+	private PatientOrderOutreachTypeId nextScheduledOutreachTypeId;
 	@Nullable
-	private PatientOrderScheduledFollowupContactTypeId nextFollowupContactTypeId;
+	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1834,29 +1834,29 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public LocalDateTime getNextFollowupScheduledAtDateTime() {
-		return this.nextFollowupScheduledAtDateTime;
+	public LocalDateTime getNextScheduledOutreachScheduledAtDateTime() {
+		return this.nextScheduledOutreachScheduledAtDateTime;
 	}
 
-	public void setNextFollowupScheduledAtDateTime(@Nullable LocalDateTime nextFollowupScheduledAtDateTime) {
-		this.nextFollowupScheduledAtDateTime = nextFollowupScheduledAtDateTime;
-	}
-
-	@Nullable
-	public PatientOrderScheduledFollowupTypeId getNextFollowupTypeId() {
-		return this.nextFollowupTypeId;
-	}
-
-	public void setNextFollowupTypeId(@Nullable PatientOrderScheduledFollowupTypeId nextFollowupTypeId) {
-		this.nextFollowupTypeId = nextFollowupTypeId;
+	public void setNextScheduledOutreachScheduledAtDateTime(@Nullable LocalDateTime nextScheduledOutreachScheduledAtDateTime) {
+		this.nextScheduledOutreachScheduledAtDateTime = nextScheduledOutreachScheduledAtDateTime;
 	}
 
 	@Nullable
-	public PatientOrderScheduledFollowupContactTypeId getNextFollowupContactTypeId() {
-		return this.nextFollowupContactTypeId;
+	public PatientOrderOutreachTypeId getNextScheduledOutreachTypeId() {
+		return this.nextScheduledOutreachTypeId;
 	}
 
-	public void setNextFollowupContactTypeId(@Nullable PatientOrderScheduledFollowupContactTypeId nextFollowupContactTypeId) {
-		this.nextFollowupContactTypeId = nextFollowupContactTypeId;
+	public void setNextScheduledOutreachTypeId(@Nullable PatientOrderOutreachTypeId nextScheduledOutreachTypeId) {
+		this.nextScheduledOutreachTypeId = nextScheduledOutreachTypeId;
+	}
+
+	@Nullable
+	public PatientOrderScheduledOutreachReasonId getNextScheduledOutreachReasonId() {
+		return this.nextScheduledOutreachReasonId;
+	}
+
+	public void setNextScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId) {
+		this.nextScheduledOutreachReasonId = nextScheduledOutreachReasonId;
 	}
 }

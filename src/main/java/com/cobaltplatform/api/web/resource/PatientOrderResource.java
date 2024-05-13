@@ -94,7 +94,7 @@ import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowup;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
@@ -1086,9 +1086,9 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	@POST("/patient-order-scheduled-followups")
+	@POST("/patient-order-scheduled-outreaches")
 	@AuthenticationRequired
-	public ApiResponse createPatientOrderScheduledFollowup(@Nonnull @RequestBody String requestBody) {
+	public ApiResponse createPatientOrderScheduledOutreach(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -1102,7 +1102,7 @@ public class PatientOrderResource {
 			throw new AuthorizationException();
 
 		UUID patientOrderScheduledFollowupId = getPatientOrderService().createPatientOrderScheduledFollowup(request);
-		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
+		PatientOrderScheduledOutreach patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(patientOrderScheduledFollowup));
@@ -1119,7 +1119,7 @@ public class PatientOrderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
+		PatientOrderScheduledOutreach patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
 
 		if (patientOrderScheduledFollowup == null)
 			throw new NotFoundException();
@@ -1134,7 +1134,7 @@ public class PatientOrderResource {
 			throw new AuthorizationException();
 
 		getPatientOrderService().updatePatientOrderScheduledFollowup(request);
-		PatientOrderScheduledFollowup updatedPatientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
+		PatientOrderScheduledOutreach updatedPatientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(updatedPatientOrderScheduledFollowup));
@@ -1151,7 +1151,7 @@ public class PatientOrderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
+		PatientOrderScheduledOutreach patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
 
 		if (patientOrderScheduledFollowup == null)
 			throw new NotFoundException();
@@ -1178,7 +1178,7 @@ public class PatientOrderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		PatientOrderScheduledFollowup patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
+		PatientOrderScheduledOutreach patientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).orElse(null);
 
 		if (patientOrderScheduledFollowup == null)
 			throw new NotFoundException();
@@ -1193,7 +1193,7 @@ public class PatientOrderResource {
 			throw new AuthorizationException();
 
 		getPatientOrderService().completePatientOrderScheduledFollowup(request);
-		PatientOrderScheduledFollowup completedPatientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
+		PatientOrderScheduledOutreach completedPatientOrderScheduledFollowup = getPatientOrderService().findPatientOrderScheduledFollowupById(patientOrderScheduledFollowupId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("patientOrderScheduledFollowup", getPatientOrderScheduledFollowupApiResponseFactory().create(completedPatientOrderScheduledFollowup));
