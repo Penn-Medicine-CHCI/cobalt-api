@@ -515,6 +515,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
 	@Nullable
+	private UUID nextScheduledOutreachId;
+	@Nullable
 	private LocalDate nextScheduledOutreachScheduledAtDate;
 	@Nullable
 	private String nextScheduledOutreachScheduledAtDateDescription;
@@ -998,6 +1000,7 @@ public class PatientOrderApiResponse {
 			this.patientOrderEncounterDocumentationStatusId = patientOrder.getPatientOrderEncounterDocumentationStatusId();
 
 			// Next scheduled outreach
+			this.nextScheduledOutreachId = patientOrder.getNextScheduledOutreachId();
 			this.nextScheduledOutreachScheduledAtDate = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalDate();
 			this.nextScheduledOutreachScheduledAtDateDescription = this.nextScheduledOutreachScheduledAtDate == null ? null : formatter.formatDate(this.nextScheduledOutreachScheduledAtDate, FormatStyle.MEDIUM);
 			this.nextScheduledOutreachScheduledAtTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalTime();
@@ -2027,6 +2030,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderEncounterDocumentationStatusId getPatientOrderEncounterDocumentationStatusId() {
 		return this.patientOrderEncounterDocumentationStatusId;
+	}
+
+	@Nullable
+	public UUID getNextScheduledOutreachId() {
+		return this.nextScheduledOutreachId;
 	}
 
 	@Nullable

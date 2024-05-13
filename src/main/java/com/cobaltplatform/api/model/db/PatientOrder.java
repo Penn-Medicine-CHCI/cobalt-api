@@ -387,6 +387,8 @@ public class PatientOrder {
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
 	@Nullable
+	private UUID nextScheduledOutreachId;
+	@Nullable
 	private LocalDateTime nextScheduledOutreachScheduledAtDateTime;
 	@Nullable
 	private PatientOrderOutreachTypeId nextScheduledOutreachTypeId;
@@ -1831,6 +1833,15 @@ public class PatientOrder {
 
 	public void setPatientOrderEncounterDocumentationStatusId(@Nullable PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId) {
 		this.patientOrderEncounterDocumentationStatusId = patientOrderEncounterDocumentationStatusId;
+	}
+
+	@Nullable
+	public UUID getNextScheduledOutreachId() {
+		return this.nextScheduledOutreachId;
+	}
+
+	public void setNextScheduledOutreachId(@Nullable UUID nextScheduledOutreachId) {
+		this.nextScheduledOutreachId = nextScheduledOutreachId;
 	}
 
 	@Nullable

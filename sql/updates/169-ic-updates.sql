@@ -83,7 +83,11 @@ LEFT JOIN account aco ON poso.completed_by_account_id = aco.account_id;
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
--- TODO: additional fields?
+-- Add additional columns for next scheduled outreach:
+-- * next_scheduled_outreach_id
+-- * next_scheduled_outreach_scheduled_at_date_time
+-- * next_scheduled_outreach_type_id
+-- * next_scheduled_outreach_reason_id
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -190,22 +194,19 @@ recent_voicemail_task_query AS (
 ),
 next_scheduled_outreach_query AS (
     -- Pick the next active scheduled outreach for each patient order
-    -- TODO: probably want to partition/rank() instead, e.g. https://dba.stackexchange.com/a/171941
-    select
-        poso.patient_order_id,
-        MIN(poso.scheduled_at_date_time) as next_scheduled_outreach_scheduled_at_date_time,
-        poso.patient_order_outreach_type_id as next_scheduled_outreach_type_id,
-        poso.patient_order_scheduled_outreach_reason_id as next_scheduled_outreach_reason_id
-    from
-        patient_order poq,
-        patient_order_scheduled_outreach poso
-    where
-        poq.patient_order_id = poso.patient_order_id
-        and poso.patient_order_scheduled_outreach_status_id = 'SCHEDULED'
-    group by
-        poso.patient_order_id,
-        poso.patient_order_outreach_type_id,
-        poso.patient_order_scheduled_outreach_reason_id
+	select * from (
+	  select
+	    poso.patient_order_id,
+	    poso.patient_order_scheduled_outreach_id as next_scheduled_outreach_id,
+	    poso.scheduled_at_date_time as next_scheduled_outreach_scheduled_at_date_time,
+      poso.patient_order_outreach_type_id as next_scheduled_outreach_type_id,
+      poso.patient_order_scheduled_outreach_reason_id as next_scheduled_outreach_reason_id,
+	    rank() OVER (PARTITION BY poso.patient_order_id ORDER BY poso.scheduled_at_date_time, poso.patient_order_scheduled_outreach_id) as ranked_value
+	  from
+	    patient_order poq, patient_order_scheduled_outreach poso
+	    where poq.patient_order_id = poso.patient_order_id
+      and poso.patient_order_scheduled_outreach_status_id = 'SCHEDULED'
+	) subquery where ranked_value=1
 ),
 ss_query AS (
     -- Pick the most recently-created clinical screening session for the patient order
@@ -482,6 +483,7 @@ select
     DATE_PART('day', (COALESCE(poq.episode_closed_at, now()) - (poq.order_date + make_interval(mins => poq.order_age_in_minutes)))) AS episode_duration_in_days,
     ed.name AS epic_department_name,
     ed.department_id AS epic_department_department_id,
+    nsoq.next_scheduled_outreach_id,
     nsoq.next_scheduled_outreach_scheduled_at_date_time,
     nsoq.next_scheduled_outreach_type_id,
     nsoq.next_scheduled_outreach_reason_id,
