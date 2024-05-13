@@ -2659,43 +2659,45 @@ public class PatientOrderService implements AutoCloseable {
 				if (patientOrder.getPatientPhoneNumber() != null)
 					messageTypeIds.add(MessageTypeId.SMS);
 
-				LocalDateTime scheduledAtDateTime = LocalDateTime.ofInstant(resourcesSentAt, institution.getTimeZone());
+				if (messageTypeIds.size() > 0) {
+					LocalDateTime scheduledAtDateTime = LocalDateTime.ofInstant(resourcesSentAt, institution.getTimeZone());
 
-				if (institution.getIntegratedCareSentResourcesFollowupWeekOffset() != null)
-					scheduledAtDateTime = scheduledAtDateTime.plusWeeks(institution.getIntegratedCareSentResourcesFollowupWeekOffset());
+					if (institution.getIntegratedCareSentResourcesFollowupWeekOffset() != null)
+						scheduledAtDateTime = scheduledAtDateTime.plusWeeks(institution.getIntegratedCareSentResourcesFollowupWeekOffset());
 
-				if (institution.getIntegratedCareSentResourcesFollowupDayOffset() != null)
-					scheduledAtDateTime = scheduledAtDateTime.plusDays(institution.getIntegratedCareSentResourcesFollowupDayOffset());
+					if (institution.getIntegratedCareSentResourcesFollowupDayOffset() != null)
+						scheduledAtDateTime = scheduledAtDateTime.plusDays(institution.getIntegratedCareSentResourcesFollowupDayOffset());
 
-				// Some sanity checking: if it's early in the morning or late at night, adjust the time to be within "safe" bounds
-				LocalTime earliestTime = LocalTime.of(8, 30);
-				LocalTime latestTime = LocalTime.of(20, 30);
+					// Some sanity checking: if it's early in the morning or late at night, adjust the time to be within "safe" bounds
+					LocalTime earliestTime = LocalTime.of(8, 30);
+					LocalTime latestTime = LocalTime.of(20, 30);
 
-				if (scheduledAtDateTime.toLocalTime().isBefore(earliestTime))
-					scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), earliestTime);
-				else if (scheduledAtDateTime.toLocalTime().isAfter(latestTime))
-					scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), latestTime);
+					if (scheduledAtDateTime.toLocalTime().isBefore(earliestTime))
+						scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), earliestTime);
+					else if (scheduledAtDateTime.toLocalTime().isAfter(latestTime))
+						scheduledAtDateTime = LocalDateTime.of(scheduledAtDateTime.toLocalDate(), latestTime);
 
-				LocalDateTime pinnedScheduledAtDateTime = scheduledAtDateTime;
+					LocalDateTime pinnedScheduledAtDateTime = scheduledAtDateTime;
 
-				getLogger().info("Scheduling a {} message for {} for patient order ID {}...",
-						PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN.name(), pinnedScheduledAtDateTime,
-						patientOrder.getPatientOrderId());
+					getLogger().info("Scheduling a {} message for {} for patient order ID {}...",
+							PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN.name(), pinnedScheduledAtDateTime,
+							patientOrder.getPatientOrderId());
 
-				UUID resourceCheckInScheduledMessageGroupId = createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
-					setPatientOrderId(patientOrderId);
-					setAccountId(accountId);
-					setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN);
-					setMessageTypeIds(messageTypeIds);
-					setScheduledAtDate(pinnedScheduledAtDateTime.toLocalDate());
-					setScheduledAtTimeAsLocalTime(pinnedScheduledAtDateTime.toLocalTime());
-				}});
+					UUID resourceCheckInScheduledMessageGroupId = createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+						setPatientOrderId(patientOrderId);
+						setAccountId(accountId);
+						setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN);
+						setMessageTypeIds(messageTypeIds);
+						setScheduledAtDate(pinnedScheduledAtDateTime.toLocalDate());
+						setScheduledAtTimeAsLocalTime(pinnedScheduledAtDateTime.toLocalTime());
+					}});
 
-				getDatabase().execute("""
-						UPDATE patient_order
-						SET resource_check_in_scheduled_message_group_id=?
-						WHERE patient_order_id=?
-						""", resourceCheckInScheduledMessageGroupId, patientOrderId);
+					getDatabase().execute("""
+							UPDATE patient_order
+							SET resource_check_in_scheduled_message_group_id=?
+							WHERE patient_order_id=?
+							""", resourceCheckInScheduledMessageGroupId, patientOrderId);
+				}
 			}
 		} else {
 			resourcesSentAt = null;
@@ -4895,8 +4897,9 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientPhoneNumber == null) {
 				if (getConfiguration().isProduction()) {
-					validationException.add(new FieldError("patientPhoneNumber", getStrings().get("Invalid patient phone number: {{patientPhoneNumber}}.",
-							Map.of("patientPhoneNumber", originalPatientPhoneNumber))));
+					// We used to require a valid phone number here.  But sometimes orders include "junk" numbers like 999-999-9999, so if the number is illegal, it's OK for it to be null.
+					// The MHICs can address if needed.
+					getLogger().warn("Detected invalid patient phone number {}, ignoring...", originalPatientPhoneNumber);
 				} else {
 					// For nonproduction environments, some test data has technically illegal phone numbers (e.g. 215-555-1212).
 					// Here we force those illegal numbers through so long as they have the correct number of digits.
