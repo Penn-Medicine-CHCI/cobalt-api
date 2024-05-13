@@ -88,6 +88,11 @@ DROP VIEW v_all_patient_order;
 -- * next_scheduled_outreach_scheduled_at_date_time
 -- * next_scheduled_outreach_type_id
 -- * next_scheduled_outreach_reason_id
+--
+-- Add
+-- * last_contacted_at
+-- * next_contact_scheduled_at
+-- * next_contact_type_id
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
