@@ -19,8 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledFollowupContactTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -31,17 +31,17 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePatientOrderScheduledFollowupRequest {
+public class UpdatePatientOrderScheduledOutreachRequest {
 	@Nullable
-	private UUID patientOrderScheduledFollowupId;
+	private UUID patientOrderScheduledOutreachId;
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
 	private UUID updatedByAccountId;
 	@Nullable
-	private PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId;
+	private PatientOrderOutreachTypeId patientOrderOutreachTypeId;
 	@Nullable
-	private PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId;
+	private PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId;
 	@Nullable
 	private LocalDate scheduledAtDate;
 	@Nullable
@@ -50,12 +50,12 @@ public class UpdatePatientOrderScheduledFollowupRequest {
 	private String comment;
 
 	@Nullable
-	public UUID getPatientOrderScheduledFollowupId() {
-		return this.patientOrderScheduledFollowupId;
+	public UUID getPatientOrderScheduledOutreachId() {
+		return this.patientOrderScheduledOutreachId;
 	}
 
-	public void setPatientOrderScheduledFollowupId(@Nullable UUID patientOrderScheduledFollowupId) {
-		this.patientOrderScheduledFollowupId = patientOrderScheduledFollowupId;
+	public void setPatientOrderScheduledOutreachId(@Nullable UUID patientOrderScheduledOutreachId) {
+		this.patientOrderScheduledOutreachId = patientOrderScheduledOutreachId;
 	}
 
 	@Nullable
@@ -77,21 +77,21 @@ public class UpdatePatientOrderScheduledFollowupRequest {
 	}
 
 	@Nullable
-	public PatientOrderScheduledFollowupTypeId getPatientOrderScheduledFollowupTypeId() {
-		return this.patientOrderScheduledFollowupTypeId;
+	public PatientOrderOutreachTypeId getPatientOrderOutreachTypeId() {
+		return this.patientOrderOutreachTypeId;
 	}
 
-	public void setPatientOrderScheduledFollowupTypeId(@Nullable PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId) {
-		this.patientOrderScheduledFollowupTypeId = patientOrderScheduledFollowupTypeId;
+	public void setPatientOrderOutreachTypeId(@Nullable PatientOrderOutreachTypeId patientOrderOutreachTypeId) {
+		this.patientOrderOutreachTypeId = patientOrderOutreachTypeId;
 	}
 
 	@Nullable
-	public PatientOrderScheduledFollowupContactTypeId getPatientOrderScheduledFollowupContactTypeId() {
-		return this.patientOrderScheduledFollowupContactTypeId;
+	public PatientOrderScheduledOutreachReasonId getPatientOrderScheduledOutreachReasonId() {
+		return this.patientOrderScheduledOutreachReasonId;
 	}
 
-	public void setPatientOrderScheduledFollowupContactTypeId(@Nullable PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId) {
-		this.patientOrderScheduledFollowupContactTypeId = patientOrderScheduledFollowupContactTypeId;
+	public void setPatientOrderScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId) {
+		this.patientOrderScheduledOutreachReasonId = patientOrderScheduledOutreachReasonId;
 	}
 
 	@Nullable

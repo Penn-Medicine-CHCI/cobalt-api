@@ -27,27 +27,27 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CancelPatientOrderScheduledFollowupRequest {
+public class CompletePatientOrderScheduledOutreachRequest {
 	@Nullable
-	private UUID patientOrderScheduledFollowupId;
+	private UUID patientOrderScheduledOutreachId;
 	@Nullable
-	private UUID deletedByAccountId;
+	private UUID completedByAccountId;
 
 	@Nullable
-	public UUID getPatientOrderScheduledFollowupId() {
-		return this.patientOrderScheduledFollowupId;
+	public UUID getPatientOrderScheduledOutreachId() {
+		return this.patientOrderScheduledOutreachId;
 	}
 
-	public void setPatientOrderScheduledFollowupId(@Nullable UUID patientOrderScheduledFollowupId) {
-		this.patientOrderScheduledFollowupId = patientOrderScheduledFollowupId;
+	public void setPatientOrderScheduledOutreachId(@Nullable UUID patientOrderScheduledOutreachId) {
+		this.patientOrderScheduledOutreachId = patientOrderScheduledOutreachId;
 	}
 
 	@Nullable
-	public UUID getDeletedByAccountId() {
-		return this.deletedByAccountId;
+	public UUID getCompletedByAccountId() {
+		return this.completedByAccountId;
 	}
 
-	public void setDeletedByAccountId(@Nullable UUID deletedByAccountId) {
-		this.deletedByAccountId = deletedByAccountId;
+	public void setCompletedByAccountId(@Nullable UUID completedByAccountId) {
+		this.completedByAccountId = completedByAccountId;
 	}
 }

@@ -20,8 +20,8 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledOutreachStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -42,7 +42,7 @@ public class PatientOrderScheduledOutreach {
 	@Nullable
 	private PatientOrderOutreachTypeId patientOrderOutreachTypeId;
 	@Nullable
-	private PatientOrderScheduledOutreachTypeId patientOrderScheduledOutreachTypeId;
+	private PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId;
 	@Nullable
 	private PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId;
 	@Nullable
@@ -105,12 +105,12 @@ public class PatientOrderScheduledOutreach {
 	}
 
 	@Nullable
-	public PatientOrderScheduledOutreachTypeId getPatientOrderScheduledOutreachTypeId() {
-		return this.patientOrderScheduledOutreachTypeId;
+	public PatientOrderScheduledOutreachReasonId getPatientOrderScheduledOutreachReasonId() {
+		return this.patientOrderScheduledOutreachReasonId;
 	}
 
-	public void setPatientOrderScheduledOutreachTypeId(@Nullable PatientOrderScheduledOutreachTypeId patientOrderScheduledOutreachTypeId) {
-		this.patientOrderScheduledOutreachTypeId = patientOrderScheduledOutreachTypeId;
+	public void setPatientOrderScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId) {
+		this.patientOrderScheduledOutreachReasonId = patientOrderScheduledOutreachReasonId;
 	}
 
 	@Nullable

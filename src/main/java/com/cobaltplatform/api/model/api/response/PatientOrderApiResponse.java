@@ -85,6 +85,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -513,6 +514,14 @@ public class PatientOrderApiResponse {
 	private String encounterSyncedAtDescription;
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
+	@Nullable
+	private LocalDate nextScheduledOutreachScheduledAtDate;
+	@Nullable
+	private String nextScheduledOutreachScheduledAtDateDescription;
+	@Nullable
+	private LocalTime nextScheduledOutreachScheduledAtTime;
+	@Nullable
+	private String nextScheduledOutreachScheduledAtTimeDescription;
 	@Nullable
 	private LocalDateTime nextScheduledOutreachScheduledAtDateTime;
 	@Nullable
@@ -987,6 +996,16 @@ public class PatientOrderApiResponse {
 			this.encounterSyncedAt = patientOrder.getEncounterSyncedAt();
 			this.encounterSyncedAtDescription = patientOrder.getEncounterSyncedAt() == null ? null : formatter.formatTimestamp(patientOrder.getEncounterSyncedAt());
 			this.patientOrderEncounterDocumentationStatusId = patientOrder.getPatientOrderEncounterDocumentationStatusId();
+
+			// Next scheduled outreach
+			this.nextScheduledOutreachScheduledAtDate = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalDate();
+			this.nextScheduledOutreachScheduledAtDateDescription = this.nextScheduledOutreachScheduledAtDate == null ? null : formatter.formatDate(this.nextScheduledOutreachScheduledAtDate, FormatStyle.MEDIUM);
+			this.nextScheduledOutreachScheduledAtTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalTime();
+			this.nextScheduledOutreachScheduledAtTimeDescription = this.nextScheduledOutreachScheduledAtTime == null ? null : formatter.formatTime(this.nextScheduledOutreachScheduledAtTime, FormatStyle.SHORT);
+			this.nextScheduledOutreachScheduledAtDateTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime();
+			this.nextScheduledOutreachScheduledAtDateTimeDescription = this.nextScheduledOutreachScheduledAtTime == null ? null : formatter.formatTime(this.nextScheduledOutreachScheduledAtTime, FormatStyle.SHORT);
+			this.nextScheduledOutreachTypeId = patientOrder.getNextScheduledOutreachTypeId();
+			this.nextScheduledOutreachReasonId = patientOrder.getNextScheduledOutreachReasonId();
 		}
 	}
 
@@ -2008,5 +2027,45 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderEncounterDocumentationStatusId getPatientOrderEncounterDocumentationStatusId() {
 		return this.patientOrderEncounterDocumentationStatusId;
+	}
+
+	@Nullable
+	public LocalDate getNextScheduledOutreachScheduledAtDate() {
+		return this.nextScheduledOutreachScheduledAtDate;
+	}
+
+	@Nullable
+	public String getNextScheduledOutreachScheduledAtDateDescription() {
+		return this.nextScheduledOutreachScheduledAtDateDescription;
+	}
+
+	@Nullable
+	public LocalTime getNextScheduledOutreachScheduledAtTime() {
+		return this.nextScheduledOutreachScheduledAtTime;
+	}
+
+	@Nullable
+	public String getNextScheduledOutreachScheduledAtTimeDescription() {
+		return this.nextScheduledOutreachScheduledAtTimeDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getNextScheduledOutreachScheduledAtDateTime() {
+		return this.nextScheduledOutreachScheduledAtDateTime;
+	}
+
+	@Nullable
+	public String getNextScheduledOutreachScheduledAtDateTimeDescription() {
+		return this.nextScheduledOutreachScheduledAtDateTimeDescription;
+	}
+
+	@Nullable
+	public PatientOrderOutreachTypeId getNextScheduledOutreachTypeId() {
+		return this.nextScheduledOutreachTypeId;
+	}
+
+	@Nullable
+	public PatientOrderScheduledOutreachReasonId getNextScheduledOutreachReasonId() {
+		return this.nextScheduledOutreachReasonId;
 	}
 }

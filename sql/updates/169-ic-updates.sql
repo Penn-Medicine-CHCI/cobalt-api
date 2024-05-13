@@ -36,7 +36,7 @@ CREATE TABLE patient_order_scheduled_outreach_reason (
 INSERT INTO patient_order_scheduled_outreach_reason VALUES ('RESOURCE_FOLLOWUP', 'Resource Followup', 1);
 INSERT INTO patient_order_scheduled_outreach_reason VALUES ('OTHER', 'Other', 2);
 
--- Out-of-band followups can be either scheduled, completed, or canceled
+-- Scheduled outreaches can be either scheduled, completed, or canceled
 CREATE TABLE patient_order_scheduled_outreach_status (
   patient_order_scheduled_outreach_status_id VARCHAR PRIMARY KEY,
   description VARCHAR NOT NULL

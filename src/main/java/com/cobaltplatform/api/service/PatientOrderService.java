@@ -48,10 +48,10 @@ import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ArchivePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
-import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledFollowupRequest;
+import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
-import com.cobaltplatform.api.model.api.request.CompletePatientOrderScheduledFollowupRequest;
+import com.cobaltplatform.api.model.api.request.CompletePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -61,8 +61,8 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
-import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
@@ -84,8 +84,8 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledFollowupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
@@ -124,6 +124,7 @@ import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderReferral;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
@@ -132,14 +133,13 @@ import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrder
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreach;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledFollowupContactTypeId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledFollowupStatusId;
-import com.cobaltplatform.api.model.db.PatientOrderScheduledFollowupType.PatientOrderScheduledFollowupTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreach;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledOutreachStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -3333,45 +3333,45 @@ public class PatientOrderService implements AutoCloseable {
 
 
 	@Nonnull
-	public Optional<PatientOrderScheduledOutreach> findPatientOrderScheduledFollowupById(@Nullable UUID patientOrderScheduledFollowupId) {
-		if (patientOrderScheduledFollowupId == null)
+	public Optional<PatientOrderScheduledOutreach> findPatientOrderScheduledOutreachById(@Nullable UUID patientOrderScheduledOutreachId) {
+		if (patientOrderScheduledOutreachId == null)
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM v_patient_order_scheduled_followup
-				WHERE patient_order_scheduled_followup_id=?
-				AND patient_order_scheduled_followup_status_id != ?
-				""", PatientOrderScheduledOutreach.class, patientOrderScheduledFollowupId, PatientOrderScheduledFollowupStatusId.CANCELED);
+				FROM v_patient_order_scheduled_outreach
+				WHERE patient_order_scheduled_outreach_id=?
+				AND patient_order_scheduled_outreach_status_id != ?
+				""", PatientOrderScheduledOutreach.class, patientOrderScheduledOutreachId, PatientOrderScheduledOutreachStatusId.CANCELED);
 	}
 
 	@Nonnull
-	public List<PatientOrderScheduledOutreach> findPatientOrderScheduledFollowupsByPatientOrderId(@Nullable UUID patientOrderId) {
+	public List<PatientOrderScheduledOutreach> findPatientOrderScheduledOutreachesByPatientOrderId(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM v_patient_order_scheduled_followup
+				FROM v_patient_order_scheduled_outreach
 				WHERE patient_order_id=?
-				AND patient_order_scheduled_followup_status_id != ?
+				AND patient_order_scheduled_outreach_status_id != ?
 				ORDER BY last_updated DESC
-				""", PatientOrderScheduledOutreach.class, patientOrderId, PatientOrderScheduledFollowupStatusId.CANCELED);
+				""", PatientOrderScheduledOutreach.class, patientOrderId, PatientOrderScheduledOutreachStatusId.CANCELED);
 	}
 
 	@Nonnull
-	public UUID createPatientOrderScheduledFollowup(@Nonnull CreatePatientOrderScheduledFollowupRequest request) {
+	public UUID createPatientOrderScheduledOutreach(@Nonnull CreatePatientOrderScheduledOutreachRequest request) {
 		requireNonNull(request);
 
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		String message = trimToNull(request.getMessage());
-		PatientOrderScheduledFollowupTypeId patientOrderScheduledFollowupTypeId = request.getPatientOrderScheduledFollowupTypeId();
-		PatientOrderScheduledFollowupContactTypeId patientOrderScheduledFollowupContactTypeId = request.getPatientOrderScheduledFollowupContactTypeId();
+		PatientOrderOutreachTypeId patientOrderOutreachTypeId = request.getPatientOrderOutreachTypeId();
+		PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId = request.getPatientOrderScheduledOutreachReasonId();
 		LocalDate scheduledAtDate = request.getScheduledAtDate();
 		LocalTime scheduledAtTime = request.getScheduledAtTime();
 		PatientOrder patientOrder = null;
-		UUID patientOrderScheduledFollowupId = UUID.randomUUID();
+		UUID patientOrderScheduledOutreachId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
 		if (patientOrderId == null) {
@@ -3389,11 +3389,11 @@ public class PatientOrderService implements AutoCloseable {
 		if (message == null)
 			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
 
-		if (patientOrderScheduledFollowupTypeId == null)
-			validationException.add(new FieldError("patientOrderScheduledFollowupTypeId", getStrings().get("Scheduled followup type is required.")));
+		if (patientOrderOutreachTypeId == null)
+			validationException.add(new FieldError("patientOrderOutreachTypeId", getStrings().get("Scheduled outreach type is required.")));
 
-		if (patientOrderScheduledFollowupContactTypeId == null)
-			validationException.add(new FieldError("patientOrderScheduledFollowupContactTypeId", getStrings().get("Scheduled followup contact type is required.")));
+		if (patientOrderScheduledOutreachReasonId == null)
+			validationException.add(new FieldError("patientOrderScheduledOutreachReasonId", getStrings().get("Scheduled outreach reason is required.")));
 
 		if (scheduledAtDate == null)
 			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Date is required.")));
@@ -3407,25 +3407,25 @@ public class PatientOrderService implements AutoCloseable {
 		LocalDateTime scheduledAtDateTime = LocalDateTime.of(scheduledAtDate, scheduledAtTime);
 
 		getDatabase().execute("""
-						INSERT INTO patient_order_scheduled_followup (
-						    patient_order_scheduled_followup_id,
+						INSERT INTO patient_order_scheduled_outreach (
+						    patient_order_scheduled_outreach_id,
 						    patient_order_id,
-						    patient_order_scheduled_followup_type_id,
-						    patient_order_scheduled_followup_contact_type_id,
-						    patient_order_scheduled_followup_status_id,
+						    patient_order_outreach_type_id,
+						    patient_order_scheduled_outreach_reason_id,
+						    patient_order_scheduled_outreach_status_id,
 						    created_by_account_id,
 						    scheduled_at_date_time,
 						    message
 						) VALUES (?,?,?,?,?,?,?,?)
-						""", patientOrderScheduledFollowupId, patientOrderId, patientOrderScheduledFollowupTypeId,
-				patientOrderScheduledFollowupContactTypeId, PatientOrderScheduledFollowupStatusId.ACTIVE, createdByAccountId,
+						""", patientOrderScheduledOutreachId, patientOrderId, patientOrderOutreachTypeId,
+				patientOrderScheduledOutreachReasonId, PatientOrderScheduledOutreachStatusId.SCHEDULED, createdByAccountId,
 				scheduledAtDateTime, message);
 
-		return patientOrderScheduledFollowupId;
+		return patientOrderScheduledOutreachId;
 	}
 
 	@Nonnull
-	public Boolean updatePatientOrderScheduledFollowup(@Nonnull UpdatePatientOrderScheduledFollowupRequest request) {
+	public Boolean updatePatientOrderScheduledOutreach(@Nonnull UpdatePatientOrderScheduledOutreachRequest request) {
 		requireNonNull(request);
 
 		/*
@@ -3473,7 +3473,7 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Boolean cancelPatientOrderScheduledFollowup(@Nonnull CancelPatientOrderScheduledFollowupRequest request) {
+	public Boolean cancelPatientOrderScheduledOutreach(@Nonnull CancelPatientOrderScheduledOutreachRequest request) {
 		requireNonNull(request);
 
 		/*
@@ -3512,7 +3512,7 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public void completePatientOrderScheduledFollowup(@Nonnull CompletePatientOrderScheduledFollowupRequest request) {
+	public void completePatientOrderScheduledOutreach(@Nonnull CompletePatientOrderScheduledOutreachRequest request) {
 		requireNonNull(request);
 		/*
 
