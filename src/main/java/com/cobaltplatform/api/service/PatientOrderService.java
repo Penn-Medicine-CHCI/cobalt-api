@@ -848,6 +848,9 @@ public class PatientOrderService implements AutoCloseable {
 		// NEED_DOCUMENTATION
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, findNeedDocumentationPatientOrderCountForInstitutionId(institutionId, panelAccountId));
 
+		// SCHEDULED_OUTREACH
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, findScheduledOutreachPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+
 		// SUBCLINICAL
 		// MHP
 		// SPECIALTY_CARE
@@ -917,6 +920,41 @@ public class PatientOrderService implements AutoCloseable {
 		parameters.add(PatientOrderDispositionId.OPEN);
 		whereClauseLines.add("AND patient_order_encounter_documentation_status_id=?");
 		parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+	}
+
+	@Nonnull
+	public Integer findScheduledOutreachPatientOrderCountForInstitutionId(@Nullable InstitutionId institutionId,
+																																				@Nullable UUID panelAccountId) {
+		if (institutionId == null)
+			return 0;
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// Scheduled Outreach: If there is a scheduled outreach
+		// Definition:
+		// Order State = Open
+		// next_scheduled_outreach_scheduled_at_date_time IS NOT NULL
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+		whereClauseLines.add("AND next_scheduled_outreach_scheduled_at_date_time IS NOT NULL");
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -1319,6 +1357,14 @@ public class PatientOrderService implements AutoCloseable {
 				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_encounter_documentation_status_id=?");
 				parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED_OUTREACH) {
+				// Scheduled Outreach: If there is a scheduled outreach
+				// Definition:
+				// Order State = Open
+				// next_scheduled_outreach_scheduled_at_date_time IS NOT NULL
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.next_scheduled_outreach_scheduled_at_date_time IS NOT NULL");
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
 				// Need Assessment: Patients that have not started or been scheduled for an assessment
 				// Definition:

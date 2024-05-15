@@ -83,8 +83,6 @@ LEFT JOIN account aco ON poso.completed_by_account_id = aco.account_id;
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
-
-
 -- Add additional columns for next scheduled outreach:
 -- * next_scheduled_outreach_id
 -- * next_scheduled_outreach_scheduled_at_date_time
