@@ -3418,7 +3418,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId = request.getPatientOrderScheduledOutreachReasonId();
 		LocalDate scheduledAtDate = request.getScheduledAtDate();
 		LocalTime scheduledAtTime = request.getScheduledAtTime();
-		PatientOrder patientOrder = null;
+		PatientOrder patientOrder;
 		UUID patientOrderScheduledOutreachId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
@@ -3476,26 +3476,28 @@ public class PatientOrderService implements AutoCloseable {
 	public Boolean updatePatientOrderScheduledOutreach(@Nonnull UpdatePatientOrderScheduledOutreachRequest request) {
 		requireNonNull(request);
 
-		/*
-		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
+		UUID patientOrderScheduledOutreachId = request.getPatientOrderScheduledOutreachId();
 		UUID updatedByAccountId = request.getUpdatedByAccountId();
 		String message = trimToNull(request.getMessage());
-		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
+		PatientOrderOutreachTypeId patientOrderOutreachTypeId = request.getPatientOrderOutreachTypeId();
+		PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId = request.getPatientOrderScheduledOutreachReasonId();
+		LocalDate scheduledAtDate = request.getScheduledAtDate();
+		LocalTime scheduledAtTime = request.getScheduledAtTime();
 		PatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
-		if (patientOrderVoicemailTaskId == null) {
-			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
+		if (patientOrderScheduledOutreachId == null) {
+			validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is required.")));
 		} else {
-			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+			PatientOrderScheduledOutreach patientOrderScheduledOutreach = findPatientOrderScheduledOutreachById(patientOrderScheduledOutreachId).orElse(null);
 
-			if (patientOrderVoicemailTask == null) {
-				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
+			if (patientOrderScheduledOutreach == null) {
+				validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is invalid.")));
 			} else {
-				patientOrder = findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).get();
-
-				if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
-					validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot update past Patient Order Voicemail Tasks.")));
+				if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.CANCELED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("You cannot update a canceled scheduled outreach.")));
+				else if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.COMPLETED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("You cannot update a completed scheduled outreach.")));
 			}
 		}
 
@@ -3505,19 +3507,37 @@ public class PatientOrderService implements AutoCloseable {
 		if (message == null)
 			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
 
+		if (patientOrderOutreachTypeId == null)
+			validationException.add(new FieldError("patientOrderOutreachTypeId", getStrings().get("Scheduled outreach type is required.")));
+
+		if (patientOrderScheduledOutreachReasonId == null)
+			validationException.add(new FieldError("patientOrderScheduledOutreachReasonId", getStrings().get("Scheduled outreach reason is required.")));
+
+		if (scheduledAtDate == null)
+			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Date is required.")));
+
+		if (scheduledAtTime == null)
+			validationException.add(new FieldError("scheduledAtTime", getStrings().get("Time is required.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
-		boolean updated = getDatabase().execute("""
-				UPDATE patient_order_voicemail_task
-				SET message=?
-				WHERE patient_order_voicemail_task_id=?
-				""", message, patientOrderVoicemailTaskId) > 0;
+		if (validationException.hasErrors())
+			throw validationException;
 
-		return updated;
-		 */
-
-		throw new UnsupportedOperationException();
+		return getDatabase().execute("""
+						UPDATE
+						patient_order_scheduled_outreach
+						SET
+						patient_order_outreach_type_id=?,
+						patient_order_scheduled_outreach_reason_id=?,
+						message=?,
+						updated_by_account_id=?,
+						scheduled_at_date_time=?
+						WHERE
+						patient_order_scheduled_outreach_id=?
+						""", patientOrderOutreachTypeId, patientOrderScheduledOutreachReasonId, message,
+				updatedByAccountId, LocalDateTime.of(scheduledAtDate, scheduledAtTime), patientOrderScheduledOutreachId) > 0;
 	}
 
 	@Nonnull

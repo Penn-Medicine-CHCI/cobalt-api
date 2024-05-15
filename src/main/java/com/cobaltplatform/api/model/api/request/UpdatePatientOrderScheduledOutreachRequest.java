@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.Patie
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -35,8 +36,6 @@ public class UpdatePatientOrderScheduledOutreachRequest {
 	@Nullable
 	private UUID patientOrderScheduledOutreachId;
 	@Nullable
-	private UUID patientOrderId;
-	@Nullable
 	private UUID updatedByAccountId;
 	@Nullable
 	private PatientOrderOutreachTypeId patientOrderOutreachTypeId;
@@ -45,9 +44,9 @@ public class UpdatePatientOrderScheduledOutreachRequest {
 	@Nullable
 	private LocalDate scheduledAtDate;
 	@Nullable
-	private LocalDate scheduledAtTime;
+	private LocalTime scheduledAtTime;
 	@Nullable
-	private String comment;
+	private String message;
 
 	@Nullable
 	public UUID getPatientOrderScheduledOutreachId() {
@@ -56,15 +55,6 @@ public class UpdatePatientOrderScheduledOutreachRequest {
 
 	public void setPatientOrderScheduledOutreachId(@Nullable UUID patientOrderScheduledOutreachId) {
 		this.patientOrderScheduledOutreachId = patientOrderScheduledOutreachId;
-	}
-
-	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
-	}
-
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
 	}
 
 	@Nullable
@@ -104,20 +94,20 @@ public class UpdatePatientOrderScheduledOutreachRequest {
 	}
 
 	@Nullable
-	public LocalDate getScheduledAtTime() {
+	public LocalTime getScheduledAtTime() {
 		return this.scheduledAtTime;
 	}
 
-	public void setScheduledAtTime(@Nullable LocalDate scheduledAtTime) {
+	public void setScheduledAtTime(@Nullable LocalTime scheduledAtTime) {
 		this.scheduledAtTime = scheduledAtTime;
 	}
 
 	@Nullable
-	public String getComment() {
-		return this.comment;
+	public String getMessage() {
+		return this.message;
 	}
 
-	public void setComment(@Nullable String comment) {
-		this.comment = comment;
+	public void setMessage(@Nullable String message) {
+		this.message = message;
 	}
 }
