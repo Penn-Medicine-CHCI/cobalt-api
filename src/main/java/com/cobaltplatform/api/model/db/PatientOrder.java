@@ -45,6 +45,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.pyranid.DatabaseColumn;
 
@@ -394,6 +395,14 @@ public class PatientOrder {
 	private PatientOrderOutreachTypeId nextScheduledOutreachTypeId;
 	@Nullable
 	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
+	@Nullable
+	private PatientOrderContactTypeId lastContactTypeId;
+	@Nullable
+	private Instant lastContactedAt;
+	@Nullable
+	private PatientOrderContactTypeId nextContactTypeId;
+	@Nullable
+	private LocalDateTime nextContactScheduledAt;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1869,5 +1878,41 @@ public class PatientOrder {
 
 	public void setNextScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId) {
 		this.nextScheduledOutreachReasonId = nextScheduledOutreachReasonId;
+	}
+
+	@Nullable
+	public PatientOrderContactTypeId getLastContactTypeId() {
+		return this.lastContactTypeId;
+	}
+
+	public void setLastContactTypeId(@Nullable PatientOrderContactTypeId lastContactTypeId) {
+		this.lastContactTypeId = lastContactTypeId;
+	}
+
+	@Nullable
+	public Instant getLastContactedAt() {
+		return this.lastContactedAt;
+	}
+
+	public void setLastContactedAt(@Nullable Instant lastContactedAt) {
+		this.lastContactedAt = lastContactedAt;
+	}
+
+	@Nullable
+	public PatientOrderContactTypeId getNextContactTypeId() {
+		return this.nextContactTypeId;
+	}
+
+	public void setNextContactTypeId(@Nullable PatientOrderContactTypeId nextContactTypeId) {
+		this.nextContactTypeId = nextContactTypeId;
+	}
+
+	@Nullable
+	public LocalDateTime getNextContactScheduledAt() {
+		return this.nextContactScheduledAt;
+	}
+
+	public void setNextContactScheduledAt(@Nullable LocalDateTime nextContactScheduledAt) {
+		this.nextContactScheduledAt = nextContactScheduledAt;
 	}
 }

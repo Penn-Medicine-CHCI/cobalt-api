@@ -83,6 +83,8 @@ LEFT JOIN account aco ON poso.completed_by_account_id = aco.account_id;
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
+
+
 -- Add additional columns for next scheduled outreach:
 -- * next_scheduled_outreach_id
 -- * next_scheduled_outreach_scheduled_at_date_time
@@ -90,9 +92,10 @@ DROP VIEW v_all_patient_order;
 -- * next_scheduled_outreach_reason_id
 --
 -- Add
+-- * last_contact_type_id
 -- * last_contacted_at
--- * next_contact_scheduled_at
 -- * next_contact_type_id
+-- * next_contact_scheduled_at
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -492,6 +495,26 @@ select
     nsoq.next_scheduled_outreach_scheduled_at_date_time,
     nsoq.next_scheduled_outreach_type_id,
     nsoq.next_scheduled_outreach_reason_id,
+	CASE
+        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) < now() and rssq.scheduled_date_time=GREATEST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
+        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) < now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=GREATEST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN 'OUTREACH'
+        ELSE NULL
+    END as last_contact_type_id,
+	CASE
+        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) < now() and rssq.scheduled_date_time=GREATEST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time AT TIME ZONE i.time_zone
+        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) < now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=GREATEST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone
+        ELSE NULL
+    END as last_contacted_at,
+    CASE
+        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) > now() and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
+        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) > now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN 'OUTREACH'
+        ELSE NULL
+    END as next_contact_type_id,
+	CASE
+        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) > now() and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time
+        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) > now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
+        ELSE NULL
+    END as next_contact_scheduled_at,
     poq.*
 from
     patient_order poq

@@ -64,6 +64,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
@@ -532,6 +533,34 @@ public class PatientOrderApiResponse {
 	private PatientOrderOutreachTypeId nextScheduledOutreachTypeId;
 	@Nullable
 	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
+	@Nullable
+	private PatientOrderContactTypeId lastContactTypeId;
+	@Nullable
+	private Instant lastContactedAt;
+	@Nullable
+	private String lastContactedAtDescription;
+	@Nullable
+	private LocalDate lastContactedAtDate;
+	@Nullable
+	private String lastContactedAtDateDescription;
+	@Nullable
+	private LocalTime lastContactedAtTime;
+	@Nullable
+	private String lastContactedAtTimeDescription;
+	@Nullable
+	private PatientOrderContactTypeId nextContactTypeId;
+	@Nullable
+	private LocalDateTime nextContactScheduledAt;
+	@Nullable
+	private String nextContactScheduledAtDescription;
+	@Nullable
+	private LocalDate nextContactScheduledAtDate;
+	@Nullable
+	private String nextContactScheduledAtDateDescription;
+	@Nullable
+	private LocalTime nextContactScheduledAtTime;
+	@Nullable
+	private String nextContactScheduledAtTimeDescription;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -1009,6 +1038,29 @@ public class PatientOrderApiResponse {
 			this.nextScheduledOutreachScheduledAtDateTimeDescription = this.nextScheduledOutreachScheduledAtTime == null ? null : formatter.formatTime(this.nextScheduledOutreachScheduledAtTime, FormatStyle.SHORT);
 			this.nextScheduledOutreachTypeId = patientOrder.getNextScheduledOutreachTypeId();
 			this.nextScheduledOutreachReasonId = patientOrder.getNextScheduledOutreachReasonId();
+
+			// Last contact + next scheduled contact
+			this.lastContactTypeId = patientOrder.getLastContactTypeId();
+			this.lastContactedAt = patientOrder.getLastContactedAt();
+
+			if (this.lastContactedAt != null) {
+				this.lastContactedAtDescription = formatter.formatTimestamp(this.lastContactedAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+				this.lastContactedAtDate = LocalDate.ofInstant(this.lastContactedAt, currentContext.getTimeZone());
+				this.lastContactedAtDateDescription = formatter.formatDate(this.lastContactedAtDate, FormatStyle.MEDIUM);
+				this.lastContactedAtTime = LocalTime.ofInstant(this.lastContactedAt, currentContext.getTimeZone());
+				this.lastContactedAtTimeDescription = formatter.formatTime(this.lastContactedAtTime, FormatStyle.SHORT);
+			}
+
+			this.nextContactTypeId = patientOrder.getNextContactTypeId();
+			this.nextContactScheduledAt = patientOrder.getNextContactScheduledAt();
+
+			if (this.nextContactScheduledAt != null) {
+				this.nextContactScheduledAtDescription = formatter.formatDateTime(this.nextContactScheduledAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+				this.nextContactScheduledAtDate = this.nextContactScheduledAt.toLocalDate();
+				this.nextContactScheduledAtDateDescription = formatter.formatDate(this.nextContactScheduledAtDate, FormatStyle.MEDIUM);
+				this.nextContactScheduledAtTime = this.nextContactScheduledAt.toLocalTime();
+				this.nextContactScheduledAtTimeDescription = formatter.formatTime(this.nextContactScheduledAtTime, FormatStyle.SHORT);
+			}
 		}
 	}
 
@@ -2075,5 +2127,75 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderScheduledOutreachReasonId getNextScheduledOutreachReasonId() {
 		return this.nextScheduledOutreachReasonId;
+	}
+
+	@Nullable
+	public PatientOrderContactTypeId getLastContactTypeId() {
+		return this.lastContactTypeId;
+	}
+
+	@Nullable
+	public Instant getLastContactedAt() {
+		return this.lastContactedAt;
+	}
+
+	@Nullable
+	public String getLastContactedAtDescription() {
+		return this.lastContactedAtDescription;
+	}
+
+	@Nullable
+	public LocalDate getLastContactedAtDate() {
+		return this.lastContactedAtDate;
+	}
+
+	@Nullable
+	public String getLastContactedAtDateDescription() {
+		return this.lastContactedAtDateDescription;
+	}
+
+	@Nullable
+	public LocalTime getLastContactedAtTime() {
+		return this.lastContactedAtTime;
+	}
+
+	@Nullable
+	public String getLastContactedAtTimeDescription() {
+		return this.lastContactedAtTimeDescription;
+	}
+
+	@Nullable
+	public PatientOrderContactTypeId getNextContactTypeId() {
+		return this.nextContactTypeId;
+	}
+
+	@Nullable
+	public LocalDateTime getNextContactScheduledAt() {
+		return this.nextContactScheduledAt;
+	}
+
+	@Nullable
+	public String getNextContactScheduledAtDescription() {
+		return this.nextContactScheduledAtDescription;
+	}
+
+	@Nullable
+	public LocalDate getNextContactScheduledAtDate() {
+		return this.nextContactScheduledAtDate;
+	}
+
+	@Nullable
+	public String getNextContactScheduledAtDateDescription() {
+		return this.nextContactScheduledAtDateDescription;
+	}
+
+	@Nullable
+	public LocalTime getNextContactScheduledAtTime() {
+		return this.nextContactScheduledAtTime;
+	}
+
+	@Nullable
+	public String getNextContactScheduledAtTimeDescription() {
+		return this.nextContactScheduledAtTimeDescription;
 	}
 }
