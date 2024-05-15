@@ -496,7 +496,7 @@ public class StudyService implements AutoCloseable {
 
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
-			if (accountCheckActive(account, accountCheckIn) && !rescheduleFirstCheckIn) {
+			if (accountCheckActive(account, accountCheckIn) && !rescheduleFirstCheckIn && !rescheduleFirstCheckInIfNeeded) {
 				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
 			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)
@@ -546,7 +546,7 @@ public class StudyService implements AutoCloseable {
 				checkInStartDateTime = newStartDateTime.plus(minutesToAdd, ChronoUnit.MINUTES);
 				getLogger().debug(format("Adding %s minutes to %s and setting next check-in to %s", minutesToAdd, newStartDateTime, checkInStartDateTime));
 			}
-			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.get().getMinutesBetweenCheckIns());
+			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.get().getMinutesBetweenCheckIns() - 1);
 
 			getDatabase().execute("""
 					UPDATE account_check_in
