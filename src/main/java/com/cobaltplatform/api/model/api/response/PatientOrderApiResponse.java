@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiRespon
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
@@ -308,6 +309,8 @@ public class PatientOrderApiResponse {
 	private List<PatientOrderScheduledMessageGroupApiResponse> patientOrderScheduledMessageGroups;
 	@Nullable
 	private List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks;
+	@Nullable
+	private List<PatientOrderScheduledOutreachApiResponse> patientOrderScheduledOutreaches;
 	@Nullable
 	private ScreeningSessionApiResponse intakeScreeningSession;
 	@Nullable
@@ -608,6 +611,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
+																 @Nonnull PatientOrderScheduledOutreachApiResponseFactory patientOrderScheduledOutreachApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
@@ -627,6 +631,7 @@ public class PatientOrderApiResponse {
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
 				patientOrderScheduledMessageGroupApiResponseFactory,
+				patientOrderScheduledOutreachApiResponseFactory,
 				screeningSessionApiResponseFactory,
 				addressApiResponseFactory,
 				patientOrderVoicemailTaskApiResponseFactory,
@@ -650,6 +655,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
+																 @Nonnull PatientOrderScheduledOutreachApiResponseFactory patientOrderScheduledOutreachApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
@@ -670,6 +676,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
+		requireNonNull(patientOrderScheduledOutreachApiResponseFactory);
 		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
 		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
@@ -689,6 +696,7 @@ public class PatientOrderApiResponse {
 		List<PatientOrderNoteApiResponse> patientOrderNotes = null;
 		List<PatientOrderOutreachApiResponse> patientOrderOutreaches = null;
 		List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks = null;
+		List<PatientOrderScheduledOutreachApiResponse> patientOrderScheduledOutreaches = null;
 
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
 			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
@@ -715,6 +723,10 @@ public class PatientOrderApiResponse {
 
 			patientOrderVoicemailTasks = patientOrderService.findPatientOrderVoicemailTasksByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderVoicemailTask -> patientOrderVoicemailTaskApiResponseFactory.create(patientOrderVoicemailTask))
+					.collect(Collectors.toList());
+
+			patientOrderScheduledOutreaches = patientOrderService.findPatientOrderScheduledOutreachesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
+					.map(patientOrderScheduledOutreach -> patientOrderScheduledOutreachApiResponseFactory.create(patientOrderScheduledOutreach))
 					.collect(Collectors.toList());
 
 			ScreeningSession mostRecentIntakeScreeningSession = screeningService.findScreeningSessionById(patientOrder.getMostRecentIntakeScreeningSessionId()).orElse(null);
@@ -966,6 +978,7 @@ public class PatientOrderApiResponse {
 			this.patientOrderMedications = patientOrderMedications;
 			this.patientOrderNotes = patientOrderNotes;
 			this.patientOrderOutreaches = patientOrderOutreaches;
+			this.patientOrderScheduledOutreaches = patientOrderScheduledOutreaches;
 
 			this.patientOrderCareTypeId = patientOrder.getPatientOrderCareTypeId();
 			this.patientOrderCareTypeDescription = patientOrder.getPatientOrderCareTypeDescription();
@@ -2197,5 +2210,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getNextContactScheduledAtTimeDescription() {
 		return this.nextContactScheduledAtTimeDescription;
+	}
+
+	@Nullable
+	public List<PatientOrderScheduledOutreachApiResponse> getPatientOrderScheduledOutreaches() {
+		return this.patientOrderScheduledOutreaches;
 	}
 }

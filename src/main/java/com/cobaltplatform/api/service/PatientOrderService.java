@@ -3403,7 +3403,7 @@ public class PatientOrderService implements AutoCloseable {
 				FROM v_patient_order_scheduled_outreach
 				WHERE patient_order_id=?
 				AND patient_order_scheduled_outreach_status_id != ?
-				ORDER BY last_updated DESC
+				ORDER BY scheduled_at_date_time
 				""", PatientOrderScheduledOutreach.class, patientOrderId, PatientOrderScheduledOutreachStatusId.CANCELED);
 	}
 
