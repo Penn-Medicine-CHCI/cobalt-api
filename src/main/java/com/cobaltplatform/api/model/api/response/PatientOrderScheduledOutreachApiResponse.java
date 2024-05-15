@@ -52,29 +52,29 @@ public class PatientOrderScheduledOutreachApiResponse {
 	private final UUID patientOrderScheduledOutreachId;
 	@Nonnull
 	private final UUID patientOrderId;
-	@Nullable
-	private PatientOrderOutreachTypeId patientOrderOutreachTypeId;
-	@Nullable
-	private PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId;
-	@Nullable
-	private PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId;
-	@Nullable
+	@Nonnull
+	private final PatientOrderOutreachTypeId patientOrderOutreachTypeId;
+	@Nonnull
+	private final PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId;
+	@Nonnull
+	private final PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId;
+	@Nonnull
 	private final UUID createdByAccountId;
 	@Nullable
 	private final UUID completedByAccountId;
 	@Nonnull
 	private final String message;
-	@Nullable
+	@Nonnull
 	private final LocalDate scheduledAtDate;
-	@Nullable
+	@Nonnull
 	private final String scheduledAtDateDescription;
-	@Nullable
+	@Nonnull
 	private final LocalTime scheduledAtTime;
-	@Nullable
+	@Nonnull
 	private final String scheduledAtTimeDescription;
-	@Nullable
+	@Nonnull
 	private final LocalDateTime scheduledAtDateTime;
-	@Nullable
+	@Nonnull
 	private final String scheduledAtDateTimeDescription;
 	@Nullable
 	private final Instant completedAt;
@@ -90,21 +90,21 @@ public class PatientOrderScheduledOutreachApiResponse {
 	private final String lastUpdatedDescription;
 
 	@Nullable
-	private String createdByAccountFirstName;
+	private final String createdByAccountFirstName;
 	@Nullable
-	private String createdByAccountLastName;
+	private final String createdByAccountLastName;
 	@Nullable
-	private String createdByAccountDisplayName;
+	private final String createdByAccountDisplayName;
 	@Nullable
-	private String createdByAccountDisplayNameWithLastFirst;
+	private final String createdByAccountDisplayNameWithLastFirst;
 	@Nullable
-	private String completedByAccountFirstName;
+	private final String completedByAccountFirstName;
 	@Nullable
-	private String completedByAccountLastName;
+	private final String completedByAccountLastName;
 	@Nullable
-	private String completedByAccountDisplayName;
+	private final String completedByAccountDisplayName;
 	@Nullable
-	private String completedByAccountDisplayNameWithLastFirst;
+	private final String completedByAccountDisplayNameWithLastFirst;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -163,22 +163,22 @@ public class PatientOrderScheduledOutreachApiResponse {
 		return this.patientOrderId;
 	}
 
-	@Nullable
+	@Nonnull
 	public PatientOrderOutreachTypeId getPatientOrderOutreachTypeId() {
 		return this.patientOrderOutreachTypeId;
 	}
 
-	@Nullable
+	@Nonnull
 	public PatientOrderScheduledOutreachReasonId getPatientOrderScheduledOutreachReasonId() {
 		return this.patientOrderScheduledOutreachReasonId;
 	}
 
-	@Nullable
+	@Nonnull
 	public PatientOrderScheduledOutreachStatusId getPatientOrderScheduledOutreachStatusId() {
 		return this.patientOrderScheduledOutreachStatusId;
 	}
 
-	@Nullable
+	@Nonnull
 	public UUID getCreatedByAccountId() {
 		return this.createdByAccountId;
 	}
@@ -191,6 +191,36 @@ public class PatientOrderScheduledOutreachApiResponse {
 	@Nonnull
 	public String getMessage() {
 		return this.message;
+	}
+
+	@Nonnull
+	public LocalDate getScheduledAtDate() {
+		return this.scheduledAtDate;
+	}
+
+	@Nonnull
+	public String getScheduledAtDateDescription() {
+		return this.scheduledAtDateDescription;
+	}
+
+	@Nonnull
+	public LocalTime getScheduledAtTime() {
+		return this.scheduledAtTime;
+	}
+
+	@Nonnull
+	public String getScheduledAtTimeDescription() {
+		return this.scheduledAtTimeDescription;
+	}
+
+	@Nonnull
+	public LocalDateTime getScheduledAtDateTime() {
+		return this.scheduledAtDateTime;
+	}
+
+	@Nonnull
+	public String getScheduledAtDateTimeDescription() {
+		return this.scheduledAtDateTimeDescription;
 	}
 
 	@Nullable
