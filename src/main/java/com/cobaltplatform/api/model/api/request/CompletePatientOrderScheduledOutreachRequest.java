@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -32,6 +34,14 @@ public class CompletePatientOrderScheduledOutreachRequest {
 	private UUID patientOrderScheduledOutreachId;
 	@Nullable
 	private UUID completedByAccountId;
+	@Nullable
+	private UUID patientOrderOutreachResultId;
+	@Nullable
+	private LocalDate completedAtDate;
+	@Nullable
+	private LocalTime completedAtTime;
+	@Nullable
+	private String message;
 
 	@Nullable
 	public UUID getPatientOrderScheduledOutreachId() {
@@ -49,5 +59,41 @@ public class CompletePatientOrderScheduledOutreachRequest {
 
 	public void setCompletedByAccountId(@Nullable UUID completedByAccountId) {
 		this.completedByAccountId = completedByAccountId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderOutreachResultId() {
+		return this.patientOrderOutreachResultId;
+	}
+
+	public void setPatientOrderOutreachResultId(@Nullable UUID patientOrderOutreachResultId) {
+		this.patientOrderOutreachResultId = patientOrderOutreachResultId;
+	}
+
+	@Nullable
+	public LocalDate getCompletedAtDate() {
+		return this.completedAtDate;
+	}
+
+	public void setCompletedAtDate(@Nullable LocalDate completedAtDate) {
+		this.completedAtDate = completedAtDate;
+	}
+
+	@Nullable
+	public LocalTime getCompletedAtTime() {
+		return this.completedAtTime;
+	}
+
+	public void setCompletedAtTime(@Nullable LocalTime completedAtTime) {
+		this.completedAtTime = completedAtTime;
+	}
+
+	@Nullable
+	public String getMessage() {
+		return this.message;
+	}
+
+	public void setMessage(@Nullable String message) {
+		this.message = message;
 	}
 }

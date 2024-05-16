@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -34,11 +35,15 @@ public class CreatePatientOrderOutreachRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private UUID patientOrderScheduledOutreachId;
+	@Nullable
 	private UUID patientOrderOutreachResultId;
 	@Nullable
 	private LocalDate outreachDate;
 	@Nullable
 	private String outreachTime; // Manually parse string from the UI
+	@Nullable
+	private LocalTime outreachTimeAsLocalTime; // Alternative to above field
 	@Nullable
 	private String note;
 
@@ -58,6 +63,15 @@ public class CreatePatientOrderOutreachRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public UUID getPatientOrderScheduledOutreachId() {
+		return this.patientOrderScheduledOutreachId;
+	}
+
+	public void setPatientOrderScheduledOutreachId(@Nullable UUID patientOrderScheduledOutreachId) {
+		this.patientOrderScheduledOutreachId = patientOrderScheduledOutreachId;
 	}
 
 	@Nullable
@@ -85,6 +99,15 @@ public class CreatePatientOrderOutreachRequest {
 
 	public void setOutreachTime(@Nullable String outreachTime) {
 		this.outreachTime = outreachTime;
+	}
+
+	@Nullable
+	public LocalTime getOutreachTimeAsLocalTime() {
+		return this.outreachTimeAsLocalTime;
+	}
+
+	public void setOutreachTimeAsLocalTime(@Nullable LocalTime outreachTimeAsLocalTime) {
+		this.outreachTimeAsLocalTime = outreachTimeAsLocalTime;
 	}
 
 	@Nullable
