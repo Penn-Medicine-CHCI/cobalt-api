@@ -2271,7 +2271,7 @@ public class PatientOrderService implements AutoCloseable {
 				SELECT *
 				FROM v_patient_order_outreach_result
 				WHERE patient_order_outreach_result_id=?
-				""", PatientOrderOutreachResult.class);
+				""", PatientOrderOutreachResult.class, patientOrderOutreachResultId);
 	}
 
 	@Nonnull
