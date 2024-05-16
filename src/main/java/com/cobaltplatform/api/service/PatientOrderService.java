@@ -3648,6 +3648,9 @@ public class PatientOrderService implements AutoCloseable {
 		if (completedAtTime == null)
 			validationException.add(new FieldError("completedAtTime", getStrings().get("Time is required.")));
 
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 

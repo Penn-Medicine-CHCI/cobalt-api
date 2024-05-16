@@ -58,6 +58,7 @@ import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderRe
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledOutreachStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
@@ -725,7 +726,9 @@ public class PatientOrderApiResponse {
 					.map(patientOrderVoicemailTask -> patientOrderVoicemailTaskApiResponseFactory.create(patientOrderVoicemailTask))
 					.collect(Collectors.toList());
 
+			// Only show scheduled outreaches
 			patientOrderScheduledOutreaches = patientOrderService.findPatientOrderScheduledOutreachesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
+					.filter(patientOrderScheduledOutreach -> patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.SCHEDULED)
 					.map(patientOrderScheduledOutreach -> patientOrderScheduledOutreachApiResponseFactory.create(patientOrderScheduledOutreach))
 					.collect(Collectors.toList());
 
