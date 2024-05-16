@@ -1048,7 +1048,7 @@ public class PatientOrderApiResponse {
 			this.nextScheduledOutreachScheduledAtTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalTime();
 			this.nextScheduledOutreachScheduledAtTimeDescription = this.nextScheduledOutreachScheduledAtTime == null ? null : formatter.formatTime(this.nextScheduledOutreachScheduledAtTime, FormatStyle.SHORT);
 			this.nextScheduledOutreachScheduledAtDateTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime();
-			this.nextScheduledOutreachScheduledAtDateTimeDescription = this.nextScheduledOutreachScheduledAtTime == null ? null : formatter.formatTime(this.nextScheduledOutreachScheduledAtTime, FormatStyle.SHORT);
+			this.nextScheduledOutreachScheduledAtDateTimeDescription = this.nextScheduledOutreachScheduledAtDateTime == null ? null : formatter.formatDateTime(this.nextScheduledOutreachScheduledAtDateTime, FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.nextScheduledOutreachTypeId = patientOrder.getNextScheduledOutreachTypeId();
 			this.nextScheduledOutreachReasonId = patientOrder.getNextScheduledOutreachReasonId();
 
