@@ -2317,7 +2317,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (outreachDate == null)
 			validationException.add(new FieldError("outreachDate", getStrings().get("Outreach date is required.")));
 
-		if (outreachTime != null) {
+		if (outreachTime == null) {
 			if (outreachTimeAsString == null) {
 				validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is required.")));
 			} else {
