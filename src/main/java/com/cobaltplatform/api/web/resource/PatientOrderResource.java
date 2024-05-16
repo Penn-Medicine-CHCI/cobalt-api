@@ -1173,8 +1173,10 @@ public class PatientOrderResource {
 	@Nonnull
 	@POST("/patient-order-scheduled-outreaches/{patientOrderScheduledOutreachId}/complete")
 	@AuthenticationRequired
-	public ApiResponse completePatientOrderScheduledOutreach(@Nonnull @PathParameter UUID patientOrderScheduledOutreachId) {
+	public ApiResponse completePatientOrderScheduledOutreach(@Nonnull @PathParameter UUID patientOrderScheduledOutreachId,
+																													 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderScheduledOutreachId);
+		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1183,7 +1185,7 @@ public class PatientOrderResource {
 		if (patientOrderScheduledOutreach == null)
 			throw new NotFoundException();
 
-		CompletePatientOrderScheduledOutreachRequest request = new CompletePatientOrderScheduledOutreachRequest();
+		CompletePatientOrderScheduledOutreachRequest request = getRequestBodyParser().parse(requestBody, CompletePatientOrderScheduledOutreachRequest.class);
 		request.setCompletedByAccountId(account.getAccountId());
 		request.setPatientOrderScheduledOutreachId(patientOrderScheduledOutreachId);
 
