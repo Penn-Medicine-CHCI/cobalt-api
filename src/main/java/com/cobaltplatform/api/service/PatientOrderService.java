@@ -953,10 +953,10 @@ public class PatientOrderService implements AutoCloseable {
 		// Scheduled Outreach: If there is a scheduled outreach
 		// Definition:
 		// Order State = Open
-		// next_scheduled_outreach_scheduled_at_date_time IS NOT NULL
+		// next_contact_scheduled_at IS NOT NULL
 		whereClauseLines.add("AND patient_order_disposition_id=?");
 		parameters.add(PatientOrderDispositionId.OPEN);
-		whereClauseLines.add("AND next_scheduled_outreach_scheduled_at_date_time IS NOT NULL");
+		whereClauseLines.add("AND next_contact_scheduled_at IS NOT NULL");
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -1363,10 +1363,10 @@ public class PatientOrderService implements AutoCloseable {
 				// Scheduled Outreach: If there is a scheduled outreach
 				// Definition:
 				// Order State = Open
-				// next_scheduled_outreach_scheduled_at_date_time IS NOT NULL
+				// next_contact_scheduled_at IS NOT NULL
 				whereClauseLines.add("AND po.patient_order_disposition_id=?");
 				parameters.add(PatientOrderDispositionId.OPEN);
-				whereClauseLines.add("AND po.next_scheduled_outreach_scheduled_at_date_time IS NOT NULL");
+				whereClauseLines.add("AND po.next_contact_scheduled_at IS NOT NULL");
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
 				// Need Assessment: Patients that have not started or been scheduled for an assessment
 				// Definition:

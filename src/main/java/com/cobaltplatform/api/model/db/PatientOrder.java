@@ -396,8 +396,6 @@ public class PatientOrder {
 	@Nullable
 	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
 	@Nullable
-	private PatientOrderContactTypeId lastContactTypeId;
-	@Nullable
 	private Instant lastContactedAt;
 	@Nullable
 	private PatientOrderContactTypeId nextContactTypeId;
@@ -1878,15 +1876,6 @@ public class PatientOrder {
 
 	public void setNextScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId) {
 		this.nextScheduledOutreachReasonId = nextScheduledOutreachReasonId;
-	}
-
-	@Nullable
-	public PatientOrderContactTypeId getLastContactTypeId() {
-		return this.lastContactTypeId;
-	}
-
-	public void setLastContactTypeId(@Nullable PatientOrderContactTypeId lastContactTypeId) {
-		this.lastContactTypeId = lastContactTypeId;
 	}
 
 	@Nullable

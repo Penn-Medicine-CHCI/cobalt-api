@@ -1055,7 +1055,6 @@ public class PatientOrderApiResponse {
 			this.nextScheduledOutreachReasonId = patientOrder.getNextScheduledOutreachReasonId();
 
 			// Last contact + next scheduled contact
-			this.lastContactTypeId = patientOrder.getLastContactTypeId();
 			this.lastContactedAt = patientOrder.getLastContactedAt();
 
 			if (this.lastContactedAt != null) {
@@ -2142,11 +2141,6 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderScheduledOutreachReasonId getNextScheduledOutreachReasonId() {
 		return this.nextScheduledOutreachReasonId;
-	}
-
-	@Nullable
-	public PatientOrderContactTypeId getLastContactTypeId() {
-		return this.lastContactTypeId;
 	}
 
 	@Nullable

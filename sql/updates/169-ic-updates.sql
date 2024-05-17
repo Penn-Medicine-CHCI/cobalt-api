@@ -90,7 +90,6 @@ DROP VIEW v_all_patient_order;
 -- * next_scheduled_outreach_reason_id
 --
 -- Add
--- * last_contact_type_id
 -- * last_contacted_at
 -- * next_contact_type_id
 -- * next_contact_scheduled_at
@@ -205,13 +204,13 @@ next_scheduled_outreach_query AS (
 	    poso.patient_order_id,
 	    poso.patient_order_scheduled_outreach_id as next_scheduled_outreach_id,
 	    poso.scheduled_at_date_time as next_scheduled_outreach_scheduled_at_date_time,
-      poso.patient_order_outreach_type_id as next_scheduled_outreach_type_id,
-      poso.patient_order_scheduled_outreach_reason_id as next_scheduled_outreach_reason_id,
+        poso.patient_order_outreach_type_id as next_scheduled_outreach_type_id,
+        poso.patient_order_scheduled_outreach_reason_id as next_scheduled_outreach_reason_id,
 	    rank() OVER (PARTITION BY poso.patient_order_id ORDER BY poso.scheduled_at_date_time, poso.patient_order_scheduled_outreach_id) as ranked_value
 	  from
 	    patient_order poq, patient_order_scheduled_outreach poso
 	    where poq.patient_order_id = poso.patient_order_id
-      and poso.patient_order_scheduled_outreach_status_id = 'SCHEDULED'
+        and poso.patient_order_scheduled_outreach_status_id = 'SCHEDULED'
 	) subquery where ranked_value=1
 ),
 ss_query AS (
@@ -493,24 +492,23 @@ select
     nsoq.next_scheduled_outreach_scheduled_at_date_time,
     nsoq.next_scheduled_outreach_type_id,
     nsoq.next_scheduled_outreach_reason_id,
-	CASE
-        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) < now() and rssq.scheduled_date_time=GREATEST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
-        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) < now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=GREATEST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN 'OUTREACH'
-        ELSE NULL
-    END as last_contact_type_id,
-	CASE
-        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) < now() and rssq.scheduled_date_time=GREATEST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time AT TIME ZONE i.time_zone
-        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) < now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=GREATEST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone
-        ELSE NULL
-    END as last_contacted_at,
+    -- TODO: take the following into account (all values must be before now() in institution timezone):
+    -- 1. timestamp of most recent scheduled message group for this order
+    -- 2. timestamp of most recent screening session started by MHIC for this order
+    GREATEST(poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone) as last_contacted_at,
+    -- TODO: take the following into account:
+    -- 1. ASSESSMENT should not already have been started
+    -- 2. ASSESSMENT_OUTREACH: if there has been some form of outreach but no screening session started after X days
+    -- 3. RESOURCE_CHECK_IN: if scheduled message group for
     CASE
-        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) > now() and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
-        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) > now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN 'OUTREACH'
+        WHEN rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
+        WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) and nsoq.next_scheduled_outreach_reason_id='RESOURCE_FOLLOWUP' THEN 'RESOURCE_FOLLOWUP'
+        WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) and nsoq.next_scheduled_outreach_reason_id='OTHER' THEN 'OTHER'
         ELSE NULL
     END as next_contact_type_id,
 	CASE
-        WHEN (rssq.scheduled_date_time AT TIME ZONE i.time_zone) > now() and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time
-        WHEN (nsoq.next_scheduled_outreach_scheduled_at_date_time AT TIME ZONE i.time_zone) > now() and nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
+        WHEN rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time
+        WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
         ELSE NULL
     END as next_contact_scheduled_at,
     poq.*
