@@ -1144,9 +1144,7 @@ public class PatientOrderResource {
 	@Nonnull
 	@POST("/patient-order-scheduled-outreaches/{patientOrderScheduledOutreachId}/cancel")
 	@AuthenticationRequired
-	public ApiResponse cancelPatientOrderScheduledOutreach(@Nonnull @RequestBody String requestBody,
-																												 @Nonnull @PathParameter UUID patientOrderScheduledOutreachId) {
-		requireNonNull(requestBody);
+	public ApiResponse cancelPatientOrderScheduledOutreach(@Nonnull @PathParameter UUID patientOrderScheduledOutreachId) {
 		requireNonNull(patientOrderScheduledOutreachId);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -1156,7 +1154,7 @@ public class PatientOrderResource {
 		if (patientOrderScheduledOutreach == null)
 			throw new NotFoundException();
 
-		CancelPatientOrderScheduledOutreachRequest request = getRequestBodyParser().parse(requestBody, CancelPatientOrderScheduledOutreachRequest.class);
+		CancelPatientOrderScheduledOutreachRequest request = new CancelPatientOrderScheduledOutreachRequest();
 		request.setCanceledByAccountId(account.getAccountId());
 		request.setPatientOrderScheduledOutreachId(patientOrderScheduledOutreachId);
 

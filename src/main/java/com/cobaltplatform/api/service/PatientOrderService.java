@@ -3431,6 +3431,24 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<PatientOrderScheduledOutreach> findPatientOrderScheduledOutreachesByPatientOrderId(@Nullable UUID patientOrderId,
+																																																 @Nullable PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		if (patientOrderScheduledOutreachStatusId == null)
+			return findPatientOrderScheduledOutreachesByPatientOrderId(patientOrderId);
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_patient_order_scheduled_outreach
+				WHERE patient_order_id=?
+				AND patient_order_scheduled_outreach_status_id = ?
+				ORDER BY scheduled_at_date_time
+				""", PatientOrderScheduledOutreach.class, patientOrderId, patientOrderScheduledOutreachStatusId);
+	}
+
+	@Nonnull
 	public UUID createPatientOrderScheduledOutreach(@Nonnull CreatePatientOrderScheduledOutreachRequest request) {
 		requireNonNull(request);
 

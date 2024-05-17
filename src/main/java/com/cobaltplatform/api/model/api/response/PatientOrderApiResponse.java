@@ -727,8 +727,7 @@ public class PatientOrderApiResponse {
 					.collect(Collectors.toList());
 
 			// Only show scheduled outreaches
-			patientOrderScheduledOutreaches = patientOrderService.findPatientOrderScheduledOutreachesByPatientOrderId(patientOrder.getPatientOrderId()).stream()
-					.filter(patientOrderScheduledOutreach -> patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.SCHEDULED)
+			patientOrderScheduledOutreaches = patientOrderService.findPatientOrderScheduledOutreachesByPatientOrderId(patientOrder.getPatientOrderId(), PatientOrderScheduledOutreachStatusId.SCHEDULED).stream()
 					.map(patientOrderScheduledOutreach -> patientOrderScheduledOutreachApiResponseFactory.create(patientOrderScheduledOutreach))
 					.collect(Collectors.toList());
 
