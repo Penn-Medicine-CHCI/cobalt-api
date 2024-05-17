@@ -164,6 +164,7 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
+import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
@@ -953,10 +954,12 @@ public class PatientOrderService implements AutoCloseable {
 		// Scheduled Outreach: If there is a scheduled outreach
 		// Definition:
 		// Order State = Open
-		// next_contact_scheduled_at IS NOT NULL
+		// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
 		whereClauseLines.add("AND patient_order_disposition_id=?");
 		parameters.add(PatientOrderDispositionId.OPEN);
-		whereClauseLines.add("AND next_contact_scheduled_at IS NOT NULL");
+		whereClauseLines.add("AND next_contact_type_id IS NOT NULL");
+		whereClauseLines.add("AND next_contact_type_id != ?");
+		parameters.add(PatientOrderContactTypeId.RESOURCE_CHECK_IN);
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -1363,10 +1366,12 @@ public class PatientOrderService implements AutoCloseable {
 				// Scheduled Outreach: If there is a scheduled outreach
 				// Definition:
 				// Order State = Open
-				// next_contact_scheduled_at IS NOT NULL
+				// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
 				whereClauseLines.add("AND po.patient_order_disposition_id=?");
 				parameters.add(PatientOrderDispositionId.OPEN);
-				whereClauseLines.add("AND po.next_contact_scheduled_at IS NOT NULL");
+				whereClauseLines.add("AND po.next_contact_type_id IS NOT NULL");
+				whereClauseLines.add("AND po.next_contact_type_id != ?");
+				parameters.add(PatientOrderContactTypeId.RESOURCE_CHECK_IN);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
 				// Need Assessment: Patients that have not started or been scheduled for an assessment
 				// Definition:
