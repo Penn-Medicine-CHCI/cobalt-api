@@ -484,23 +484,12 @@ public class StudyService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		//If this study is configured to have fixed check in windows and the user has already started the study then return immediately.
-		if (accountStudy.get().getStudyStarted() && study.get().getCheckInWindowsFixed())
-			return;
-
-		Boolean rescheduleFirstCheckIn = false;
-		// If this account has not started the study then we need to reschedule the check ins because start/stop times are set
-		// when accounts are originally generated. Otherwise defer to if the study is setup to leave the first check in open
-		// until the account starts the first check in
-		Boolean rescheduleFirstCheckInIfNeeded = !accountStudy.get().getStudyStarted() ? true : study.get().getLeaveFirstCheckInOpenUntilStarted();
-
 		getLogger().debug("Rescheduling check-ins");
 		for (AccountCheckIn accountCheckIn : accountCheckIns) {
-			if (accountCheckActive(account, accountCheckIn) && !rescheduleFirstCheckIn && !rescheduleFirstCheckInIfNeeded) {
+			if (accountStudy.get().getStudyStarted() && accountCheckActive(account, accountCheckIn) && accountCheckIn.getCheckInNumber() == 1) {
 				getLogger().debug(format("Breaking because check-in %s is active.", accountCheckIn.getCheckInNumber()));
 				break;
-			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)
-					&& rescheduleFirstCheckInIfNeeded) {
+			} else if (accountCheckIn.getCheckInNumber() == 1 && !accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
 				//This is the first check-in and it has not been completed so check to see if it's been started
 				getLogger().debug("Hit first check-in and it's not complete, check if it's been started");
 				Boolean checkInStarted = accountCheckInStarted(account.getAccountId(), accountCheckIn.getAccountCheckInId());
@@ -509,9 +498,15 @@ public class StudyService implements AutoCloseable {
 					updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
 					checkInCount = 1;
 					continue;
+				}	else if (accountStudy.get().getStudyStarted() && accountCheckExpired(account, accountCheckIn)) {
+					getLogger().debug(format("Check-in %s has expired so continuing to next check-in", accountCheckIn.getCheckInNumber()));
+					if (!accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.EXPIRED)) {
+						getLogger().debug(format("Check-in %s was not set to expired so expiring", accountCheckIn.getCheckInNumber()));
+						updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
+					}
+					continue;
 				} else {
 					getLogger().debug("First check-in is NOT started and not complete so setting start time to now and continuing on.");
-					rescheduleFirstCheckIn = true;
 					newStartDateTime = currentDateTime;
 				}
 			} else if (accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
@@ -522,7 +517,7 @@ public class StudyService implements AutoCloseable {
 				if (accountCheckIn.getCheckInNumber() == accountCheckIns.size())
 					resetCheckIns = true;
 				continue;
-			} else if (accountCheckExpired(account, accountCheckIn) && !rescheduleFirstCheckIn) {
+			} else if (accountCheckExpired(account, accountCheckIn)) {
 				getLogger().debug(format("Check-in %s has expired so continuing to next check-in", accountCheckIn.getCheckInNumber()));
 				newStartDateTime = currentDateTime;
 				checkInCount = 1;
@@ -536,23 +531,26 @@ public class StudyService implements AutoCloseable {
 				continue;
 			}
 
-			if (study.get().getMinutesBetweenCheckIns() >= minutesInADay) {
-				//TODO: Validate that the minutes are a whole number of days
-				Integer daysToAdd = checkInCount == 0 ? 0 : (study.get().getMinutesBetweenCheckIns() * checkInCount) / minutesInADay;
-				LocalDate checkInStartDate = newStartDateTime.toLocalDate().plusDays(daysToAdd);
-				checkInStartDateTime = LocalDateTime.of(checkInStartDate, LocalTime.of(0, 0, 0));
-			} else {
-				Integer minutesToAdd = checkInCount == 0 ? 0 : study.get().getMinutesBetweenCheckIns() * checkInCount;
-				checkInStartDateTime = newStartDateTime.plus(minutesToAdd, ChronoUnit.MINUTES);
-				getLogger().debug(format("Adding %s minutes to %s and setting next check-in to %s", minutesToAdd, newStartDateTime, checkInStartDateTime));
-			}
-			checkInEndDateTime = checkInStartDateTime.plusMinutes(study.get().getMinutesBetweenCheckIns() - 1);
+			// If the study has not started then reset start/end times for check ins
+			if (!accountStudy.get().getStudyStarted()) {
+				if (study.get().getMinutesBetweenCheckIns() >= minutesInADay) {
+					//TODO: Validate that the minutes are a whole number of days
+					Integer daysToAdd = checkInCount == 0 ? 0 : (study.get().getMinutesBetweenCheckIns() * checkInCount) / minutesInADay;
+					LocalDate checkInStartDate = newStartDateTime.toLocalDate().plusDays(daysToAdd);
+					checkInStartDateTime = LocalDateTime.of(checkInStartDate, LocalTime.of(0, 0, 0));
+				} else {
+					Integer minutesToAdd = checkInCount == 0 ? 0 : study.get().getMinutesBetweenCheckIns() * checkInCount;
+					checkInStartDateTime = newStartDateTime.plus(minutesToAdd, ChronoUnit.MINUTES);
+					getLogger().debug(format("Adding %s minutes to %s and setting next check-in to %s", minutesToAdd, newStartDateTime, checkInStartDateTime));
+				}
+				checkInEndDateTime = checkInStartDateTime.plusMinutes(study.get().getMinutesBetweenCheckIns()).minusSeconds(1);
 
-			getDatabase().execute("""
-					UPDATE account_check_in
-					SET check_in_start_date_time = ?, check_in_end_date_time = ?
-					WHERE account_check_in_id = ?
-					""", checkInStartDateTime, checkInEndDateTime, accountCheckIn.getAccountCheckInId());
+				getDatabase().execute("""
+						UPDATE account_check_in
+						SET check_in_start_date_time = ?, check_in_end_date_time = ?
+						WHERE account_check_in_id = ?
+						""", checkInStartDateTime, checkInEndDateTime, accountCheckIn.getAccountCheckInId());
+			}
 
 			checkInCount++;
 		}
@@ -1151,7 +1149,7 @@ public class StudyService implements AutoCloseable {
 						FROM account_study_scheduled_message ass, scheduled_message sm
 						WHERE ass.scheduled_message_id = sm.scheduled_message_id
 						AND ast.account_study_id = ass.account_study_id
-						AND EXTRACT(EPOCH FROM NOW() at time zone a.time_zone - ass.created) / 60 < s.check_in_reminder_notification_minutes)
+						AND EXTRACT(EPOCH FROM NOW() - ass.created) / 60 < s.check_in_reminder_notification_minutes)
 						AND NOT EXISTS
 						(SELECT assm.account_study_id
 						FROM account_study_scheduled_message assm
