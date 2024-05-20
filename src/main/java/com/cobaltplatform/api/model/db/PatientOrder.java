@@ -401,6 +401,8 @@ public class PatientOrder {
 	private PatientOrderContactTypeId nextContactTypeId;
 	@Nullable
 	private LocalDateTime nextContactScheduledAt;
+	@Nullable
+	private Instant mostRecentMessageDeliveredAt;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1903,5 +1905,14 @@ public class PatientOrder {
 
 	public void setNextContactScheduledAt(@Nullable LocalDateTime nextContactScheduledAt) {
 		this.nextContactScheduledAt = nextContactScheduledAt;
+	}
+
+	@Nullable
+	public Instant getMostRecentMessageDeliveredAt() {
+		return this.mostRecentMessageDeliveredAt;
+	}
+
+	public void setMostRecentMessageDeliveredAt(@Nullable Instant mostRecentMessageDeliveredAt) {
+		this.mostRecentMessageDeliveredAt = mostRecentMessageDeliveredAt;
 	}
 }

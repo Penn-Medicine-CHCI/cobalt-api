@@ -538,8 +538,6 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
 	@Nullable
-	private PatientOrderContactTypeId lastContactTypeId;
-	@Nullable
 	private Instant lastContactedAt;
 	@Nullable
 	private String lastContactedAtDescription;
@@ -565,6 +563,10 @@ public class PatientOrderApiResponse {
 	private LocalTime nextContactScheduledAtTime;
 	@Nullable
 	private String nextContactScheduledAtTimeDescription;
+	@Nullable
+	private Instant mostRecentMessageDeliveredAt;
+	@Nullable
+	private String mostRecentMessageDeliveredAtDescription;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -1075,6 +1077,9 @@ public class PatientOrderApiResponse {
 				this.nextContactScheduledAtTime = this.nextContactScheduledAt.toLocalTime();
 				this.nextContactScheduledAtTimeDescription = formatter.formatTime(this.nextContactScheduledAtTime, FormatStyle.SHORT);
 			}
+
+			this.mostRecentMessageDeliveredAt = patientOrder.getMostRecentMessageDeliveredAt();
+			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestamp(mostRecentMessageDeliveredAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
 		}
 	}
 
@@ -2211,5 +2216,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public List<PatientOrderScheduledOutreachApiResponse> getPatientOrderScheduledOutreaches() {
 		return this.patientOrderScheduledOutreaches;
+	}
+
+	@Nullable
+	public Instant getMostRecentMessageDeliveredAt() {
+		return this.mostRecentMessageDeliveredAt;
+	}
+
+	@Nullable
+	public String getMostRecentMessageDeliveredAtDescription() {
+		return this.mostRecentMessageDeliveredAtDescription;
 	}
 }

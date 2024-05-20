@@ -80,6 +80,9 @@ FROM patient_order_scheduled_outreach poso
 LEFT JOIN account acr ON poso.created_by_account_id = acr.account_id
 LEFT JOIN account aco ON poso.completed_by_account_id = aco.account_id;
 
+-- Performance index
+CREATE INDEX idx_scheduled_message_message ON scheduled_message (message_id);
+
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
 
@@ -93,6 +96,7 @@ DROP VIEW v_all_patient_order;
 -- * last_contacted_at
 -- * next_contact_type_id
 -- * next_contact_scheduled_at
+-- * most_recent_message_delivered_at
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -211,6 +215,22 @@ next_scheduled_outreach_query AS (
 	    patient_order poq, patient_order_scheduled_outreach poso
 	    where poq.patient_order_id = poso.patient_order_id
         and poso.patient_order_scheduled_outreach_status_id = 'SCHEDULED'
+	) subquery where ranked_value=1
+),
+most_recent_message_delivered_query AS (
+    -- Pick the message that has been most recently delivered to the patient
+	select * from (
+	  select
+	    posmg.patient_order_id,
+	    ml.delivered as most_recent_message_delivered_at,
+	    rank() OVER (PARTITION BY posmg.patient_order_id ORDER BY ml.delivered DESC) as ranked_value
+	  from
+	    patient_order poq, patient_order_scheduled_message_group posmg, patient_order_scheduled_message posm, scheduled_message sm, message_log ml
+	    where poq.patient_order_id = posmg.patient_order_id
+	    and posmg.patient_order_scheduled_message_group_id=posm.patient_order_scheduled_message_group_id
+        and posm.scheduled_message_id=sm.scheduled_message_id
+        and sm.message_id=ml.message_id
+        and ml.message_status_id='DELIVERED'
 	) subquery where ranked_value=1
 ),
 ss_query AS (
@@ -488,14 +508,20 @@ select
     DATE_PART('day', (COALESCE(poq.episode_closed_at, now()) - (poq.order_date + make_interval(mins => poq.order_age_in_minutes)))) AS episode_duration_in_days,
     ed.name AS epic_department_name,
     ed.department_id AS epic_department_department_id,
+    mrmdq.most_recent_message_delivered_at,
     nsoq.next_scheduled_outreach_id,
     nsoq.next_scheduled_outreach_scheduled_at_date_time,
     nsoq.next_scheduled_outreach_type_id,
     nsoq.next_scheduled_outreach_reason_id,
     -- TODO: take the following into account (all values must be before now() in institution timezone):
-    -- 1. timestamp of most recent scheduled message group for this order
-    -- 2. timestamp of most recent screening session started by MHIC for this order
-    GREATEST(poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone) as last_contacted_at,
+    -- 1. timestamp of most recent screening session started OR scheduled by MHIC for this order
+    GREATEST(
+      mrmdq.most_recent_message_delivered_at,
+      case
+	      when poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone < now() then poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone
+	      else null
+	  end
+    ) as last_contacted_at,
     -- TODO: take the following into account:
     -- 1. ASSESSMENT should not already have been started
     -- 2. ASSESSMENT_OUTREACH: if there has been some form of outreach but no screening session started after X days
@@ -536,6 +562,7 @@ from
     left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id
     left outer join reason_for_referral_query rfrq on poq.patient_order_id=rfrq.patient_order_id
     left outer join next_scheduled_outreach_query nsoq ON poq.patient_order_id=nsoq.patient_order_id
+    left outer join most_recent_message_delivered_query mrmdq on poq.patient_order_id=mrmdq.patient_order_id
     left outer join patient_order_scheduled_message_group posmg ON poq.resource_check_in_scheduled_message_group_id=posmg.patient_order_scheduled_message_group_id AND posmg.deleted = FALSE;
 
 CREATE or replace VIEW v_patient_order AS
