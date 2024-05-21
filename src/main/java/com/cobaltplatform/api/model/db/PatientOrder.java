@@ -249,7 +249,7 @@ public class PatientOrder {
 	@Nullable
 	private LocalDateTime mostRecentOutreachDateTime;
 	@Nullable
-	private Integer scheduledMessageGroupCount;
+	private Integer scheduledMessageGroupDeliveredCount;
 	@Nullable
 	private LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime;
 	@Nullable
@@ -1179,12 +1179,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Integer getScheduledMessageGroupCount() {
-		return this.scheduledMessageGroupCount;
+	public Integer getScheduledMessageGroupDeliveredCount() {
+		return this.scheduledMessageGroupDeliveredCount;
 	}
 
-	public void setScheduledMessageGroupCount(@Nullable Integer scheduledMessageGroupCount) {
-		this.scheduledMessageGroupCount = scheduledMessageGroupCount;
+	public void setScheduledMessageGroupDeliveredCount(@Nullable Integer scheduledMessageGroupDeliveredCount) {
+		this.scheduledMessageGroupDeliveredCount = scheduledMessageGroupDeliveredCount;
 	}
 
 	@Nullable

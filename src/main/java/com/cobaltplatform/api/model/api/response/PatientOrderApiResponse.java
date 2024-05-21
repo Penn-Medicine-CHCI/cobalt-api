@@ -344,9 +344,9 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String mostRecentOutreachDateTimeDescription;
 	@Nullable
-	private Integer scheduledMessageGroupCount;
+	private Integer scheduledMessageGroupDeliveredCount;
 	@Nullable
-	private String scheduledMessageGroupCountDescription;
+	private String scheduledMessageGroupDeliveredCountDescription;
 	@Nullable
 	private LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime;
 	@Nullable
@@ -994,8 +994,8 @@ public class PatientOrderApiResponse {
 			this.outreachCountDescription = formatter.formatNumber(patientOrder.getOutreachCount() == null ? 0 : patientOrder.getOutreachCount());
 			this.mostRecentOutreachDateTime = patientOrder.getMostRecentOutreachDateTime();
 			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
-			this.scheduledMessageGroupCount = patientOrder.getScheduledMessageGroupCount();
-			this.scheduledMessageGroupCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupCount() == null ? 0 : patientOrder.getScheduledMessageGroupCount());
+			this.scheduledMessageGroupDeliveredCount = patientOrder.getScheduledMessageGroupDeliveredCount();
+			this.scheduledMessageGroupDeliveredCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupDeliveredCount() == null ? 0 : patientOrder.getScheduledMessageGroupDeliveredCount());
 			this.mostRecentDeliveredScheduledMessageGroupDateTime = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime();
 			this.mostRecentDeliveredScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
@@ -1519,13 +1519,13 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Integer getScheduledMessageGroupCount() {
-		return this.scheduledMessageGroupCount;
+	public Integer getScheduledMessageGroupDeliveredCount() {
+		return this.scheduledMessageGroupDeliveredCount;
 	}
 
 	@Nullable
-	public String getScheduledMessageGroupCountDescription() {
-		return this.scheduledMessageGroupCountDescription;
+	public String getScheduledMessageGroupDeliveredCountDescription() {
+		return this.scheduledMessageGroupDeliveredCountDescription;
 	}
 
 	@Nullable

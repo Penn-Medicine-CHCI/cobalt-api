@@ -123,6 +123,7 @@ WHERE
 --
 -- Rename columns:
 -- most_recent_scheduled_message_group_date_time to most_recent_delivered_scheduled_message_group_date_time
+-- scheduled_message_group_count to scheduled_message_group_delivered_count
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -166,16 +167,24 @@ reason_for_referral_query AS (
         poq.patient_order_id
 ),
 smg_query AS (
-    -- Count up the scheduled message groups for each patient order
+    -- Count up the scheduled message groups with a successful delivery for each patient order
     select
         poq.patient_order_id,
-        count(posmg.*) AS scheduled_message_group_count
+        count(posmg.*) AS scheduled_message_group_delivered_count
     from
         patient_order_scheduled_message_group posmg,
         patient_order poq
     where
         poq.patient_order_id = posmg.patient_order_id
-        AND posmg.deleted=FALSE
+        AND posmg.deleted=false
+        and EXISTS (
+		    SELECT ml.message_id
+		    FROM patient_order_scheduled_message posm, scheduled_message sm, message_log ml
+		    WHERE posmg.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
+		    AND posm.scheduled_message_id=sm.scheduled_message_id
+		    AND sm.message_id=ml.message_id
+		    AND ml.message_status_id='DELIVERED'
+		)
     group by
         poq.patient_order_id
 ),
@@ -338,9 +347,9 @@ select
     potg.patient_order_triage_source_id,
     coalesce(pooq.outreach_count, 0) AS outreach_count,
     poomaxq.max_outreach_date_time AS most_recent_outreach_date_time,
-    coalesce(smgq.scheduled_message_group_count, 0) AS scheduled_message_group_count,
+    coalesce(smgq.scheduled_message_group_delivered_count, 0) AS scheduled_message_group_delivered_count,
     smgmaxq.max_delivered_scheduled_message_group_date_time AS most_recent_delivered_scheduled_message_group_date_time,
-    coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_count, 0) as total_outreach_count,
+    coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_delivered_count, 0) as total_outreach_count,
     GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
     ssq.screening_session_id AS most_recent_screening_session_id,
     ssq.created AS most_recent_screening_session_created_at,
@@ -476,7 +485,7 @@ select
         AND (ssq.screening_session_id IS NULL AND rssq.scheduled_date_time IS NULL)
         -- 3. At least one outreach has been performed (either sent or scheduled)
         -- Basically total_outreach_count > 0 above
-        AND (coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_count, 0)) > 0
+        AND (coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_delivered_count, 0)) > 0
         -- 4. The most recent outreach plus the institution day offset is on or after "now" (normalized for institution timezone)
         -- Basically most_recent_total_outreach_date_time above + [institution offset] >= NOW()
         AND (
