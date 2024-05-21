@@ -154,6 +154,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1505,6 +1506,7 @@ public class PatientOrderResource {
 			throw new AuthorizationException();
 
 		LocalDateTime today = LocalDateTime.now(account.getTimeZone());
+		LocalDateTime endOfDayToday = LocalDateTime.of(today.toLocalDate(), LocalTime.MAX);
 
 		// Pull all the orders for the "today" view and chunk them up into the sections needed for the UI
 		List<PatientOrder> patientOrders = getPatientOrderService().findOpenPatientOrdersForPanelAccountId(account.getAccountId());
@@ -1530,15 +1532,15 @@ public class PatientOrderResource {
 
 		// "Follow Up"
 		List<PatientOrderApiResponse> outreachFollowupNeededPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getOutreachFollowupNeeded())
+				.filter(patientOrder -> patientOrder.getNextContactScheduledAt() != null && patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday))
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
-		// "Assessments": status == NOT_TRIAGED && patient_order_scheduled_screening_scheduled_date_time == TODAY
+		// "Assessments": status == NOT_TRIAGED && patient_order_scheduled_screening_scheduled_date_time <= TODAY
 		List<PatientOrderApiResponse> scheduledAssessmentPatientOrders = patientOrders.stream()
 				.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NOT_TRIAGED
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() != null
-						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().toLocalDate().equals(today.toLocalDate()))
+						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().isBefore(endOfDayToday))
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
