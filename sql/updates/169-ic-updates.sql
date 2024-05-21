@@ -575,6 +575,7 @@ select
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) and nsoq.next_scheduled_outreach_reason_id='RESOURCE_FOLLOWUP' THEN 'RESOURCE_FOLLOWUP'
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) and nsoq.next_scheduled_outreach_reason_id='OTHER' THEN 'OTHER'
+        when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null then 'WELCOME_MESSAGE'
         -- There has been some form of outreach but no screening session scheduled or started after X days
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poomaxq.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then 'ASSESSMENT_OUTREACH'
         ELSE NULL
@@ -582,6 +583,7 @@ select
 	CASE
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
+        when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null then current_date::timestamp AT TIME ZONE i.time_zone
         -- There has been some form of outreach but no screening session scheduled or started after X days
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poomaxq.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)))
         ELSE NULL
