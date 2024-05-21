@@ -251,7 +251,7 @@ public class PatientOrder {
 	@Nullable
 	private Integer scheduledMessageGroupCount;
 	@Nullable
-	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
+	private LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -1188,12 +1188,12 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
-		return this.mostRecentScheduledMessageGroupDateTime;
+	public LocalDateTime getMostRecentDeliveredScheduledMessageGroupDateTime() {
+		return this.mostRecentDeliveredScheduledMessageGroupDateTime;
 	}
 
-	public void setMostRecentScheduledMessageGroupDateTime(@Nullable LocalDateTime mostRecentScheduledMessageGroupDateTime) {
-		this.mostRecentScheduledMessageGroupDateTime = mostRecentScheduledMessageGroupDateTime;
+	public void setMostRecentDeliveredScheduledMessageGroupDateTime(@Nullable LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime) {
+		this.mostRecentDeliveredScheduledMessageGroupDateTime = mostRecentDeliveredScheduledMessageGroupDateTime;
 	}
 
 	@Nullable

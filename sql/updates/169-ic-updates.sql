@@ -115,11 +115,14 @@ WHERE
 -- * next_scheduled_outreach_type_id
 -- * next_scheduled_outreach_reason_id
 --
--- Add
+-- Add last/next columns:
 -- * last_contacted_at
 -- * next_contact_type_id
 -- * next_contact_scheduled_at
 -- * most_recent_message_delivered_at
+--
+-- Rename columns:
+-- most_recent_scheduled_message_group_date_time to most_recent_delivered_scheduled_message_group_date_time
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
@@ -177,15 +180,23 @@ smg_query AS (
         poq.patient_order_id
 ),
 smgmax_query AS (
-    -- Pick the most-distant scheduled message group for each patient order
+    -- Pick the most-distant scheduled message group with a successful delivery for each patient order
     select
-        posmg.patient_order_id, MAX(posmg.scheduled_at_date_time) as max_scheduled_message_group_date_time
+        posmg.patient_order_id, MAX(posmg.scheduled_at_date_time) as max_delivered_scheduled_message_group_date_time
     from
         patient_order poq,
         patient_order_scheduled_message_group posmg
     where
         poq.patient_order_id = posmg.patient_order_id
         and posmg.deleted = false
+        and EXISTS (
+		    SELECT ml.message_id
+		    FROM patient_order_scheduled_message posm, scheduled_message sm, message_log ml
+		    WHERE posmg.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
+		    AND posm.scheduled_message_id=sm.scheduled_message_id
+		    AND sm.message_id=ml.message_id
+		    AND ml.message_status_id='DELIVERED'
+		)
     group by
         posmg.patient_order_id
 ),
@@ -328,9 +339,9 @@ select
     coalesce(pooq.outreach_count, 0) AS outreach_count,
     poomaxq.max_outreach_date_time AS most_recent_outreach_date_time,
     coalesce(smgq.scheduled_message_group_count, 0) AS scheduled_message_group_count,
-    smgmaxq.max_scheduled_message_group_date_time AS most_recent_scheduled_message_group_date_time,
+    smgmaxq.max_delivered_scheduled_message_group_date_time AS most_recent_delivered_scheduled_message_group_date_time,
     coalesce(pooq.outreach_count, 0) + coalesce(smgq.scheduled_message_group_count, 0) as total_outreach_count,
-    GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
+    GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
     ssq.screening_session_id AS most_recent_screening_session_id,
     ssq.created AS most_recent_screening_session_created_at,
     ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
@@ -469,7 +480,7 @@ select
         -- 4. The most recent outreach plus the institution day offset is on or after "now" (normalized for institution timezone)
         -- Basically most_recent_total_outreach_date_time above + [institution offset] >= NOW()
         AND (
-            (GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()
+            (GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()
         ))
     ) AS outreach_followup_needed,
 
@@ -542,25 +553,25 @@ select
       case
 	      when poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone < now() then poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone
 	      else null
-	  end,
-	  -- Most recently-started intake screening session where the MHIC is the one performing it (not the patient self-assessing)
-	  case
-		  when ssiq.screening_session_id is not null and ((ssiq.target_account_id is null) OR (ssiq.target_account_id != ssiq.created_by_account_id)) then ssiq.created
-		  else null
 	  end
+	  -- Most recently-started intake screening session where the MHIC is the one performing it (not the patient self-assessing)
+	  -- Note: removing this for the time being because MHICs are required to record their outreaches, so in theory this would be recorded as well.
+	  --case
+	  --	  when ssiq.screening_session_id is not null and ((ssiq.target_account_id is null) OR (ssiq.target_account_id != ssiq.created_by_account_id)) then ssiq.created
+	  --	  else null
+	  --end
     ) as last_contacted_at,
     -- TODO: take the following into account:
-    -- 1. ASSESSMENT should not already have been started
     -- 2. ASSESSMENT_OUTREACH: if there has been some form of outreach but no screening session started after X days
     -- 3. RESOURCE_CHECK_IN: if scheduled message group for
     CASE
-        WHEN rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
+        WHEN ssq.screening_session_id is null and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) and nsoq.next_scheduled_outreach_reason_id='RESOURCE_FOLLOWUP' THEN 'RESOURCE_FOLLOWUP'
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) and nsoq.next_scheduled_outreach_reason_id='OTHER' THEN 'OTHER'
         ELSE NULL
     END as next_contact_type_id,
 	CASE
-        WHEN rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time
+        WHEN ssq.screening_session_id is null and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(nsoq.next_scheduled_outreach_scheduled_at_date_time, rssq.scheduled_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
         ELSE NULL
     END as next_contact_scheduled_at,

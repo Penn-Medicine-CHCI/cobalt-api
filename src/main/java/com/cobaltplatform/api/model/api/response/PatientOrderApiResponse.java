@@ -348,9 +348,9 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String scheduledMessageGroupCountDescription;
 	@Nullable
-	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
+	private LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime;
 	@Nullable
-	private String mostRecentScheduledMessageGroupDateTimeDescription;
+	private String mostRecentDeliveredScheduledMessageGroupDateTimeDescription;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -996,8 +996,8 @@ public class PatientOrderApiResponse {
 			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.scheduledMessageGroupCount = patientOrder.getScheduledMessageGroupCount();
 			this.scheduledMessageGroupCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupCount() == null ? 0 : patientOrder.getScheduledMessageGroupCount());
-			this.mostRecentScheduledMessageGroupDateTime = patientOrder.getMostRecentScheduledMessageGroupDateTime();
-			this.mostRecentScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.mostRecentDeliveredScheduledMessageGroupDateTime = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime();
+			this.mostRecentDeliveredScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
 			this.mostRecentScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName();
 			this.mostRecentScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName()).orElse(null);
@@ -1529,13 +1529,13 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
-		return this.mostRecentScheduledMessageGroupDateTime;
+	public LocalDateTime getMostRecentDeliveredScheduledMessageGroupDateTime() {
+		return this.mostRecentDeliveredScheduledMessageGroupDateTime;
 	}
 
 	@Nullable
-	public String getMostRecentScheduledMessageGroupDateTimeDescription() {
-		return this.mostRecentScheduledMessageGroupDateTimeDescription;
+	public String getMostRecentDeliveredScheduledMessageGroupDateTimeDescription() {
+		return this.mostRecentDeliveredScheduledMessageGroupDateTimeDescription;
 	}
 
 	@Nullable
