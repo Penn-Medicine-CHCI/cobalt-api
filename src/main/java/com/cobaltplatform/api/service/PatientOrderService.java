@@ -958,8 +958,11 @@ public class PatientOrderService implements AutoCloseable {
 		whereClauseLines.add("AND patient_order_disposition_id=?");
 		parameters.add(PatientOrderDispositionId.OPEN);
 		whereClauseLines.add("AND next_contact_type_id IS NOT NULL");
-		whereClauseLines.add("AND next_contact_type_id != ?");
-		parameters.add(PatientOrderContactTypeId.RESOURCE_CHECK_IN);
+		whereClauseLines.add("AND next_contact_type_id IN (?,?,?,?)");
+		parameters.add(PatientOrderContactTypeId.ASSESSMENT_OUTREACH);
+		parameters.add(PatientOrderContactTypeId.ASSESSMENT);
+		parameters.add(PatientOrderContactTypeId.OTHER);
+		parameters.add(PatientOrderContactTypeId.RESOURCE_FOLLOWUP);
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -1369,9 +1372,12 @@ public class PatientOrderService implements AutoCloseable {
 				// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
 				whereClauseLines.add("AND po.patient_order_disposition_id=?");
 				parameters.add(PatientOrderDispositionId.OPEN);
-				whereClauseLines.add("AND po.next_contact_type_id IS NOT NULL");
-				whereClauseLines.add("AND po.next_contact_type_id != ?");
-				parameters.add(PatientOrderContactTypeId.RESOURCE_CHECK_IN);
+				whereClauseLines.add("AND po.next_contact_type_id IN (?,?,?,?)");
+				parameters.add(PatientOrderContactTypeId.ASSESSMENT_OUTREACH);
+				parameters.add(PatientOrderContactTypeId.ASSESSMENT);
+				parameters.add(PatientOrderContactTypeId.OTHER);
+				parameters.add(PatientOrderContactTypeId.RESOURCE_FOLLOWUP);
+
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
 				// Need Assessment: Patients that have not started or been scheduled for an assessment
 				// Definition:

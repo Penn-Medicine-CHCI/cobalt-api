@@ -26,6 +26,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public enum PatientOrderContactTypeId {
+	WELCOME_MESSAGE,
 	ASSESSMENT_OUTREACH, // TODO: this means that if the welcome message has been sent but no screening session has been started, this should be "do it asap"
 	ASSESSMENT, // patient_order_scheduled_screening scheduled and has not been started
 	RESOURCE_FOLLOWUP, // patient_order_scheduled_outreach with reason RESOURCE_FOLLOWUP

@@ -108,6 +108,7 @@ import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
+import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
 import com.cobaltplatform.api.model.service.PatientOrderOutreachStatusId;
@@ -1530,9 +1531,19 @@ public class PatientOrderResource {
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
+		Set<PatientOrderContactTypeId> validFollowUpContactTypeIds = Set.of(
+				PatientOrderContactTypeId.ASSESSMENT_OUTREACH,
+				PatientOrderContactTypeId.ASSESSMENT,
+				PatientOrderContactTypeId.OTHER,
+				PatientOrderContactTypeId.RESOURCE_FOLLOWUP
+		);
+
 		// "Follow Up"
 		List<PatientOrderApiResponse> outreachFollowupNeededPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getNextContactScheduledAt() != null && patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday))
+				.filter(patientOrder -> patientOrder.getNextContactScheduledAt() != null
+						&& patientOrder.getNextContactTypeId() != null
+						&& validFollowUpContactTypeIds.contains(patientOrder.getNextContactTypeId())
+						&& patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday))
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 
