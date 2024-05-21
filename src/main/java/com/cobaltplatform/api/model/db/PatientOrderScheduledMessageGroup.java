@@ -54,6 +54,8 @@ public class PatientOrderScheduledMessageGroup {
 
 	@Nullable
 	private Boolean scheduledAtDateTimeHasPassed;
+	@Nullable
+	private Boolean atLeastOneMessageDelivered;
 
 	@Nullable
 	public UUID getPatientOrderScheduledMessageGroupId() {
@@ -134,5 +136,14 @@ public class PatientOrderScheduledMessageGroup {
 
 	public void setScheduledAtDateTimeHasPassed(@Nullable Boolean scheduledAtDateTimeHasPassed) {
 		this.scheduledAtDateTimeHasPassed = scheduledAtDateTimeHasPassed;
+	}
+
+	@Nullable
+	public Boolean getAtLeastOneMessageDelivered() {
+		return this.atLeastOneMessageDelivered;
+	}
+
+	public void setAtLeastOneMessageDelivered(@Nullable Boolean atLeastOneMessageDelivered) {
+		this.atLeastOneMessageDelivered = atLeastOneMessageDelivered;
 	}
 }

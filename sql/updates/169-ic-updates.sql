@@ -85,6 +85,29 @@ CREATE INDEX idx_scheduled_message_message ON scheduled_message (message_id);
 
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
+DROP VIEW v_patient_order_scheduled_message_group;
+
+-- Add 'at_least_one_message_delivered' column
+CREATE VIEW v_patient_order_scheduled_message_group AS
+SELECT
+  posmg.*,
+  posmg.scheduled_at_date_time AT TIME ZONE i.time_zone < NOW() AS scheduled_at_date_time_has_passed,
+  EXISTS (
+    SELECT ml.message_id
+    FROM patient_order_scheduled_message posm, scheduled_message sm, message_log ml
+    WHERE posmg.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
+    AND posm.scheduled_message_id=sm.scheduled_message_id
+    AND sm.message_id=ml.message_id
+    AND ml.message_status_id='DELIVERED'
+  ) AS at_least_one_message_delivered
+FROM
+  patient_order_scheduled_message_group posmg,
+  patient_order po,
+  institution i
+WHERE
+  posmg.patient_order_id=po.patient_order_id
+  AND po.institution_id=i.institution_id
+  AND posmg.deleted = FALSE;
 
 -- Add additional columns for next scheduled outreach:
 -- * next_scheduled_outreach_id
