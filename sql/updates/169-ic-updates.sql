@@ -280,17 +280,15 @@ permitted_regions_query AS (
 ),
 recent_scheduled_screening_query AS (
     -- Pick the most recently-scheduled screening for the patient order
-    select
-        poss.*
-    from
-        patient_order poq
-        join patient_order_scheduled_screening poss on poq.patient_order_id = poss.patient_order_id
-        left join patient_order_scheduled_screening poss2 ON poss.patient_order_id = poss2.patient_order_id
-        and poss.scheduled_date_time < poss2.scheduled_date_time
-        and poss2.canceled = false
-    where
-        poss2.patient_order_scheduled_screening_id is NULL
-        and poss.canceled = false
+	select * from (
+	  select
+	    poss.*,
+	    rank() OVER (PARTITION BY poss.patient_order_id ORDER BY poss.scheduled_date_time) as ranked_value
+	  from
+	    patient_order poq, patient_order_scheduled_screening poss
+	    where poq.patient_order_id = poss.patient_order_id
+	    and poss.canceled=FALSE
+	) subquery where ranked_value=1
 ), recent_po_query AS (
     -- Get the last order based on the order date for this patient
     select
@@ -513,13 +511,19 @@ select
     nsoq.next_scheduled_outreach_scheduled_at_date_time,
     nsoq.next_scheduled_outreach_type_id,
     nsoq.next_scheduled_outreach_reason_id,
-    -- TODO: take the following into account (all values must be before now() in institution timezone):
-    -- 1. timestamp of most recent screening session started OR scheduled by MHIC for this order
+    -- TODO: do we need to also take the most recently scheduled screening session for this order into account?
     GREATEST(
+      -- Most recent message delivery timestamp
       mrmdq.most_recent_message_delivered_at,
+      -- Most recent recorded outreach record that is before "now"
       case
 	      when poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone < now() then poomaxq.max_outreach_date_time AT TIME ZONE i.time_zone
 	      else null
+	  end,
+	  -- Most recently-started intake screening session where the MHIC is the one performing it (not the patient self-assessing)
+	  case
+		  when ssiq.screening_session_id is not null and ((ssiq.target_account_id is null) OR (ssiq.target_account_id != ssiq.created_by_account_id)) then ssiq.created
+		  else null
 	  end
     ) as last_contacted_at,
     -- TODO: take the following into account:
