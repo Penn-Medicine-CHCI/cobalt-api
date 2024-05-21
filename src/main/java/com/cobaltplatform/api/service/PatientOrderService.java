@@ -1485,6 +1485,8 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
 				List<String> filterFlagWhereClauseLines = new ArrayList<>();
 
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_NEVER_CONTACTED))
+					filterFlagWhereClauseLines.add("po.last_contacted_at IS NULL");
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NO_INTEREST)) {
 					filterFlagWhereClauseLines.add("po.patient_order_intake_wants_services_status_id=?");

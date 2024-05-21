@@ -24,6 +24,7 @@ package com.cobaltplatform.api.model.service;
  */
 public enum PatientOrderFilterFlagTypeId {
 	NONE,
+	PATIENT_NEVER_CONTACTED,
 	PATIENT_BELOW_AGE_THRESHOLD,
 	MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD,
 	NO_INTEREST,
