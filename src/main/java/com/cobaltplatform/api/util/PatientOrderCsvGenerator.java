@@ -583,8 +583,10 @@ public class PatientOrderCsvGenerator {
 			long orderIdBase = Instant.now().toEpochMilli() / 1_000;
 
 			for (int i = 0; i < numberOfRows; ++i) {
-				FakeDepartment encounterFakeDepartment = pickRandomElement(getFakeDepartments());
-				FakeDepartment referringPractice = pickRandomElement(getFakeDepartments());
+				FakeDepartment fakeDepartment = new FakeDepartment("9999", "ZZZTest Department");
+				FakeDepartment encounterFakeDepartment = fakeDepartment;
+				FakeDepartment referringPractice = fakeDepartment;
+
 				FakeProvider orderingProvider = pickRandomElement(getFakeProviders());
 				FakeProvider billingProvider = pickRandomElement(getFakeProviders());
 				FakePayor primaryPayor = pickRandomElement(getFakePayors());

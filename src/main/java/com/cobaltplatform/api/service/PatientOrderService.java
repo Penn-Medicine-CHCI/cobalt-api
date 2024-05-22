@@ -48,8 +48,10 @@ import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ArchivePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.AssignPatientOrdersRequest;
+import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CancelPatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.CompletePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CompletePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderEventRequest;
@@ -60,6 +62,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
@@ -82,11 +85,13 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckI
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledMessageGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -119,6 +124,7 @@ import com.cobaltplatform.api.model.db.PatientOrderMedication;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachResult;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderReferral;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
@@ -131,6 +137,9 @@ import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreach;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledOutreachStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledScreening;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
@@ -147,6 +156,7 @@ import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
+import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.EpicDepartmentPatientOrderImportDisabledException;
@@ -154,6 +164,7 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
+import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderFilterFlagTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderImportResult;
@@ -210,6 +221,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.format.TextStyle;
@@ -270,6 +283,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Provider<ScreeningService> screeningServiceProvider;
 	@Nonnull
+	private final Provider<AuthorizationService> authorizationServiceProvider;
+	@Nonnull
 	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -307,6 +322,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<MessageService> messageServiceProvider,
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 														 @Nonnull Provider<ScreeningService> screeningServiceProvider,
+														 @Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
@@ -322,6 +338,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(messageServiceProvider);
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(screeningServiceProvider);
+		requireNonNull(authorizationServiceProvider);
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
@@ -338,6 +355,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.messageServiceProvider = messageServiceProvider;
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.screeningServiceProvider = screeningServiceProvider;
+		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
@@ -764,7 +782,8 @@ public class PatientOrderService implements AutoCloseable {
 			return List.of();
 
 		// Panel accounts are either MHICs or any account that has been assigned to manage a panel
-		// (this might be some kind of administrator, for example)
+		// (this might be some kind of administrator, for example).
+		// Different from "order servicers" because this list can include MHICs who have had their access removed.
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM account
@@ -772,6 +791,25 @@ public class PatientOrderService implements AutoCloseable {
 				AND (role_id=? OR account_id IN (SELECT panel_account_id FROM patient_order WHERE institution_id=?))
 				ORDER BY first_name, last_name, account_id
 				""", Account.class, institutionId, RoleId.MHIC, institutionId);
+	}
+
+	@Nonnull
+	public List<Account> findOrderServicerAccountsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		// People who are currently permitted to service orders.
+		// Different from "panel accounts" because this is the current set of people who can have orders assigned to them.
+		// Panel accounts can include, for example, MHICs who previously were assigned orders but have since had their access removed
+		return getDatabase().queryForList("""
+				SELECT a.*
+				FROM account a, account_capability ac
+				WHERE a.institution_id=?
+				AND a.role_id=?
+				AND a.account_id=ac.account_id
+				AND ac.account_capability_type_id=?
+				ORDER BY a.first_name, a.last_name, a.account_id
+				""", Account.class, institutionId, RoleId.MHIC, AccountCapabilityTypeId.MHIC_ORDER_SERVICER);
 	}
 
 	@Nonnull
@@ -812,6 +850,9 @@ public class PatientOrderService implements AutoCloseable {
 
 		// NEED_DOCUMENTATION
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, findNeedDocumentationPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+
+		// SCHEDULED_OUTREACH
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, findScheduledOutreachPatientOrderCountForInstitutionId(institutionId, panelAccountId));
 
 		// SUBCLINICAL
 		// MHP
@@ -882,6 +923,46 @@ public class PatientOrderService implements AutoCloseable {
 		parameters.add(PatientOrderDispositionId.OPEN);
 		whereClauseLines.add("AND patient_order_encounter_documentation_status_id=?");
 		parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
+
+		if (panelAccountId != null) {
+			whereClauseLines.add("AND panel_account_id=?");
+			parameters.add(panelAccountId);
+		}
+
+		String sql = """
+				  SELECT COUNT(*)
+				  FROM v_patient_order
+				  WHERE institution_id=?
+				  {{whereClauseLines}}
+				""".trim()
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")));
+
+		return getDatabase().queryForObject(sql, Integer.class, sqlVaragsParameters(parameters)).get();
+	}
+
+	@Nonnull
+	public Integer findScheduledOutreachPatientOrderCountForInstitutionId(@Nullable InstitutionId institutionId,
+																																				@Nullable UUID panelAccountId) {
+		if (institutionId == null)
+			return 0;
+
+		List<String> whereClauseLines = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+
+		// Scheduled Outreach: If there is a scheduled outreach
+		// Definition:
+		// Order State = Open
+		// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
+		whereClauseLines.add("AND patient_order_disposition_id=?");
+		parameters.add(PatientOrderDispositionId.OPEN);
+		whereClauseLines.add("AND next_contact_type_id IS NOT NULL");
+		whereClauseLines.add("AND next_contact_type_id IN (?,?,?,?)");
+		parameters.add(PatientOrderContactTypeId.ASSESSMENT_OUTREACH);
+		parameters.add(PatientOrderContactTypeId.ASSESSMENT);
+		parameters.add(PatientOrderContactTypeId.OTHER);
+		parameters.add(PatientOrderContactTypeId.RESOURCE_FOLLOWUP);
 
 		if (panelAccountId != null) {
 			whereClauseLines.add("AND panel_account_id=?");
@@ -1120,11 +1201,25 @@ public class PatientOrderService implements AutoCloseable {
 		if (assignedByAccountId == null)
 			validationException.add(new FieldError("assignedByAccountId", getStrings().get("Assigned-by Account ID is required.")));
 
-		if (panelAccountId == null)
+		if (panelAccountId == null) {
 			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
+		} else {
+			Account panelAccount = getAccountService().findAccountById(panelAccountId).orElse(null);
+
+			if (panelAccount == null)
+				validationException.add(getStrings().get("Invalid account specified."));
+
+			AccountCapabilityFlags accountCapabilityFlags = getAuthorizationService().determineAccountCapabilityFlagsForAccount(panelAccount);
+
+			if (!accountCapabilityFlags.isCanServiceIcOrders())
+				validationException.add(getStrings().get("This account is not authorized to be assigned to an order."));
+		}
 
 		if (patientOrderIds.size() == 0)
 			validationException.add(new FieldError("patientOrderIds", getStrings().get("Please select at least one order to assign.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
 
 		int assignedCount = 0;
 
@@ -1270,6 +1365,19 @@ public class PatientOrderService implements AutoCloseable {
 				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_encounter_documentation_status_id=?");
 				parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED_OUTREACH) {
+				// Scheduled Outreach: If there is a scheduled outreach
+				// Definition:
+				// Order State = Open
+				// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.next_contact_type_id IN (?,?,?,?)");
+				parameters.add(PatientOrderContactTypeId.ASSESSMENT_OUTREACH);
+				parameters.add(PatientOrderContactTypeId.ASSESSMENT);
+				parameters.add(PatientOrderContactTypeId.OTHER);
+				parameters.add(PatientOrderContactTypeId.RESOURCE_FOLLOWUP);
+
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
 				// Need Assessment: Patients that have not started or been scheduled for an assessment
 				// Definition:
@@ -1383,6 +1491,8 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
 				List<String> filterFlagWhereClauseLines = new ArrayList<>();
 
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_NEVER_CONTACTED))
+					filterFlagWhereClauseLines.add("po.last_contacted_at IS NULL");
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NO_INTEREST)) {
 					filterFlagWhereClauseLines.add("po.patient_order_intake_wants_services_status_id=?");
@@ -2166,6 +2276,18 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<PatientOrderOutreachResult> findPatientOrderOutreachResultById(@Nullable UUID patientOrderOutreachResultId) {
+		if (patientOrderOutreachResultId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_patient_order_outreach_result
+				WHERE patient_order_outreach_result_id=?
+				""", PatientOrderOutreachResult.class, patientOrderOutreachResultId);
+	}
+
+	@Nonnull
 	public List<PatientOrderOutreachResult> findPatientOrderOutreachResults() {
 		return getDatabase().queryForList("""
 				SELECT *
@@ -2181,11 +2303,12 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID patientOrderOutreachResultId = request.getPatientOrderOutreachResultId();
+		UUID patientOrderScheduledOutreachId = request.getPatientOrderScheduledOutreachId();
 		String note = trimToNull(request.getNote());
 		LocalDate outreachDate = request.getOutreachDate();
 		String outreachTimeAsString = trimToNull(request.getOutreachTime());
 		PatientOrder patientOrder;
-		LocalTime outreachTime = null;
+		LocalTime outreachTime = request.getOutreachTimeAsLocalTime();
 		UUID patientOrderOutreachId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
@@ -2207,14 +2330,16 @@ public class PatientOrderService implements AutoCloseable {
 		if (outreachDate == null)
 			validationException.add(new FieldError("outreachDate", getStrings().get("Outreach date is required.")));
 
-		if (outreachTimeAsString == null) {
-			validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is required.")));
-		} else {
-			// TODO: support other locales
-			outreachTime = getNormalizer().normalizeTime(outreachTimeAsString, Locale.US).orElse(null);
+		if (outreachTime == null) {
+			if (outreachTimeAsString == null) {
+				validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is required.")));
+			} else {
+				// TODO: support other locales
+				outreachTime = getNormalizer().normalizeTime(outreachTimeAsString, Locale.US).orElse(null);
 
-			if (outreachTime == null)
-				validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is invalid.")));
+				if (outreachTime == null)
+					validationException.add(new FieldError("outreachTime", getStrings().get("Outreach time is invalid.")));
+			}
 		}
 
 		if (validationException.hasErrors())
@@ -2224,9 +2349,15 @@ public class PatientOrderService implements AutoCloseable {
 
 		getDatabase().execute("""
 				INSERT INTO patient_order_outreach (
-				patient_order_outreach_id, patient_order_id, account_id, patient_order_outreach_result_id, note, outreach_date_time
-				) VALUES (?,?,?,?,?,?)
-				""", patientOrderOutreachId, patientOrderId, accountId, patientOrderOutreachResultId, note, outreachDateTime);
+				patient_order_outreach_id,
+				patient_order_id,
+				account_id,
+				patient_order_outreach_result_id,
+				note,
+				outreach_date_time,
+				patient_order_scheduled_outreach_id
+				) VALUES (?,?,?,?,?,?,?)
+				""", patientOrderOutreachId, patientOrderId, accountId, patientOrderOutreachResultId, note, outreachDateTime, patientOrderScheduledOutreachId);
 
 		createPatientOrderEvent(new CreatePatientOrderEventRequest() {{
 			setPatientOrderEventTypeId(PatientOrderEventTypeId.OUTREACH_CREATED);
@@ -3124,7 +3255,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
-		UUID panelAccountId = request.getPanelAccountId();
 		String message = trimToNull(request.getMessage());
 		PatientOrder patientOrder = null;
 		UUID patientOrderVoicemailTaskId = UUID.randomUUID();
@@ -3152,9 +3282,6 @@ public class PatientOrderService implements AutoCloseable {
 		if (createdByAccountId == null)
 			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-By Account ID is required.")));
 
-		if (panelAccountId == null)
-			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
-
 		if (message == null)
 			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
 
@@ -3170,15 +3297,6 @@ public class PatientOrderService implements AutoCloseable {
 				) VALUES (?,?,?,?)
 				""", patientOrderVoicemailTaskId, patientOrderId, createdByAccountId, message);
 
-		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
-			getLogger().debug("As a side effect of creating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
-					patientOrderId, panelAccountId);
-
-			assignPatientOrderToPanelAccount(patientOrderId, panelAccountId, createdByAccountId);
-		}
-
-		// TODO: track changes
-
 		return patientOrderVoicemailTaskId;
 	}
 
@@ -3188,7 +3306,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
 		UUID updatedByAccountId = request.getUpdatedByAccountId();
-		UUID panelAccountId = request.getPanelAccountId();
 		String message = trimToNull(request.getMessage());
 		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
 		PatientOrder patientOrder = null;
@@ -3212,9 +3329,6 @@ public class PatientOrderService implements AutoCloseable {
 		if (updatedByAccountId == null)
 			validationException.add(new FieldError("updatedByAccountId", getStrings().get("Updated-By Account ID is required.")));
 
-		if (panelAccountId == null)
-			validationException.add(new FieldError("panelAccountId", getStrings().get("Panel Account ID is required.")));
-
 		if (message == null)
 			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
 
@@ -3226,15 +3340,6 @@ public class PatientOrderService implements AutoCloseable {
 				SET message=?
 				WHERE patient_order_voicemail_task_id=?
 				""", message, patientOrderVoicemailTaskId) > 0;
-
-		if (!Objects.equals(patientOrder.getPanelAccountId(), panelAccountId)) {
-			getLogger().debug("As a side effect of updating a voicemail task, assigning Patient Order ID {} to Panel Account ID {}...",
-					patientOrderVoicemailTask.getPatientOrderId(), panelAccountId);
-
-			assignPatientOrderToPanelAccount(patientOrderVoicemailTask.getPatientOrderId(), panelAccountId, updatedByAccountId);
-		}
-
-		// TODO: track changes
 
 		return updated;
 	}
@@ -3308,6 +3413,309 @@ public class PatientOrderService implements AutoCloseable {
 				""", completedByAccountId, patientOrderVoicemailTaskId);
 
 		// TODO: track changes
+	}
+
+
+	@Nonnull
+	public Optional<PatientOrderScheduledOutreach> findPatientOrderScheduledOutreachById(@Nullable UUID patientOrderScheduledOutreachId) {
+		if (patientOrderScheduledOutreachId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_patient_order_scheduled_outreach
+				WHERE patient_order_scheduled_outreach_id=?
+				AND patient_order_scheduled_outreach_status_id != ?
+				""", PatientOrderScheduledOutreach.class, patientOrderScheduledOutreachId, PatientOrderScheduledOutreachStatusId.CANCELED);
+	}
+
+	@Nonnull
+	public List<PatientOrderScheduledOutreach> findPatientOrderScheduledOutreachesByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_patient_order_scheduled_outreach
+				WHERE patient_order_id=?
+				AND patient_order_scheduled_outreach_status_id != ?
+				ORDER BY scheduled_at_date_time
+				""", PatientOrderScheduledOutreach.class, patientOrderId, PatientOrderScheduledOutreachStatusId.CANCELED);
+	}
+
+	@Nonnull
+	public List<PatientOrderScheduledOutreach> findPatientOrderScheduledOutreachesByPatientOrderId(@Nullable UUID patientOrderId,
+																																																 @Nullable PatientOrderScheduledOutreachStatusId patientOrderScheduledOutreachStatusId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		if (patientOrderScheduledOutreachStatusId == null)
+			return findPatientOrderScheduledOutreachesByPatientOrderId(patientOrderId);
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_patient_order_scheduled_outreach
+				WHERE patient_order_id=?
+				AND patient_order_scheduled_outreach_status_id = ?
+				ORDER BY scheduled_at_date_time
+				""", PatientOrderScheduledOutreach.class, patientOrderId, patientOrderScheduledOutreachStatusId);
+	}
+
+	@Nonnull
+	public UUID createPatientOrderScheduledOutreach(@Nonnull CreatePatientOrderScheduledOutreachRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrderOutreachTypeId patientOrderOutreachTypeId = request.getPatientOrderOutreachTypeId();
+		PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId = request.getPatientOrderScheduledOutreachReasonId();
+		LocalDate scheduledAtDate = request.getScheduledAtDate();
+		LocalTime scheduledAtTime = request.getScheduledAtTime();
+		PatientOrder patientOrder;
+		UUID patientOrderScheduledOutreachId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (createdByAccountId == null)
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-By Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (patientOrderOutreachTypeId == null)
+			validationException.add(new FieldError("patientOrderOutreachTypeId", getStrings().get("Scheduled outreach type is required.")));
+
+		if (patientOrderScheduledOutreachReasonId == null)
+			validationException.add(new FieldError("patientOrderScheduledOutreachReasonId", getStrings().get("Scheduled outreach reason is required.")));
+
+		if (scheduledAtDate == null)
+			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Date is required.")));
+
+		if (scheduledAtTime == null)
+			validationException.add(new FieldError("scheduledAtTime", getStrings().get("Time is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		LocalDateTime scheduledAtDateTime = LocalDateTime.of(scheduledAtDate, scheduledAtTime);
+
+		getDatabase().execute("""
+						INSERT INTO patient_order_scheduled_outreach (
+						    patient_order_scheduled_outreach_id,
+						    patient_order_id,
+						    patient_order_outreach_type_id,
+						    patient_order_scheduled_outreach_reason_id,
+						    patient_order_scheduled_outreach_status_id,
+						    created_by_account_id,
+						    scheduled_at_date_time,
+						    message
+						) VALUES (?,?,?,?,?,?,?,?)
+						""", patientOrderScheduledOutreachId, patientOrderId, patientOrderOutreachTypeId,
+				patientOrderScheduledOutreachReasonId, PatientOrderScheduledOutreachStatusId.SCHEDULED, createdByAccountId,
+				scheduledAtDateTime, message);
+
+		return patientOrderScheduledOutreachId;
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderScheduledOutreach(@Nonnull UpdatePatientOrderScheduledOutreachRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderScheduledOutreachId = request.getPatientOrderScheduledOutreachId();
+		UUID updatedByAccountId = request.getUpdatedByAccountId();
+		String message = trimToNull(request.getMessage());
+		PatientOrderOutreachTypeId patientOrderOutreachTypeId = request.getPatientOrderOutreachTypeId();
+		PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId = request.getPatientOrderScheduledOutreachReasonId();
+		LocalDate scheduledAtDate = request.getScheduledAtDate();
+		LocalTime scheduledAtTime = request.getScheduledAtTime();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderScheduledOutreachId == null) {
+			validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is required.")));
+		} else {
+			PatientOrderScheduledOutreach patientOrderScheduledOutreach = findPatientOrderScheduledOutreachById(patientOrderScheduledOutreachId).orElse(null);
+
+			if (patientOrderScheduledOutreach == null) {
+				validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is invalid.")));
+			} else {
+				if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.CANCELED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("You cannot update a canceled scheduled outreach.")));
+				else if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.COMPLETED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("You cannot update a completed scheduled outreach.")));
+			}
+		}
+
+		if (updatedByAccountId == null)
+			validationException.add(new FieldError("updatedByAccountId", getStrings().get("Updated-By Account ID is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (patientOrderOutreachTypeId == null)
+			validationException.add(new FieldError("patientOrderOutreachTypeId", getStrings().get("Scheduled outreach type is required.")));
+
+		if (patientOrderScheduledOutreachReasonId == null)
+			validationException.add(new FieldError("patientOrderScheduledOutreachReasonId", getStrings().get("Scheduled outreach reason is required.")));
+
+		if (scheduledAtDate == null)
+			validationException.add(new FieldError("scheduledAtDate", getStrings().get("Date is required.")));
+
+		if (scheduledAtTime == null)
+			validationException.add(new FieldError("scheduledAtTime", getStrings().get("Time is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getDatabase().execute("""
+						UPDATE
+						patient_order_scheduled_outreach
+						SET
+						patient_order_outreach_type_id=?,
+						patient_order_scheduled_outreach_reason_id=?,
+						message=?,
+						updated_by_account_id=?,
+						scheduled_at_date_time=?
+						WHERE
+						patient_order_scheduled_outreach_id=?
+						""", patientOrderOutreachTypeId, patientOrderScheduledOutreachReasonId, message,
+				updatedByAccountId, LocalDateTime.of(scheduledAtDate, scheduledAtTime), patientOrderScheduledOutreachId) > 0;
+	}
+
+	@Nonnull
+	public Boolean cancelPatientOrderScheduledOutreach(@Nonnull CancelPatientOrderScheduledOutreachRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderScheduledOutreachId = request.getPatientOrderScheduledOutreachId();
+		UUID canceledByAccountId = request.getCanceledByAccountId();
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderScheduledOutreachId == null) {
+			validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is required.")));
+		} else {
+			PatientOrderScheduledOutreach patientOrderScheduledOutreach = findPatientOrderScheduledOutreachById(patientOrderScheduledOutreachId).orElse(null);
+
+			if (patientOrderScheduledOutreach == null) {
+				validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is invalid.")));
+			} else {
+				if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.CANCELED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("This scheduled outreach is already canceled.")));
+				else if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.COMPLETED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("You cannot cancel a completed scheduled outreach.")));
+			}
+		}
+
+		if (canceledByAccountId == null)
+			validationException.add(new FieldError("canceledByAccountId", getStrings().get("Canceled-By Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getDatabase().execute("""
+				UPDATE
+				patient_order_scheduled_outreach
+				SET
+				patient_order_scheduled_outreach_status_id=?,
+				canceled_by_account_id=?,
+				canceled_at=NOW()
+				WHERE
+				patient_order_scheduled_outreach_id=?
+				""", PatientOrderScheduledOutreachStatusId.CANCELED, canceledByAccountId, patientOrderScheduledOutreachId) > 0;
+	}
+
+	@Nonnull
+	public Boolean completePatientOrderScheduledOutreach(@Nonnull CompletePatientOrderScheduledOutreachRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderScheduledOutreachId = request.getPatientOrderScheduledOutreachId();
+		UUID completedByAccountId = request.getCompletedByAccountId();
+		UUID patientOrderOutreachResultId = request.getPatientOrderOutreachResultId();
+		String message = trimToNull(request.getMessage());
+		LocalDate completedAtDate = request.getCompletedAtDate();
+		LocalTime completedAtTime = request.getCompletedAtTime();
+		PatientOrderScheduledOutreach patientOrderScheduledOutreach = null;
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderScheduledOutreachId == null) {
+			validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is required.")));
+		} else {
+			patientOrderScheduledOutreach = findPatientOrderScheduledOutreachById(patientOrderScheduledOutreachId).orElse(null);
+
+			if (patientOrderScheduledOutreach == null) {
+				validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("Patient Order Scheduled Outreach ID is invalid.")));
+			} else {
+				if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.CANCELED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("You cannot complete a canceled scheduled outreach.")));
+				else if (patientOrderScheduledOutreach.getPatientOrderScheduledOutreachStatusId() == PatientOrderScheduledOutreachStatusId.COMPLETED)
+					validationException.add(new FieldError("patientOrderScheduledOutreachId", getStrings().get("You cannot complete a completed scheduled outreach.")));
+			}
+		}
+
+		if (completedByAccountId == null)
+			validationException.add(new FieldError("completedByAccountId", getStrings().get("Completed-By Account ID is required.")));
+
+		if (patientOrderOutreachResultId == null) {
+			validationException.add(new FieldError("patientOrderOutreachResultId", getStrings().get("Outreach result type is required.")));
+		} else {
+			PatientOrderOutreachResult patientOrderOutreachResult = findPatientOrderOutreachResultById(patientOrderOutreachResultId).orElse(null);
+
+			if (patientOrderOutreachResult == null)
+				validationException.add(new FieldError("patientOrderOutreachResultId", getStrings().get("Outreach result type is invalid.")));
+			else if (patientOrderScheduledOutreach != null && !patientOrderScheduledOutreach.getPatientOrderOutreachTypeId().equals(patientOrderOutreachResult.getPatientOrderOutreachTypeId()))
+				validationException.add(new FieldError("patientOrderOutreachResultId", getStrings().get("Outreach result type does not match outreach type.")));
+		}
+
+		if (completedAtDate == null)
+			validationException.add(new FieldError("completedAtDate", getStrings().get("Date is required.")));
+
+		if (completedAtTime == null)
+			validationException.add(new FieldError("completedAtTime", getStrings().get("Time is required.")));
+
+		if (message == null)
+			validationException.add(new FieldError("message", getStrings().get("Message is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Account account = getAccountService().findAccountById(completedByAccountId).get();
+
+		LocalDateTime completedAtDateTime = LocalDateTime.of(completedAtDate, completedAtTime);
+		Instant completedAt = ZonedDateTime.of(completedAtDateTime, account.getTimeZone()).toInstant();
+
+		boolean completed = getDatabase().execute("""
+				UPDATE
+				patient_order_scheduled_outreach
+				SET
+				patient_order_scheduled_outreach_status_id=?,
+				completed_by_account_id=?,
+				completed_at=?
+				WHERE
+				patient_order_scheduled_outreach_id=?
+				""", PatientOrderScheduledOutreachStatusId.COMPLETED, completedByAccountId, completedAt, patientOrderScheduledOutreachId) > 0;
+
+		if (completed) {
+			// As a side effect of completion, add to the list of outreaches
+			CreatePatientOrderOutreachRequest outreachRequest = new CreatePatientOrderOutreachRequest();
+			outreachRequest.setAccountId(completedByAccountId);
+			outreachRequest.setPatientOrderId(patientOrderScheduledOutreach.getPatientOrderId());
+			outreachRequest.setPatientOrderScheduledOutreachId(patientOrderScheduledOutreachId);
+			outreachRequest.setPatientOrderOutreachResultId(patientOrderOutreachResultId);
+			outreachRequest.setOutreachDate(completedAtDate);
+			outreachRequest.setOutreachTimeAsLocalTime(completedAtTime);
+			outreachRequest.setNote(message);
+
+			createPatientOrderOutreach(outreachRequest);
+		}
+
+		return completed;
 	}
 
 	@Nonnull
@@ -4355,7 +4763,8 @@ public class PatientOrderService implements AutoCloseable {
 			patientOrderRequest.setPatientBirthSexId(patient.getPatientIdentification().getAdministrativeSex());
 
 			Instant dateTimeOfBirth = patient.getPatientIdentification().getDateTimeOfBirth().getTime();
-			LocalDate dateTimeOfBirthAsLocalDate = LocalDateTime.ofInstant(dateTimeOfBirth, institution.getTimeZone()).toLocalDate();
+			// UTC instead of institution timezone b/c of how data comes across from Epic
+			LocalDate dateTimeOfBirthAsLocalDate = LocalDateTime.ofInstant(dateTimeOfBirth, ZoneId.of("UTC")).toLocalDate();
 
 			patientOrderRequest.setPatientBirthdate(format("%d/%d/%d", dateTimeOfBirthAsLocalDate.getMonthValue(),
 					dateTimeOfBirthAsLocalDate.getDayOfMonth(), dateTimeOfBirthAsLocalDate.getYear()));
@@ -4614,7 +5023,7 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		if (automaticallyAssignToPanelAccounts) {
-			List<Account> panelAccounts = findPanelAccountsByInstitutionId(institutionId);
+			List<Account> panelAccounts = findOrderServicerAccountsByInstitutionId(institutionId);
 
 			if (panelAccounts.size() > 0) {
 				int i = 0;
@@ -5822,6 +6231,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected ScreeningService getScreeningService() {
 		return this.screeningServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationServiceProvider.get();
 	}
 
 	@Nonnull

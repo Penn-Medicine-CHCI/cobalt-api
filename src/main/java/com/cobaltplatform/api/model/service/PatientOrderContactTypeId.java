@@ -19,21 +19,17 @@
 
 package com.cobaltplatform.api.model.service;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
-public enum PatientOrderFilterFlagTypeId {
-	NONE,
-	PATIENT_NEVER_CONTACTED,
-	PATIENT_BELOW_AGE_THRESHOLD,
-	MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD,
-	NO_INTEREST,
-	LOCATION_INVALID,
-	INSURANCE_CHANGED_RECENTLY,
-	INSURANCE_INVALID,
-	CONSENT_REJECTED,
-	NEEDS_SAFETY_PLANNING,
-	NEEDS_RESOURCES,
-	SESSION_ABANDONED,
-	NEEDS_DOCUMENTATION
+@NotThreadSafe
+public enum PatientOrderContactTypeId {
+	WELCOME_MESSAGE,
+	ASSESSMENT_OUTREACH, // TODO: this means that if the welcome message has been sent but no screening session has been started, this should be "do it asap"
+	ASSESSMENT, // patient_order_scheduled_screening scheduled and has not been started
+	RESOURCE_FOLLOWUP, // patient_order_scheduled_outreach with reason RESOURCE_FOLLOWUP
+	RESOURCE_CHECK_IN, // patient_order_scheduled_message_group with patient_order_scheduled_message_type_id of RESOURCE_CHECK_IN
+	OTHER // patient_order_scheduled_outreach with reason OTHER
 }

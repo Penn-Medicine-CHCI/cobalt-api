@@ -26,7 +26,10 @@ import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
+import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
+import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
+import com.cobaltplatform.api.integration.epic.request.GetScheduleDaysForProviderRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
@@ -38,7 +41,10 @@ import com.cobaltplatform.api.integration.epic.response.CancelAppointmentRespons
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
+import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
+import com.cobaltplatform.api.integration.epic.response.GetProviderAvailabilityResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.integration.epic.response.GetScheduleDaysForProviderResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
@@ -188,6 +194,24 @@ public class MockEpicClient implements EpicClient {
 	public AddFlowsheetValueResponse addFlowsheetValue(@Nonnull AddFlowsheetValueRequest request) {
 		AddFlowsheetValueResponse response = new AddFlowsheetValueResponse();
 		return response;
+	}
+
+	@Nonnull
+	@Override
+	public GetProviderAppointmentsResponse getProviderAppointments(@Nonnull GetProviderAppointmentsRequest request) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	@Override
+	public GetScheduleDaysForProviderResponse getScheduleDaysForProvider(@Nonnull GetScheduleDaysForProviderRequest request) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	@Override
+	public GetProviderAvailabilityResponse getProviderAvailability(@Nonnull GetProviderAvailabilityRequest request) {
+		throw new UnsupportedOperationException();
 	}
 
 	/**

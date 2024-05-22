@@ -31,7 +31,10 @@ import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
+import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
+import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
+import com.cobaltplatform.api.integration.epic.request.GetScheduleDaysForProviderRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientCreateRequest;
 import com.cobaltplatform.api.integration.epic.request.PatientSearchRequest;
 import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
@@ -43,7 +46,10 @@ import com.cobaltplatform.api.integration.epic.response.CancelAppointmentRespons
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
+import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
+import com.cobaltplatform.api.integration.epic.response.GetProviderAvailabilityResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.integration.epic.response.GetScheduleDaysForProviderResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientCreateResponse;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse;
@@ -863,7 +869,11 @@ public class DefaultEpicClient implements EpicClient {
 
 		HttpMethod httpMethod = HttpMethod.POST;
 		String url = "api/epic/2012/Scheduling/Provider/GETPROVIDERSCHEDULE/Schedule";
-		Function<String, GetProviderScheduleResponse> responseBodyMapper = (responseBody) -> getGson().fromJson(responseBody, GetProviderScheduleResponse.class);
+		Function<String, GetProviderScheduleResponse> responseBodyMapper = (responseBody) -> {
+			GetProviderScheduleResponse response = getGson().fromJson(responseBody, GetProviderScheduleResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
 
 		Map<String, Object> queryParameters = new HashMap<String, Object>() {{
 			put("ProviderID", request.getProviderID());
@@ -1006,6 +1016,99 @@ public class DefaultEpicClient implements EpicClient {
 
 		ApiCall<AddFlowsheetValueResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public GetProviderAppointmentsResponse getProviderAppointments(@Nonnull GetProviderAppointmentsRequest request) {
+		requireNonNull(request);
+
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2013/Scheduling/Provider/GetProviderAppointments/Scheduling/Provider/Appointments";
+
+		Function<String, GetProviderAppointmentsResponse> responseBodyMapper = (responseBody) -> {
+			GetProviderAppointmentsResponse response = getGson().fromJson(responseBody, GetProviderAppointmentsResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
+
+		String requestBody = getGson().toJson(request);
+
+		ApiCall<GetProviderAppointmentsResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(requestBody)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public GetProviderAvailabilityResponse getProviderAvailability(@Nonnull GetProviderAvailabilityRequest request) {
+		requireNonNull(request);
+
+		String ProviderID = trimToNull(request.getProviderID());
+		String ProviderIDType = trimToNull(request.getProviderIDType());
+		String DepartmentID = trimToNull(request.getDepartmentID());
+		String DepartmentIDType = trimToNull(request.getDepartmentIDType());
+		String UserID = trimToNull(request.getUserID());
+		String UserIDType = trimToNull(request.getUserIDType());
+		String StartDate = trimToNull(request.getStartDate());
+		String EndDate = trimToNull(request.getEndDate());
+
+		HttpMethod httpMethod = HttpMethod.GET;
+		String url = "api/epic/2012/Scheduling/Provider/GETPROVIDERAVAILABILITY/Availability";
+
+		Function<String, GetProviderAvailabilityResponse> responseBodyMapper = (responseBody) -> {
+			GetProviderAvailabilityResponse response = getGson().fromJson(responseBody, GetProviderAvailabilityResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
+
+		Map<String, Object> queryParameters = new HashMap<>(8);
+
+		if (ProviderID != null)
+			queryParameters.put("ProviderID", ProviderID);
+		if (ProviderIDType != null)
+			queryParameters.put("ProviderIDType", ProviderIDType);
+		if (DepartmentID != null)
+			queryParameters.put("DepartmentID", DepartmentID);
+		if (DepartmentIDType != null)
+			queryParameters.put("DepartmentIDType", DepartmentIDType);
+		if (UserID != null)
+			queryParameters.put("UserID", UserID);
+		if (UserIDType != null)
+			queryParameters.put("UserIDType", UserIDType);
+		if (StartDate != null)
+			queryParameters.put("StartDate", StartDate);
+		if (EndDate != null)
+			queryParameters.put("EndDate", EndDate);
+
+		ApiCall<GetProviderAvailabilityResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public GetScheduleDaysForProviderResponse getScheduleDaysForProvider(@Nonnull GetScheduleDaysForProviderRequest request) {
+		HttpMethod httpMethod = HttpMethod.POST;
+		String url = "api/epic/2017/PatientAccess/External/GetScheduleDaysForProvider2/Scheduling/Open/Provider/GetScheduleDays2";
+
+		Function<String, GetScheduleDaysForProviderResponse> responseBodyMapper = (responseBody) -> {
+			GetScheduleDaysForProviderResponse response = getGson().fromJson(responseBody, GetScheduleDaysForProviderResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
+
+		String requestBody = getGson().toJson(request);
+
+		ApiCall<GetScheduleDaysForProviderResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.requestBody(requestBody)
 				.build();
 
 		return makeApiCall(apiCall);

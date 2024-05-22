@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.secretsmanager.model.ResourceNotFoundExce
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.net.URI;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,6 +30,8 @@ public class AwsSecretManagerClient {
 	@Nonnull
 	private static final String LOCALSTACK_CREDENTIALS = "fake";
 
+	@Nonnull
+	private final Boolean usingLocalstack;
 	@Nonnull
 	private final SecretsManagerClient secretsManagerClient;
 	@Nonnull
@@ -55,13 +58,13 @@ public class AwsSecretManagerClient {
 																	 @Nullable Integer localstackPort) {
 		requireNonNull(region);
 
-		boolean useLocalstack = localstackPort != null;
+		this.usingLocalstack = localstackPort != null;
 		this.gson = new Gson();
 		this.logger = LoggerFactory.getLogger(getClass());
 
 		SecretsManagerClientBuilder builder = SecretsManagerClient.builder().region(region);
 
-		if (useLocalstack) {
+		if (usingLocalstack) {
 			if (localstackPort == null)
 				throw new ConfigurationException("Illegal localstack configuration, localstack port is required");
 
@@ -102,8 +105,14 @@ public class AwsSecretManagerClient {
 		requireNonNull(name);
 
 		GetSecretValueResponse response = getSecret(name);
+
 		if (response.secretBinary() != null) {
-			return response.secretBinary().asByteArray();
+			if (getUsingLocalstack()) {
+				// Localstack appears to base64-encode binary data
+				return Base64.getDecoder().decode(response.secretBinary().asUtf8String());
+			} else {
+				return response.secretBinary().asByteArray();
+			}
 		} else {
 			throw new ConfigurationException(format("Unable to find binary secret for %s", name));
 		}
@@ -122,6 +131,11 @@ public class AwsSecretManagerClient {
 			logger.error("Secret with name {} did not exist", name);
 			throw ex;
 		}
+	}
+
+	@Nonnull
+	protected Boolean getUsingLocalstack() {
+		return this.usingLocalstack;
 	}
 
 	@Nonnull

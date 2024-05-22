@@ -17,23 +17,37 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.service;
+package com.cobaltplatform.api.model.api.request;
+
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
-public enum PatientOrderFilterFlagTypeId {
-	NONE,
-	PATIENT_NEVER_CONTACTED,
-	PATIENT_BELOW_AGE_THRESHOLD,
-	MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD,
-	NO_INTEREST,
-	LOCATION_INVALID,
-	INSURANCE_CHANGED_RECENTLY,
-	INSURANCE_INVALID,
-	CONSENT_REJECTED,
-	NEEDS_SAFETY_PLANNING,
-	NEEDS_RESOURCES,
-	SESSION_ABANDONED,
-	NEEDS_DOCUMENTATION
+@NotThreadSafe
+public class CancelPatientOrderScheduledOutreachRequest {
+	@Nullable
+	private UUID patientOrderScheduledOutreachId;
+	@Nullable
+	private UUID canceledByAccountId;
+
+	@Nullable
+	public UUID getPatientOrderScheduledOutreachId() {
+		return this.patientOrderScheduledOutreachId;
+	}
+
+	public void setPatientOrderScheduledOutreachId(@Nullable UUID patientOrderScheduledOutreachId) {
+		this.patientOrderScheduledOutreachId = patientOrderScheduledOutreachId;
+	}
+
+	@Nullable
+	public UUID getCanceledByAccountId() {
+		return this.canceledByAccountId;
+	}
+
+	public void setCanceledByAccountId(@Nullable UUID canceledByAccountId) {
+		this.canceledByAccountId = canceledByAccountId;
+	}
 }

@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiRespon
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
@@ -50,11 +51,14 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.Patient
 import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessage;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachStatus.PatientOrderScheduledOutreachStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
@@ -62,6 +66,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
@@ -83,6 +88,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -305,6 +311,8 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks;
 	@Nullable
+	private List<PatientOrderScheduledOutreachApiResponse> patientOrderScheduledOutreaches;
+	@Nullable
 	private ScreeningSessionApiResponse intakeScreeningSession;
 	@Nullable
 	private ScreeningSessionResult intakeScreeningSessionResult;
@@ -336,13 +344,13 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private String mostRecentOutreachDateTimeDescription;
 	@Nullable
-	private Integer scheduledMessageGroupCount;
+	private Integer scheduledMessageGroupDeliveredCount;
 	@Nullable
-	private String scheduledMessageGroupCountDescription;
+	private String scheduledMessageGroupDeliveredCountDescription;
 	@Nullable
-	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
+	private LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime;
 	@Nullable
-	private String mostRecentScheduledMessageGroupDateTimeDescription;
+	private String mostRecentDeliveredScheduledMessageGroupDateTimeDescription;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -511,6 +519,54 @@ public class PatientOrderApiResponse {
 	private String encounterSyncedAtDescription;
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
+	@Nullable
+	private UUID nextScheduledOutreachId;
+	@Nullable
+	private LocalDate nextScheduledOutreachScheduledAtDate;
+	@Nullable
+	private String nextScheduledOutreachScheduledAtDateDescription;
+	@Nullable
+	private LocalTime nextScheduledOutreachScheduledAtTime;
+	@Nullable
+	private String nextScheduledOutreachScheduledAtTimeDescription;
+	@Nullable
+	private LocalDateTime nextScheduledOutreachScheduledAtDateTime;
+	@Nullable
+	private String nextScheduledOutreachScheduledAtDateTimeDescription;
+	@Nullable
+	private PatientOrderOutreachTypeId nextScheduledOutreachTypeId;
+	@Nullable
+	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
+	@Nullable
+	private Instant lastContactedAt;
+	@Nullable
+	private String lastContactedAtDescription;
+	@Nullable
+	private LocalDate lastContactedAtDate;
+	@Nullable
+	private String lastContactedAtDateDescription;
+	@Nullable
+	private LocalTime lastContactedAtTime;
+	@Nullable
+	private String lastContactedAtTimeDescription;
+	@Nullable
+	private PatientOrderContactTypeId nextContactTypeId;
+	@Nullable
+	private LocalDateTime nextContactScheduledAt;
+	@Nullable
+	private String nextContactScheduledAtDescription;
+	@Nullable
+	private LocalDate nextContactScheduledAtDate;
+	@Nullable
+	private String nextContactScheduledAtDateDescription;
+	@Nullable
+	private LocalTime nextContactScheduledAtTime;
+	@Nullable
+	private String nextContactScheduledAtTimeDescription;
+	@Nullable
+	private Instant mostRecentMessageDeliveredAt;
+	@Nullable
+	private String mostRecentMessageDeliveredAtDescription;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -558,6 +614,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
+																 @Nonnull PatientOrderScheduledOutreachApiResponseFactory patientOrderScheduledOutreachApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
@@ -577,6 +634,7 @@ public class PatientOrderApiResponse {
 				patientOrderDiagnosisApiResponseFactory,
 				patientOrderMedicationApiResponseFactory,
 				patientOrderScheduledMessageGroupApiResponseFactory,
+				patientOrderScheduledOutreachApiResponseFactory,
 				screeningSessionApiResponseFactory,
 				addressApiResponseFactory,
 				patientOrderVoicemailTaskApiResponseFactory,
@@ -600,6 +658,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
 																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
 																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
+																 @Nonnull PatientOrderScheduledOutreachApiResponseFactory patientOrderScheduledOutreachApiResponseFactory,
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
@@ -620,6 +679,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(patientOrderDiagnosisApiResponseFactory);
 		requireNonNull(patientOrderMedicationApiResponseFactory);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
+		requireNonNull(patientOrderScheduledOutreachApiResponseFactory);
 		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
 		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
@@ -639,6 +699,7 @@ public class PatientOrderApiResponse {
 		List<PatientOrderNoteApiResponse> patientOrderNotes = null;
 		List<PatientOrderOutreachApiResponse> patientOrderOutreaches = null;
 		List<PatientOrderVoicemailTaskApiResponse> patientOrderVoicemailTasks = null;
+		List<PatientOrderScheduledOutreachApiResponse> patientOrderScheduledOutreaches = null;
 
 		if (supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
 			Address address = addressService.findAddressById(patientOrder.getPatientAddressId()).orElse(null);
@@ -665,6 +726,11 @@ public class PatientOrderApiResponse {
 
 			patientOrderVoicemailTasks = patientOrderService.findPatientOrderVoicemailTasksByPatientOrderId(patientOrder.getPatientOrderId()).stream()
 					.map(patientOrderVoicemailTask -> patientOrderVoicemailTaskApiResponseFactory.create(patientOrderVoicemailTask))
+					.collect(Collectors.toList());
+
+			// Only show scheduled outreaches
+			patientOrderScheduledOutreaches = patientOrderService.findPatientOrderScheduledOutreachesByPatientOrderId(patientOrder.getPatientOrderId(), PatientOrderScheduledOutreachStatusId.SCHEDULED).stream()
+					.map(patientOrderScheduledOutreach -> patientOrderScheduledOutreachApiResponseFactory.create(patientOrderScheduledOutreach))
 					.collect(Collectors.toList());
 
 			ScreeningSession mostRecentIntakeScreeningSession = screeningService.findScreeningSessionById(patientOrder.getMostRecentIntakeScreeningSessionId()).orElse(null);
@@ -916,6 +982,7 @@ public class PatientOrderApiResponse {
 			this.patientOrderMedications = patientOrderMedications;
 			this.patientOrderNotes = patientOrderNotes;
 			this.patientOrderOutreaches = patientOrderOutreaches;
+			this.patientOrderScheduledOutreaches = patientOrderScheduledOutreaches;
 
 			this.patientOrderCareTypeId = patientOrder.getPatientOrderCareTypeId();
 			this.patientOrderCareTypeDescription = patientOrder.getPatientOrderCareTypeDescription();
@@ -927,10 +994,10 @@ public class PatientOrderApiResponse {
 			this.outreachCountDescription = formatter.formatNumber(patientOrder.getOutreachCount() == null ? 0 : patientOrder.getOutreachCount());
 			this.mostRecentOutreachDateTime = patientOrder.getMostRecentOutreachDateTime();
 			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
-			this.scheduledMessageGroupCount = patientOrder.getScheduledMessageGroupCount();
-			this.scheduledMessageGroupCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupCount() == null ? 0 : patientOrder.getScheduledMessageGroupCount());
-			this.mostRecentScheduledMessageGroupDateTime = patientOrder.getMostRecentScheduledMessageGroupDateTime();
-			this.mostRecentScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.scheduledMessageGroupDeliveredCount = patientOrder.getScheduledMessageGroupDeliveredCount();
+			this.scheduledMessageGroupDeliveredCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupDeliveredCount() == null ? 0 : patientOrder.getScheduledMessageGroupDeliveredCount());
+			this.mostRecentDeliveredScheduledMessageGroupDateTime = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime();
+			this.mostRecentDeliveredScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
 			this.mostRecentScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName();
 			this.mostRecentScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName()).orElse(null);
@@ -977,6 +1044,42 @@ public class PatientOrderApiResponse {
 			this.encounterSyncedAt = patientOrder.getEncounterSyncedAt();
 			this.encounterSyncedAtDescription = patientOrder.getEncounterSyncedAt() == null ? null : formatter.formatTimestamp(patientOrder.getEncounterSyncedAt());
 			this.patientOrderEncounterDocumentationStatusId = patientOrder.getPatientOrderEncounterDocumentationStatusId();
+
+			// Next scheduled outreach
+			this.nextScheduledOutreachId = patientOrder.getNextScheduledOutreachId();
+			this.nextScheduledOutreachScheduledAtDate = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalDate();
+			this.nextScheduledOutreachScheduledAtDateDescription = this.nextScheduledOutreachScheduledAtDate == null ? null : formatter.formatDate(this.nextScheduledOutreachScheduledAtDate, FormatStyle.MEDIUM);
+			this.nextScheduledOutreachScheduledAtTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalTime();
+			this.nextScheduledOutreachScheduledAtTimeDescription = this.nextScheduledOutreachScheduledAtTime == null ? null : formatter.formatTime(this.nextScheduledOutreachScheduledAtTime, FormatStyle.SHORT);
+			this.nextScheduledOutreachScheduledAtDateTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime();
+			this.nextScheduledOutreachScheduledAtDateTimeDescription = this.nextScheduledOutreachScheduledAtDateTime == null ? null : formatter.formatDateTime(this.nextScheduledOutreachScheduledAtDateTime, FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.nextScheduledOutreachTypeId = patientOrder.getNextScheduledOutreachTypeId();
+			this.nextScheduledOutreachReasonId = patientOrder.getNextScheduledOutreachReasonId();
+
+			// Last contact + next scheduled contact
+			this.lastContactedAt = patientOrder.getLastContactedAt();
+
+			if (this.lastContactedAt != null) {
+				this.lastContactedAtDescription = formatter.formatTimestamp(this.lastContactedAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+				this.lastContactedAtDate = LocalDate.ofInstant(this.lastContactedAt, currentContext.getTimeZone());
+				this.lastContactedAtDateDescription = formatter.formatDate(this.lastContactedAtDate, FormatStyle.MEDIUM);
+				this.lastContactedAtTime = LocalTime.ofInstant(this.lastContactedAt, currentContext.getTimeZone());
+				this.lastContactedAtTimeDescription = formatter.formatTime(this.lastContactedAtTime, FormatStyle.SHORT);
+			}
+
+			this.nextContactTypeId = patientOrder.getNextContactTypeId();
+			this.nextContactScheduledAt = patientOrder.getNextContactScheduledAt();
+
+			if (this.nextContactScheduledAt != null) {
+				this.nextContactScheduledAtDescription = formatter.formatDateTime(this.nextContactScheduledAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+				this.nextContactScheduledAtDate = this.nextContactScheduledAt.toLocalDate();
+				this.nextContactScheduledAtDateDescription = formatter.formatDate(this.nextContactScheduledAtDate, FormatStyle.MEDIUM);
+				this.nextContactScheduledAtTime = this.nextContactScheduledAt.toLocalTime();
+				this.nextContactScheduledAtTimeDescription = formatter.formatTime(this.nextContactScheduledAtTime, FormatStyle.SHORT);
+			}
+
+			this.mostRecentMessageDeliveredAt = patientOrder.getMostRecentMessageDeliveredAt();
+			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestamp(mostRecentMessageDeliveredAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
 		}
 	}
 
@@ -1416,23 +1519,23 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public Integer getScheduledMessageGroupCount() {
-		return this.scheduledMessageGroupCount;
+	public Integer getScheduledMessageGroupDeliveredCount() {
+		return this.scheduledMessageGroupDeliveredCount;
 	}
 
 	@Nullable
-	public String getScheduledMessageGroupCountDescription() {
-		return this.scheduledMessageGroupCountDescription;
+	public String getScheduledMessageGroupDeliveredCountDescription() {
+		return this.scheduledMessageGroupDeliveredCountDescription;
 	}
 
 	@Nullable
-	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
-		return this.mostRecentScheduledMessageGroupDateTime;
+	public LocalDateTime getMostRecentDeliveredScheduledMessageGroupDateTime() {
+		return this.mostRecentDeliveredScheduledMessageGroupDateTime;
 	}
 
 	@Nullable
-	public String getMostRecentScheduledMessageGroupDateTimeDescription() {
-		return this.mostRecentScheduledMessageGroupDateTimeDescription;
+	public String getMostRecentDeliveredScheduledMessageGroupDateTimeDescription() {
+		return this.mostRecentDeliveredScheduledMessageGroupDateTimeDescription;
 	}
 
 	@Nullable
@@ -1998,5 +2101,130 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public PatientOrderEncounterDocumentationStatusId getPatientOrderEncounterDocumentationStatusId() {
 		return this.patientOrderEncounterDocumentationStatusId;
+	}
+
+	@Nullable
+	public UUID getNextScheduledOutreachId() {
+		return this.nextScheduledOutreachId;
+	}
+
+	@Nullable
+	public LocalDate getNextScheduledOutreachScheduledAtDate() {
+		return this.nextScheduledOutreachScheduledAtDate;
+	}
+
+	@Nullable
+	public String getNextScheduledOutreachScheduledAtDateDescription() {
+		return this.nextScheduledOutreachScheduledAtDateDescription;
+	}
+
+	@Nullable
+	public LocalTime getNextScheduledOutreachScheduledAtTime() {
+		return this.nextScheduledOutreachScheduledAtTime;
+	}
+
+	@Nullable
+	public String getNextScheduledOutreachScheduledAtTimeDescription() {
+		return this.nextScheduledOutreachScheduledAtTimeDescription;
+	}
+
+	@Nullable
+	public LocalDateTime getNextScheduledOutreachScheduledAtDateTime() {
+		return this.nextScheduledOutreachScheduledAtDateTime;
+	}
+
+	@Nullable
+	public String getNextScheduledOutreachScheduledAtDateTimeDescription() {
+		return this.nextScheduledOutreachScheduledAtDateTimeDescription;
+	}
+
+	@Nullable
+	public PatientOrderOutreachTypeId getNextScheduledOutreachTypeId() {
+		return this.nextScheduledOutreachTypeId;
+	}
+
+	@Nullable
+	public PatientOrderScheduledOutreachReasonId getNextScheduledOutreachReasonId() {
+		return this.nextScheduledOutreachReasonId;
+	}
+
+	@Nullable
+	public Instant getLastContactedAt() {
+		return this.lastContactedAt;
+	}
+
+	@Nullable
+	public String getLastContactedAtDescription() {
+		return this.lastContactedAtDescription;
+	}
+
+	@Nullable
+	public LocalDate getLastContactedAtDate() {
+		return this.lastContactedAtDate;
+	}
+
+	@Nullable
+	public String getLastContactedAtDateDescription() {
+		return this.lastContactedAtDateDescription;
+	}
+
+	@Nullable
+	public LocalTime getLastContactedAtTime() {
+		return this.lastContactedAtTime;
+	}
+
+	@Nullable
+	public String getLastContactedAtTimeDescription() {
+		return this.lastContactedAtTimeDescription;
+	}
+
+	@Nullable
+	public PatientOrderContactTypeId getNextContactTypeId() {
+		return this.nextContactTypeId;
+	}
+
+	@Nullable
+	public LocalDateTime getNextContactScheduledAt() {
+		return this.nextContactScheduledAt;
+	}
+
+	@Nullable
+	public String getNextContactScheduledAtDescription() {
+		return this.nextContactScheduledAtDescription;
+	}
+
+	@Nullable
+	public LocalDate getNextContactScheduledAtDate() {
+		return this.nextContactScheduledAtDate;
+	}
+
+	@Nullable
+	public String getNextContactScheduledAtDateDescription() {
+		return this.nextContactScheduledAtDateDescription;
+	}
+
+	@Nullable
+	public LocalTime getNextContactScheduledAtTime() {
+		return this.nextContactScheduledAtTime;
+	}
+
+	@Nullable
+	public String getNextContactScheduledAtTimeDescription() {
+		return this.nextContactScheduledAtTimeDescription;
+	}
+
+	@Nullable
+	public List<PatientOrderScheduledOutreachApiResponse> getPatientOrderScheduledOutreaches() {
+		return this.patientOrderScheduledOutreaches;
+	}
+
+	@Nullable
+	public Instant getMostRecentMessageDeliveredAt() {
+		return this.mostRecentMessageDeliveredAt;
+	}
+
+	@Nullable
+	public String getMostRecentMessageDeliveredAtDescription() {
+		return this.mostRecentMessageDeliveredAtDescription;
 	}
 }

@@ -26,6 +26,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class AccountCapabilityFlags {
+	private boolean canServiceIcOrders;
 	private boolean canEditIcTriages;
 	private boolean canViewIcReports;
 	private boolean canEditIcSafetyPlanning;
@@ -39,6 +40,14 @@ public class AccountCapabilityFlags {
 	private boolean canViewProviderReportAppointmentCancelations;
 	private boolean canViewProviderReportAppointments;
 	private boolean canViewProviderReportAppointmentsEap;
+
+	public boolean isCanServiceIcOrders() {
+		return this.canServiceIcOrders;
+	}
+
+	public void setCanServiceIcOrders(boolean canServiceIcOrders) {
+		this.canServiceIcOrders = canServiceIcOrders;
+	}
 
 	public boolean isCanEditIcTriages() {
 		return this.canEditIcTriages;

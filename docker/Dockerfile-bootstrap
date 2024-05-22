@@ -1,4 +1,4 @@
-FROM amazon/aws-cli:2.11.20
+FROM amazon/aws-cli:2.15.45
 
 ENV AWS_DEFAULT_REGION=us-east-2
 ENV AWS_ACCESS_KEY_ID=FAKE

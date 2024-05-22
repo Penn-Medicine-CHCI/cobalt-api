@@ -305,6 +305,8 @@ public class Institution {
 
 	@Nullable
 	private UUID integratedCareSafetyPlanningManagerAccountId;
+	@Nullable
+	private Integer integratedCareOrderImportDelayInSeconds;
 
 	@Nullable
 	private String twilioAccountSid;
@@ -314,6 +316,11 @@ public class Institution {
 	private Boolean callMessagesEnabled;
 	@Nullable
 	private Boolean smsMessagesEnabled;
+
+	@Nullable
+	private LocalTime integratedCareOrderImportStartTimeWindow;
+	@Nullable
+	private LocalTime integratedCareOrderImportEndTimeWindow;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1446,6 +1453,15 @@ public class Institution {
 	}
 
 	@Nullable
+	public Integer getIntegratedCareOrderImportDelayInSeconds() {
+		return this.integratedCareOrderImportDelayInSeconds;
+	}
+
+	public void setIntegratedCareOrderImportDelayInSeconds(@Nullable Integer integratedCareOrderImportDelayInSeconds) {
+		this.integratedCareOrderImportDelayInSeconds = integratedCareOrderImportDelayInSeconds;
+	}
+
+	@Nullable
 	public String getTwilioAccountSid() {
 		return this.twilioAccountSid;
 	}
@@ -1479,5 +1495,23 @@ public class Institution {
 
 	public void setSmsMessagesEnabled(@Nullable Boolean smsMessagesEnabled) {
 		this.smsMessagesEnabled = smsMessagesEnabled;
+	}
+
+	@Nullable
+	public LocalTime getIntegratedCareOrderImportStartTimeWindow() {
+		return this.integratedCareOrderImportStartTimeWindow;
+	}
+
+	public void setIntegratedCareOrderImportStartTimeWindow(@Nullable LocalTime integratedCareOrderImportStartTimeWindow) {
+		this.integratedCareOrderImportStartTimeWindow = integratedCareOrderImportStartTimeWindow;
+	}
+
+	@Nullable
+	public LocalTime getIntegratedCareOrderImportEndTimeWindow() {
+		return this.integratedCareOrderImportEndTimeWindow;
+	}
+
+	public void setIntegratedCareOrderImportEndTimeWindow(@Nullable LocalTime integratedCareOrderImportEndTimeWindow) {
+		this.integratedCareOrderImportEndTimeWindow = integratedCareOrderImportEndTimeWindow;
 	}
 }

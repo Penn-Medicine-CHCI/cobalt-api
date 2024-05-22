@@ -28,40 +28,31 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class AccountCapabilityType {
+public class PatientOrderScheduledOutreachReason {
 	@Nullable
-	private AccountCapabilityTypeId accountCapabilityTypeId;
+	private PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId;
 	@Nullable
 	private String description;
+	@Nullable
+	private Integer displayOrder;
 
-	public enum AccountCapabilityTypeId {
-		MHIC_SAFETY_PLANNING_ADMIN,
-		MHIC_ADMIN,
-		MHIC_REPORT_VIEWER,
-		MHIC_DEPARTMENT_ADMIN,
-		MHIC_ORDER_SERVICER,
-		GROUP_SESSION_ADMIN,
-		CONTENT_ADMIN,
-		ANALYTICS_VIEWER,
-		PROVIDER_REPORT_ADMIN,
-		PROVIDER_REPORT_UNUSED_AVAILABILITY_VIEWER,
-		PROVIDER_REPORT_APPOINTMENTS_VIEWER,
-		PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER,
-		PROVIDER_REPORT_APPOINTMENT_CANCELATIONS_VIEWER,
+	public enum PatientOrderScheduledOutreachReasonId {
+		RESOURCE_FOLLOWUP,
+		OTHER
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{accountCapabilityTypeId=%s, description=%s}", getClass().getSimpleName(), getAccountCapabilityTypeId(), getDescription());
+		return format("%s{patientOrderScheduledOutreachReasonId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderScheduledOutreachReasonId(), getDescription());
 	}
 
 	@Nullable
-	public AccountCapabilityTypeId getAccountCapabilityTypeId() {
-		return this.accountCapabilityTypeId;
+	public PatientOrderScheduledOutreachReasonId getPatientOrderScheduledOutreachReasonId() {
+		return this.patientOrderScheduledOutreachReasonId;
 	}
 
-	public void setAccountCapabilityTypeId(@Nullable AccountCapabilityTypeId accountCapabilityTypeId) {
-		this.accountCapabilityTypeId = accountCapabilityTypeId;
+	public void setPatientOrderScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId) {
+		this.patientOrderScheduledOutreachReasonId = patientOrderScheduledOutreachReasonId;
 	}
 
 	@Nullable
@@ -71,5 +62,14 @@ public class AccountCapabilityType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }

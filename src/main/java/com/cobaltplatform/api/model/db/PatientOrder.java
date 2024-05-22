@@ -34,15 +34,18 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.Patient
 import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
 import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationStatusId;
 import com.pyranid.DatabaseColumn;
 
@@ -246,9 +249,9 @@ public class PatientOrder {
 	@Nullable
 	private LocalDateTime mostRecentOutreachDateTime;
 	@Nullable
-	private Integer scheduledMessageGroupCount;
+	private Integer scheduledMessageGroupDeliveredCount;
 	@Nullable
-	private LocalDateTime mostRecentScheduledMessageGroupDateTime;
+	private LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime;
 	@Nullable
 	private UUID mostRecentScreeningSessionId;
 	@Nullable
@@ -384,6 +387,22 @@ public class PatientOrder {
 	private String epicDepartmentDepartmentId;
 	@Nullable
 	private PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId;
+	@Nullable
+	private UUID nextScheduledOutreachId;
+	@Nullable
+	private LocalDateTime nextScheduledOutreachScheduledAtDateTime;
+	@Nullable
+	private PatientOrderOutreachTypeId nextScheduledOutreachTypeId;
+	@Nullable
+	private PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId;
+	@Nullable
+	private Instant lastContactedAt;
+	@Nullable
+	private PatientOrderContactTypeId nextContactTypeId;
+	@Nullable
+	private LocalDateTime nextContactScheduledAt;
+	@Nullable
+	private Instant mostRecentMessageDeliveredAt;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -1160,21 +1179,21 @@ public class PatientOrder {
 	}
 
 	@Nullable
-	public Integer getScheduledMessageGroupCount() {
-		return this.scheduledMessageGroupCount;
+	public Integer getScheduledMessageGroupDeliveredCount() {
+		return this.scheduledMessageGroupDeliveredCount;
 	}
 
-	public void setScheduledMessageGroupCount(@Nullable Integer scheduledMessageGroupCount) {
-		this.scheduledMessageGroupCount = scheduledMessageGroupCount;
+	public void setScheduledMessageGroupDeliveredCount(@Nullable Integer scheduledMessageGroupDeliveredCount) {
+		this.scheduledMessageGroupDeliveredCount = scheduledMessageGroupDeliveredCount;
 	}
 
 	@Nullable
-	public LocalDateTime getMostRecentScheduledMessageGroupDateTime() {
-		return this.mostRecentScheduledMessageGroupDateTime;
+	public LocalDateTime getMostRecentDeliveredScheduledMessageGroupDateTime() {
+		return this.mostRecentDeliveredScheduledMessageGroupDateTime;
 	}
 
-	public void setMostRecentScheduledMessageGroupDateTime(@Nullable LocalDateTime mostRecentScheduledMessageGroupDateTime) {
-		this.mostRecentScheduledMessageGroupDateTime = mostRecentScheduledMessageGroupDateTime;
+	public void setMostRecentDeliveredScheduledMessageGroupDateTime(@Nullable LocalDateTime mostRecentDeliveredScheduledMessageGroupDateTime) {
+		this.mostRecentDeliveredScheduledMessageGroupDateTime = mostRecentDeliveredScheduledMessageGroupDateTime;
 	}
 
 	@Nullable
@@ -1823,5 +1842,77 @@ public class PatientOrder {
 
 	public void setPatientOrderEncounterDocumentationStatusId(@Nullable PatientOrderEncounterDocumentationStatusId patientOrderEncounterDocumentationStatusId) {
 		this.patientOrderEncounterDocumentationStatusId = patientOrderEncounterDocumentationStatusId;
+	}
+
+	@Nullable
+	public UUID getNextScheduledOutreachId() {
+		return this.nextScheduledOutreachId;
+	}
+
+	public void setNextScheduledOutreachId(@Nullable UUID nextScheduledOutreachId) {
+		this.nextScheduledOutreachId = nextScheduledOutreachId;
+	}
+
+	@Nullable
+	public LocalDateTime getNextScheduledOutreachScheduledAtDateTime() {
+		return this.nextScheduledOutreachScheduledAtDateTime;
+	}
+
+	public void setNextScheduledOutreachScheduledAtDateTime(@Nullable LocalDateTime nextScheduledOutreachScheduledAtDateTime) {
+		this.nextScheduledOutreachScheduledAtDateTime = nextScheduledOutreachScheduledAtDateTime;
+	}
+
+	@Nullable
+	public PatientOrderOutreachTypeId getNextScheduledOutreachTypeId() {
+		return this.nextScheduledOutreachTypeId;
+	}
+
+	public void setNextScheduledOutreachTypeId(@Nullable PatientOrderOutreachTypeId nextScheduledOutreachTypeId) {
+		this.nextScheduledOutreachTypeId = nextScheduledOutreachTypeId;
+	}
+
+	@Nullable
+	public PatientOrderScheduledOutreachReasonId getNextScheduledOutreachReasonId() {
+		return this.nextScheduledOutreachReasonId;
+	}
+
+	public void setNextScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId nextScheduledOutreachReasonId) {
+		this.nextScheduledOutreachReasonId = nextScheduledOutreachReasonId;
+	}
+
+	@Nullable
+	public Instant getLastContactedAt() {
+		return this.lastContactedAt;
+	}
+
+	public void setLastContactedAt(@Nullable Instant lastContactedAt) {
+		this.lastContactedAt = lastContactedAt;
+	}
+
+	@Nullable
+	public PatientOrderContactTypeId getNextContactTypeId() {
+		return this.nextContactTypeId;
+	}
+
+	public void setNextContactTypeId(@Nullable PatientOrderContactTypeId nextContactTypeId) {
+		this.nextContactTypeId = nextContactTypeId;
+	}
+
+	@Nullable
+	public LocalDateTime getNextContactScheduledAt() {
+		return this.nextContactScheduledAt;
+	}
+
+	public void setNextContactScheduledAt(@Nullable LocalDateTime nextContactScheduledAt) {
+		this.nextContactScheduledAt = nextContactScheduledAt;
+	}
+
+	@Nullable
+	public Instant getMostRecentMessageDeliveredAt() {
+		return this.mostRecentMessageDeliveredAt;
+	}
+
+	public void setMostRecentMessageDeliveredAt(@Nullable Instant mostRecentMessageDeliveredAt) {
+		this.mostRecentMessageDeliveredAt = mostRecentMessageDeliveredAt;
 	}
 }

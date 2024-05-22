@@ -937,7 +937,7 @@ public class ReportingService {
 					format("SELECT * FROM v_patient_order %s", whereClauseWithParametersForMhics.getWhereClause()), PatientOrder.class, whereClauseWithParametersForMhics.getParameters().toArray());
 			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, panelAccountId);
 			csvPrinter.printRecord("Calls/Voicemails", patientOrdersForMhics.stream().map(it -> it.getOutreachCount()).reduce(0, Integer::sum));
-			csvPrinter.printRecord("Texts/Emails", patientOrdersForMhics.stream().map(it -> it.getScheduledMessageGroupCount()).reduce(0, Integer::sum));
+			csvPrinter.printRecord("Texts/Emails", patientOrdersForMhics.stream().map(it -> it.getScheduledMessageGroupDeliveredCount()).reduce(0, Integer::sum));
 			csvPrinter.printRecord("Closed Orders", Integer.toString(patientOrdersForMhics.stream().filter(it -> it.getPatientOrderDispositionId() !=
 					PatientOrderDispositionId.OPEN).collect(Collectors.toList()).size()));
 			csvPrinter.printRecord("Assessment Overrides", Integer.toString(patientOrdersForMhics.stream().filter(it -> it.getPatientOrderTriageSourceId() ==

@@ -19,19 +19,32 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledOutreachReason.PatientOrderScheduledOutreachReasonId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePatientOrderVoicemailTaskRequest {
+public class CreatePatientOrderScheduledOutreachRequest {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
 	private UUID createdByAccountId;
+	@Nullable
+	private PatientOrderOutreachTypeId patientOrderOutreachTypeId;
+	@Nullable
+	private PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId;
+	@Nullable
+	private LocalDate scheduledAtDate;
+	@Nullable
+	private LocalTime scheduledAtTime;
 	@Nullable
 	private String message;
 
@@ -51,6 +64,42 @@ public class CreatePatientOrderVoicemailTaskRequest {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public PatientOrderOutreachTypeId getPatientOrderOutreachTypeId() {
+		return this.patientOrderOutreachTypeId;
+	}
+
+	public void setPatientOrderOutreachTypeId(@Nullable PatientOrderOutreachTypeId patientOrderOutreachTypeId) {
+		this.patientOrderOutreachTypeId = patientOrderOutreachTypeId;
+	}
+
+	@Nullable
+	public PatientOrderScheduledOutreachReasonId getPatientOrderScheduledOutreachReasonId() {
+		return this.patientOrderScheduledOutreachReasonId;
+	}
+
+	public void setPatientOrderScheduledOutreachReasonId(@Nullable PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId) {
+		this.patientOrderScheduledOutreachReasonId = patientOrderScheduledOutreachReasonId;
+	}
+
+	@Nullable
+	public LocalDate getScheduledAtDate() {
+		return this.scheduledAtDate;
+	}
+
+	public void setScheduledAtDate(@Nullable LocalDate scheduledAtDate) {
+		this.scheduledAtDate = scheduledAtDate;
+	}
+
+	@Nullable
+	public LocalTime getScheduledAtTime() {
+		return this.scheduledAtTime;
+	}
+
+	public void setScheduledAtTime(@Nullable LocalTime scheduledAtTime) {
+		this.scheduledAtTime = scheduledAtTime;
 	}
 
 	@Nullable

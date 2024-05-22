@@ -155,6 +155,7 @@ public class AuthorizationService {
 		Set<AccountCapabilityTypeId> accountCapabilityTypeIds = account.getAccountCapabilityTypeIds();
 
 		AccountCapabilityFlags accountCapabilityFlags = new AccountCapabilityFlags();
+		accountCapabilityFlags.setCanServiceIcOrders(account.getRoleId() == RoleId.MHIC && accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ORDER_SERVICER));
 		accountCapabilityFlags.setCanEditIcTriages(account.getRoleId() == RoleId.MHIC); // All MHICs can do this
 		accountCapabilityFlags.setCanEditIcSafetyPlanning(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_ADMIN)
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_SAFETY_PLANNING_ADMIN));
