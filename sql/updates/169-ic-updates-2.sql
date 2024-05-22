@@ -10,6 +10,10 @@ SELECT account_id, 'MHIC_ORDER_SERVICER'
 FROM account
 WHERE role_id='MHIC';
 
+-- Some performance indices
+CREATE INDEX idx_patient_order_scheduled_message_group_deleted ON patient_order_scheduled_message_group (deleted);
+CREATE INDEX idx_patient_order_scheduled_message_group_type ON patient_order_scheduled_message_group (patient_order_scheduled_message_type_id);
+
 -- Recreate views because we are updating their columns
 DROP VIEW v_patient_order;
 DROP VIEW v_all_patient_order;
@@ -162,40 +166,39 @@ next_resource_check_in_scheduled_message_group_query AS (
 		)
 	) subquery where ranked_value=1
 ),
-recent_appt_query AS (
-    -- Pick the most recent appointment for each patient order
-    select
-        app.patient_order_id,
-        app.appointment_id,
-        app.canceled,
-        p.provider_id,
-        p.name as provider_name,
-        app.start_time as appointment_start_time,
-        app.created_by_account_id
-    from
-        patient_order poq
-        join appointment app ON poq.patient_order_id = app.patient_order_id
-        join provider p ON app.provider_id  = p.provider_id
-        left join appointment app2 ON app.patient_order_id = app2.patient_order_id
-        and app2.canceled=false
-        and app.start_time > app2.start_time
-    where
-        app2.appointment_id IS NULL
-        and app.canceled=false
+next_appt_query AS (
+	select * from (
+	  select
+	    app.patient_order_id,
+	    app.appointment_id,
+	    app.canceled,
+	    p.provider_id,
+	    p.name as provider_name,
+	    app.start_time as appointment_start_time,
+	    app.created_by_account_id,
+	    rank() OVER (PARTITION BY app.patient_order_id ORDER BY app.start_time, app.appointment_id) as ranked_value
+	  from
+	    patient_order poq, appointment app, provider p
+	    where poq.patient_order_id = app.patient_order_id
+	    and app.provider_id=p.provider_id
+	    and app.canceled=false
+	    -- Not filtering on "> now()" because there should only ever be 1 uncanceled appointment per order.
+	    -- We also don't want the appointment to "disappear" in the UI as soon as it starts.
+	) subquery where ranked_value=1
 ),
 recent_voicemail_task_query AS (
     -- Pick the most recent voicemail task for each patient order
-    select
-        povt.patient_order_id,
-        povt.patient_order_voicemail_task_id,
-        povt.completed as patient_order_voicemail_task_completed
-    from
-        patient_order poq
-        join patient_order_voicemail_task povt ON poq.patient_order_id = povt.patient_order_id
-        left join patient_order_voicemail_task povt2 ON povt.patient_order_id = povt2.patient_order_id
-        and povt.created < povt2.created
-    where
-        povt2.patient_order_voicemail_task_id IS NULL
+	select * from (
+	  select
+	    povt.patient_order_id,
+	    povt.patient_order_voicemail_task_id,
+	    povt.completed as patient_order_voicemail_task_completed,
+	    rank() OVER (PARTITION BY povt.patient_order_id ORDER BY povt.created DESC, povt.patient_order_voicemail_task_id) as ranked_value
+	  from
+	    patient_order poq, patient_order_voicemail_task povt
+	    where poq.patient_order_id = povt.patient_order_id
+        and povt.deleted = FALSE
+	) subquery where ranked_value=1
 ),
 next_scheduled_outreach_query AS (
     -- Pick the next active scheduled outreach for each patient order
@@ -446,16 +449,16 @@ select
         ))
     ) AS outreach_followup_needed,
 
-    raq.appointment_start_time,
-    raq.provider_id,
-    raq.provider_name,
-    raq.appointment_id,
+    naq.appointment_start_time,
+    naq.provider_id,
+    naq.provider_name,
+    naq.appointment_id,
     CASE
         WHEN appointment_id IS NOT NULL THEN true
         ELSE FALSE
     END appointment_scheduled,
     CASE
-        WHEN raq.created_by_account_id = poq.patient_account_id THEN true
+        WHEN naq.created_by_account_id = poq.patient_account_id THEN true
         ELSE FALSE
     END appointment_scheduled_by_patient,
     rvtq.patient_order_voicemail_task_id AS most_recent_patient_order_voicemail_task_id,
@@ -528,7 +531,7 @@ select
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) and nsoq.next_scheduled_outreach_reason_id='RESOURCE_FOLLOWUP' THEN 'RESOURCE_FOLLOWUP'
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) and nsoq.next_scheduled_outreach_reason_id='OTHER' THEN 'OTHER'
-        when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null then 'WELCOME_MESSAGE'
+        when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null and ssiq.screening_session_id is null then 'WELCOME_MESSAGE'
         -- There has been some form of outreach but no screening session scheduled or started after X days
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poomaxq.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then 'ASSESSMENT_OUTREACH'
         -- Next resource check-in message
@@ -538,7 +541,7 @@ select
 	CASE
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN rssq.scheduled_date_time
         WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
-        when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null then current_date::timestamp AT TIME ZONE i.time_zone
+        when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null and ssiq.screening_session_id is null then current_date::timestamp AT TIME ZONE i.time_zone
         -- There has been some form of outreach but no screening session scheduled or started after X days
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poomaxq.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)))
         -- Next resource check-in message
@@ -566,7 +569,7 @@ from
     left outer join account panel_account ON poq.panel_account_id = panel_account.account_id
     left outer join recent_po_query rpq ON poq.patient_order_id = rpq.patient_order_id
     left outer join recent_scheduled_screening_query rssq ON poq.patient_order_id = rssq.patient_order_id
-    left outer join recent_appt_query raq on poq.patient_order_id=raq.patient_order_id
+    left outer join next_appt_query naq on poq.patient_order_id=naq.patient_order_id
     left outer join recent_voicemail_task_query rvtq on poq.patient_order_id=rvtq.patient_order_id
     left outer join reason_for_referral_query rfrq on poq.patient_order_id=rfrq.patient_order_id
     left outer join next_scheduled_outreach_query nsoq ON poq.patient_order_id=nsoq.patient_order_id
