@@ -215,7 +215,7 @@ next_resource_check_in_scheduled_message_group_query AS (
 	  select
 	    posmg.patient_order_id,
 	    posmg.patient_order_scheduled_message_group_id as next_resource_check_in_scheduled_message_group_id,
-	    posmg.scheduled_at_date_time as next_resource_check_in_scheduled_message_group_scheduled_at_date_time,
+	    posmg.scheduled_at_date_time as next_resource_check_in_scheduled_at_date_time,
 	    rank() OVER (PARTITION BY posmg.patient_order_id ORDER BY posmg.scheduled_at_date_time, posmg.patient_order_scheduled_message_group_id) as ranked_value
 	  from
 	    patient_order poq, patient_order_scheduled_message_group posmg, institution i
@@ -614,7 +614,7 @@ select
         -- There has been some form of outreach but no screening session scheduled or started after X days
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poomaxq.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)))
         -- Next resource check-in message
-        when nrcismgq.next_resource_check_in_scheduled_message_group_id is not null then nrcismgq.next_resource_check_in_scheduled_message_group_scheduled_at_date_time
+        when nrcismgq.next_resource_check_in_scheduled_message_group_id is not null then nrcismgq.next_resource_check_in_scheduled_at_date_time
         ELSE NULL
     END as next_contact_scheduled_at,
     poq.*
