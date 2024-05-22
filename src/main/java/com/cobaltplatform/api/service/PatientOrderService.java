@@ -1611,6 +1611,8 @@ public class PatientOrderService implements AutoCloseable {
 				orderByColumn = "bq.total_outreach_count";
 			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_LENGTH)
 				orderByColumn = "bq.episode_duration_in_days";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.NEXT_CONTACT_SCHEDULED_AT)
+				orderByColumn = "bq.next_contact_scheduled_at";
 			else
 				throw new IllegalStateException(format("Not sure what to do with %s.%s", PatientOrderSortColumnId.class.getSimpleName(), patientOrderSortRule.getPatientOrderSortColumnId().name()));
 

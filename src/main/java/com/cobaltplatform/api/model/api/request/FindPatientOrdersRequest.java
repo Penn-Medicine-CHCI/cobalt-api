@@ -102,7 +102,8 @@ public class FindPatientOrdersRequest {
 		PRACTICE,
 		INSURANCE,
 		OUTREACH_NUMBER,
-		EPISODE_LENGTH
+		EPISODE_LENGTH,
+		NEXT_CONTACT_SCHEDULED_AT
 	}
 
 	@NotThreadSafe
