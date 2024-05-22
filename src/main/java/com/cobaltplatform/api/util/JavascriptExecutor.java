@@ -22,6 +22,8 @@ package com.cobaltplatform.api.util;
 import com.cobaltplatform.api.util.JsonMapper.MappingFormat;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -46,6 +48,8 @@ public class JavascriptExecutor {
 	private static final Engine SHARED_ENGINE;
 	@Nonnull
 	private final JsonMapper jsonMapper;
+	@Nonnull
+	private final Logger logger;
 
 	static {
 		// Avoids performance warning log output that is not applicable to our use-case
@@ -55,12 +59,13 @@ public class JavascriptExecutor {
 	}
 
 	public JavascriptExecutor() {
-		this.jsonMapper = new JsonMapper.Builder().mappingFormat(MappingFormat.PRETTY_PRINTED).build();
+		this(new JsonMapper.Builder().mappingFormat(MappingFormat.PRETTY_PRINTED).build());
 	}
 
 	public JavascriptExecutor(@Nonnull JsonMapper jsonMapper) {
 		requireNonNull(jsonMapper);
 		this.jsonMapper = jsonMapper;
+		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	/**
@@ -85,6 +90,8 @@ public class JavascriptExecutor {
 		requireNonNull(javascript);
 		requireNonNull(input);
 		requireNonNull(outputType);
+
+		long startTime = System.currentTimeMillis();
 
 		Context context = Context.newBuilder("js").engine(getEngine()).build();
 
@@ -117,6 +124,8 @@ public class JavascriptExecutor {
 			return result;
 		} catch (Exception e) {
 			throw new JavascriptExecutionException(e, new HashMap<>(input) /* defensive copy */, javascript, executedJavascript);
+		} finally {
+			getLogger().debug("JS function execution took {}ms.", System.currentTimeMillis() - startTime);
 		}
 	}
 
@@ -128,5 +137,10 @@ public class JavascriptExecutor {
 	@Nonnull
 	protected JsonMapper getJsonMapper() {
 		return this.jsonMapper;
+	}
+
+	@Nonnull
+	protected Logger getLogger() {
+		return this.logger;
 	}
 }
