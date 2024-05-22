@@ -26,10 +26,20 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public enum PatientOrderContactTypeId {
+	// Welcome message (SMS/email) never delivered
 	WELCOME_MESSAGE,
-	ASSESSMENT_OUTREACH, // TODO: this means that if the welcome message has been sent but no screening session has been started, this should be "do it asap"
-	ASSESSMENT, // patient_order_scheduled_screening scheduled and has not been started
-	RESOURCE_FOLLOWUP, // patient_order_scheduled_outreach with reason RESOURCE_FOLLOWUP
-	RESOURCE_CHECK_IN, // patient_order_scheduled_message_group with patient_order_scheduled_message_type_id of RESOURCE_CHECK_IN
-	OTHER // patient_order_scheduled_outreach with reason OTHER
+	// There has been some form of outreach but no screening session scheduled or started after X days.
+	// This is more like an "overdue" indicator, no date/time associated
+	ASSESSMENT_OUTREACH,
+	// Scheduled assessment
+	ASSESSMENT,
+	// Scheduled outreach of type 'phone call'
+	RESOURCE_FOLLOWUP,
+	// If there is an SMS/email scheduled to be sent (but not yet delivered)
+	RESOURCE_CHECK_IN,
+	// (not live yet) if patient has not yet responded after X days to resource check-in text OR said they are not interested
+	// This is more like an "overdue" indicator, no date/time associated
+	RESOURCE_CHECK_IN_FOLLOWUP,
+	// Scheduled outreach of type 'other'
+	OTHER
 }
