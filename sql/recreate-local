@@ -175,6 +175,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/167-study-repo
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/168-ic-updates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/169-ic-updates-1.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/169-ic-updates-2.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/169-ic-updates-3.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/170-study-first-check-in-behavior.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/171-study-check-in-windows-fixed.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/172-unique-email-address.sql
