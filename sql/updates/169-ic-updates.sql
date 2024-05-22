@@ -209,6 +209,31 @@ smgmax_query AS (
     group by
         posmg.patient_order_id
 ),
+next_resource_check_in_scheduled_message_group_query AS (
+    -- Pick the next nondeleted scheduled message group in the future of type RESOURCE_CHECK_IN that has not yet been delivered
+	select * from (
+	  select
+	    posmg.patient_order_id,
+	    posmg.patient_order_scheduled_message_group_id as next_resource_check_in_scheduled_message_group_id,
+	    posmg.scheduled_at_date_time as next_resource_check_in_scheduled_message_group_scheduled_at_date_time,
+	    rank() OVER (PARTITION BY posmg.patient_order_id ORDER BY posmg.scheduled_at_date_time, posmg.patient_order_scheduled_message_group_id) as ranked_value
+	  from
+	    patient_order poq, patient_order_scheduled_message_group posmg, institution i
+	    where poq.patient_order_id = posmg.patient_order_id
+	    and posmg.patient_order_scheduled_message_type_id='RESOURCE_CHECK_IN'
+        and posmg.deleted=false
+        and poq.institution_id=i.institution_id
+        and posmg.scheduled_at_date_time at time zone i.time_zone > now()
+        and not EXISTS (
+		    SELECT ml.message_id
+		    FROM patient_order_scheduled_message posm, scheduled_message sm, message_log ml
+		    WHERE posmg.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
+		    AND posm.scheduled_message_id=sm.scheduled_message_id
+		    AND sm.message_id=ml.message_id
+		    AND ml.message_status_id='DELIVERED'
+		)
+	) subquery where ranked_value=1
+),
 recent_appt_query AS (
     -- Pick the most recent appointment for each patient order
     select
@@ -578,6 +603,8 @@ select
         when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null then 'WELCOME_MESSAGE'
         -- There has been some form of outreach but no screening session scheduled or started after X days
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poomaxq.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then 'ASSESSMENT_OUTREACH'
+        -- Next resource check-in message
+        when nrcismgq.next_resource_check_in_scheduled_message_group_id is not null then 'RESOURCE_CHECK_IN'
         ELSE NULL
     END as next_contact_type_id,
 	CASE
@@ -586,6 +613,8 @@ select
         when poomaxq.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null then current_date::timestamp AT TIME ZONE i.time_zone
         -- There has been some form of outreach but no screening session scheduled or started after X days
         WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poomaxq.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then ((GREATEST(poomaxq.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)))
+        -- Next resource check-in message
+        when nrcismgq.next_resource_check_in_scheduled_message_group_id is not null then nrcismgq.next_resource_check_in_scheduled_message_group_scheduled_at_date_time
         ELSE NULL
     END as next_contact_scheduled_at,
     poq.*
@@ -614,6 +643,7 @@ from
     left outer join reason_for_referral_query rfrq on poq.patient_order_id=rfrq.patient_order_id
     left outer join next_scheduled_outreach_query nsoq ON poq.patient_order_id=nsoq.patient_order_id
     left outer join most_recent_message_delivered_query mrmdq on poq.patient_order_id=mrmdq.patient_order_id
+    left outer join next_resource_check_in_scheduled_message_group_query nrcismgq on poq.patient_order_id=nrcismgq.patient_order_id
     left outer join patient_order_scheduled_message_group posmg ON poq.resource_check_in_scheduled_message_group_id=posmg.patient_order_scheduled_message_group_id AND posmg.deleted = FALSE;
 
 CREATE or replace VIEW v_patient_order AS
