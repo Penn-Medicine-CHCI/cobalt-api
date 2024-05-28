@@ -474,6 +474,7 @@ public class StudyService implements AutoCloseable {
 		Optional<Study> study = findStudyById(studyId);
 		Optional<AccountStudy> accountStudy = findAccountStudyByAccountIdAndStudyId(account.getAccountId(), studyId);
 		Boolean resetCheckIns = false;
+		Boolean reschedulingCheckIns = false;
 
 		if (!study.isPresent())
 			validationException.add(new FieldError("studyId", getStrings().get("Not a valid Study ID.")));
@@ -508,6 +509,7 @@ public class StudyService implements AutoCloseable {
 				} else {
 					getLogger().debug("First check-in is NOT started and not complete so setting start time to now and continuing on.");
 					newStartDateTime = currentDateTime;
+					reschedulingCheckIns = true;
 				}
 			} else if (accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.COMPLETE)) {
 				getLogger().debug(format("Check-in %s is complete so continuing to next check-in", accountCheckIn.getCheckInNumber()));
@@ -517,7 +519,7 @@ public class StudyService implements AutoCloseable {
 				if (accountCheckIn.getCheckInNumber() == accountCheckIns.size())
 					resetCheckIns = true;
 				continue;
-			} else if (accountCheckExpired(account, accountCheckIn)) {
+			} else if (accountCheckExpired(account, accountCheckIn) && !reschedulingCheckIns) {
 				getLogger().debug(format("Check-in %s has expired so continuing to next check-in", accountCheckIn.getCheckInNumber()));
 				newStartDateTime = currentDateTime;
 				checkInCount = 1;
