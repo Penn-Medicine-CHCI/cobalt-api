@@ -530,17 +530,25 @@ public class ProviderService {
 				query.append(") ");
 			}
 
-			// If this is an IC order, only expose providers that are currently associated with the order's department
+			// If this is an IC order, only expose providers that are currently associated with the order's department.
+			// If the order's department has a scheduling override department, use that one instead.
 			if (patientOrderId != null) {
+				UUID epicDepartmentIdForScheduling = getDatabase().queryForObject("""
+						SELECT COALESCE(ed.scheduling_override_epic_department_id, ed.epic_department_id) AS epic_department_id_for_scheduling
+						FROM epic_department ed, patient_order po
+						WHERE ed.epic_department_id=po.epic_department_id
+						AND po.patient_order_id=?
+						""", UUID.class, patientOrderId).get();
+
 				query.append("""
 						AND p.provider_id IN (
 						  SELECT ped.provider_id
-						  FROM provider_epic_department ped, patient_order po
-						  WHERE po.epic_department_id=ped.epic_department_id
-						  AND po.patient_order_id=?
+						  FROM provider_epic_department ped
+						  WHERE ped.epic_department_id=?
 						)
 						""");
-				parameters.add(patientOrderId);
+
+				parameters.add(epicDepartmentIdForScheduling);
 			}
 
 			query.append(" AND p.system_affinity_id=? ");

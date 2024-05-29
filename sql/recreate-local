@@ -179,6 +179,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/169-ic-updates
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/170-study-first-check-in-behavior.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/171-study-check-in-windows-fixed.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/172-unique-email-address.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/173-ic-department-scheduling-overrides.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
