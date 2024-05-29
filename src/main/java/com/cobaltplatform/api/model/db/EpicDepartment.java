@@ -47,6 +47,8 @@ public class EpicDepartment {
 	@Nullable
 	private Boolean patientOrderAutomaticImportEnabled;
 	@Nullable
+	private UUID schedulingOverrideEpicDepartmentId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -112,6 +114,15 @@ public class EpicDepartment {
 
 	public void setPatientOrderAutomaticImportEnabled(@Nullable Boolean patientOrderAutomaticImportEnabled) {
 		this.patientOrderAutomaticImportEnabled = patientOrderAutomaticImportEnabled;
+	}
+
+	@Nullable
+	public UUID getSchedulingOverrideEpicDepartmentId() {
+		return this.schedulingOverrideEpicDepartmentId;
+	}
+
+	public void setSchedulingOverrideEpicDepartmentId(@Nullable UUID schedulingOverrideEpicDepartmentId) {
+		this.schedulingOverrideEpicDepartmentId = schedulingOverrideEpicDepartmentId;
 	}
 
 	@Nullable
