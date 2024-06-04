@@ -180,6 +180,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/170-stud
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/171-study-check-in-windows-fixed.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/172-unique-email-address.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/173-ic-department-scheduling-overrides.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/174-faq-enhancements.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
