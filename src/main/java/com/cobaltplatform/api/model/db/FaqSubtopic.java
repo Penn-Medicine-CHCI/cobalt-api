@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -30,29 +28,32 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Faq {
+public class FaqSubtopic {
+	@Nullable
+	private UUID faqSubtopicId;
 	@Nullable
 	private UUID faqId;
 	@Nullable
-	private UUID faqTopicId;
-	@Nullable
-	private InstitutionId institutionId;
+	private String name;
 	@Nullable
 	private String urlName;
 	@Nullable
-	private String question;
-	@Nullable
-	private String answer;
-	@Nullable
-	private String shortAnswer;
-	@Nullable
-	private Boolean permitEllipsizing;
+	private String description;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	@Nullable
+	public UUID getFaqSubtopicId() {
+		return this.faqSubtopicId;
+	}
+
+	public void setFaqSubtopicId(@Nullable UUID faqSubtopicId) {
+		this.faqSubtopicId = faqSubtopicId;
+	}
 
 	@Nullable
 	public UUID getFaqId() {
@@ -64,21 +65,12 @@ public class Faq {
 	}
 
 	@Nullable
-	public UUID getFaqTopicId() {
-		return this.faqTopicId;
+	public String getName() {
+		return this.name;
 	}
 
-	public void setFaqTopicId(@Nullable UUID faqTopicId) {
-		this.faqTopicId = faqTopicId;
-	}
-
-	@Nullable
-	public InstitutionId getInstitutionId() {
-		return this.institutionId;
-	}
-
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
+	public void setName(@Nullable String name) {
+		this.name = name;
 	}
 
 	@Nullable
@@ -91,39 +83,12 @@ public class Faq {
 	}
 
 	@Nullable
-	public String getQuestion() {
-		return this.question;
+	public String getDescription() {
+		return this.description;
 	}
 
-	public void setQuestion(@Nullable String question) {
-		this.question = question;
-	}
-
-	@Nullable
-	public String getAnswer() {
-		return this.answer;
-	}
-
-	public void setAnswer(@Nullable String answer) {
-		this.answer = answer;
-	}
-
-	@Nullable
-	public String getShortAnswer() {
-		return this.shortAnswer;
-	}
-
-	public void setShortAnswer(@Nullable String shortAnswer) {
-		this.shortAnswer = shortAnswer;
-	}
-
-	@Nullable
-	public Boolean getPermitEllipsizing() {
-		return this.permitEllipsizing;
-	}
-
-	public void setPermitEllipsizing(@Nullable Boolean permitEllipsizing) {
-		this.permitEllipsizing = permitEllipsizing;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 
 	@Nullable

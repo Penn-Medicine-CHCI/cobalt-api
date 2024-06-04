@@ -42,6 +42,8 @@ public class Feature {
 	@Nullable
 	private String urlName;
 	@Nullable
+	private String subtitle;
+	@Nullable
 	private List<SupportRoleId> supportRoleIds;
 	@Nullable
 	private Instant created;
@@ -96,6 +98,15 @@ public class Feature {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
+	}
+
+	@Nullable
+	public String getSubtitle() {
+		return this.subtitle;
+	}
+
+	public void setSubtitle(@Nullable String subtitle) {
+		this.subtitle = subtitle;
 	}
 
 	@Nullable

@@ -88,6 +88,7 @@ import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiRe
 import com.cobaltplatform.api.model.api.response.EncounterApiResponse.EncounterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.EpicDepartmentApiResponse.EpicDepartmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.FaqSubtopicApiResponse.FaqSubtopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqTopicApiResponse.FaqTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
@@ -121,9 +122,9 @@ import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiRespons
 import com.cobaltplatform.api.model.api.response.PatientOrderMedicationApiResponse.PatientOrderMedicationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageApiResponse.PatientOrderScheduledMessageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
@@ -339,6 +340,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(EncounterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ClientDeviceActivityApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledOutreachApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(FaqSubtopicApiResponseFactory.class)));
 	}
 
 	@Provides
