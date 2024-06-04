@@ -39,6 +39,8 @@ public class FeatureForInstitution {
 	@Nullable
 	private String name;
 	@Nullable
+	private String subtitle;
+	@Nullable
 	private String description;
 	@Nullable
 	private String navDescription;
@@ -83,6 +85,15 @@ public class FeatureForInstitution {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getSubtitle() {
+		return this.subtitle;
+	}
+
+	public void setSubtitle(@Nullable String subtitle) {
+		this.subtitle = subtitle;
 	}
 
 	@Nullable

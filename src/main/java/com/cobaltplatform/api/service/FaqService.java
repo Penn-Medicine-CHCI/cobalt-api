@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Faq;
+import com.cobaltplatform.api.model.db.FaqSubtopic;
 import com.cobaltplatform.api.model.db.FaqTopic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -186,6 +187,31 @@ public class FaqService {
 				WHERE faq_topic_id=?
 				ORDER BY display_order
 				""", Faq.class, faqTopicId);
+	}
+
+	@Nonnull
+	public List<FaqSubtopic> findFaqSubtopicsByFaqId(@Nullable UUID faqId) {
+		if (faqId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM faq_subtopic
+				WHERE faq_id=?
+				ORDER BY display_order
+				""", FaqSubtopic.class, faqId);
+	}
+
+	@Nonnull
+	public Optional<FaqSubtopic> findFaqSubtopicById(@Nullable UUID faqSubtopicId) {
+		if (faqSubtopicId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM faq_subtopic
+				WHERE faq_subtopic_id=?
+				""", FaqSubtopic.class, faqSubtopicId);
 	}
 
 	@Nonnull

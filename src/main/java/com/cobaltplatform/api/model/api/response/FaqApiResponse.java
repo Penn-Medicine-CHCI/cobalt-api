@@ -20,15 +20,21 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.FaqSubtopicApiResponse.FaqSubtopicApiResponseFactory;
 import com.cobaltplatform.api.model.db.Faq;
+import com.cobaltplatform.api.service.FaqService;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,6 +53,12 @@ public class FaqApiResponse {
 	private final String question;
 	@Nonnull
 	private final String answer;
+	@Nullable
+	private final String shortAnswer;
+	@Nonnull
+	private final Boolean permitEllipsizing;
+	@Nonnull
+	private final List<FaqSubtopicApiResponse> faqSubtopics;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -57,8 +69,12 @@ public class FaqApiResponse {
 
 	@AssistedInject
 	public FaqApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
+												@Nonnull FaqSubtopicApiResponseFactory faqSubtopicApiResponseFactory,
+												@Nonnull FaqService faqService,
 												@Assisted @Nonnull Faq faq) {
 		requireNonNull(currentContextProvider);
+		requireNonNull(faqSubtopicApiResponseFactory);
+		requireNonNull(faqService);
 		requireNonNull(faq);
 
 		this.faqId = faq.getFaqId();
@@ -66,6 +82,11 @@ public class FaqApiResponse {
 		this.urlName = faq.getUrlName();
 		this.question = faq.getQuestion();
 		this.answer = faq.getAnswer();
+		this.shortAnswer = faq.getShortAnswer();
+		this.permitEllipsizing = faq.getPermitEllipsizing();
+		this.faqSubtopics = faqService.findFaqSubtopicsByFaqId(faq.getFaqId()).stream()
+				.map(faqSubtopic -> faqSubtopicApiResponseFactory.create(faqSubtopic))
+				.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -91,5 +112,20 @@ public class FaqApiResponse {
 	@Nonnull
 	public String getAnswer() {
 		return this.answer;
+	}
+
+	@Nonnull
+	public Optional<String> getShortAnswer() {
+		return Optional.ofNullable(this.shortAnswer);
+	}
+
+	@Nonnull
+	public Boolean getPermitEllipsizing() {
+		return this.permitEllipsizing;
+	}
+
+	@Nonnull
+	public List<FaqSubtopicApiResponse> getFaqSubtopics() {
+		return this.faqSubtopics;
 	}
 }
