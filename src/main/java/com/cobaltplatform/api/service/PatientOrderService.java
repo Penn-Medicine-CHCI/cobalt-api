@@ -3424,8 +3424,10 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientOrderVoicemailTask == null)
 				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
-			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
-				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot complete past Patient Order Voicemail Tasks.")));
+			else if (patientOrderVoicemailTask.getCompleted())
+				return; // Already completed; nothing to do
+			else if (patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot complete deleted Patient Order Voicemail Tasks.")));
 		}
 
 		if (completedByAccountId == null)
