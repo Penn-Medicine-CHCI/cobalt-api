@@ -103,6 +103,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -343,12 +344,18 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
-		List<PatientOrder> associatedPatientOrders = finalResponseSupplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)
-				? getPatientOrderService().findPatientOrdersByMrnAndInstitutionId(patientOrder.getPatientMrn(), account.getInstitutionId()).stream()
-				.filter(associatedPatientOrder -> !associatedPatientOrder.getPatientOrderId().equals(patientOrderId))
-				.sorted((patientOrder1, patientOrder2) -> patientOrder2.getOrderDate().compareTo(patientOrder1.getOrderDate()))
-				.collect(Collectors.toList())
-				: List.of();
+		List<PatientOrder> associatedPatientOrders = new ArrayList<>();
+
+		// Only pull associated orders if we need "everything", and even then pull raw orders initially for speed
+		if (finalResponseSupplements.contains(PatientOrderApiResponseSupplement.EVERYTHING)) {
+			List<RawPatientOrder> rawAssociatedPatientOrders = getPatientOrderService().findRawPatientOrdersByMrnAndInstitutionId(patientOrder.getPatientMrn(), account.getInstitutionId()).stream()
+					.filter(associatedPatientOrder -> !associatedPatientOrder.getPatientOrderId().equals(patientOrderId))
+					.sorted((patientOrder1, patientOrder2) -> patientOrder2.getOrderDate().compareTo(patientOrder1.getOrderDate()))
+					.collect(Collectors.toList());
+
+			for (RawPatientOrder rawAssociatedPatientOrder : rawAssociatedPatientOrders)
+				associatedPatientOrders.add(getPatientOrderService().findPatientOrderById(rawAssociatedPatientOrder.getPatientOrderId()).get());
+		}
 
 		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
 

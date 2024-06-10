@@ -510,8 +510,8 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<PatientOrder> findPatientOrdersByMrnAndInstitutionId(@Nullable String patientMrn,
-																																	 @Nullable InstitutionId institutionId) {
+	public List<RawPatientOrder> findRawPatientOrdersByMrnAndInstitutionId(@Nullable String patientMrn,
+																																				 @Nullable InstitutionId institutionId) {
 		patientMrn = trimToNull(patientMrn);
 
 		if (patientMrn == null || institutionId == null)
@@ -519,12 +519,12 @@ public class PatientOrderService implements AutoCloseable {
 
 		return getDatabase().queryForList("""
 				SELECT *
-				FROM v_patient_order
+				FROM patient_order
 				WHERE UPPER(?)=UPPER(patient_mrn)
 				AND institution_id=?
 				AND patient_order_disposition_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
-				""", PatientOrder.class, patientMrn, institutionId, PatientOrderDispositionId.ARCHIVED);
+				""", RawPatientOrder.class, patientMrn, institutionId, PatientOrderDispositionId.ARCHIVED);
 	}
 
 	@Nonnull
@@ -3759,7 +3759,7 @@ public class PatientOrderService implements AutoCloseable {
 				FROM v_patient_order_scheduled_message
 				WHERE patient_order_id=?
 				AND scheduled_message_status_id != ?
-				ORDER BY scheduled_at at time zone time_zone DESC
+				ORDER BY scheduled_at DESC
 				""", PatientOrderScheduledMessage.class, patientOrderId, ScheduledMessageStatusId.CANCELED);
 	}
 
