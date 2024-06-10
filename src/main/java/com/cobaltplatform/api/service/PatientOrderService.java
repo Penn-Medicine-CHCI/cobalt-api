@@ -150,6 +150,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
@@ -433,6 +434,19 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<RawPatientOrder> findRawPatientOrderById(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return Optional.empty();
+
+		// Don't use the view here (useful if we need faster performance)
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM patient_order
+				WHERE patient_order_id=?
+				""", RawPatientOrder.class, patientOrderId);
+	}
+
+	@Nonnull
 	public Optional<PatientOrder> findPatientOrderById(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return Optional.empty();
@@ -559,6 +573,19 @@ public class PatientOrderService implements AutoCloseable {
 				WHERE patient_account_id=?
 				AND patient_order_disposition_id=?
 				""", PatientOrder.class, patientAccountId, PatientOrderDispositionId.OPEN);
+	}
+
+	@Nonnull
+	public Optional<RawPatientOrder> findRawPatientOrderByScreeningSessionId(@Nullable UUID screeningSessionId) {
+		if (screeningSessionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT po.*
+				FROM patient_order po, screening_session ss
+				WHERE ss.screening_session_id=?
+				AND ss.patient_order_id=po.patient_order_id
+				""", RawPatientOrder.class, screeningSessionId);
 	}
 
 	@Nonnull
@@ -3397,8 +3424,10 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientOrderVoicemailTask == null)
 				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
-			else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
-				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot complete past Patient Order Voicemail Tasks.")));
+			else if (patientOrderVoicemailTask.getCompleted())
+				return; // Already completed; nothing to do
+			else if (patientOrderVoicemailTask.getDeleted())
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot complete deleted Patient Order Voicemail Tasks.")));
 		}
 
 		if (completedByAccountId == null)

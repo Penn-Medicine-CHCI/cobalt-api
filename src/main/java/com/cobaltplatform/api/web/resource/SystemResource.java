@@ -433,6 +433,12 @@ public class SystemResource {
 	}
 
 	@Nonnull
+	@POST("/system/beiwe-heartbeat")
+	public BinaryResponse beiweHeartbeat() {
+		return ResponseGenerator.utf8Response("OK", "text/plain");
+	}
+
+	@Nonnull
 	protected SystemService getSystemService() {
 		return this.systemService;
 	}
