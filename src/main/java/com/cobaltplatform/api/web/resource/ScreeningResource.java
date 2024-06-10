@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningVersionApiResponse.Scr
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
@@ -240,7 +241,7 @@ public class ScreeningResource {
 		List<ScreeningSession> screeningSessions = new ArrayList<>();
 
 		if (patientOrderId.isPresent()) {
-			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId.get()).orElse(null);
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId.get()).orElse(null);
 
 			if (patientOrder != null) {
 				screeningSessions.addAll(getScreeningService().findScreeningSessionsByScreeningFlowIdAndPatientOrderId(screeningFlowId, patientOrderId.get()).stream()

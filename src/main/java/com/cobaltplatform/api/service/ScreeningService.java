@@ -62,6 +62,7 @@ import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrder
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
+import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -620,8 +621,8 @@ public class ScreeningService {
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-						SELECT ss.* FROM screening_session ss, screening_flow_version sfv 
-						WHERE sfv.screening_flow_id=? AND ss.screening_flow_version_id=sfv.screening_flow_version_id 
+						SELECT ss.* FROM screening_session ss, screening_flow_version sfv
+						WHERE sfv.screening_flow_id=? AND ss.screening_flow_version_id=sfv.screening_flow_version_id
 						AND ss.patient_order_id=?
 						ORDER BY ss.created DESC
 						""",
@@ -1782,7 +1783,7 @@ public class ScreeningService {
 				// Special handling for IC clinical flow
 				if (institution.getIntegratedCareEnabled()
 						&& Objects.equals(institution.getIntegratedCareScreeningFlowId(), screeningFlowVersion.getScreeningFlowId())) {
-					PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
+					RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
 
 					if (patientOrder == null) {
 						getLogger().warn("No patient order for target account ID {} and screening session ID {}, ignoring clinical results...", screeningSession.getTargetAccountId(), screeningSession.getScreeningSessionId());
@@ -1865,7 +1866,7 @@ public class ScreeningService {
 		boolean integratedCareClinicalScreeningFlow = institution.getIntegratedCareEnabled() && Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareScreeningFlowId());
 
 		if (integratedCareIntakeScreeningFlow || integratedCareClinicalScreeningFlow) {
-			PatientOrder patientOrder = getPatientOrderService().findPatientOrderByScreeningSessionId(screeningSessionId).get();
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderByScreeningSessionId(screeningSessionId).get();
 			patientOrderId = patientOrder.getPatientOrderId();
 		}
 
@@ -2272,7 +2273,7 @@ public class ScreeningService {
 		// patient is below a certain age
 		if (screeningSession.getPatientOrderId() != null) {
 			Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
-			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).get();
 			LocalDate currentDate = LocalDateTime.ofInstant(Instant.now(), institution.getTimeZone()).toLocalDate();
 
 			Long patientAgeInYears = Period.between(patientOrder.getPatientBirthdate(), currentDate)

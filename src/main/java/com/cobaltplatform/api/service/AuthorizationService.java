@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
@@ -526,7 +527,7 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canViewPatientOrder(@Nonnull PatientOrder patientOrder,
+	public Boolean canViewPatientOrder(@Nonnull RawPatientOrder patientOrder,
 																		 @Nonnull Account account) {
 		requireNonNull(patientOrder);
 		requireNonNull(account);
