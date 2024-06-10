@@ -172,8 +172,6 @@ public class RawPatientOrder {
 	@Nullable
 	private UUID episodeClosedByAccountId;
 	@Nullable
-	private Boolean outreachFollowupNeeded;
-	@Nullable
 	private Instant resourcesSentAt;
 	@Nullable
 	private String resourcesSentNote;
@@ -197,8 +195,6 @@ public class RawPatientOrder {
 	private String testPatientEmailAddress;
 	@Nullable
 	private String testPatientPassword;
-	@Nullable
-	private Boolean patientDemographicsConfirmed;
 	@Nullable
 	private Instant patientDemographicsConfirmedAt;
 	@Nullable
@@ -767,15 +763,6 @@ public class RawPatientOrder {
 	}
 
 	@Nullable
-	public Boolean getOutreachFollowupNeeded() {
-		return this.outreachFollowupNeeded;
-	}
-
-	public void setOutreachFollowupNeeded(@Nullable Boolean outreachFollowupNeeded) {
-		this.outreachFollowupNeeded = outreachFollowupNeeded;
-	}
-
-	@Nullable
 	public Instant getResourcesSentAt() {
 		return this.resourcesSentAt;
 	}
@@ -881,15 +868,6 @@ public class RawPatientOrder {
 
 	public void setTestPatientPassword(@Nullable String testPatientPassword) {
 		this.testPatientPassword = testPatientPassword;
-	}
-
-	@Nullable
-	public Boolean getPatientDemographicsConfirmed() {
-		return this.patientDemographicsConfirmed;
-	}
-
-	public void setPatientDemographicsConfirmed(@Nullable Boolean patientDemographicsConfirmed) {
-		this.patientDemographicsConfirmed = patientDemographicsConfirmed;
 	}
 
 	@Nullable

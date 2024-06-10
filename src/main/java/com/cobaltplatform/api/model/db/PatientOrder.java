@@ -209,6 +209,10 @@ public class PatientOrder extends RawPatientOrder {
 	private LocalDateTime nextContactScheduledAt;
 	@Nullable
 	private Instant mostRecentMessageDeliveredAt;
+	@Nullable
+	private Boolean outreachFollowupNeeded;
+	@Nullable
+	private Boolean patientDemographicsConfirmed;
 
 	@Nullable
 	public PatientOrderScreeningStatusId getPatientOrderScreeningStatusId() {
@@ -938,5 +942,23 @@ public class PatientOrder extends RawPatientOrder {
 
 	public void setMostRecentMessageDeliveredAt(@Nullable Instant mostRecentMessageDeliveredAt) {
 		this.mostRecentMessageDeliveredAt = mostRecentMessageDeliveredAt;
+	}
+
+	@Nullable
+	public Boolean getOutreachFollowupNeeded() {
+		return this.outreachFollowupNeeded;
+	}
+
+	public void setOutreachFollowupNeeded(@Nullable Boolean outreachFollowupNeeded) {
+		this.outreachFollowupNeeded = outreachFollowupNeeded;
+	}
+
+	@Nullable
+	public Boolean getPatientDemographicsConfirmed() {
+		return this.patientDemographicsConfirmed;
+	}
+
+	public void setPatientDemographicsConfirmed(@Nullable Boolean patientDemographicsConfirmed) {
+		this.patientDemographicsConfirmed = patientDemographicsConfirmed;
 	}
 }
