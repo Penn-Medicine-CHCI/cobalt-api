@@ -21,10 +21,13 @@ package com.cobaltplatform.api.integration.epic;
 
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
+import com.cobaltplatform.api.model.api.request.CreateEpicProviderSlotBookingRequest;
 import com.cobaltplatform.api.util.GsonUtility;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -39,12 +42,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 import static com.soklet.util.LoggingUtils.initializeLogback;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 /**
  * @author Transmogrify, LLC.
@@ -109,6 +119,85 @@ public class EpicIntegratedCareTests {
 
 		GetProviderAppointmentsResponse providerAppointmentsResponse = epicClient.getProviderAppointments(providerAppointmentsRequest);
 
+		// Normally these are specified on the institution.  Hardcode them here.
+		//  contact_id_type TEXT NOT NULL, -- e.g. 'CSN'
+		//  department_id_type TEXT NOT NULL, -- e.g. 'INTERNAL'
+		//  visit_type_id_type TEXT NOT NULL, -- e.g. 'INTERNAL'
+		String contactIdType = "CSN";
+		String departmentIdType = "INTERNAL";
+		String visitTypeIdType = "INTERNAL";
+
+		List<CreateEpicProviderSlotBookingRequest> requests = new ArrayList<>(providerAppointmentsResponse.getAppointments().size());
+
+		for (GetProviderAppointmentsResponse.Appointment appointment : providerAppointmentsResponse.getAppointments()) {
+			String dateAsString = appointment.getDate(); // e.g. "6/14/2024"
+			LocalDate date = epicClient.parseDateWithSlashes(dateAsString);
+
+			String appointmentStartTimeAsString = appointment.getAppointmentStartTime(); // e.g. " 9:00 AM"
+			LocalTime appointmentStartTime = epicClient.parseTimeAmPm(appointmentStartTimeAsString);
+
+			String appointmentDurationAsString = appointment.getAppointmentDuration(); // e.g. "30"
+			Integer appointmentDuration = Integer.parseInt(appointmentDurationAsString, 10);
+
+			LocalDateTime startDateTime = date.atTime(appointmentStartTime);
+			LocalDateTime endDateTime = startDateTime.plusMinutes(appointmentDuration);
+
+			UUID providerId = null;
+			String departmentId = null;
+
+			for (GetProviderAppointmentsResponse.Provider potentialProvider : appointment.getProviders()) {
+				for (GetProviderAppointmentsResponse.TypedId providerID : potentialProvider.getProviderIDs()) {
+					// We don't compare on provider type here because it may come back as, for example, INTERNAL when it's really EXTERNAL
+					if (Objects.equals(normalizeForComparison(providerID.getID()), normalizeForComparison(provider.getID()))) {
+						// Here we would set the real Cobalt provider ID
+						providerId = UUID.randomUUID();
+					}
+				}
+
+				for (GetProviderAppointmentsResponse.TypedId potentialDepartment : potentialProvider.getDepartmentIDs()) {
+					if (Objects.equals(normalizeForComparison(potentialDepartment.getType()), normalizeForComparison(departmentIdType))) {
+						departmentId = normalizeForComparison(potentialDepartment.getID());
+						break;
+					}
+				}
+			}
+
+			String contactId = null;
+
+			for (GetProviderAppointmentsResponse.TypedId potentialContact : appointment.getContactIDs()) {
+				if (Objects.equals(normalizeForComparison(potentialContact.getType()), normalizeForComparison(contactIdType))) {
+					contactId = normalizeForComparison(potentialContact.getID());
+					break;
+				}
+			}
+
+			String visitTypeId = null;
+
+			for (GetProviderAppointmentsResponse.TypedId potentialVisitType : appointment.getVisitTypeIDs()) {
+				if (Objects.equals(normalizeForComparison(potentialVisitType.getType()), normalizeForComparison(visitTypeIdType))) {
+					visitTypeId = normalizeForComparison(potentialVisitType.getID());
+					break;
+				}
+			}
+
+			CreateEpicProviderSlotBookingRequest request = new CreateEpicProviderSlotBookingRequest();
+			request.setProviderId(providerId);
+			request.setContactId(contactId);
+			request.setContactIdType(contactIdType);
+			request.setDepartmentId(departmentId);
+			request.setDepartmentIdType(departmentIdType);
+			request.setVisitTypeId(visitTypeId);
+			request.setVisitTypeIdType(visitTypeIdType);
+			request.setStartDateTime(startDateTime);
+			request.setEndDateTime(endDateTime);
+
+			requests.add(request);
+		}
+
+		for (CreateEpicProviderSlotBookingRequest request : requests) {
+			System.out.println(ToStringBuilder.reflectionToString(request, ToStringStyle.JSON_STYLE));
+		}
+
 		// TODO: run tests
 
 		// 	@Nonnull
@@ -121,6 +210,11 @@ public class EpicIntegratedCareTests {
 		//	// epic/2017/PatientAccess/External/GetScheduleDaysForProvider2/Scheduling/Open/Provider/GetScheduleDays2
 		//	@Nonnull
 		//	GetScheduleDaysForProviderResponse getScheduleDaysForProvider(@Nonnull GetScheduleDaysForProviderRequest request);
+	}
+
+	@Nonnull
+	protected String normalizeForComparison(@Nullable String input) {
+		return trimToEmpty(input).toUpperCase(Locale.ENGLISH);
 	}
 
 	@Nonnull
