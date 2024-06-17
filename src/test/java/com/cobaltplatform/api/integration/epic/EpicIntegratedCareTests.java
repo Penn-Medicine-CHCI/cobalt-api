@@ -21,7 +21,8 @@ package com.cobaltplatform.api.integration.epic;
 
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
-import com.cobaltplatform.api.model.api.request.CreateEpicProviderSlotBookingRequest;
+import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBookingRequest;
+import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.util.GsonUtility;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -127,7 +128,7 @@ public class EpicIntegratedCareTests {
 		String departmentIdType = "INTERNAL";
 		String visitTypeIdType = "INTERNAL";
 
-		List<CreateEpicProviderSlotBookingRequest> requests = new ArrayList<>(providerAppointmentsResponse.getAppointments().size());
+		List<SynchronizeEpicProviderSlotBookingRequest> requests = new ArrayList<>(providerAppointmentsResponse.getAppointments().size());
 
 		for (GetProviderAppointmentsResponse.Appointment appointment : providerAppointmentsResponse.getAppointments()) {
 			String dateAsString = appointment.getDate(); // e.g. "6/14/2024"
@@ -180,7 +181,7 @@ public class EpicIntegratedCareTests {
 				}
 			}
 
-			CreateEpicProviderSlotBookingRequest request = new CreateEpicProviderSlotBookingRequest();
+			SynchronizeEpicProviderSlotBookingRequest request = new SynchronizeEpicProviderSlotBookingRequest();
 			request.setProviderId(providerId);
 			request.setContactId(contactId);
 			request.setContactIdType(contactIdType);
@@ -194,7 +195,7 @@ public class EpicIntegratedCareTests {
 			requests.add(request);
 		}
 
-		for (CreateEpicProviderSlotBookingRequest request : requests) {
+		for (SynchronizeEpicProviderSlotBookingRequest request : requests) {
 			System.out.println(ToStringBuilder.reflectionToString(request, ToStringStyle.JSON_STYLE));
 		}
 

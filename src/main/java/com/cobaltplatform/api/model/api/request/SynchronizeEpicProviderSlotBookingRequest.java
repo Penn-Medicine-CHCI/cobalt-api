@@ -28,7 +28,7 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateEpicProviderSlotBookingRequest {
+public class SynchronizeEpicProviderSlotBookingRequest {
 	@Nullable
 	private UUID providerId;
 	@Nullable

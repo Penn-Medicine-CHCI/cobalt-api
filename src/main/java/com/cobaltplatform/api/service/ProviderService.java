@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindLicenseType;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindSupplement;
+import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBookingRequest;
 import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
@@ -2378,6 +2379,128 @@ public class ProviderService {
 	public List<Interaction> findInteractionsByTypeAndProviderId(InteractionType.InteractionTypeId interactionTypeId, UUID providerId) {
 		return getDatabase().queryForList("SELECT i.* FROM interaction i, provider_interaction pi WHERE i.interaction_id = pi.interaction_id " +
 				"AND pi.provider_id = ? AND i.interaction_type_id = ? ", Interaction.class, providerId, interactionTypeId);
+	}
+
+	public void synchronizeEpicProviderSlotBookingRequests(@Nullable List<SynchronizeEpicProviderSlotBookingRequest> requests) {
+		if (requests == null || requests.size() == 0)
+			return;
+
+		ValidationException validationException = new ValidationException();
+
+		// First, validate the data
+		int i = 0;
+
+		for (SynchronizeEpicProviderSlotBookingRequest request : requests) {
+			if (request == null) {
+				validationException.add(getStrings().get("Request index {{index}} is missing.", Map.of("index", i)));
+			} else {
+				if (request.getProviderId() == null)
+					validationException.add(new FieldError(format("providerId[%d]", i), getStrings().get("Provider ID is required.")));
+
+				if (request.getContactId() == null)
+					validationException.add(new FieldError(format("contactId[%d]", i), getStrings().get("Contact ID is required.")));
+
+				if (request.getContactIdType() == null)
+					validationException.add(new FieldError(format("contactIdType[%d]", i), getStrings().get("Contact ID Type is required.")));
+
+				if (request.getDepartmentId() == null)
+					validationException.add(new FieldError(format("departmentId[%d]", i), getStrings().get("Department ID is required.")));
+
+				if (request.getDepartmentIdType() == null)
+					validationException.add(new FieldError(format("departmentIdType[%d]", i), getStrings().get("Department ID Type is required.")));
+
+				if (request.getVisitTypeId() == null)
+					validationException.add(new FieldError(format("visitTypeId[%d]", i), getStrings().get("Visit Type ID is required.")));
+
+				if (request.getVisitTypeIdType() == null)
+					validationException.add(new FieldError(format("visitTypeIdType[%d]", i), getStrings().get("Visit Type ID Type is required.")));
+
+				if (request.getStartDateTime() == null)
+					validationException.add(new FieldError(format("startDateTime[%d]", i), getStrings().get("Start Date/Time is required.")));
+
+				if (request.getEndDateTime() == null)
+					validationException.add(new FieldError(format("endDateTime[%d]", i), getStrings().get("End Date/Time is required.")));
+
+				if (request.getStartDateTime() != null && request.getEndDateTime() != null && request.getEndDateTime().isBefore(request.getStartDateTime()))
+					validationException.add(getStrings().get("End Date/Time at index {{index}} is before Start Date/Time.", Map.of("index", i)));
+			}
+
+			++i;
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Group data so it's easier to work with
+		Map<UUID, Set<SynchronizeEpicProviderSlotBookingRequest>> requestsByProviderId = requests.stream()
+				.collect(Collectors.groupingBy(SynchronizeEpicProviderSlotBookingRequest::getProviderId, Collectors.toSet()));
+
+		for (Entry<UUID, Set<SynchronizeEpicProviderSlotBookingRequest>> entry : requestsByProviderId.entrySet()) {
+			UUID providerId = entry.getKey();
+			Set<SynchronizeEpicProviderSlotBookingRequest> providerRequests = entry.getValue();
+
+			// First, for this provider, delete all existing sync records for the dates we're choosing to sync
+			Set<LocalDate> providerDates = providerRequests.stream()
+					.map(providerRequest -> providerRequest.getStartDateTime().toLocalDate())
+					.collect(Collectors.toSet());
+
+			List<List<Object>> batchDeleteParameterGroups = new ArrayList<>(providerDates.size());
+
+			for (LocalDate providerDate : providerDates) {
+				LocalDateTime startOfDayDateTime = providerDate.atStartOfDay();
+				LocalDateTime endOfDayDateTime = LocalDateTime.of(providerDate, LocalTime.MAX); // Date @ 23:59:59.999999999
+
+				batchDeleteParameterGroups.add(List.of(
+						providerId,
+						startOfDayDateTime,
+						endOfDayDateTime
+				));
+			}
+
+			getDatabase().executeBatch("""
+					DELETE FROM epic_provider_slot_booking
+					WHERE provider_id=?
+					AND start_date_time >= ?
+					AND end_date_time <= ?
+					""", batchDeleteParameterGroups);
+
+			List<List<Object>> batchInsertParameterGroups = new ArrayList<>(providerRequests.size());
+
+			// Then, insert the fresh data for this provider
+			for (SynchronizeEpicProviderSlotBookingRequest request : providerRequests) {
+				batchInsertParameterGroups.add(List.of(
+						request.getProviderId(),
+						normalizeEpicString(request.getContactId()),
+						normalizeEpicString(request.getContactIdType()),
+						normalizeEpicString(request.getDepartmentId()),
+						normalizeEpicString(request.getDepartmentIdType()),
+						normalizeEpicString(request.getVisitTypeId()),
+						normalizeEpicString(request.getVisitTypeIdType()),
+						request.getStartDateTime(),
+						request.getEndDateTime()
+				));
+			}
+
+			getDatabase().executeBatch("""
+					INSERT INTO epic_provider_slot_booking(
+						provider_id,
+						contact_id,
+						contact_id_type,
+						department_id,
+						department_id_type,
+						visit_type_id,
+						visit_type_id_type,
+						start_date_time,
+						end_date_time
+					) VALUES (?,?,?,?,?,?,?,?,?)
+					""", batchInsertParameterGroups);
+		}
+	}
+
+	@Nonnull
+	protected String normalizeEpicString(@Nonnull String epicString) {
+		requireNonNull(epicString);
+		return epicString.trim().toUpperCase(Locale.US);
 	}
 
 	@Nonnull
