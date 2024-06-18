@@ -181,7 +181,8 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/171-stud
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/172-unique-email-address.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/173-ic-department-scheduling-overrides.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/174-faq-enhancements.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/175-epic-provider-blocks.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/175-screening-session-constraints.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/176-epic-provider-blocks.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
