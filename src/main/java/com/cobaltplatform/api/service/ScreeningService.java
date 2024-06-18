@@ -1411,11 +1411,24 @@ public class ScreeningService {
 
 		UUID screeningSessionAnsweredScreeningQuestionId = UUID.randomUUID();
 
-		getDatabase().execute("""
-						INSERT INTO screening_session_answered_screening_question(screening_session_answered_screening_question_id, 
-						screening_session_screening_id, screening_question_id, created)
-						VALUES(?,?,?,?)
-				""", screeningSessionAnsweredScreeningQuestionId, screeningSessionScreeningId, screeningQuestionId, Instant.now());
+		try {
+			getDatabase().execute("""
+							INSERT INTO screening_session_answered_screening_question(screening_session_answered_screening_question_id,
+							screening_session_screening_id, screening_question_id, created)
+							VALUES(?,?,?,?)
+					""", screeningSessionAnsweredScreeningQuestionId, screeningSessionScreeningId, screeningQuestionId, Instant.now());
+		} catch (DatabaseException e) {
+			String contraintViolated = e.constraint().orElse(null);
+
+			if (Objects.equals(contraintViolated, "idx_screening_session_answered_screening_question_valid")) {
+				getErrorReporter().report(format("Detected idx_screening_session_answered_screening_question_valid violation for screening_session_screening_id %s and screening_question_id %s",
+						screeningSessionScreeningId, screeningQuestionId));
+
+				throw new ValidationException(getStrings().get("Sorry, we were temporarily unable to record your answer. Please try again. If the issue persists, try exiting this assessment and re-launching it."));
+			}
+
+			throw e;
+		}
 
 		List<UUID> screeningAnswerIds = new ArrayList<>(answers.size());
 		Instant now = Instant.now();
@@ -1440,12 +1453,26 @@ public class ScreeningService {
 				})
 				.collect(Collectors.toList());
 
-		// ...for an efficient INSERT.
-		getDatabase().executeBatch("""
-				INSERT INTO
-				screening_answer(screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text, created)
-				VALUES(?,?,?,?,?,?)
-				""", answerParameters);
+		try {
+			// ...for an efficient INSERT.
+			getDatabase().executeBatch("""
+					INSERT INTO
+					screening_answer(screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text, created)
+					VALUES(?,?,?,?,?,?)
+					""", answerParameters);
+		} catch (DatabaseException e) {
+			// Unfortunately this is the best way to find the `screening_answer_option_id_unique` violation
+			boolean constraintViolated = e.getMessage() != null && e.getMessage().contains("screening_answer_option_id_unique");
+
+			if (constraintViolated) {
+				getErrorReporter().report(format("Detected screening_answer_option_id_unique violation for screening_session_screening_id %s and screening_question_id %s",
+						screeningSessionScreeningId, screeningQuestionId));
+
+				throw new ValidationException(getStrings().get("Sorry, we were temporarily unable to record your answer. Please try again. If the issue persists, try exiting this assessment and re-launching it."));
+			}
+
+			throw e;
+		}
 
 		// Score the individual screening by calling its scoring function
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
