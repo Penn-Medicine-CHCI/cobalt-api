@@ -50,6 +50,7 @@ import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
 import com.cobaltplatform.api.model.db.StudyCheckIn;
 import com.cobaltplatform.api.model.db.StudyCheckInAction;
+import com.cobaltplatform.api.model.db.StudyCheckInReminder;
 import com.cobaltplatform.api.model.db.StudyFileUpload;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.StudyAccount;
@@ -499,7 +500,7 @@ public class StudyService implements AutoCloseable {
 					updateCheckInStatusId(accountCheckIn.getAccountCheckInId(), CheckInStatusId.EXPIRED);
 					checkInCount = 1;
 					continue;
-				}	else if (accountStudy.get().getStudyStarted() && accountCheckExpired(account, accountCheckIn)) {
+				} else if (accountStudy.get().getStudyStarted() && accountCheckExpired(account, accountCheckIn)) {
 					getLogger().debug(format("Check-in %s has expired so continuing to next check-in", accountCheckIn.getCheckInNumber()));
 					if (!accountCheckIn.getCheckInStatusId().equals(CheckInStatusId.EXPIRED)) {
 						getLogger().debug(format("Check-in %s was not set to expired so expiring", accountCheckIn.getCheckInNumber()));
@@ -1097,94 +1098,61 @@ public class StudyService implements AutoCloseable {
 		}
 
 		protected void scheduleCheckInNotificationReminder() {
-			List<Study> studies = getDatabase().queryForList("""
+			// TODO: support non fixed window studies
+			// List of all studies that have check in reminders turned on and the number of minutes
+			// at which to send a notification after the check in has started but has not been completed
+			List<StudyCheckInReminder> studyCheckInReminders = getDatabase().queryForList("""
 					SELECT *
-					FROM study
-					WHERE send_check_in_reminder_notification = true""", Study.class);
-			for (Study study : studies) {
-				getLogger().debug(format("Sending check in reminders for Study %s", study.getName()));
-				List<AccountStudy> accountStudies = study.getCheckInWindowsFixed() ?
-						getDatabase().queryForList("""
-						SELECT ast.*
-						FROM v_account_study ast, study s
-						WHERE ast.study_id = s.study_id
-						AND ast.study_started = false
-						AND s.study_id = ?
-						AND EXISTS
-						(SELECT 'X'
-						FROM v_account_check_in vaci, account a
-						WHERE vaci.account_id = a.account_id
-						AND ast.account_study_id = vaci.account_study_id
-						AND vaci.check_in_status_id != ?
-						AND now() at time zone a.time_zone BETWEEN check_in_start_date_time AND check_in_end_date_time
-						AND EXTRACT(EPOCH FROM NOW() at time zone a.time_zone - vaci.check_in_start_date_time) / 60 <  s.check_in_reminder_notification_minutes)
-						AND NOT EXISTS
-						(SELECT 'X'
-						FROM account_study_scheduled_message ass, scheduled_message sm
-						WHERE ass.scheduled_message_id = sm.scheduled_message_id
-						AND ast.account_study_id = ass.account_study_id
-						AND EXTRACT(EPOCH FROM NOW() - ass.created) / 60 < s.check_in_reminder_notification_minutes)
-						AND NOT EXISTS
-						(SELECT assm.account_study_id
-						FROM account_study_scheduled_message assm
-						WHERE ast.account_study_id = assm.account_study_id
-						GROUP BY assm.account_study_id
-						HAVING COUNT(*) >= s.max_check_in_reminder)
-						""", AccountStudy.class, study.getStudyId(), CheckInStatusId.COMPLETE) :
-						// Gets a list of study accounts that have started a study and have not
-						// performed a check in within study.check_in_reminder_notification_minutes and
-						// has not already been notified within study.check_in_reminder_notification_minutes
-						// and has not been notified more than study.max_check_in_reminder times
-						getDatabase().queryForList("""
-						SELECT ast.*
-						FROM v_account_study ast, study s
-						WHERE ast.study_id = s.study_id
-						AND ast.study_started = false
-						AND s.study_id = ?
-						AND NOT EXISTS
-						(SELECT 'X'
-						FROM v_account_check_in vaci
-						WHERE ast.account_study_id = vaci.account_study_id
-						AND EXTRACT(EPOCH FROM NOW() - vaci.completed_date) / 60 <  s.check_in_reminder_notification_minutes)
-						AND NOT EXISTS
-						(SELECT 'X'
-						FROM account_study_scheduled_message ass, scheduled_message sm
-						WHERE ass.scheduled_message_id = sm.scheduled_message_id
-						AND ast.account_study_id = ass.account_study_id
-						AND EXTRACT(EPOCH FROM NOW() - ass.created) / 60 < s.check_in_reminder_notification_minutes)
-						AND NOT EXISTS
-						(SELECT assm.account_study_id
-						FROM account_study_scheduled_message assm
-						WHERE ast.account_study_id = assm.account_study_id
-						GROUP BY assm.account_study_id
-						HAVING COUNT(*) >= s.max_check_in_reminder)
-						""", AccountStudy.class, study.getStudyId());
+					FROM v_study_check_in_reminder sc
+					WHERE send_check_in_reminder_notification = true
+					AND check_in_windows_fixed = true""", StudyCheckInReminder.class);
 
-				for (AccountStudy accountStudy : accountStudies) {
+			// Get a list of all "Active" study check ins that have not been notified
+			for (StudyCheckInReminder studyCheckInReminder : studyCheckInReminders) {
+				getLogger().debug(format("Sending check in reminders for Study check in reminder id %s", studyCheckInReminder.getStudyCheckInReminderId()));
+				List<AccountCheckIn> accountCheckIns =
+						getDatabase().queryForList("""
+										SELECT va.*
+										FROM v_account_check_in va
+										WHERE va.study_id = ?
+										AND va.study_started = TRUE
+										AND va.check_in_status_id != ?
+										AND EXTRACT(EPOCH FROM NOW() at time zone va.time_zone - va.check_in_start_date_time) / 60 >  ?
+										AND now() at time zone va.time_zone BETWEEN check_in_start_date_time AND check_in_end_date_time
+										AND NOT EXISTS
+										(SELECT 'X'
+										FROM account_check_in_reminder ac
+										WHERE ac.account_check_in_id = va.account_check_in_id
+										AND ac.study_check_in_reminder_id = ?)
+								""", AccountCheckIn.class, studyCheckInReminder.getStudyId(), CheckInStatusId.COMPLETE,
+								studyCheckInReminder.getCheckInReminderNotificationMinutes(), studyCheckInReminder.getStudyCheckInReminderId());
+
+				for (AccountCheckIn accountCheckIn : accountCheckIns) {
 					Map<String, Object> standardMessageContext = new HashMap<>();
-					standardMessageContext.put("condition", format("accountId %s", accountStudy.getAccountId()));
-					standardMessageContext.put("title", accountStudy.getCheckInReminderNotificationMessageTitle());
-					standardMessageContext.put("body", accountStudy.getCheckInReminderNotificationMessageBody());
+					standardMessageContext.put("condition", format("accountId %s", accountCheckIn.getAccountId()));
+					standardMessageContext.put("title", studyCheckInReminder.getCheckInReminderNotificationMessageTitle());
+					standardMessageContext.put("body", studyCheckInReminder.getCheckInReminderNotificationMessageBody());
 
-					List<ClientDevicePushToken> clientDevicePushTokens = accountService.findClientDevicePushTokensForAccountId(accountStudy.getAccountId());
+					List<ClientDevicePushToken> clientDevicePushTokens = accountService.findClientDevicePushTokensForAccountId(accountCheckIn.getAccountId());
 
 					for (ClientDevicePushToken clientDevicePushToken : clientDevicePushTokens) {
-						getLogger().debug(format("Scheduling account check-in reminder for accountId %s", accountStudy.getAccountId()));
+						getLogger().debug(format("Scheduling account check-in reminder for accountId %s", accountCheckIn.getAccountId()));
 
-						PushMessage pushMessage = new PushMessage.Builder(accountStudy.getInstitutionId(), PushMessageTemplate.FREEFORM,
+						PushMessage pushMessage = new PushMessage.Builder(accountCheckIn.getInstitutionId(), PushMessageTemplate.FREEFORM,
 								clientDevicePushToken.getClientDevicePushTokenTypeId(), clientDevicePushToken.getPushToken(), Locale.US)
 								.messageContext(standardMessageContext).build();
 						UUID scheduledMessageId = messageService.createScheduledMessage(new CreateScheduledMessageRequest<>() {{
 							setMessage(pushMessage);
-							setTimeZone(accountStudy.getTimeZone());
-							setScheduledAt(LocalDateTime.now(accountStudy.getTimeZone()));
+							setTimeZone(accountCheckIn.getTimeZone());
+							setScheduledAt(LocalDateTime.now(accountCheckIn.getTimeZone()));
 						}});
 
 						getDatabase().execute("""
-								INSERT INTO account_study_scheduled_message
-								  (account_study_id, scheduled_message_id)
+									INSERT INTO account_check_in_reminder
+								  (account_check_in_id, study_check_in_reminder_id, scheduled_message_id)
 								VALUES
-								  (?,?)""", accountStudy.getAccountStudyId(), scheduledMessageId);
+								  (?,?,?)""",
+								accountCheckIn.getAccountCheckInId(), studyCheckInReminder.getStudyCheckInReminderId(), scheduledMessageId);
 					}
 
 				}

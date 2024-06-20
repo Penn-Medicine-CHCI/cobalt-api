@@ -46,14 +46,6 @@ public class AccountStudy {
 	@Nullable
 	private ZoneId timeZone;
 	@Nullable
-	private Boolean sendCheckInReminderNotification;
-	@Nullable
-	private Integer checkInReminderNotificationMinutes;
-	@Nullable
-	private String checkInReminderNotificationMessageTitle;
-	@Nullable
-	private String checkInReminderNotificationMessageBody;
-	@Nullable
 	private Boolean studyStarted;
 	@Nonnull
 	private Instant created;
@@ -133,42 +125,6 @@ public class AccountStudy {
 
 	public void setTimeZone(@Nullable ZoneId timeZone) {
 		this.timeZone = timeZone;
-	}
-
-	@Nullable
-	public Boolean getSendCheckInReminderNotification() {
-		return sendCheckInReminderNotification;
-	}
-
-	public void setSendCheckInReminderNotification(@Nullable Boolean sendCheckInReminderNotification) {
-		this.sendCheckInReminderNotification = sendCheckInReminderNotification;
-	}
-
-	@Nullable
-	public Integer getCheckInReminderNotificationMinutes() {
-		return checkInReminderNotificationMinutes;
-	}
-
-	public void setCheckInReminderNotificationMinutes(@Nullable Integer checkInReminderNotificationMinutes) {
-		this.checkInReminderNotificationMinutes = checkInReminderNotificationMinutes;
-	}
-
-	@Nullable
-	public String getCheckInReminderNotificationMessageTitle() {
-		return checkInReminderNotificationMessageTitle;
-	}
-
-	public void setCheckInReminderNotificationMessageTitle(@Nullable String checkInReminderNotificationMessageTitle) {
-		this.checkInReminderNotificationMessageTitle = checkInReminderNotificationMessageTitle;
-	}
-
-	@Nullable
-	public String getCheckInReminderNotificationMessageBody() {
-		return checkInReminderNotificationMessageBody;
-	}
-
-	public void setCheckInReminderNotificationMessageBody(@Nullable String checkInReminderNotificationMessageBody) {
-		this.checkInReminderNotificationMessageBody = checkInReminderNotificationMessageBody;
 	}
 
 	@Nonnull
