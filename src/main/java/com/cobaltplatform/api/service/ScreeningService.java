@@ -356,7 +356,7 @@ public class ScreeningService {
 			return false;
 
 		// For now, templating data is only used for scenarios where this screening is tied to a patient order.
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
 
 		if (patientOrder == null)
 			return false;
@@ -742,7 +742,7 @@ public class ScreeningService {
 			if (patientOrderId == null) {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 			} else {
-				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+				RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 				if (patientOrder == null)
 					validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -1600,7 +1600,7 @@ public class ScreeningService {
 
 			// If this screening session is done for a patient order, mark the order as "crisis indicated"
 			if (screeningSession.getPatientOrderId() != null) {
-				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).get();
+				RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).get();
 
 				if (patientOrder.getPatientOrderSafetyPlanningStatusId() != PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING) {
 					getLogger().info("Patient order ID {} will be marked as 'needs safety planning'.", patientOrder.getPatientOrderId());

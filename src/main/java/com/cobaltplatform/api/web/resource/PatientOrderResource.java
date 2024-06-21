@@ -377,7 +377,7 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -518,7 +518,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderId);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -550,7 +550,7 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -580,7 +580,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderId);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -611,7 +611,7 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -643,7 +643,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderId);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -864,7 +864,7 @@ public class PatientOrderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -892,7 +892,7 @@ public class PatientOrderResource {
 		CreatePatientOrderNoteRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderNoteRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -924,7 +924,7 @@ public class PatientOrderResource {
 		if (patientOrderNote == null)
 			throw new NotFoundException();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderNote.getPatientOrderId()).get();
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderNote.getPatientOrderId()).get();
 
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -954,7 +954,7 @@ public class PatientOrderResource {
 		if (patientOrderNote == null)
 			throw new NotFoundException();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderNote.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderNote.getPatientOrderId()).orElse(null);
 
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -990,7 +990,7 @@ public class PatientOrderResource {
 		CreatePatientOrderVoicemailTaskRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderVoicemailTaskRequest.class);
 		request.setCreatedByAccountId(account.getAccountId());
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1022,7 +1022,7 @@ public class PatientOrderResource {
 		request.setUpdatedByAccountId(account.getAccountId());
 		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1054,7 +1054,7 @@ public class PatientOrderResource {
 		request.setDeletedByAccountId(account.getAccountId());
 		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1081,7 +1081,7 @@ public class PatientOrderResource {
 		request.setCompletedByAccountId(account.getAccountId());
 		request.setPatientOrderVoicemailTaskId(patientOrderVoicemailTaskId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1105,7 +1105,7 @@ public class PatientOrderResource {
 		CreatePatientOrderScheduledOutreachRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledOutreachRequest.class);
 		request.setCreatedByAccountId(account.getAccountId());
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1137,7 +1137,7 @@ public class PatientOrderResource {
 		request.setUpdatedByAccountId(account.getAccountId());
 		request.setPatientOrderScheduledOutreachId(patientOrderScheduledOutreachId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledOutreach.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderScheduledOutreach.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1167,7 +1167,7 @@ public class PatientOrderResource {
 		request.setCanceledByAccountId(account.getAccountId());
 		request.setPatientOrderScheduledOutreachId(patientOrderScheduledOutreachId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledOutreach.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderScheduledOutreach.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1196,7 +1196,7 @@ public class PatientOrderResource {
 		request.setCompletedByAccountId(account.getAccountId());
 		request.setPatientOrderScheduledOutreachId(patientOrderScheduledOutreachId);
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledOutreach.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderScheduledOutreach.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1217,7 +1217,7 @@ public class PatientOrderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -1245,7 +1245,7 @@ public class PatientOrderResource {
 		CreatePatientOrderOutreachRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderOutreachRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1277,7 +1277,7 @@ public class PatientOrderResource {
 		if (patientOrderOutreach == null)
 			throw new NotFoundException();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderOutreach.getPatientOrderId()).get();
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderOutreach.getPatientOrderId()).get();
 
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1307,7 +1307,7 @@ public class PatientOrderResource {
 		if (patientOrderOutreach == null)
 			throw new NotFoundException();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderOutreach.getPatientOrderId()).get();
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderOutreach.getPatientOrderId()).get();
 
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1328,7 +1328,7 @@ public class PatientOrderResource {
 		CreatePatientOrderScheduledMessageGroupRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledMessageGroupRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1362,7 +1362,7 @@ public class PatientOrderResource {
 			throw new NotFoundException();
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1398,7 +1398,7 @@ public class PatientOrderResource {
 			throw new NotFoundException();
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1423,7 +1423,7 @@ public class PatientOrderResource {
 		CreatePatientOrderScheduledScreeningRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledScreeningRequest.class);
 		request.setAccountId(account.getAccountId());
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1455,7 +1455,7 @@ public class PatientOrderResource {
 		if (patientOrderScheduledScreening == null)
 			throw new NotFoundException();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledScreening.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderScheduledScreening.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1480,7 +1480,7 @@ public class PatientOrderResource {
 		if (patientOrderScheduledScreening == null)
 			throw new NotFoundException();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderScheduledScreening.getPatientOrderId()).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderScheduledScreening.getPatientOrderId()).orElse(null);
 
 		if (patientOrder != null && !getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
@@ -1672,7 +1672,7 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -1704,7 +1704,7 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -1736,7 +1736,7 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -1815,7 +1815,7 @@ public class PatientOrderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
@@ -1841,7 +1841,7 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new NotFoundException();
