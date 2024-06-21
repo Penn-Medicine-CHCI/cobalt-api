@@ -563,19 +563,6 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public Optional<PatientOrder> findOpenPatientOrderByPatientAccountId(@Nullable UUID patientAccountId) {
-		if (patientAccountId == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("""
-				SELECT *
-				FROM v_patient_order
-				WHERE patient_account_id=?
-				AND patient_order_disposition_id=?
-				""", PatientOrder.class, patientAccountId, PatientOrderDispositionId.OPEN);
-	}
-
-	@Nonnull
 	public Optional<RawPatientOrder> findRawPatientOrderByScreeningSessionId(@Nullable UUID screeningSessionId) {
 		if (screeningSessionId == null)
 			return Optional.empty();
@@ -1179,7 +1166,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		String sql = """
 				  SELECT COUNT(*)
-				  FROM v_patient_order
+				  FROM patient_order
 				  WHERE institution_id=?
 				  {{whereClauseLines}}
 				""".trim()
@@ -5985,15 +5972,15 @@ public class PatientOrderService implements AutoCloseable {
 			// Transition from "closed" -> "archived": if episode_closed_at >= 45 days ago, it's moved to ARCHIVED disposition
 			LocalDateTime archivedThreshold = now.minusDays(45);
 
-			List<PatientOrder> archivablePatientOrders = getDatabase().queryForList("""
+			List<RawPatientOrder> archivablePatientOrders = getDatabase().queryForList("""
 					     SELECT *
-					     FROM v_patient_order
+					     FROM patient_order
 					     WHERE institution_id=?
 					     AND patient_order_disposition_id=?
 					     AND episode_closed_at <= ?
-					""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.CLOSED, archivedThreshold);
+					""", RawPatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.CLOSED, archivedThreshold);
 
-			for (PatientOrder archivablePatientOrder : archivablePatientOrders) {
+			for (RawPatientOrder archivablePatientOrder : archivablePatientOrders) {
 				getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",
 						archivablePatientOrder.getPatientOrderId(), archivablePatientOrder.getEpisodeClosedAt());
 				getPatientOrderService().archivePatientOrder(new ArchivePatientOrderRequest() {{
@@ -6004,20 +5991,21 @@ public class PatientOrderService implements AutoCloseable {
 			// If any non-test orders haven't had their demographic info pulled in from Epic yet
 			// AND a patient/MHIC hasn't confirmed the demographic information manually -
 			// make a list of orders to pull demographic info from Epic
-			List<PatientOrder> demographicsImportNeededPatientOrders = getDatabase().queryForList("""
+			List<RawPatientOrder> demographicsImportNeededPatientOrders = getDatabase().queryForList("""
 					SELECT *
-					FROM v_patient_order
+					FROM patient_order
 					WHERE institution_id=?
 					AND patient_order_demographics_import_status_id=?
 					AND patient_demographics_confirmed_at IS NULL
+					AND patient_order_disposition_id=?
 					AND test_patient_order = FALSE
-					""", PatientOrder.class, institution.getInstitutionId(), PatientOrderDemographicsImportStatusId.PENDING);
+					""", RawPatientOrder.class, institution.getInstitutionId(), PatientOrderDemographicsImportStatusId.PENDING, PatientOrderDispositionId.OPEN);
 
 			if (demographicsImportNeededPatientOrders.size() > 0) {
 				EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 
-				for (PatientOrder demographicsImportNeededPatientOrder : demographicsImportNeededPatientOrders) {
+				for (RawPatientOrder demographicsImportNeededPatientOrder : demographicsImportNeededPatientOrders) {
 					getLogger().info("Detected that patient order ID {} needs demographic information, attemping to pull from Epic...",
 							demographicsImportNeededPatientOrder.getPatientOrderId());
 
