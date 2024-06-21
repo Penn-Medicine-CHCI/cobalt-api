@@ -38,7 +38,6 @@ import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.Screen
 import com.cobaltplatform.api.model.api.response.ScreeningVersionApiResponse.ScreeningVersionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
@@ -202,7 +201,7 @@ public class ScreeningResource {
 		request.setCreatedByAccountId(account.getAccountId());
 
 		if (request.getPatientOrderId() != null) {
-			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(request.getPatientOrderId()).orElse(null);
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(request.getPatientOrderId()).orElse(null);
 
 			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
 				throw new AuthorizationException();
@@ -407,7 +406,7 @@ public class ScreeningResource {
 
 		// Ensure you have permission to skip for this screening session
 		if (screeningSession.getPatientOrderId() != null) {
-			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
 
 			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
 				throw new AuthorizationException();
@@ -446,7 +445,7 @@ public class ScreeningResource {
 
 		// Ensure you have permission to pull data for this screening session
 		if (screeningSession.getPatientOrderId() != null) {
-			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
 
 			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
 				throw new AuthorizationException();

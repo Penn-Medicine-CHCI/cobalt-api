@@ -1266,7 +1266,7 @@ public class PatientOrderService implements AutoCloseable {
 																										 @Nullable UUID assignedByAccountId) {
 		requireNonNull(patientOrderId);
 
-		PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			return false;
@@ -1809,7 +1809,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
 		if (accountId == null)
@@ -1818,7 +1818,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -1869,7 +1869,7 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderClosureReasonId patientOrderClosureReasonId = request.getPatientOrderClosureReasonId();
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
 		if (accountId == null)
@@ -1878,7 +1878,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -1928,7 +1928,7 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
 		if (accountId == null)
@@ -1937,7 +1937,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -1980,7 +1980,7 @@ public class PatientOrderService implements AutoCloseable {
 		List<CreatePatientOrderTriageRequest> patientOrderTriages = request.getPatientOrderTriages() == null
 				? List.of() : request.getPatientOrderTriages();
 		Account account = null;
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		List<UUID> patientOrderTriageIds = new ArrayList<>();
 		ValidationException validationException = new ValidationException();
 
@@ -1996,7 +1996,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -2159,7 +2159,7 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		String note = trimToNull(request.getNote());
-		PatientOrder patientOrder;
+		RawPatientOrder patientOrder;
 		UUID patientOrderNoteId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
@@ -2169,7 +2169,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -2336,7 +2336,7 @@ public class PatientOrderService implements AutoCloseable {
 		String note = trimToNull(request.getNote());
 		LocalDate outreachDate = request.getOutreachDate();
 		String outreachTimeAsString = trimToNull(request.getOutreachTime());
-		PatientOrder patientOrder;
+		RawPatientOrder patientOrder;
 		LocalTime outreachTime = request.getOutreachTimeAsLocalTime();
 		UUID patientOrderOutreachId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
@@ -2347,7 +2347,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -2598,7 +2598,7 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
 		if (accountId == null)
@@ -2607,7 +2607,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -2644,7 +2644,7 @@ public class PatientOrderService implements AutoCloseable {
 		UUID accountId = request.getAccountId();
 		UUID patientOrderId = request.getPatientOrderId();
 		PatientOrderResourceCheckInResponseStatusId patientOrderResourceCheckInResponseStatusId = request.getPatientOrderResourceCheckInResponseStatusId();
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		Account account = null;
 		ValidationException validationException = new ValidationException();
 
@@ -2660,7 +2660,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -2748,7 +2748,7 @@ public class PatientOrderService implements AutoCloseable {
 		String resourcesSentAtTimeAsString = request.getResourcesSentAtTime();
 		String resourcesSentNote = trimToNull(request.getResourcesSentNote());
 		LocalTime resourcesSentAtTime = null;
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		Account account = null;
 		ValidationException validationException = new ValidationException();
 
@@ -2764,7 +2764,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -2894,13 +2894,13 @@ public class PatientOrderService implements AutoCloseable {
 		@SuppressWarnings("unused")
 		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
 		UUID accountId = request.getAccountId();
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -2942,7 +2942,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null)
 			return List.of();
 
-		PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			return List.of();
@@ -3037,13 +3037,13 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID patientOrderId = request.getPatientOrderId();
 		String encounterCsn = trimToNull(request.getEncounterCsn());
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null) {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -3111,7 +3111,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			RawPatientOrder patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null) {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -3285,14 +3285,14 @@ public class PatientOrderService implements AutoCloseable {
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		String message = trimToNull(request.getMessage());
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		UUID patientOrderVoicemailTaskId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null) {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -3336,22 +3336,17 @@ public class PatientOrderService implements AutoCloseable {
 		UUID patientOrderVoicemailTaskId = request.getPatientOrderVoicemailTaskId();
 		UUID updatedByAccountId = request.getUpdatedByAccountId();
 		String message = trimToNull(request.getMessage());
-		PatientOrderVoicemailTask patientOrderVoicemailTask = null;
-		PatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
 
 		if (patientOrderVoicemailTaskId == null) {
 			validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is required.")));
 		} else {
-			patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
+			PatientOrderVoicemailTask patientOrderVoicemailTask = findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
 
 			if (patientOrderVoicemailTask == null) {
 				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Patient Order Voicemail Task ID is invalid.")));
-			} else {
-				patientOrder = findPatientOrderById(patientOrderVoicemailTask.getPatientOrderId()).get();
-
-				if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted())
-					validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot update past Patient Order Voicemail Tasks.")));
+			} else if (patientOrderVoicemailTask.getCompleted() || patientOrderVoicemailTask.getDeleted()) {
+				validationException.add(new FieldError("patientOrderVoicemailTaskId", getStrings().get("Cannot update past Patient Order Voicemail Tasks.")));
 			}
 		}
 
@@ -3503,14 +3498,14 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderScheduledOutreachReasonId patientOrderScheduledOutreachReasonId = request.getPatientOrderScheduledOutreachReasonId();
 		LocalDate scheduledAtDate = request.getScheduledAtDate();
 		LocalTime scheduledAtTime = request.getScheduledAtTime();
-		PatientOrder patientOrder;
+		RawPatientOrder patientOrder;
 		UUID patientOrderScheduledOutreachId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -3852,7 +3847,7 @@ public class PatientOrderService implements AutoCloseable {
 		LocalDate scheduledAtDate = request.getScheduledAtDate();
 		String scheduledAtTimeAsString = trimToNull(request.getScheduledAtTime());
 		LocalTime scheduledAtTime = request.getScheduledAtTimeAsLocalTime();
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		PatientOrderScheduledMessageType patientOrderScheduledMessageType = null;
 		UUID patientOrderScheduledMessageGroupId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
@@ -3860,7 +3855,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
@@ -3986,7 +3981,7 @@ public class PatientOrderService implements AutoCloseable {
 		LocalDate scheduledAtDate = request.getScheduledAtDate();
 		String scheduledAtTimeAsString = trimToNull(request.getScheduledAtTime());
 		LocalTime scheduledAtTime = null;
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroup = null;
 		PatientOrderScheduledMessageType patientOrderScheduledMessageType = null;
 		ValidationException validationException = new ValidationException();
@@ -4002,7 +3997,7 @@ public class PatientOrderService implements AutoCloseable {
 				if (patientOrderScheduledMessageGroup.getScheduledAtDateTimeHasPassed())
 					validationException.add(getStrings().get("You cannot modify a scheduled message that has already been sent."));
 
-				patientOrder = findPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).get();
+				patientOrder = findRawPatientOrderById(patientOrderScheduledMessageGroup.getPatientOrderId()).get();
 
 				if (messageTypeIds.contains(MessageTypeId.EMAIL) && patientOrder.getPatientEmailAddress() == null)
 					validationException.add(new FieldError("messageTypeId", getStrings().get("Cannot schedule an email because this patient's order does not have an email address.")));
@@ -4127,7 +4122,7 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	protected void createScheduledMessagesForPatientOrderScheduledMessageGroup(@Nonnull UUID patientOrderScheduledMessageGroupId,
-																																						 @Nonnull PatientOrder patientOrder,
+																																						 @Nonnull RawPatientOrder patientOrder,
 																																						 @Nonnull PatientOrderScheduledMessageType patientOrderScheduledMessageType,
 																																						 @Nonnull Set<MessageTypeId> messageTypeIds,
 																																						 @Nonnull LocalDate scheduledAtDate,
@@ -5574,7 +5569,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderCarePreferenceId patientOrderCarePreferenceId = request.getPatientOrderCarePreferenceId();
 		Integer inPersonCareRadius = request.getInPersonCareRadius();
 
-		PatientOrder patientOrder = null;
+		RawPatientOrder patientOrder = null;
 		Account account = null;
 		List<Pair<String, Object>> columnNamesAndValues = new ArrayList<>();
 		ValidationException validationException = new ValidationException();
@@ -5582,7 +5577,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderId == null) {
 			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 		} else {
-			patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+			patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
 
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
