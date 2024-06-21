@@ -498,7 +498,7 @@ public class AuthorizationService {
 
 	@Nonnull
 	public Boolean canPerformScreening(@Nonnull Account performingAccount,
-																		 @Nonnull PatientOrder patientOrder) {
+																		 @Nonnull RawPatientOrder patientOrder) {
 		requireNonNull(performingAccount);
 		requireNonNull(patientOrder);
 

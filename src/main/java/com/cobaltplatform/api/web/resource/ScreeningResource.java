@@ -534,7 +534,7 @@ public class ScreeningResource {
 
 		// Ensure you have permission to pull data for this screening session
 		if (screeningSession.getPatientOrderId() != null) {
-			PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
 
 			if (patientOrder == null || !getAuthorizationService().canPerformScreening(account, patientOrder))
 				throw new AuthorizationException();
