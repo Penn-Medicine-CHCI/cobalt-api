@@ -523,6 +523,8 @@ public class ScreeningResource {
 		CreateScreeningAnswersRequest request = getRequestBodyParser().parse(requestBody, CreateScreeningAnswersRequest.class);
 		request.setCreatedByAccountId(account.getAccountId());
 
+		getLogger().info("Request body for screening answers (account ID {}):\n{}", account.getAccountId(), requestBody);
+
 		ScreeningSessionScreening screeningSessionScreening = request.getScreeningQuestionContextId() == null ? null :
 				getScreeningService().findScreeningSessionScreeningById(request.getScreeningQuestionContextId().getScreeningSessionScreeningId()).orElse(null);
 
