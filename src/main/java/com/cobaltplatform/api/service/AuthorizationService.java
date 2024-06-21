@@ -545,7 +545,7 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canViewPatientOrderTriages(@Nonnull PatientOrder patientOrder,
+	public Boolean canViewPatientOrderTriages(@Nonnull RawPatientOrder patientOrder,
 																						@Nonnull Account account) {
 		requireNonNull(patientOrder);
 		requireNonNull(account);
@@ -559,7 +559,7 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canUpdatePatientOrderTriages(@Nonnull PatientOrder patientOrder,
+	public Boolean canUpdatePatientOrderTriages(@Nonnull RawPatientOrder patientOrder,
 																							@Nonnull Account account) {
 		requireNonNull(patientOrder);
 		requireNonNull(account);
@@ -568,7 +568,7 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canUpdatePatientOrderEncounterCsn(@Nonnull PatientOrder patientOrder,
+	public Boolean canUpdatePatientOrderEncounterCsn(@Nonnull RawPatientOrder patientOrder,
 																									 @Nonnull Account account) {
 		requireNonNull(patientOrder);
 		requireNonNull(account);
@@ -653,7 +653,7 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canEditPatientOrder(@Nonnull PatientOrder patientOrder,
+	public Boolean canEditPatientOrder(@Nonnull RawPatientOrder patientOrder,
 																		 @Nonnull Account account) {
 		requireNonNull(patientOrder);
 		requireNonNull(account);
