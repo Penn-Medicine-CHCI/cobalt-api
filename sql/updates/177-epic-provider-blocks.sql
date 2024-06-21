@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('176-epic-provider-blocks', NULL, NULL);
+SELECT _v.register_patch('177-epic-provider-blocks', NULL, NULL);
 
 -- Set to true to enable Epic provider block syncing.
 ALTER TABLE institution ADD COLUMN epic_provider_slot_booking_sync_enabled BOOLEAN NOT NULL DEFAULT FALSE;

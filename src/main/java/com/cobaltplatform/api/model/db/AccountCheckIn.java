@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -63,6 +64,10 @@ public class AccountCheckIn {
 	@Nullable
 	private CheckInStatusId checkInStatusId;
 
+	@Nullable
+	private Institution.InstitutionId institutionId;
+	@Nullable
+	private ZoneId timeZone;
 
 	@Nullable
 	public UUID getAccountCheckInId() {
@@ -161,5 +166,23 @@ public class AccountCheckIn {
 
 	public void setCompletedDate(@Nullable LocalDateTime completedDate) {
 		this.completedDate = completedDate;
+	}
+
+	@Nullable
+	public Institution.InstitutionId getInstitutionId() {
+		return institutionId;
+	}
+
+	public void setInstitutionId(@Nullable Institution.InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public ZoneId getTimeZone() {
+		return timeZone;
+	}
+
+	public void setTimeZone(@Nullable ZoneId timeZone) {
+		this.timeZone = timeZone;
 	}
 }

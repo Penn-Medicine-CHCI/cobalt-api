@@ -32,7 +32,7 @@ import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.FlowsheetType.FlowsheetTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -111,7 +111,7 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Override
 	public void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId,
 																										@Nullable String encounterCsn) {
-		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
 		if (patientOrder == null)
 			throw new ValidationException(getStrings().get("Cannot perform encounter writeback; could not locate patient order."));
