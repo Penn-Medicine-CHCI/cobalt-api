@@ -4280,8 +4280,27 @@ public class PatientOrderService implements AutoCloseable {
 				continue;
 
 			lines.add("");
-			String headline = getStrings().get("ASSESSMENT: {{screeningName}}", Map.of(
-					"screeningName", screeningSessionScreeningResult.getScreeningName()
+
+			// Come up with a nice human-readable score description
+			String screeningScoreDescription = null;
+
+			// Special case for MBI-9 because it has additional scoring components
+			if (screeningSessionScreeningResult.getScreeningTypeId() == ScreeningTypeId.MBI_9) {
+				screeningScoreDescription = getStrings().get("total score: {{totalScore}}, depersonalization: {{depersonalizationScore}}, emotional exhaustion: {{emotionalExhaustionScore}}, personal accomplishment: {{personalAccomplishmentScore}}", Map.of(
+						"totalScore", getFormatter().formatInteger(screeningSessionScreeningResult.getScreeningScore().getOverallScore()),
+						"depersonalizationScore", getFormatter().formatInteger(screeningSessionScreeningResult.getScreeningScore().getDepersonalizationScore()),
+						"emotionalExhaustionScore", getFormatter().formatInteger(screeningSessionScreeningResult.getScreeningScore().getEmotionalExhaustionScore()),
+						"personalAccomplishmentScore", getFormatter().formatInteger(screeningSessionScreeningResult.getScreeningScore().getPersonalAccomplishmentScore())
+				));
+			} else {
+				screeningScoreDescription = getStrings().get("total score: {{totalScore}}", Map.of(
+						"totalScore", getFormatter().formatInteger(screeningSessionScreeningResult.getScreeningScore().getOverallScore())
+				));
+			}
+
+			String headline = getStrings().get("ASSESSMENT: {{screeningName}} ({{screeningScoreDescription}})", Map.of(
+					"screeningName", screeningSessionScreeningResult.getScreeningName(),
+					"screeningScoreDescription", screeningScoreDescription
 			));
 
 			lines.add(headline);
