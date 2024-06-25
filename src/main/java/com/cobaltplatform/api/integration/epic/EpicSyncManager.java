@@ -24,8 +24,11 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
+import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBookingRequest;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.EpicAppointmentFilter.EpicAppointmentFilterId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
@@ -41,6 +44,8 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,8 +62,10 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -241,16 +248,157 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 		getLogger().info("Syncing availability for {} provider {} on {}...", institution.getInstitutionId().name(), provider.getName(), date);
 
+		// Pull slots
 		ProviderAvailabilityDateInsert insert = generateProviderAvailabilityDateInsert(epicClient, institution, provider, date);
 
-		if (performInOwnTransaction)
-			getDatabase().transaction(() -> {
-				performProviderAvailabilityDateInsert(insert);
-			});
-		else
+		// Pull booked slots
+		List<SynchronizeEpicProviderSlotBookingRequest> epicProviderSlotBookingRequests = new ArrayList<>();
+
+		if (institution.getEpicProviderSlotBookingSyncEnabled())
+			epicProviderSlotBookingRequests.addAll(generateProviderSlotBookingSyncRequests(epicClient, institution, provider, date, date));
+
+		Runnable providerSyncOperation = () -> {
 			performProviderAvailabilityDateInsert(insert);
+			performProviderBookingSlotSync(epicProviderSlotBookingRequests);
+		};
+
+		if (performInOwnTransaction) {
+			getDatabase().transaction(() -> {
+				providerSyncOperation.run();
+			});
+		} else {
+			providerSyncOperation.run();
+		}
 
 		return true;
+	}
+
+	protected void performProviderBookingSlotSync(@Nullable List<SynchronizeEpicProviderSlotBookingRequest> requests) {
+		if (requests == null || requests.size() == 0)
+			return;
+
+		// TODO: perform sync
+		for (SynchronizeEpicProviderSlotBookingRequest request : requests) {
+			System.out.println(ToStringBuilder.reflectionToString(request, ToStringStyle.JSON_STYLE));
+		}
+	}
+
+	@Nonnull
+	protected List<SynchronizeEpicProviderSlotBookingRequest> generateProviderSlotBookingSyncRequests(@Nonnull EpicClient epicClient,
+																																																		@Nonnull Institution institution,
+																																																		@Nonnull Provider provider,
+																																																		@Nonnull LocalDate startDate,
+																																																		@Nonnull LocalDate endDate) {
+		requireNonNull(epicClient);
+		requireNonNull(institution);
+		requireNonNull(provider);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		List<EpicDepartment> epicDepartments = getInstitutionService().findEpicDepartmentsByProviderId(provider.getProviderId());
+		List<GetProviderAppointmentsRequest.Provider> slotBookingProviders = new ArrayList<>(epicDepartments.size());
+
+		for (EpicDepartment epicDepartment : epicDepartments) {
+			GetProviderAppointmentsRequest.Provider slotBookingProvider = new GetProviderAppointmentsRequest.Provider();
+			slotBookingProvider.setID(provider.getEpicProviderId());
+			slotBookingProvider.setIDType(provider.getEpicProviderIdType());
+			slotBookingProvider.setDepartmentID(epicDepartment.getDepartmentId());
+			slotBookingProvider.setDepartmentIDType(epicDepartment.getDepartmentIdType());
+
+			slotBookingProviders.add(slotBookingProvider);
+		}
+
+		if (slotBookingProviders.size() == 0)
+			return List.of();
+
+		GetProviderAppointmentsRequest providerAppointmentsRequest = new GetProviderAppointmentsRequest();
+		providerAppointmentsRequest.setUserID(institution.getEpicUserId());
+		providerAppointmentsRequest.setUserIDType(institution.getEpicUserIdType());
+		providerAppointmentsRequest.setProviders(slotBookingProviders);
+		providerAppointmentsRequest.setStartDate(epicClient.formatDateWithSlashes(startDate));
+		providerAppointmentsRequest.setEndDate(epicClient.formatDateWithSlashes(endDate));
+
+		GetProviderAppointmentsResponse providerAppointmentsResponse = epicClient.getProviderAppointments(providerAppointmentsRequest);
+
+		if (providerAppointmentsResponse.getAppointments() == null || providerAppointmentsResponse.getAppointments().size() == 0)
+			return List.of();
+
+		List<SynchronizeEpicProviderSlotBookingRequest> requests = new ArrayList<>(providerAppointmentsResponse.getAppointments().size());
+
+		for (GetProviderAppointmentsResponse.Appointment appointment : providerAppointmentsResponse.getAppointments()) {
+			String dateAsString = appointment.getDate(); // e.g. "6/14/2024"
+			LocalDate date = epicClient.parseDateWithSlashes(dateAsString);
+
+			String appointmentStartTimeAsString = appointment.getAppointmentStartTime(); // e.g. " 9:00 AM"
+			LocalTime appointmentStartTime = epicClient.parseTimeAmPm(appointmentStartTimeAsString);
+
+			String appointmentDurationAsString = appointment.getAppointmentDuration(); // e.g. "30"
+			Integer appointmentDuration = Integer.parseInt(appointmentDurationAsString, 10);
+
+			LocalDateTime startDateTime = date.atTime(appointmentStartTime);
+			LocalDateTime endDateTime = startDateTime.plusMinutes(appointmentDuration);
+
+			UUID providerId = null;
+			String departmentId = null;
+			String departmentIdType = institution.getEpicProviderSlotBookingSyncDepartmentIdType();
+			String contactIdType = institution.getEpicProviderSlotBookingSyncContactIdType();
+			String visitTypeIdType = institution.getEpicProviderSlotBookingSyncVisitTypeIdType();
+
+			for (GetProviderAppointmentsResponse.Provider potentialProvider : appointment.getProviders()) {
+				for (GetProviderAppointmentsResponse.TypedId providerID : potentialProvider.getProviderIDs()) {
+					// We don't compare on provider type here because it may come back as, for example, INTERNAL when it's really EXTERNAL
+					if (Objects.equals(normalizeForComparison(providerID.getID()), normalizeForComparison(provider.getEpicProviderId()))) {
+						// Here we would set the real Cobalt provider ID
+						providerId = provider.getProviderId();
+					}
+				}
+
+				for (GetProviderAppointmentsResponse.TypedId potentialDepartment : potentialProvider.getDepartmentIDs()) {
+					if (Objects.equals(normalizeForComparison(potentialDepartment.getType()), normalizeForComparison(departmentIdType))) {
+						departmentId = normalizeForComparison(potentialDepartment.getID());
+						break;
+					}
+				}
+			}
+
+			String contactId = null;
+
+			for (GetProviderAppointmentsResponse.TypedId potentialContact : appointment.getContactIDs()) {
+				if (Objects.equals(normalizeForComparison(potentialContact.getType()), normalizeForComparison(contactIdType))) {
+					contactId = normalizeForComparison(potentialContact.getID());
+					break;
+				}
+			}
+
+			String visitTypeId = null;
+
+			for (GetProviderAppointmentsResponse.TypedId potentialVisitType : appointment.getVisitTypeIDs()) {
+				if (Objects.equals(normalizeForComparison(potentialVisitType.getType()), normalizeForComparison(visitTypeIdType))) {
+					visitTypeId = normalizeForComparison(potentialVisitType.getID());
+					break;
+				}
+			}
+
+			SynchronizeEpicProviderSlotBookingRequest request = new SynchronizeEpicProviderSlotBookingRequest();
+			request.setProviderId(providerId);
+			request.setContactId(contactId);
+			request.setContactIdType(contactIdType);
+			request.setDepartmentId(departmentId);
+			request.setDepartmentIdType(departmentIdType);
+			request.setVisitTypeId(visitTypeId);
+			request.setVisitTypeIdType(visitTypeIdType);
+			request.setStartDateTime(startDateTime);
+			request.setEndDateTime(endDateTime);
+
+			requests.add(request);
+		}
+
+		return requests;
+	}
+
+	@Nonnull
+	protected String normalizeForComparison(@Nullable String input) {
+		return trimToEmpty(input).toUpperCase(Locale.ENGLISH);
 	}
 
 	@Nonnull

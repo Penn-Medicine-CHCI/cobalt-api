@@ -22,7 +22,6 @@ package com.cobaltplatform.api.integration.epic;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
 import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBookingRequest;
-import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.util.GsonUtility;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -198,19 +197,6 @@ public class EpicIntegratedCareTests {
 		for (SynchronizeEpicProviderSlotBookingRequest request : requests) {
 			System.out.println(ToStringBuilder.reflectionToString(request, ToStringStyle.JSON_STYLE));
 		}
-
-		// TODO: run tests
-
-		// 	@Nonnull
-		//	GetProviderAppointmentsResponse getProviderAppointments(@Nonnull GetProviderAppointmentsRequest request);
-		//
-		//	// epic/2012/Scheduling/Provider/GETPROVIDERAVAILABILITY/Availability
-		//	@Nonnull
-		//	GetProviderAvailabilityResponse getProviderAvailability(@Nonnull GetProviderAvailabilityRequest request);
-		//
-		//	// epic/2017/PatientAccess/External/GetScheduleDaysForProvider2/Scheduling/Open/Provider/GetScheduleDays2
-		//	@Nonnull
-		//	GetScheduleDaysForProviderResponse getScheduleDaysForProvider(@Nonnull GetScheduleDaysForProviderRequest request);
 	}
 
 	@Nonnull
