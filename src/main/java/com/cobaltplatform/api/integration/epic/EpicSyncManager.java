@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.epic;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
@@ -44,8 +45,6 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,6 +103,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
@@ -132,6 +133,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 												 @Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 												 @Nonnull javax.inject.Provider<SystemService> systemServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+												 @Nonnull ErrorReporter errorReporter,
 												 @Nonnull DatabaseProvider databaseProvider,
 												 @Nonnull Configuration configuration,
 												 @Nonnull Strings strings) {
@@ -140,6 +142,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(systemServiceProvider);
 		requireNonNull(enterprisePluginProvider);
+		requireNonNull(errorReporter);
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -150,6 +153,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
+		this.errorReporter = errorReporter;
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
@@ -259,7 +263,16 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 		Runnable providerSyncOperation = () -> {
 			performProviderAvailabilityDateInsert(insert);
-			performProviderBookingSlotSync(epicProviderSlotBookingRequests);
+
+			// We don't want to roll back the provider availability inserts if this fails, so catch the exception
+			// and report the error
+			if (epicProviderSlotBookingRequests.size() > 0) {
+				try {
+					getProviderService().synchronizeEpicProviderSlotBookingRequests(epicProviderSlotBookingRequests);
+				} catch (Exception e) {
+					getErrorReporter().report(e);
+				}
+			}
 		};
 
 		if (performInOwnTransaction) {
@@ -271,16 +284,6 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		}
 
 		return true;
-	}
-
-	protected void performProviderBookingSlotSync(@Nullable List<SynchronizeEpicProviderSlotBookingRequest> requests) {
-		if (requests == null || requests.size() == 0)
-			return;
-
-		// TODO: perform sync
-		for (SynchronizeEpicProviderSlotBookingRequest request : requests) {
-			System.out.println(ToStringBuilder.reflectionToString(request, ToStringStyle.JSON_STYLE));
-		}
 	}
 
 	@Nonnull
@@ -348,8 +351,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 				for (GetProviderAppointmentsResponse.TypedId providerID : potentialProvider.getProviderIDs()) {
 					// We don't compare on provider type here because it may come back as, for example, INTERNAL when it's really EXTERNAL
 					if (Objects.equals(normalizeForComparison(providerID.getID()), normalizeForComparison(provider.getEpicProviderId()))) {
-						// Here we would set the real Cobalt provider ID
 						providerId = provider.getProviderId();
+						break;
 					}
 				}
 
@@ -378,6 +381,9 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 					break;
 				}
 			}
+
+			if (providerId == null || contactId == null || departmentId == null || visitTypeId == null)
+				continue;
 
 			SynchronizeEpicProviderSlotBookingRequest request = new SynchronizeEpicProviderSlotBookingRequest();
 			request.setProviderId(providerId);
@@ -667,7 +673,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 					for (Provider provider : providers) {
 						try {
-							LocalDate syncDate = LocalDate.now(provider.getTimeZone());
+							LocalDate today = LocalDate.now(provider.getTimeZone());
+							LocalDate syncDate = today;
 
 							List<ProviderAvailabilityDateInsert> inserts = new ArrayList<>(getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead());
 
@@ -689,6 +696,23 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 								getDatabase().transaction(() -> {
 									getEpicSyncManager().performProviderAvailabilityDateInsert(insert);
 								});
+							}
+
+							// Next, pull all of the provider's booked slots over the time range (if enabled for the institution)
+							if (institution.getEpicProviderSlotBookingSyncEnabled()) {
+								List<SynchronizeEpicProviderSlotBookingRequest> epicProviderSlotBookingRequests = getEpicSyncManager().generateProviderSlotBookingSyncRequests(epicClient, institution, provider, today, syncDate);
+
+								// We don't want to throw off the whole operation if this fails, so catch the exception
+								// and report the error
+								if (epicProviderSlotBookingRequests.size() > 0) {
+									getDatabase().transaction(() -> {
+										try {
+											getProviderService().synchronizeEpicProviderSlotBookingRequests(epicProviderSlotBookingRequests);
+										} catch (Exception e) {
+											getEpicSyncManager().getErrorReporter().report(e);
+										}
+									});
+								}
 							}
 
 							++providerSuccessCount;
@@ -883,6 +907,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull
