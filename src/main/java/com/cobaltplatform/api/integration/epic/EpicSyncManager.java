@@ -42,6 +42,7 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.common.collect.Range;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -60,12 +61,14 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -441,6 +444,25 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 					GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
+					// First, walk the data to figure out what slots are explicitly blocked off as unbookable
+					Set<Range> unbookableRanges = new HashSet<>(response.getScheduleSlots().size());
+
+					for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
+						boolean held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
+						boolean unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
+
+						if (held || unavailable) {
+							Integer slotLengthInMinutes = Integer.parseInt(scheduleSlot.getLength(), 10);
+							LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
+							LocalDateTime startDateTime = LocalDateTime.of(date, startTime);
+							LocalTime endTime = startTime.plusMinutes(slotLengthInMinutes);
+							LocalDateTime endDateTime = LocalDateTime.of(date, endTime);
+
+							unbookableRanges.add(Range.closedOpen(startDateTime, endDateTime));
+						}
+					}
+
+					// Now that we know what slots are blocked off as unbookable, figure out what actually is bookable
 					for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
 						LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
 						Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
@@ -450,12 +472,35 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 							boolean held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
 							boolean unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
 
+							// If it looks like this slot is open, confirm by ensuring it does not overlap with any unbookable ranges
 							if (!held && !unavailable) {
-								ProviderAvailabilityDateInsertRow row = new ProviderAvailabilityDateInsertRow();
-								row.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
-								row.setDateTime(dateTime);
-								row.setEpicDepartmentId(epicDepartment.getEpicDepartmentId());
-								rows.add(row);
+								LocalDateTime startDateTime = LocalDateTime.of(date, startTime);
+								LocalDateTime endDateTime = LocalDateTime.of(date, startTime.plusMinutes(appointmentType.getDurationInMinutes()));
+								Range<LocalDateTime> proposedRange = Range.closedOpen(startDateTime, endDateTime);
+
+								boolean unbookable = false;
+
+								for (Range<LocalDateTime> unbookableRange : unbookableRanges) {
+									// Ranges are connected if they butt up against each other, so
+									// we also have to check to see if they have a nonempty intersection to know if they indeed overlap.
+									// Note: calling #intersection on an unconnected range will throw an exception, which is why we have
+									// the redundant-looking #isConnected check
+									boolean rangesOverlap = proposedRange.isConnected(unbookableRange)
+											&& !proposedRange.intersection(unbookableRange).isEmpty();
+
+									if (rangesOverlap) {
+										unbookable = true;
+										break;
+									}
+								}
+
+								if (!unbookable) {
+									ProviderAvailabilityDateInsertRow row = new ProviderAvailabilityDateInsertRow();
+									row.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
+									row.setDateTime(dateTime);
+									row.setEpicDepartmentId(epicDepartment.getEpicDepartmentId());
+									rows.add(row);
+								}
 							}
 						}
 					}
