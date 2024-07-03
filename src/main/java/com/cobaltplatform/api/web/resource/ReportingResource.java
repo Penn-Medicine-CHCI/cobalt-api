@@ -133,7 +133,7 @@ public class ReportingResource {
 													@Nonnull @QueryParameter("startDateTime") Optional<LocalDateTime> suppliedStartDateTime, // inclusive
 													@Nonnull @QueryParameter("endDateTime") Optional<LocalDateTime> suppliedEndDateTime, // inclusive
 													@Nonnull @QueryParameter Optional<List<String>> patientOrderInsurancePayorId,
-													@Nonnull @QueryParameter Optional<List<String>> referringPracticeNames,
+													@Nonnull @QueryParameter Optional<List<String>> referringPracticeIds,
 													@Nonnull @QueryParameter Optional<Integer> minimumPatientAge,
 													@Nonnull @QueryParameter Optional<Integer> maximumPatientAge,
 													@Nonnull @QueryParameter Optional<List<RaceId>> patientRaceId,
@@ -147,7 +147,7 @@ public class ReportingResource {
 		requireNonNull(suppliedStartDateTime);
 		requireNonNull(suppliedEndDateTime);
 		requireNonNull(patientOrderInsurancePayorId);
-		requireNonNull(referringPracticeNames);
+		requireNonNull(referringPracticeIds);
 		requireNonNull(minimumPatientAge);
 		requireNonNull(maximumPatientAge);
 		requireNonNull(patientRaceId);
@@ -192,13 +192,13 @@ public class ReportingResource {
 			else if (reportTypeId == ReportTypeId.PROVIDER_APPOINTMENT_CANCELATIONS)
 				getReportingService().runProviderAppointmentCancelationsReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.IC_PIPELINE)
-				getReportingService().runIcPipelineReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
+				getReportingService().runIcPipelineReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeIds, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
 						reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.IC_OUTREACH)
-				getReportingService().runIcOutreachReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
+				getReportingService().runIcOutreachReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeIds, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
 						panelAccountId, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.IC_ASSESSMENT)
-				getReportingService().runIcAssessmentReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeNames, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
+				getReportingService().runIcAssessmentReportCsv(account.getInstitutionId(), startDateTime, endDateTime, patientOrderInsurancePayorId, referringPracticeIds, minimumPatientAge, maximumPatientAge, patientRaceId, patientGenderIdentityId,
 						reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
 				getReportingService().runGroupSessionReservationEmailsReportCsv(groupSessionId.get(), reportTimeZone, reportLocale, printWriter);

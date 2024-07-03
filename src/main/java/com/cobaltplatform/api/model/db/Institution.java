@@ -322,6 +322,15 @@ public class Institution {
 	@Nullable
 	private LocalTime integratedCareOrderImportEndTimeWindow;
 
+	@Nullable
+	private Boolean epicProviderSlotBookingSyncEnabled;
+	@Nullable
+	private String epicProviderSlotBookingSyncContactIdType;
+	@Nullable
+	private String epicProviderSlotBookingSyncDepartmentIdType;
+	@Nullable
+	private String epicProviderSlotBookingSyncVisitTypeIdType;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1513,5 +1522,41 @@ public class Institution {
 
 	public void setIntegratedCareOrderImportEndTimeWindow(@Nullable LocalTime integratedCareOrderImportEndTimeWindow) {
 		this.integratedCareOrderImportEndTimeWindow = integratedCareOrderImportEndTimeWindow;
+	}
+
+	@Nullable
+	public Boolean getEpicProviderSlotBookingSyncEnabled() {
+		return this.epicProviderSlotBookingSyncEnabled;
+	}
+
+	public void setEpicProviderSlotBookingSyncEnabled(@Nullable Boolean epicProviderSlotBookingSyncEnabled) {
+		this.epicProviderSlotBookingSyncEnabled = epicProviderSlotBookingSyncEnabled;
+	}
+
+	@Nullable
+	public String getEpicProviderSlotBookingSyncContactIdType() {
+		return this.epicProviderSlotBookingSyncContactIdType;
+	}
+
+	public void setEpicProviderSlotBookingSyncContactIdType(@Nullable String epicProviderSlotBookingSyncContactIdType) {
+		this.epicProviderSlotBookingSyncContactIdType = epicProviderSlotBookingSyncContactIdType;
+	}
+
+	@Nullable
+	public String getEpicProviderSlotBookingSyncDepartmentIdType() {
+		return this.epicProviderSlotBookingSyncDepartmentIdType;
+	}
+
+	public void setEpicProviderSlotBookingSyncDepartmentIdType(@Nullable String epicProviderSlotBookingSyncDepartmentIdType) {
+		this.epicProviderSlotBookingSyncDepartmentIdType = epicProviderSlotBookingSyncDepartmentIdType;
+	}
+
+	@Nullable
+	public String getEpicProviderSlotBookingSyncVisitTypeIdType() {
+		return this.epicProviderSlotBookingSyncVisitTypeIdType;
+	}
+
+	public void setEpicProviderSlotBookingSyncVisitTypeIdType(@Nullable String epicProviderSlotBookingSyncVisitTypeIdType) {
+		this.epicProviderSlotBookingSyncVisitTypeIdType = epicProviderSlotBookingSyncVisitTypeIdType;
 	}
 }

@@ -578,7 +578,7 @@ public class ReportingService {
 																																			 @Nonnull LocalDateTime startDateTime,
 																																			 @Nonnull LocalDateTime endDateTime,
 																																			 @Nonnull Optional<List<String>> payorName,
-																																			 @Nonnull Optional<List<String>> practiceName,
+																																			 @Nonnull Optional<List<String>> referringPracticeIds,
 																																			 @Nonnull Optional<Integer> patientAgeFrom,
 																																			 @Nonnull Optional<Integer> patientAgeTo,
 																																			 @Nonnull Optional<List<RaceId>> raceId,
@@ -587,7 +587,7 @@ public class ReportingService {
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(payorName);
-		requireNonNull(practiceName);
+		requireNonNull(referringPracticeIds);
 		requireNonNull(patientAgeFrom);
 		requireNonNull(patientAgeTo);
 		requireNonNull(raceId);
@@ -614,9 +614,10 @@ public class ReportingService {
 			parameters.addAll(payorName.get());
 		}
 
-		if (practiceName.isPresent()) {
-			whereClause.append(format(" AND referring_practice_name IN %s ", sqlInListPlaceholders(practiceName.get())));
-			parameters.addAll(practiceName.get());
+		if (referringPracticeIds.isPresent()) {
+			whereClause.append(format(" AND epic_department_id IN (SELECT epic_department_id FROM epic_department WHERE institution_id=? AND department_id IN %s) ", sqlInListPlaceholders(referringPracticeIds.get())));
+			parameters.add(institutionId);
+			parameters.addAll(referringPracticeIds.get());
 		}
 
 		if (patientAgeFrom.isPresent() && patientAgeTo.isPresent()) {
@@ -648,7 +649,7 @@ public class ReportingService {
 
 	private void addFilterDescription(@Nonnull CSVPrinter csVPrinter,
 																		@Nonnull Optional<List<String>> payorName,
-																		@Nonnull Optional<List<String>> practiceName,
+																		@Nonnull Optional<List<String>> referringPracticeIds,
 																		@Nonnull Optional<Integer> patientAgeFrom,
 																		@Nonnull Optional<Integer> patientAgeTo,
 																		@Nonnull Optional<List<RaceId>> raceId,
@@ -664,8 +665,8 @@ public class ReportingService {
 				fileterDescriptionAdded = true;
 			}
 
-			if (practiceName.isPresent()) {
-				csVPrinter.printRecord("Practice Names", practiceName.get().toString());
+			if (referringPracticeIds.isPresent()) {
+				csVPrinter.printRecord("Practice IDs", referringPracticeIds.get().stream().collect(Collectors.joining(", ")));
 				fileterDescriptionAdded = true;
 			}
 
@@ -731,7 +732,7 @@ public class ReportingService {
 																		 @Nonnull LocalDateTime startDateTime,
 																		 @Nonnull LocalDateTime endDateTime,
 																		 @Nonnull Optional<List<String>> payorName,
-																		 @Nonnull Optional<List<String>> practiceName,
+																		 @Nonnull Optional<List<String>> referringPracticeIds,
 																		 @Nonnull Optional<Integer> patientAgeFrom,
 																		 @Nonnull Optional<Integer> patientAgeTo,
 																		 @Nonnull Optional<List<RaceId>> raceId,
@@ -743,7 +744,7 @@ public class ReportingService {
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(payorName);
-		requireNonNull(practiceName);
+		requireNonNull(referringPracticeIds);
 		requireNonNull(patientAgeFrom);
 		requireNonNull(patientAgeTo);
 		requireNonNull(raceId);
@@ -752,7 +753,7 @@ public class ReportingService {
 		requireNonNull(reportLocale);
 		requireNonNull(writer);
 
-		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
+		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, referringPracticeIds, patientAgeFrom,
 				patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 		//All patient orders matching the report filters
@@ -772,7 +773,7 @@ public class ReportingService {
 		List<DescriptionWithCountRecord> assessmentOverridePatientOrders = findTriageReasonsPatientOrders(whereClauseWithParameters, PatientOrderTriageSourceId.COBALT);
 
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
+			addFilterDescription(csvPrinter, payorName, referringPracticeIds, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 			csvPrinter.printRecord("Referral Count", Integer.toString(patientOrders.size()));
 			csvPrinter.printRecord("Connection Count", Integer.toString(patientOrders.stream().filter(it -> it.getTotalOutreachCount() > 0).collect(Collectors.toList()).size()));
@@ -855,7 +856,7 @@ public class ReportingService {
 																		 @Nonnull LocalDateTime startDateTime,
 																		 @Nonnull LocalDateTime endDateTime,
 																		 @Nonnull Optional<List<String>> payorName,
-																		 @Nonnull Optional<List<String>> practiceName,
+																		 @Nonnull Optional<List<String>> referringPracticeIds,
 																		 @Nonnull Optional<Integer> patientAgeFrom,
 																		 @Nonnull Optional<Integer> patientAgeTo,
 																		 @Nonnull Optional<List<RaceId>> raceId,
@@ -868,7 +869,7 @@ public class ReportingService {
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(payorName);
-		requireNonNull(practiceName);
+		requireNonNull(referringPracticeIds);
 		requireNonNull(patientAgeFrom);
 		requireNonNull(patientAgeTo);
 		requireNonNull(raceId);
@@ -878,7 +879,7 @@ public class ReportingService {
 		requireNonNull(reportLocale);
 		requireNonNull(writer);
 
-		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
+		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, referringPracticeIds, patientAgeFrom,
 				patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 		//All patient orders matching the report filters
@@ -898,7 +899,7 @@ public class ReportingService {
 				DescriptionWithCountRecord.class, whereClauseWithParameters.getParameters().toArray());
 
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
+			addFilterDescription(csvPrinter, payorName, referringPracticeIds, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 			csvPrinter.printRecord("Patients Requiring Scheduling", Integer.toString(openPatientOrders.stream().filter(it -> it.getPatientOrderTriageStatusId() ==
 					PatientOrderTriageStatusId.MHP && it.getAppointmentScheduled() == false).collect(Collectors.toList()).size()));
@@ -929,13 +930,13 @@ public class ReportingService {
 			csvPrinter.println();
 
 			//The following data points are specific to one of more MHICs (if specified in the report filters
-			IcWhereClauseWithParameters whereClauseWithParametersForMhics = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
+			IcWhereClauseWithParameters whereClauseWithParametersForMhics = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, referringPracticeIds, patientAgeFrom,
 					patientAgeTo, raceId, genderIdentityId, panelAccountId);
 
 			//All patient orders matching the report filters
 			List<PatientOrder> patientOrdersForMhics = getDatabase().queryForList(
 					format("SELECT * FROM v_patient_order %s", whereClauseWithParametersForMhics.getWhereClause()), PatientOrder.class, whereClauseWithParametersForMhics.getParameters().toArray());
-			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, panelAccountId);
+			addFilterDescription(csvPrinter, payorName, referringPracticeIds, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, panelAccountId);
 			csvPrinter.printRecord("Calls/Voicemails", patientOrdersForMhics.stream().map(it -> it.getOutreachCount()).reduce(0, Integer::sum));
 			csvPrinter.printRecord("Texts/Emails", patientOrdersForMhics.stream().map(it -> it.getScheduledMessageGroupDeliveredCount()).reduce(0, Integer::sum));
 			csvPrinter.printRecord("Closed Orders", Integer.toString(patientOrdersForMhics.stream().filter(it -> it.getPatientOrderDispositionId() !=
@@ -967,7 +968,7 @@ public class ReportingService {
 																			 @Nonnull LocalDateTime startDateTime,
 																			 @Nonnull LocalDateTime endDateTime,
 																			 @Nonnull Optional<List<String>> payorName,
-																			 @Nonnull Optional<List<String>> practiceName,
+																			 @Nonnull Optional<List<String>> referringPracticeIds,
 																			 @Nonnull Optional<Integer> patientAgeFrom,
 																			 @Nonnull Optional<Integer> patientAgeTo,
 																			 @Nonnull Optional<List<RaceId>> raceId,
@@ -979,7 +980,7 @@ public class ReportingService {
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(payorName);
-		requireNonNull(practiceName);
+		requireNonNull(referringPracticeIds);
 		requireNonNull(patientAgeFrom);
 		requireNonNull(patientAgeTo);
 		requireNonNull(raceId);
@@ -988,7 +989,7 @@ public class ReportingService {
 		requireNonNull(reportLocale);
 		requireNonNull(writer);
 
-		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, practiceName, patientAgeFrom,
+		IcWhereClauseWithParameters whereClauseWithParameters = buildIcWhereClauseWithParameters(institutionId, startDateTime, endDateTime, payorName, referringPracticeIds, patientAgeFrom,
 				patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
 		//All patient orders matching the report filters
@@ -1011,7 +1012,7 @@ public class ReportingService {
 				AssessmentScoreRecord.class, whereClauseWithParameters.getParameters().toArray());
 		String lastDescription = null;
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-			addFilterDescription(csvPrinter, payorName, practiceName, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
+			addFilterDescription(csvPrinter, payorName, referringPracticeIds, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
 			csvPrinter.printRecord("Number of Patients Completing Assessment", patientOrders.stream().filter(it -> it.getPatientOrderScreeningStatusId() ==
 					PatientOrderScreeningStatusId.COMPLETE).collect(Collectors.toList()).size());
 			csvPrinter.println();

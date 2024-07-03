@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.EpicDepartmentSynonym;
+import com.cobaltplatform.api.model.db.EpicProviderSchedule;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -486,6 +487,19 @@ public class InstitutionService {
 				  AND pa.epic_department_id=ed.epic_department_id
 				  AND pa.date_time=?
 				""", EpicDepartment.class, providerId, timeslot);
+	}
+
+	@Nonnull
+	public List<EpicProviderSchedule> findEpicProviderSchedulesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM epic_provider_schedule
+				WHERE institution_id=?
+				ORDER BY name
+				""", EpicProviderSchedule.class, institutionId);
 	}
 
 	@Immutable

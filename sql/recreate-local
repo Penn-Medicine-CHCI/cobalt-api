@@ -182,7 +182,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/172-unique-ema
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/173-ic-department-scheduling-overrides.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/174-faq-enhancements.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/175-screening-session-constraints.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/176-darpa-notification-enhancements.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/176-darpa-notification-enhancements.s
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/177-epic-provider-blocks.sqlql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

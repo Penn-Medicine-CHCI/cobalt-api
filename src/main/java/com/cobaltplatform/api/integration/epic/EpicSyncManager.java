@@ -22,10 +22,14 @@ package com.cobaltplatform.api.integration.epic;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
+import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBookingRequest;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.EpicAppointmentFilter.EpicAppointmentFilterId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
@@ -38,6 +42,7 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.common.collect.Range;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -56,10 +61,14 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -97,6 +106,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final Configuration configuration;
@@ -125,6 +136,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 												 @Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 												 @Nonnull javax.inject.Provider<SystemService> systemServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+												 @Nonnull ErrorReporter errorReporter,
 												 @Nonnull DatabaseProvider databaseProvider,
 												 @Nonnull Configuration configuration,
 												 @Nonnull Strings strings) {
@@ -133,6 +145,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		requireNonNull(appointmentServiceProvider);
 		requireNonNull(systemServiceProvider);
 		requireNonNull(enterprisePluginProvider);
+		requireNonNull(errorReporter);
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
@@ -143,6 +156,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
+		this.errorReporter = errorReporter;
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
@@ -241,16 +255,159 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 		getLogger().info("Syncing availability for {} provider {} on {}...", institution.getInstitutionId().name(), provider.getName(), date);
 
+		// Pull slots
 		ProviderAvailabilityDateInsert insert = generateProviderAvailabilityDateInsert(epicClient, institution, provider, date);
 
-		if (performInOwnTransaction)
-			getDatabase().transaction(() -> {
-				performProviderAvailabilityDateInsert(insert);
-			});
-		else
+		// Pull booked slots
+		List<SynchronizeEpicProviderSlotBookingRequest> epicProviderSlotBookingRequests = new ArrayList<>();
+
+		if (institution.getEpicProviderSlotBookingSyncEnabled())
+			epicProviderSlotBookingRequests.addAll(generateProviderSlotBookingSyncRequests(epicClient, institution, provider, date, date));
+
+		Runnable providerSyncOperation = () -> {
 			performProviderAvailabilityDateInsert(insert);
 
+			// We don't want to roll back the provider availability inserts if this fails, so catch the exception
+			// and report the error
+			if (epicProviderSlotBookingRequests.size() > 0) {
+				try {
+					getProviderService().synchronizeEpicProviderSlotBookingRequests(epicProviderSlotBookingRequests);
+				} catch (Exception e) {
+					getErrorReporter().report(e);
+				}
+			}
+		};
+
+		if (performInOwnTransaction) {
+			getDatabase().transaction(() -> {
+				providerSyncOperation.run();
+			});
+		} else {
+			providerSyncOperation.run();
+		}
+
 		return true;
+	}
+
+	@Nonnull
+	protected List<SynchronizeEpicProviderSlotBookingRequest> generateProviderSlotBookingSyncRequests(@Nonnull EpicClient epicClient,
+																																																		@Nonnull Institution institution,
+																																																		@Nonnull Provider provider,
+																																																		@Nonnull LocalDate startDate,
+																																																		@Nonnull LocalDate endDate) {
+		requireNonNull(epicClient);
+		requireNonNull(institution);
+		requireNonNull(provider);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		List<EpicDepartment> epicDepartments = getInstitutionService().findEpicDepartmentsByProviderId(provider.getProviderId());
+		List<GetProviderAppointmentsRequest.Provider> slotBookingProviders = new ArrayList<>(epicDepartments.size());
+
+		for (EpicDepartment epicDepartment : epicDepartments) {
+			GetProviderAppointmentsRequest.Provider slotBookingProvider = new GetProviderAppointmentsRequest.Provider();
+			slotBookingProvider.setID(provider.getEpicProviderId());
+			slotBookingProvider.setIDType(provider.getEpicProviderIdType());
+			slotBookingProvider.setDepartmentID(epicDepartment.getDepartmentId());
+			slotBookingProvider.setDepartmentIDType(epicDepartment.getDepartmentIdType());
+
+			slotBookingProviders.add(slotBookingProvider);
+		}
+
+		if (slotBookingProviders.size() == 0)
+			return List.of();
+
+		GetProviderAppointmentsRequest providerAppointmentsRequest = new GetProviderAppointmentsRequest();
+		providerAppointmentsRequest.setUserID(institution.getEpicUserId());
+		providerAppointmentsRequest.setUserIDType(institution.getEpicUserIdType());
+		providerAppointmentsRequest.setProviders(slotBookingProviders);
+		providerAppointmentsRequest.setStartDate(epicClient.formatDateWithSlashes(startDate));
+		providerAppointmentsRequest.setEndDate(epicClient.formatDateWithSlashes(endDate));
+
+		GetProviderAppointmentsResponse providerAppointmentsResponse = epicClient.getProviderAppointments(providerAppointmentsRequest);
+
+		if (providerAppointmentsResponse.getAppointments() == null || providerAppointmentsResponse.getAppointments().size() == 0)
+			return List.of();
+
+		List<SynchronizeEpicProviderSlotBookingRequest> requests = new ArrayList<>(providerAppointmentsResponse.getAppointments().size());
+
+		for (GetProviderAppointmentsResponse.Appointment appointment : providerAppointmentsResponse.getAppointments()) {
+			String dateAsString = appointment.getDate(); // e.g. "6/14/2024"
+			LocalDate date = epicClient.parseDateWithSlashes(dateAsString);
+
+			String appointmentStartTimeAsString = appointment.getAppointmentStartTime(); // e.g. " 9:00 AM"
+			LocalTime appointmentStartTime = epicClient.parseTimeAmPm(appointmentStartTimeAsString);
+
+			String appointmentDurationAsString = appointment.getAppointmentDuration(); // e.g. "30"
+			Integer appointmentDuration = Integer.parseInt(appointmentDurationAsString, 10);
+
+			LocalDateTime startDateTime = date.atTime(appointmentStartTime);
+			LocalDateTime endDateTime = startDateTime.plusMinutes(appointmentDuration);
+
+			UUID providerId = null;
+			String departmentId = null;
+			String departmentIdType = institution.getEpicProviderSlotBookingSyncDepartmentIdType();
+			String contactIdType = institution.getEpicProviderSlotBookingSyncContactIdType();
+			String visitTypeIdType = institution.getEpicProviderSlotBookingSyncVisitTypeIdType();
+
+			for (GetProviderAppointmentsResponse.Provider potentialProvider : appointment.getProviders()) {
+				for (GetProviderAppointmentsResponse.TypedId providerID : potentialProvider.getProviderIDs()) {
+					// We don't compare on provider type here because it may come back as, for example, INTERNAL when it's really EXTERNAL
+					if (Objects.equals(normalizeForComparison(providerID.getID()), normalizeForComparison(provider.getEpicProviderId()))) {
+						providerId = provider.getProviderId();
+						break;
+					}
+				}
+
+				for (GetProviderAppointmentsResponse.TypedId potentialDepartment : potentialProvider.getDepartmentIDs()) {
+					if (Objects.equals(normalizeForComparison(potentialDepartment.getType()), normalizeForComparison(departmentIdType))) {
+						departmentId = normalizeForComparison(potentialDepartment.getID());
+						break;
+					}
+				}
+			}
+
+			String contactId = null;
+
+			for (GetProviderAppointmentsResponse.TypedId potentialContact : appointment.getContactIDs()) {
+				if (Objects.equals(normalizeForComparison(potentialContact.getType()), normalizeForComparison(contactIdType))) {
+					contactId = normalizeForComparison(potentialContact.getID());
+					break;
+				}
+			}
+
+			String visitTypeId = null;
+
+			for (GetProviderAppointmentsResponse.TypedId potentialVisitType : appointment.getVisitTypeIDs()) {
+				if (Objects.equals(normalizeForComparison(potentialVisitType.getType()), normalizeForComparison(visitTypeIdType))) {
+					visitTypeId = normalizeForComparison(potentialVisitType.getID());
+					break;
+				}
+			}
+
+			if (providerId == null || contactId == null || departmentId == null || visitTypeId == null)
+				continue;
+
+			SynchronizeEpicProviderSlotBookingRequest request = new SynchronizeEpicProviderSlotBookingRequest();
+			request.setProviderId(providerId);
+			request.setContactId(contactId);
+			request.setContactIdType(contactIdType);
+			request.setDepartmentId(departmentId);
+			request.setDepartmentIdType(departmentIdType);
+			request.setVisitTypeId(visitTypeId);
+			request.setVisitTypeIdType(visitTypeIdType);
+			request.setStartDateTime(startDateTime);
+			request.setEndDateTime(endDateTime);
+
+			requests.add(request);
+		}
+
+		return requests;
+	}
+
+	@Nonnull
+	protected String normalizeForComparison(@Nullable String input) {
+		return trimToEmpty(input).toUpperCase(Locale.ENGLISH);
 	}
 
 	@Nonnull
@@ -287,6 +444,25 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 					GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
+					// First, walk the data to figure out what slots are explicitly blocked off as unbookable
+					Set<Range> unbookableRanges = new HashSet<>(response.getScheduleSlots().size());
+
+					for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
+						boolean held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
+						boolean unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
+
+						if (held || unavailable) {
+							Integer slotLengthInMinutes = Integer.parseInt(scheduleSlot.getLength(), 10);
+							LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
+							LocalDateTime startDateTime = LocalDateTime.of(date, startTime);
+							LocalTime endTime = startTime.plusMinutes(slotLengthInMinutes);
+							LocalDateTime endDateTime = LocalDateTime.of(date, endTime);
+
+							unbookableRanges.add(Range.closedOpen(startDateTime, endDateTime));
+						}
+					}
+
+					// Now that we know what slots are blocked off as unbookable, figure out what actually is bookable
 					for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
 						LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
 						Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
@@ -296,12 +472,35 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 							boolean held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
 							boolean unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
 
+							// If it looks like this slot is open, confirm by ensuring it does not overlap with any unbookable ranges
 							if (!held && !unavailable) {
-								ProviderAvailabilityDateInsertRow row = new ProviderAvailabilityDateInsertRow();
-								row.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
-								row.setDateTime(dateTime);
-								row.setEpicDepartmentId(epicDepartment.getEpicDepartmentId());
-								rows.add(row);
+								LocalDateTime startDateTime = LocalDateTime.of(date, startTime);
+								LocalDateTime endDateTime = LocalDateTime.of(date, startTime.plusMinutes(appointmentType.getDurationInMinutes()));
+								Range<LocalDateTime> proposedRange = Range.closedOpen(startDateTime, endDateTime);
+
+								boolean unbookable = false;
+
+								for (Range<LocalDateTime> unbookableRange : unbookableRanges) {
+									// Ranges are connected if they butt up against each other, so
+									// we also have to check to see if they have a nonempty intersection to know if they indeed overlap.
+									// Note: calling #intersection on an unconnected range will throw an exception, which is why we have
+									// the redundant-looking #isConnected check
+									boolean rangesOverlap = proposedRange.isConnected(unbookableRange)
+											&& !proposedRange.intersection(unbookableRange).isEmpty();
+
+									if (rangesOverlap) {
+										unbookable = true;
+										break;
+									}
+								}
+
+								if (!unbookable) {
+									ProviderAvailabilityDateInsertRow row = new ProviderAvailabilityDateInsertRow();
+									row.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
+									row.setDateTime(dateTime);
+									row.setEpicDepartmentId(epicDepartment.getEpicDepartmentId());
+									rows.add(row);
+								}
 							}
 						}
 					}
@@ -519,7 +718,8 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 					for (Provider provider : providers) {
 						try {
-							LocalDate syncDate = LocalDate.now(provider.getTimeZone());
+							LocalDate today = LocalDate.now(provider.getTimeZone());
+							LocalDate syncDate = today;
 
 							List<ProviderAvailabilityDateInsert> inserts = new ArrayList<>(getEpicSyncManager().getAvailabilitySyncNumberOfDaysAhead());
 
@@ -541,6 +741,23 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 								getDatabase().transaction(() -> {
 									getEpicSyncManager().performProviderAvailabilityDateInsert(insert);
 								});
+							}
+
+							// Next, pull all of the provider's booked slots over the time range (if enabled for the institution)
+							if (institution.getEpicProviderSlotBookingSyncEnabled()) {
+								List<SynchronizeEpicProviderSlotBookingRequest> epicProviderSlotBookingRequests = getEpicSyncManager().generateProviderSlotBookingSyncRequests(epicClient, institution, provider, today, syncDate);
+
+								// We don't want to throw off the whole operation if this fails, so catch the exception
+								// and report the error
+								if (epicProviderSlotBookingRequests.size() > 0) {
+									getDatabase().transaction(() -> {
+										try {
+											getProviderService().synchronizeEpicProviderSlotBookingRequests(epicProviderSlotBookingRequests);
+										} catch (Exception e) {
+											getEpicSyncManager().getErrorReporter().report(e);
+										}
+									});
+								}
 							}
 
 							++providerSuccessCount;
@@ -735,6 +952,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull
