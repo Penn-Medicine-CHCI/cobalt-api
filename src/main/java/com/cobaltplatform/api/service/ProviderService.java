@@ -38,6 +38,8 @@ import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.DepartmentAvailabilityStatus.DepartmentAvailabilityStatusId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.EpicFhirAppointmentFindCache;
+import com.cobaltplatform.api.model.db.EpicProviderSchedule;
+import com.cobaltplatform.api.model.db.EpicProviderSlotBooking;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
@@ -67,6 +69,7 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.common.collect.Range;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -96,6 +99,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
@@ -871,7 +875,193 @@ public class ProviderService {
 		if (!includePastAvailability)
 			filterProviderFindsBySchedulingLeadTime(providerFinds, providers, currentDateTime);
 
+		filterProviderFindsByEpicRules(institution, providerFinds);
+
 		return providerFinds;
+	}
+
+	// Discards availability if the provider
+	protected void filterProviderFindsByEpicRules(@Nonnull Institution institution,
+																								@Nonnull List<ProviderFind> providerFinds) {
+		requireNonNull(institution);
+		requireNonNull(providerFinds);
+
+		if (!institution.getEpicProviderSlotBookingSyncEnabled())
+			return;
+
+		Set<UUID> epicProviderIds = providerFinds.stream()
+				.filter(providerFind -> providerFind.getSchedulingSystemId() == SchedulingSystemId.EPIC)
+				.map(providerFind -> providerFind.getProviderId())
+				.collect(Collectors.toSet());
+
+		if (epicProviderIds.size() == 0)
+			return;
+
+		List<Object> slotBookingParameters = new ArrayList<>();
+		slotBookingParameters.addAll(epicProviderIds);
+		slotBookingParameters.add(LocalDateTime.now(institution.getTimeZone()));
+
+		List<EpicProviderSlotBooking> epicProviderSlotBookings = getDatabase().queryForList(format("""
+				SELECT epsb.*
+				FROM epic_provider_slot_booking epsb, provider p
+				WHERE epsb.provider_id=p.provider_id
+				AND p.provider_id IN %s
+				AND epsb.start_date_time >= ?
+				""", sqlInListPlaceholders(epicProviderIds)), EpicProviderSlotBooking.class, slotBookingParameters.toArray(new Object[]{}));
+
+		// Break out slot booking records by provider
+		Map<UUID, List<EpicProviderSlotBooking>> epicProviderSlotBookingsByProviderId = epicProviderSlotBookings.stream()
+				.collect(Collectors.groupingBy(EpicProviderSlotBooking::getProviderId));
+
+		// Further break out slot booking records by date by provider
+		Map<UUID, Map<LocalDate, List<EpicProviderSlotBooking>>> epicProviderSlotBookingsByDateByProviderId = new HashMap<>();
+
+		for (Entry<UUID, List<EpicProviderSlotBooking>> entry : epicProviderSlotBookingsByProviderId.entrySet()) {
+			UUID providerId = entry.getKey();
+			List<EpicProviderSlotBooking> epicProviderSlotBookingsForCurrentProvider = entry.getValue();
+
+			// Prime the map
+			Map<LocalDate, List<EpicProviderSlotBooking>> epicProviderSlotBookingsByDate = new HashMap<>();
+			epicProviderSlotBookingsByDateByProviderId.put(providerId, epicProviderSlotBookingsByDate);
+
+			for (EpicProviderSlotBooking epicProviderSlotBooking : epicProviderSlotBookingsForCurrentProvider) {
+				LocalDate date = epicProviderSlotBooking.getStartDateTime().toLocalDate();
+				List<EpicProviderSlotBooking> bookingsForDate = epicProviderSlotBookingsByDate.get(date);
+
+				if (bookingsForDate == null) {
+					bookingsForDate = new ArrayList<>();
+					epicProviderSlotBookingsByDate.put(date, bookingsForDate);
+				}
+
+				bookingsForDate.add(epicProviderSlotBooking);
+			}
+		}
+
+		List<EpicProviderSchedule> epicProviderSchedules = getInstitutionService().findEpicProviderSchedulesByInstitutionId(institution.getInstitutionId());
+
+		// DB constraint ensures start/end time ranges are unique per-institution
+		Map<Range<LocalTime>, EpicProviderSchedule> epicProviderSchedulesByTimeRange = epicProviderSchedules.stream()
+				.collect(Collectors.toMap((eps) -> Range.closedOpen(eps.getStartTime(), eps.getEndTime()), Function.identity()));
+
+		// Keep track of how many NPVs there are by the combination of schedule + date + provider
+		Map<EpicProviderScheduleNpvCountKey, Integer> npvCountsByKey = new HashMap<>();
+
+		for (ProviderFind providerFind : providerFinds) {
+			Map<LocalDate, List<EpicProviderSlotBooking>> epicProviderSlotBookingsByDate = epicProviderSlotBookingsByDateByProviderId.get(providerFind.getProviderId());
+
+			if (epicProviderSlotBookingsByDate == null || epicProviderSlotBookingsByDate.size() == 0)
+				continue;
+
+			for (AvailabilityDate date : providerFind.getDates()) {
+				List<EpicProviderSlotBooking> currentEpicProviderSlotBookings = epicProviderSlotBookingsByDate.get(date.getDate());
+
+				if (currentEpicProviderSlotBookings == null || currentEpicProviderSlotBookings.size() == 0)
+					continue;
+
+				System.out.println("PROVIDER HAS " + currentEpicProviderSlotBookings.size() + " BOOKINGS ON " + date.getDate());
+
+				for (AvailabilityTime availabilityTime : date.getTimes()) {
+					// Arbitrarily using 1 minute for the time range because duration is irrelevant, we just need to know if the range intersects with the schedule
+					Range<LocalTime> availabilityTimeRange = Range.closedOpen(availabilityTime.getTime(), availabilityTime.getTime().plusMinutes(1L));
+
+					for (Entry<Range<LocalTime>, EpicProviderSchedule> entry : epicProviderSchedulesByTimeRange.entrySet()) {
+						Range<LocalTime> scheduleTimeRange = entry.getKey();
+						EpicProviderSchedule epicProviderSchedule = entry.getValue();
+
+						// Keep track of NPV counts for this schedule
+						EpicProviderScheduleNpvCountKey npvCountKey = new EpicProviderScheduleNpvCountKey(providerFind.getProviderId(), date.getDate(), epicProviderSchedule.getEpicProviderScheduleId());
+						Integer npvCounts = npvCountsByKey.get(npvCountKey);
+
+						if (npvCounts == null) {
+							npvCounts = 0;
+							npvCountsByKey.put(npvCountKey, 0);
+						}
+
+						boolean rangesOverlap = availabilityTimeRange.isConnected(scheduleTimeRange)
+								&& !availabilityTimeRange.intersection(scheduleTimeRange).isEmpty();
+
+						if (rangesOverlap) {
+							System.out.println("Available slot at " + availabilityTimeRange + " OVERLAPS with " + epicProviderSchedule.getName());
+
+							++npvCounts;
+							npvCountsByKey.put(npvCountKey, npvCounts);
+						}
+
+//						if(rangesOverlap)
+//							System.out.println("Available slot at " + availabilityTimeRange + " OVERLAPS with " + epicProviderSchedule.getName());
+//						else
+//							System.out.println("Available slot at " + availabilityTimeRange + " DOES NOT overlap with " + epicProviderSchedule.getName());
+					}
+				}
+			}
+		}
+
+		System.out.println(npvCountsByKey);
+	}
+
+	// We count NPVs per-schedule using the combination of these 3 things as a key.
+	protected static class EpicProviderScheduleNpvCountKey {
+		@Nonnull
+		private final UUID providerId;
+		@Nonnull
+		private final LocalDate date;
+		@Nonnull
+		private final UUID epicProviderScheduleId;
+
+		public EpicProviderScheduleNpvCountKey(
+				@Nonnull UUID providerId,
+				@Nonnull LocalDate date,
+				@Nonnull UUID epicProviderScheduleId
+		) {
+			requireNonNull(providerId);
+			requireNonNull(date);
+			requireNonNull(epicProviderScheduleId);
+
+			this.providerId = providerId;
+			this.date = date;
+			this.epicProviderScheduleId = epicProviderScheduleId;
+		}
+
+		@Override
+		public String toString() {
+			return format("%s{providerId=%s, date=%s, epicProviderScheduleId=%s}", getClass().getSimpleName(),
+					getProviderId(), getDate(), getEpicProviderScheduleId());
+		}
+
+		@Override
+		public boolean equals(@Nullable Object other) {
+			if (this == other)
+				return true;
+
+			if (other == null || !getClass().equals(other.getClass()))
+				return false;
+
+			EpicProviderScheduleNpvCountKey otherNpvCountKey = (EpicProviderScheduleNpvCountKey) other;
+
+			return Objects.equals(getProviderId(), otherNpvCountKey.getProviderId())
+					&& Objects.equals(getDate(), otherNpvCountKey.getDate())
+					&& Objects.equals(getEpicProviderScheduleId(), otherNpvCountKey.getEpicProviderScheduleId());
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(getProviderId(), getDate(), getEpicProviderScheduleId());
+		}
+
+		@Nonnull
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		@Nonnull
+		public LocalDate getDate() {
+			return this.date;
+		}
+
+		@Nonnull
+		public UUID getEpicProviderScheduleId() {
+			return this.epicProviderScheduleId;
+		}
 	}
 
 	@Nonnull

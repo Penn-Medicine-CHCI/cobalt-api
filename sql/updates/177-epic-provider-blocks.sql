@@ -19,15 +19,17 @@ CREATE TABLE epic_provider_schedule (
 	epic_provider_schedule_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	institution_id TEXT NOT NULL REFERENCES institution,
 	name TEXT NOT NULL,
-	start_time DATE NOT NULL,
-	end_time DATE NOT NULL,
-	maximum_npv_count INTEGER,
+	start_time TIME NOT NULL,
+	end_time TIME NOT NULL,
+	npv_duration_in_minutes INTEGER NOT NULL, -- Duration is currently the best way we have to determine if an arbitrary visit type is an NPV
+	maximum_npv_count INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON epic_provider_schedule FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 CREATE UNIQUE INDEX epic_provider_schedule_name_unique_idx ON epic_provider_schedule USING btree (institution_id, LOWER(name));
+CREATE UNIQUE INDEX epic_provider_schedule_time_range_unique_idx ON epic_provider_schedule USING btree (institution_id, start_time, end_time);
 
 -- Synced-in booked slots from Epic for a given provider.
 -- This gives us sufficient information to enforce rules defined in epic_provider_schedule, e.g. "1 NPV max for the morning schedule"

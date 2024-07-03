@@ -24,7 +24,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
-import java.util.Date;
+import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -39,9 +39,11 @@ public class EpicProviderSchedule {
 	@Nullable
 	private String name;
 	@Nullable
-	private Date startTime;
+	private LocalTime startTime;
 	@Nullable
-	private Date endTime;
+	private LocalTime endTime;
+	@Nullable
+	private Integer npvDurationInMinutes;
 	@Nullable
 	private Integer maximumNpvCount;
 	@Nullable
@@ -77,21 +79,30 @@ public class EpicProviderSchedule {
 	}
 
 	@Nullable
-	public Date getStartTime() {
+	public LocalTime getStartTime() {
 		return this.startTime;
 	}
 
-	public void setStartTime(@Nullable Date startTime) {
+	public void setStartTime(@Nullable LocalTime startTime) {
 		this.startTime = startTime;
 	}
 
 	@Nullable
-	public Date getEndTime() {
+	public LocalTime getEndTime() {
 		return this.endTime;
 	}
 
-	public void setEndTime(@Nullable Date endTime) {
+	public void setEndTime(@Nullable LocalTime endTime) {
 		this.endTime = endTime;
+	}
+
+	@Nullable
+	public Integer getNpvDurationInMinutes() {
+		return this.npvDurationInMinutes;
+	}
+
+	public void setNpvDurationInMinutes(@Nullable Integer npvDurationInMinutes) {
+		this.npvDurationInMinutes = npvDurationInMinutes;
 	}
 
 	@Nullable
