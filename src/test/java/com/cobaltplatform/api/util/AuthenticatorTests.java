@@ -29,10 +29,12 @@ import com.cobaltplatform.api.util.Authenticator.SigningTokenValidationException
 import io.jsonwebtoken.Jwts;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mindrot.jbcrypt.BCrypt;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -113,5 +115,15 @@ public class AuthenticatorTests {
 				// Validation should fail now because the expiration time has passed
 			}
 		});
+	}
+
+	@Test
+	public void generatePassword() {
+		String password = new Random().ints(10, 97, 122)
+				.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+				.toString();
+
+		System.out.println(password);
+		System.out.println(BCrypt.hashpw(password, BCrypt.gensalt()));
 	}
 }
