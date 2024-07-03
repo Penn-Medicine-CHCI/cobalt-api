@@ -4758,6 +4758,10 @@ public class PatientOrderService implements AutoCloseable {
 
 			Hl7PatientSection patient = hl7GeneralOrderTriggerEvent.getPatient();
 
+			if (patient.getPatientIdentification().getPatientDeathDateAndTime() != null
+					&& patient.getPatientIdentification().getPatientDeathDateAndTime().getTime() != null)
+				throw new ValidationException(getStrings().get("Patient is deceased"));
+
 			if (patient.getPatientIdentification().getPatientName() == null || patient.getPatientIdentification().getPatientName().size() == 0)
 				throw new ValidationException(getStrings().get("Unable to find patient name in HL7 message"));
 
