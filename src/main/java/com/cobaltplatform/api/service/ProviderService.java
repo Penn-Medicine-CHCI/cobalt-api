@@ -85,6 +85,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -909,34 +910,6 @@ public class ProviderService {
 				AND epsb.start_date_time >= ?
 				""", sqlInListPlaceholders(epicProviderIds)), EpicProviderSlotBooking.class, slotBookingParameters.toArray(new Object[]{}));
 
-		// Break out slot booking records by provider
-		Map<UUID, List<EpicProviderSlotBooking>> epicProviderSlotBookingsByProviderId = epicProviderSlotBookings.stream()
-				.collect(Collectors.groupingBy(EpicProviderSlotBooking::getProviderId));
-
-		// Further break out slot booking records by date by provider
-		Map<UUID, Map<LocalDate, List<EpicProviderSlotBooking>>> epicProviderSlotBookingsByDateByProviderId = new HashMap<>();
-
-		for (Entry<UUID, List<EpicProviderSlotBooking>> entry : epicProviderSlotBookingsByProviderId.entrySet()) {
-			UUID providerId = entry.getKey();
-			List<EpicProviderSlotBooking> epicProviderSlotBookingsForCurrentProvider = entry.getValue();
-
-			// Prime the map
-			Map<LocalDate, List<EpicProviderSlotBooking>> epicProviderSlotBookingsByDate = new HashMap<>();
-			epicProviderSlotBookingsByDateByProviderId.put(providerId, epicProviderSlotBookingsByDate);
-
-			for (EpicProviderSlotBooking epicProviderSlotBooking : epicProviderSlotBookingsForCurrentProvider) {
-				LocalDate date = epicProviderSlotBooking.getStartDateTime().toLocalDate();
-				List<EpicProviderSlotBooking> bookingsForDate = epicProviderSlotBookingsByDate.get(date);
-
-				if (bookingsForDate == null) {
-					bookingsForDate = new ArrayList<>();
-					epicProviderSlotBookingsByDate.put(date, bookingsForDate);
-				}
-
-				bookingsForDate.add(epicProviderSlotBooking);
-			}
-		}
-
 		List<EpicProviderSchedule> epicProviderSchedules = getInstitutionService().findEpicProviderSchedulesByInstitutionId(institution.getInstitutionId());
 
 		// DB constraint ensures start/end time ranges are unique per-institution
@@ -946,20 +919,39 @@ public class ProviderService {
 		// Keep track of how many NPVs there are by the combination of schedule + date + provider
 		Map<EpicProviderScheduleNpvCountKey, Integer> npvCountsByKey = new HashMap<>();
 
-		for (ProviderFind providerFind : providerFinds) {
-			Map<LocalDate, List<EpicProviderSlotBooking>> epicProviderSlotBookingsByDate = epicProviderSlotBookingsByDateByProviderId.get(providerFind.getProviderId());
+		for (EpicProviderSlotBooking epicProviderSlotBooking : epicProviderSlotBookings) {
+			Range<LocalTime> slotBookingRange = Range.closedOpen(epicProviderSlotBooking.getStartDateTime().toLocalTime(), epicProviderSlotBooking.getEndDateTime().toLocalTime());
 
-			if (epicProviderSlotBookingsByDate == null || epicProviderSlotBookingsByDate.size() == 0)
-				continue;
+			for (EpicProviderSchedule epicProviderSchedule : epicProviderSchedules) {
+				Range<LocalTime> scheduleRange = Range.closedOpen(epicProviderSchedule.getStartTime(), epicProviderSchedule.getEndTime());
 
-			for (AvailabilityDate date : providerFind.getDates()) {
-				List<EpicProviderSlotBooking> currentEpicProviderSlotBookings = epicProviderSlotBookingsByDate.get(date.getDate());
+				boolean rangesOverlap = slotBookingRange.isConnected(scheduleRange)
+						&& !slotBookingRange.intersection(scheduleRange).isEmpty();
 
-				if (currentEpicProviderSlotBookings == null || currentEpicProviderSlotBookings.size() == 0)
+				if (!rangesOverlap)
 					continue;
 
-				System.out.println("PROVIDER HAS " + currentEpicProviderSlotBookings.size() + " BOOKINGS ON " + date.getDate());
+				EpicProviderScheduleNpvCountKey npvCountKey = new EpicProviderScheduleNpvCountKey(epicProviderSlotBooking.getProviderId(), epicProviderSlotBooking.getStartDateTime().toLocalDate(), epicProviderSchedule.getEpicProviderScheduleId());
+				Integer npvCounts = npvCountsByKey.get(npvCountKey);
 
+				if (npvCounts == null) {
+					npvCounts = 0;
+					npvCountsByKey.put(npvCountKey, 0);
+				}
+
+				Duration slotBookingDuration = Duration.between(epicProviderSlotBooking.getStartDateTime(), epicProviderSlotBooking.getEndDateTime());
+
+				if (slotBookingDuration.toMinutes() == epicProviderSchedule.getNpvDurationInMinutes().longValue()) {
+					++npvCounts;
+					npvCountsByKey.put(npvCountKey, npvCounts);
+				}
+			}
+		}
+
+		// Walk the list of availability.  If we find any slots that exceed the configured NPV maximum limits for a particular
+		// schedule, mark them as "booked".
+		for (ProviderFind providerFind : providerFinds) {
+			for (AvailabilityDate date : providerFind.getDates()) {
 				for (AvailabilityTime availabilityTime : date.getTimes()) {
 					// Arbitrarily using 1 minute for the time range because duration is irrelevant, we just need to know if the range intersects with the schedule
 					Range<LocalTime> availabilityTimeRange = Range.closedOpen(availabilityTime.getTime(), availabilityTime.getTime().plusMinutes(1L));
@@ -968,35 +960,29 @@ public class ProviderService {
 						Range<LocalTime> scheduleTimeRange = entry.getKey();
 						EpicProviderSchedule epicProviderSchedule = entry.getValue();
 
-						// Keep track of NPV counts for this schedule
-						EpicProviderScheduleNpvCountKey npvCountKey = new EpicProviderScheduleNpvCountKey(providerFind.getProviderId(), date.getDate(), epicProviderSchedule.getEpicProviderScheduleId());
-						Integer npvCounts = npvCountsByKey.get(npvCountKey);
-
-						if (npvCounts == null) {
-							npvCounts = 0;
-							npvCountsByKey.put(npvCountKey, 0);
-						}
-
 						boolean rangesOverlap = availabilityTimeRange.isConnected(scheduleTimeRange)
 								&& !availabilityTimeRange.intersection(scheduleTimeRange).isEmpty();
 
 						if (rangesOverlap) {
-							System.out.println("Available slot at " + availabilityTimeRange + " OVERLAPS with " + epicProviderSchedule.getName());
+							// Pull NPV counts for this schedule
+							EpicProviderScheduleNpvCountKey npvCountKey = new EpicProviderScheduleNpvCountKey(providerFind.getProviderId(), date.getDate(), epicProviderSchedule.getEpicProviderScheduleId());
+							Integer npvCount = npvCountsByKey.get(npvCountKey);
 
-							++npvCounts;
-							npvCountsByKey.put(npvCountKey, npvCounts);
+							if (npvCount == null)
+								npvCount = 0;
+
+							// If the NPV count exceeds the configured limit, don't let the slot be booked
+							if (npvCount >= epicProviderSchedule.getMaximumNpvCount()) {
+								getLogger().debug("NPV count for provider ID {} is {} for '{}' schedule, marking {} {} slot as 'booked'", providerFind.getProviderId(),
+										npvCount, epicProviderSchedule.getName(), date.getDate(), availabilityTime.getTime());
+
+								availabilityTime.setStatus(AvailabilityStatus.BOOKED);
+							}
 						}
-
-//						if(rangesOverlap)
-//							System.out.println("Available slot at " + availabilityTimeRange + " OVERLAPS with " + epicProviderSchedule.getName());
-//						else
-//							System.out.println("Available slot at " + availabilityTimeRange + " DOES NOT overlap with " + epicProviderSchedule.getName());
 					}
 				}
 			}
 		}
-
-		System.out.println(npvCountsByKey);
 	}
 
 	// We count NPVs per-schedule using the combination of these 3 things as a key.
