@@ -22,11 +22,14 @@ package com.cobaltplatform.api.integration.beiwe;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.FileUpload;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.util.CryptoUtility;
 import com.google.gson.Gson;
 import com.pyranid.Database;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.io.IOUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -47,6 +50,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -55,6 +59,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -87,6 +92,10 @@ public class BeiweDataDownloader {
 		Logger logger = LoggerFactory.getLogger(getClass());
 		Path configFile = Path.of("resources/test/beiwe-data-downloader-config.json");
 		BeiweDataDownloaderConfig beiweDataDownloaderConfig = loadBeiweDataDownloaderConfigFromFile(configFile);
+
+		boolean downloadAssessments = true;
+		boolean downloadActive = false;
+		boolean downloadPassive = false;
 
 		performOperationWithDatabase(beiweDataDownloaderConfig, (database) -> {
 			UUID studyId = database.queryForObject("""
@@ -181,13 +190,25 @@ public class BeiweDataDownloader {
 						.filter(fileUpload -> fileUpload.getStorageKey().startsWith("file-uploads/studies/"))
 						.collect(Collectors.toMap(FileUpload::getFileUploadId, Function.identity()));
 
-				logger.debug("Username {} has {} check-in uploads and {} passive data uploads", username, accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
+				List<ScreeningSession> screeningSessions = database.queryForList("""
+						select ss.*
+						from screening_session ss, account_check_in_action acia, account_check_in aci
+						where ss.account_check_in_action_id=acia.account_check_in_action_id
+						and acia.account_check_in_id=aci.account_check_in_id
+						and aci.account_study_id=?
+						order by ss.created
+						""", ScreeningSession.class, accountStudy.getAccountStudyId());
 
-				if (fileUploads.size() == 0) {
-					logger.debug("No uploaded files for {}, moving on to next...", username);
+				logger.debug("Username {} has {} screening sessions, {} check-in uploads and {} passive data uploads", username, screeningSessions.size(), accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
+
+				if (screeningSessions.size() == 0 && fileUploads.size() == 0) {
+					logger.debug("No data to process for {}, moving on to next...", username);
 					++i;
 					continue;
 				}
+
+				DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US)
+						.withZone(accountStudy.getTimeZone());
 
 				Path usernameDirectory = Path.of(beiweDataDownloaderConfig.getDataDownloadDirectory(), username);
 
@@ -201,7 +222,7 @@ public class BeiweDataDownloader {
 				Path accountCheckInActionsDirectory = null;
 
 				if (accountCheckInActionFileUploadsById.size() > 0) {
-					accountCheckInActionsDirectory = usernameDirectory.resolve("account-check-in-actions");
+					accountCheckInActionsDirectory = usernameDirectory.resolve("active");
 
 					try {
 						if (!Files.isDirectory(accountCheckInActionsDirectory))
@@ -214,7 +235,7 @@ public class BeiweDataDownloader {
 				Path studiesDirectory = null;
 
 				if (studyFileUploadsById.size() > 0) {
-					studiesDirectory = usernameDirectory.resolve("studies");
+					studiesDirectory = usernameDirectory.resolve("passive");
 
 					try {
 						if (!Files.isDirectory(studiesDirectory))
@@ -224,7 +245,85 @@ public class BeiweDataDownloader {
 					}
 				}
 
+				Path assessmentsDirectory = null;
+
+				if (screeningSessions.size() > 0) {
+					assessmentsDirectory = usernameDirectory.resolve("assessments");
+
+					try {
+						if (!Files.isDirectory(assessmentsDirectory))
+							Files.createDirectory(assessmentsDirectory);
+					} catch (IOException e) {
+						throw new UncheckedIOException(format("Cannot create assessments directory %s", assessmentsDirectory.toAbsolutePath()), e);
+					}
+				}
+
+				if (downloadAssessments && screeningSessions.size() > 0) {
+					System.out.println("TODO: download assessments.");
+
+					for (ScreeningSession screeningSession : screeningSessions) {
+						List<StudyScreeningAnswerRow> studyScreeningAnswerRows = database.queryForList("""
+								select
+									s.name,
+									sq.question_text as question,
+									sao.answer_option_text as answer,
+									sa.created as answer_created_at
+								from
+									v_screening_answer sa,
+									screening_answer_option sao,
+									v_screening_session_answered_screening_question ssasq,
+									v_screening_session_screening sss,
+									screening_question sq,
+									screening_version sv,
+									screening s
+								where
+									sa.screening_session_answered_screening_question_id=ssasq.screening_session_answered_screening_question_id
+									and sa.screening_answer_option_id=sao.screening_answer_option_id
+									and ssasq.screening_session_screening_id=sss.screening_session_screening_id
+									and ssasq.screening_question_id=sq.screening_question_id
+									and sss.screening_version_id=sv.screening_version_id
+									and sv.screening_id=s.screening_id
+									and sss.screening_session_id=?
+								order by sa.created
+								""", StudyScreeningAnswerRow.class, screeningSession.getScreeningSessionId());
+
+						Path csvFile = assessmentsDirectory.resolve(format("%s.csv", dateTimeFormatter.format(screeningSession.getCreated())));
+
+						List<String> headerColumns = List.of(
+								"Assessment",
+								"Question",
+								"Answer",
+								"Answered At"
+						);
+
+						try (FileWriter fileWriter = new FileWriter(csvFile.toFile(), StandardCharsets.UTF_8);
+								 CSVPrinter csvPrinter = new CSVPrinter(fileWriter, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+
+							for (StudyScreeningAnswerRow studyScreeningAnswerRow : studyScreeningAnswerRows) {
+								List<String> recordElements = new ArrayList<>();
+								recordElements.add(studyScreeningAnswerRow.getName());
+								recordElements.add(studyScreeningAnswerRow.getQuestion());
+								recordElements.add(studyScreeningAnswerRow.getAnswer());
+								recordElements.add(dateTimeFormatter.format(studyScreeningAnswerRow.getAnswerCreatedAt()));
+
+								csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+							}
+						} catch (IOException e) {
+							throw new UncheckedIOException(e);
+						}
+					}
+				}
+
 				for (FileUpload fileUpload : fileUploads) {
+					boolean isActiveFileUpload = accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId());
+					boolean isPassiveFileUpload = studyFileUploadsById.containsKey(fileUpload.getFileUploadId());
+
+					if (isActiveFileUpload && !downloadActive)
+						continue;
+
+					if (isPassiveFileUpload && !downloadPassive)
+						continue;
+
 					logger.debug("Fetching file from {}...", fileUpload.getStorageKey());
 
 					GetObjectRequest objectRequest = GetObjectRequest.builder()
@@ -235,15 +334,12 @@ public class BeiweDataDownloader {
 					try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(objectRequest)) {
 						Path storageDirectory;
 
-						if (accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId()))
+						if (isActiveFileUpload)
 							storageDirectory = accountCheckInActionsDirectory;
-						else if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId()))
+						else if (isPassiveFileUpload)
 							storageDirectory = studiesDirectory;
 						else
 							throw new IllegalStateException("Not sure what this upload is...");
-
-						DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US)
-								.withZone(accountStudy.getTimeZone());
 
 						// Prepend timestamp to filename for easier sorting and in the event that devices choose non-unique filename
 						Path file = storageDirectory.resolve(format("%s-%s", dateTimeFormatter.format(fileUpload.getCreated()), fileUpload.getFilename()));
@@ -309,6 +405,46 @@ public class BeiweDataDownloader {
 
 			logger.info("*** RESULTS ***\n{}", results.stream().collect(Collectors.joining("\n")));
 		});
+	}
+
+	@NotThreadSafe
+	public static class StudyScreeningAnswerRow {
+		String name;
+		String question;
+		String answer;
+		Instant answerCreatedAt;
+
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public String getQuestion() {
+			return this.question;
+		}
+
+		public void setQuestion(String question) {
+			this.question = question;
+		}
+
+		public String getAnswer() {
+			return this.answer;
+		}
+
+		public void setAnswer(String answer) {
+			this.answer = answer;
+		}
+
+		public Instant getAnswerCreatedAt() {
+			return this.answerCreatedAt;
+		}
+
+		public void setAnswerCreatedAt(Instant answerCreatedAt) {
+			this.answerCreatedAt = answerCreatedAt;
+		}
 	}
 
 	@Nonnull
