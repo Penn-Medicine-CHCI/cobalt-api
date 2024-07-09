@@ -68,6 +68,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -94,8 +101,8 @@ public class BeiweDataDownloader {
 		BeiweDataDownloaderConfig beiweDataDownloaderConfig = loadBeiweDataDownloaderConfigFromFile(configFile);
 
 		boolean downloadAssessments = true;
-		boolean downloadActive = false;
-		boolean downloadPassive = false;
+		boolean downloadActive = true;
+		boolean downloadPassive = true;
 
 		performOperationWithDatabase(beiweDataDownloaderConfig, (database) -> {
 			UUID studyId = database.queryForObject("""
@@ -312,70 +319,126 @@ public class BeiweDataDownloader {
 					}
 				}
 
-				for (FileUpload fileUpload : fileUploads) {
+				// Ignore active and/or passive files if configured to do so
+				List<FileUpload> fileUploadsToProcess = fileUploads.stream()
+						.filter((fileUpload -> {
+							boolean isActiveFileUpload = accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId());
+							boolean isPassiveFileUpload = studyFileUploadsById.containsKey(fileUpload.getFileUploadId());
+
+							if (isActiveFileUpload && !downloadActive)
+								return false;
+
+							if (isPassiveFileUpload && !downloadPassive)
+								return false;
+
+							return true;
+						}))
+						.collect(Collectors.toList());
+
+				ExecutorService executorService = Executors.newFixedThreadPool(8);
+				List<CompletableFuture<Void>> completableFutures = new ArrayList<>(fileUploadsToProcess.size());
+				AtomicInteger fileUploadProcessedCount = new AtomicInteger(0);
+
+				for (FileUpload fileUpload : fileUploadsToProcess) {
+					int currentIndex = fileUploadProcessedCount.incrementAndGet();
+
+					logger.debug("Processing file upload {} of {}...", currentIndex, fileUploadsToProcess.size());
+
 					boolean isActiveFileUpload = accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId());
 					boolean isPassiveFileUpload = studyFileUploadsById.containsKey(fileUpload.getFileUploadId());
 
-					if (isActiveFileUpload && !downloadActive)
-						continue;
+					// Enable access in closure below
+					Path pinnedAccountCheckInActionsDirectory = accountCheckInActionsDirectory;
+					Path pinnedStudiesDirectory = studiesDirectory;
 
-					if (isPassiveFileUpload && !downloadPassive)
-						continue;
+					completableFutures.add(CompletableFuture.supplyAsync(() -> {
+						logger.debug("Fetching file from {}...", fileUpload.getStorageKey());
 
-					logger.debug("Fetching file from {}...", fileUpload.getStorageKey());
+						GetObjectRequest objectRequest = GetObjectRequest.builder()
+								.bucket(beiweDataDownloaderConfig.getAmazonS3BucketName())
+								.key(fileUpload.getStorageKey())
+								.build();
 
-					GetObjectRequest objectRequest = GetObjectRequest.builder()
-							.bucket(beiweDataDownloaderConfig.getAmazonS3BucketName())
-							.key(fileUpload.getStorageKey())
-							.build();
+						try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(objectRequest)) {
+							Path storageDirectory;
 
-					try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(objectRequest)) {
-						Path storageDirectory;
+							if (isActiveFileUpload)
+								storageDirectory = pinnedAccountCheckInActionsDirectory;
+							else if (isPassiveFileUpload)
+								storageDirectory = pinnedStudiesDirectory;
+							else
+								throw new IllegalStateException("Not sure what this upload is...");
 
-						if (isActiveFileUpload)
-							storageDirectory = accountCheckInActionsDirectory;
-						else if (isPassiveFileUpload)
-							storageDirectory = studiesDirectory;
-						else
-							throw new IllegalStateException("Not sure what this upload is...");
+							// Prepend timestamp to filename for easier sorting and in the event that devices choose non-unique filename
+							Path encryptedFile = storageDirectory.resolve(format("%s-%s", dateTimeFormatter.format(fileUpload.getCreated()), fileUpload.getFilename()));
 
-						// Prepend timestamp to filename for easier sorting and in the event that devices choose non-unique filename
-						Path file = storageDirectory.resolve(format("%s-%s", dateTimeFormatter.format(fileUpload.getCreated()), fileUpload.getFilename()));
-
-						try (OutputStream outputStream = new FileOutputStream(file.toFile())) {
-							IOUtils.copy(s3Object, outputStream);
-						}
-
-						logger.debug("File successfully fetched from {}.", fileUpload.getStorageKey());
-
-						// Decrypt passive data
-						if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId())) {
-							PrivateKey privateKey = privateKeysByEncryptionKeypairId.get(accountStudy.getEncryptionKeypairId());
-
-							if (!fileUpload.getFilename().endsWith(".csv"))
-								throw new IllegalStateException("Unexpected filename: does not end in .csv");
-
-							String decryptedFilename = file.getFileName().toString().replace(".csv", ".DECRYPTED.csv");
-							Path decryptedFile = storageDirectory.resolve(decryptedFilename);
-
-							try {
-								beiweCryptoManager.decryptBeiweTextFile(file, decryptedFile, privateKey);
-								logger.debug("File successfully decrypted.");
-							} catch (Exception e) {
-								logger.error("An error occurred during decryption", e);
-								beiweDownloadResult.decryptionFailures++;
-								String decryptionFailedFilename = decryptedFile.toAbsolutePath().toString().replace(".DECRYPTED.csv", ".DECRYPTION-FAILED.csv");
-								decryptedFile.toFile().renameTo(new File(decryptionFailedFilename));
+							try (OutputStream outputStream = new FileOutputStream(encryptedFile.toFile())) {
+								IOUtils.copy(s3Object, outputStream);
 							}
+
+							logger.debug("File successfully fetched from {}.", fileUpload.getStorageKey());
+
+							// Decrypt passive data
+							if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId())) {
+								PrivateKey privateKey = privateKeysByEncryptionKeypairId.get(accountStudy.getEncryptionKeypairId());
+
+								if (!fileUpload.getFilename().endsWith(".csv"))
+									throw new IllegalStateException("Unexpected filename: does not end in .csv");
+
+								String decryptedFilename = encryptedFile.getFileName().toString().replace(".csv", ".DECRYPTED.csv");
+								Path decryptedFile = storageDirectory.resolve(decryptedFilename);
+
+								try {
+									beiweCryptoManager.decryptBeiweTextFile(encryptedFile, decryptedFile, privateKey);
+									logger.debug("File successfully decrypted.");
+									// Successful decryption: overwrite encrypted file
+									decryptedFile.toFile().renameTo(encryptedFile.toFile());
+								} catch (Exception e) {
+									logger.error("An error occurred during decryption", e);
+									beiweDownloadResult.decryptionFailures++;
+
+									boolean deleteDecryptionFailures = true;
+
+									if (deleteDecryptionFailures) {
+										// Normal path for unsuccessful decryption: delete the junk encrypted file so it's not included in report data
+										Files.deleteIfExists(decryptedFile);
+									} else {
+										// Alternative path for unsuccessful decryption: store off a .DECRYPTION_FAILED.csv version
+										String decryptionFailedFilename = decryptedFile.toAbsolutePath().toString().replace(".DECRYPTED.csv", ".DECRYPTION-FAILED.csv");
+										decryptedFile.toFile().renameTo(new File(decryptionFailedFilename));
+									}
+								}
+							}
+						} catch (NoSuchKeyException e) {
+							logger.debug("File at {} does not exist.", fileUpload.getStorageKey());
+							beiweDownloadResult.missingFiles++;
+						} catch (IOException e) {
+							logger.error("An error occurred during download", e);
+							beiweDownloadResult.downloadErrors++;
 						}
-					} catch (NoSuchKeyException e) {
-						logger.debug("File at {} does not exist.", fileUpload.getStorageKey());
-						beiweDownloadResult.missingFiles++;
-					} catch (IOException e) {
-						logger.error("An error occurred during download", e);
-						beiweDownloadResult.downloadErrors++;
-					}
+
+						logger.debug("Finished processing file upload {} of {}.", currentIndex, fileUploadsToProcess.size());
+
+						// Don't need to return a value for this future
+						return null;
+					}, executorService));
 				}
+
+				CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+
+				logger.debug("Waiting for all futures to complete for username {}...", username);
+
+				try {
+					combinedFuture.get(30, TimeUnit.MINUTES);
+				} catch (ExecutionException e) {
+					throw new RuntimeException("File download job failed", e);
+				} catch (TimeoutException e) {
+					throw new RuntimeException("File download job timed out", e);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("File download job was interrupted", e);
+				}
+
+				logger.debug("All futures completed for username {}.", username);
 
 				++i;
 			}
