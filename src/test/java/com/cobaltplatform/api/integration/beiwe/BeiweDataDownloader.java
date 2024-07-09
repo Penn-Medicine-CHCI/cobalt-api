@@ -199,7 +199,7 @@ public class BeiweDataDownloader {
 						order by ss.created
 						""", ScreeningSession.class, accountStudy.getAccountStudyId());
 
-				logger.debug("Username {} has {} screening sessions, {} check-in uploads and {} passive data uploads", username, screeningSessions.size(), accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
+				logger.debug("Username {} has {} screening session[s], {} check-in upload[s] and {} passive data upload[s]", username, screeningSessions.size(), accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
 
 				if (screeningSessions.size() == 0 && fileUploads.size() == 0) {
 					logger.debug("No data to process for {}, moving on to next...", username);
@@ -259,8 +259,6 @@ public class BeiweDataDownloader {
 				}
 
 				if (downloadAssessments && screeningSessions.size() > 0) {
-					System.out.println("TODO: download assessments.");
-
 					for (ScreeningSession screeningSession : screeningSessions) {
 						List<StudyScreeningAnswerRow> studyScreeningAnswerRows = database.queryForList("""
 								select
