@@ -22,11 +22,14 @@ package com.cobaltplatform.api.integration.beiwe;
 import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.FileUpload;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.util.CryptoUtility;
 import com.google.gson.Gson;
 import com.pyranid.Database;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.io.IOUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -47,6 +50,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -55,6 +59,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -63,6 +68,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -87,6 +99,10 @@ public class BeiweDataDownloader {
 		Logger logger = LoggerFactory.getLogger(getClass());
 		Path configFile = Path.of("resources/test/beiwe-data-downloader-config.json");
 		BeiweDataDownloaderConfig beiweDataDownloaderConfig = loadBeiweDataDownloaderConfigFromFile(configFile);
+
+		boolean downloadAssessments = true;
+		boolean downloadActive = true;
+		boolean downloadPassive = true;
 
 		performOperationWithDatabase(beiweDataDownloaderConfig, (database) -> {
 			UUID studyId = database.queryForObject("""
@@ -181,13 +197,25 @@ public class BeiweDataDownloader {
 						.filter(fileUpload -> fileUpload.getStorageKey().startsWith("file-uploads/studies/"))
 						.collect(Collectors.toMap(FileUpload::getFileUploadId, Function.identity()));
 
-				logger.debug("Username {} has {} check-in uploads and {} passive data uploads", username, accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
+				List<ScreeningSession> screeningSessions = database.queryForList("""
+						select ss.*
+						from screening_session ss, account_check_in_action acia, account_check_in aci
+						where ss.account_check_in_action_id=acia.account_check_in_action_id
+						and acia.account_check_in_id=aci.account_check_in_id
+						and aci.account_study_id=?
+						order by ss.created
+						""", ScreeningSession.class, accountStudy.getAccountStudyId());
 
-				if (fileUploads.size() == 0) {
-					logger.debug("No uploaded files for {}, moving on to next...", username);
+				logger.debug("Username {} has {} screening session[s], {} check-in upload[s] and {} passive data upload[s]", username, screeningSessions.size(), accountCheckInActionFileUploadsById.size(), studyFileUploadsById.size());
+
+				if (screeningSessions.size() == 0 && fileUploads.size() == 0) {
+					logger.debug("No data to process for {}, moving on to next...", username);
 					++i;
 					continue;
 				}
+
+				DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US)
+						.withZone(accountStudy.getTimeZone());
 
 				Path usernameDirectory = Path.of(beiweDataDownloaderConfig.getDataDownloadDirectory(), username);
 
@@ -201,7 +229,7 @@ public class BeiweDataDownloader {
 				Path accountCheckInActionsDirectory = null;
 
 				if (accountCheckInActionFileUploadsById.size() > 0) {
-					accountCheckInActionsDirectory = usernameDirectory.resolve("account-check-in-actions");
+					accountCheckInActionsDirectory = usernameDirectory.resolve("active");
 
 					try {
 						if (!Files.isDirectory(accountCheckInActionsDirectory))
@@ -214,7 +242,7 @@ public class BeiweDataDownloader {
 				Path studiesDirectory = null;
 
 				if (studyFileUploadsById.size() > 0) {
-					studiesDirectory = usernameDirectory.resolve("studies");
+					studiesDirectory = usernameDirectory.resolve("passive");
 
 					try {
 						if (!Files.isDirectory(studiesDirectory))
@@ -224,64 +252,201 @@ public class BeiweDataDownloader {
 					}
 				}
 
-				for (FileUpload fileUpload : fileUploads) {
-					logger.debug("Fetching file from {}...", fileUpload.getStorageKey());
+				Path assessmentsDirectory = null;
 
-					GetObjectRequest objectRequest = GetObjectRequest.builder()
-							.bucket(beiweDataDownloaderConfig.getAmazonS3BucketName())
-							.key(fileUpload.getStorageKey())
-							.build();
+				if (screeningSessions.size() > 0) {
+					assessmentsDirectory = usernameDirectory.resolve("assessments");
 
-					try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(objectRequest)) {
-						Path storageDirectory;
-
-						if (accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId()))
-							storageDirectory = accountCheckInActionsDirectory;
-						else if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId()))
-							storageDirectory = studiesDirectory;
-						else
-							throw new IllegalStateException("Not sure what this upload is...");
-
-						DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US)
-								.withZone(accountStudy.getTimeZone());
-
-						// Prepend timestamp to filename for easier sorting and in the event that devices choose non-unique filename
-						Path file = storageDirectory.resolve(format("%s-%s", dateTimeFormatter.format(fileUpload.getCreated()), fileUpload.getFilename()));
-
-						try (OutputStream outputStream = new FileOutputStream(file.toFile())) {
-							IOUtils.copy(s3Object, outputStream);
-						}
-
-						logger.debug("File successfully fetched from {}.", fileUpload.getStorageKey());
-
-						// Decrypt passive data
-						if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId())) {
-							PrivateKey privateKey = privateKeysByEncryptionKeypairId.get(accountStudy.getEncryptionKeypairId());
-
-							if (!fileUpload.getFilename().endsWith(".csv"))
-								throw new IllegalStateException("Unexpected filename: does not end in .csv");
-
-							String decryptedFilename = file.getFileName().toString().replace(".csv", ".DECRYPTED.csv");
-							Path decryptedFile = storageDirectory.resolve(decryptedFilename);
-
-							try {
-								beiweCryptoManager.decryptBeiweTextFile(file, decryptedFile, privateKey);
-								logger.debug("File successfully decrypted.");
-							} catch (Exception e) {
-								logger.error("An error occurred during decryption", e);
-								beiweDownloadResult.decryptionFailures++;
-								String decryptionFailedFilename = decryptedFile.toAbsolutePath().toString().replace(".DECRYPTED.csv", ".DECRYPTION-FAILED.csv");
-								decryptedFile.toFile().renameTo(new File(decryptionFailedFilename));
-							}
-						}
-					} catch (NoSuchKeyException e) {
-						logger.debug("File at {} does not exist.", fileUpload.getStorageKey());
-						beiweDownloadResult.missingFiles++;
+					try {
+						if (!Files.isDirectory(assessmentsDirectory))
+							Files.createDirectory(assessmentsDirectory);
 					} catch (IOException e) {
-						logger.error("An error occurred during download", e);
-						beiweDownloadResult.downloadErrors++;
+						throw new UncheckedIOException(format("Cannot create assessments directory %s", assessmentsDirectory.toAbsolutePath()), e);
 					}
 				}
+
+				if (downloadAssessments && screeningSessions.size() > 0) {
+					for (ScreeningSession screeningSession : screeningSessions) {
+						List<StudyScreeningAnswerRow> studyScreeningAnswerRows = database.queryForList("""
+								select
+									s.name,
+									sq.question_text as question,
+									sao.answer_option_text as answer,
+									sa.created as answer_created_at
+								from
+									v_screening_answer sa,
+									screening_answer_option sao,
+									v_screening_session_answered_screening_question ssasq,
+									v_screening_session_screening sss,
+									screening_question sq,
+									screening_version sv,
+									screening s
+								where
+									sa.screening_session_answered_screening_question_id=ssasq.screening_session_answered_screening_question_id
+									and sa.screening_answer_option_id=sao.screening_answer_option_id
+									and ssasq.screening_session_screening_id=sss.screening_session_screening_id
+									and ssasq.screening_question_id=sq.screening_question_id
+									and sss.screening_version_id=sv.screening_version_id
+									and sv.screening_id=s.screening_id
+									and sss.screening_session_id=?
+								order by sa.created
+								""", StudyScreeningAnswerRow.class, screeningSession.getScreeningSessionId());
+
+						Path csvFile = assessmentsDirectory.resolve(format("%s.csv", dateTimeFormatter.format(screeningSession.getCreated())));
+
+						List<String> headerColumns = List.of(
+								"Assessment",
+								"Question",
+								"Answer",
+								"Answered At"
+						);
+
+						try (FileWriter fileWriter = new FileWriter(csvFile.toFile(), StandardCharsets.UTF_8);
+								 CSVPrinter csvPrinter = new CSVPrinter(fileWriter, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+
+							for (StudyScreeningAnswerRow studyScreeningAnswerRow : studyScreeningAnswerRows) {
+								List<String> recordElements = new ArrayList<>();
+								recordElements.add(studyScreeningAnswerRow.getName());
+								recordElements.add(studyScreeningAnswerRow.getQuestion());
+								recordElements.add(studyScreeningAnswerRow.getAnswer());
+								recordElements.add(dateTimeFormatter.format(studyScreeningAnswerRow.getAnswerCreatedAt()));
+
+								csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+							}
+						} catch (IOException e) {
+							throw new UncheckedIOException(e);
+						}
+					}
+				}
+
+				// Ignore active and/or passive files if configured to do so
+				List<FileUpload> fileUploadsToProcess = fileUploads.stream()
+						.filter((fileUpload -> {
+							boolean isActiveFileUpload = accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId());
+							boolean isPassiveFileUpload = studyFileUploadsById.containsKey(fileUpload.getFileUploadId());
+
+							if (isActiveFileUpload && !downloadActive)
+								return false;
+
+							if (isPassiveFileUpload && !downloadPassive)
+								return false;
+
+							return true;
+						}))
+						.collect(Collectors.toList());
+
+				ExecutorService executorService = Executors.newFixedThreadPool(6);
+				List<CompletableFuture<Void>> completableFutures = new ArrayList<>(fileUploadsToProcess.size());
+				AtomicInteger fileUploadProcessedCount = new AtomicInteger(0);
+
+				for (FileUpload fileUpload : fileUploadsToProcess) {
+					int currentIndex = fileUploadProcessedCount.incrementAndGet();
+
+					logger.debug("Processing file upload {} of {} for {}...", currentIndex, fileUploadsToProcess.size(), username);
+
+					boolean isActiveFileUpload = accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId());
+					boolean isPassiveFileUpload = studyFileUploadsById.containsKey(fileUpload.getFileUploadId());
+
+					// Enable access in closure below
+					Path pinnedAccountCheckInActionsDirectory = accountCheckInActionsDirectory;
+					Path pinnedStudiesDirectory = studiesDirectory;
+
+					completableFutures.add(CompletableFuture.supplyAsync(() -> {
+						logger.debug("Fetching file from {}...", fileUpload.getStorageKey());
+
+						GetObjectRequest objectRequest = GetObjectRequest.builder()
+								.bucket(beiweDataDownloaderConfig.getAmazonS3BucketName())
+								.key(fileUpload.getStorageKey())
+								.build();
+
+						try (ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(objectRequest)) {
+							Path storageDirectory;
+
+							if (isActiveFileUpload)
+								storageDirectory = pinnedAccountCheckInActionsDirectory;
+							else if (isPassiveFileUpload)
+								storageDirectory = pinnedStudiesDirectory;
+							else
+								throw new IllegalStateException("Not sure what this upload is...");
+
+							// Prepend timestamp to filename for easier sorting and in the event that devices choose non-unique filename
+							Path encryptedFile = storageDirectory.resolve(format("%s-%s", dateTimeFormatter.format(fileUpload.getCreated()), fileUpload.getFilename()));
+
+							try (OutputStream outputStream = new FileOutputStream(encryptedFile.toFile())) {
+								IOUtils.copy(s3Object, outputStream);
+							}
+
+							logger.debug("File successfully fetched from {}.", fileUpload.getStorageKey());
+
+							// Decrypt passive data
+							if (studyFileUploadsById.containsKey(fileUpload.getFileUploadId())) {
+								PrivateKey privateKey = privateKeysByEncryptionKeypairId.get(accountStudy.getEncryptionKeypairId());
+
+								if (!fileUpload.getFilename().endsWith(".csv"))
+									throw new IllegalStateException("Unexpected filename: does not end in .csv");
+
+								String decryptedFilename = encryptedFile.getFileName().toString().replace(".csv", ".DECRYPTED.csv");
+								Path decryptedFile = storageDirectory.resolve(decryptedFilename);
+
+								try {
+									beiweCryptoManager.decryptBeiweTextFile(encryptedFile, decryptedFile, privateKey);
+									logger.debug("File successfully decrypted.");
+									// Successful decryption: overwrite encrypted file
+									decryptedFile.toFile().renameTo(encryptedFile.toFile());
+								} catch (Exception e) {
+									logger.error("An error occurred during decryption", e);
+									beiweDownloadResult.decryptionFailures++;
+
+									boolean deleteDecryptionFailures = true;
+
+									if (deleteDecryptionFailures) {
+										// Normal path for unsuccessful decryption: delete the junk encrypted file so it's not included in report data
+										Files.deleteIfExists(encryptedFile);
+										Files.deleteIfExists(decryptedFile);
+									} else {
+										// Alternative path for unsuccessful decryption: store off a .DECRYPTION_FAILED.csv version
+										String decryptionFailedFilename = decryptedFile.toAbsolutePath().toString().replace(".DECRYPTED.csv", ".DECRYPTION-FAILED.csv");
+										decryptedFile.toFile().renameTo(new File(decryptionFailedFilename));
+									}
+								}
+							}
+						} catch (NoSuchKeyException e) {
+							logger.debug("File at {} does not exist.", fileUpload.getStorageKey());
+							beiweDownloadResult.missingFiles++;
+						} catch (IOException e) {
+							logger.error("An error occurred during download", e);
+							beiweDownloadResult.downloadErrors++;
+						}
+
+						logger.debug("Finished processing file upload {} of {} for username {}.", currentIndex, fileUploadsToProcess.size(), username);
+
+						// Sleep a little so we don't overwhelm S3
+						try {
+							Thread.sleep(500L);
+						} catch (InterruptedException ignored) {
+							// Nothing to do
+						}
+
+						// Don't need to return a value for this future
+						return null;
+					}, executorService));
+				}
+
+				CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+
+				logger.debug("Waiting for all futures to complete for username {}...", username);
+
+				try {
+					combinedFuture.get(180, TimeUnit.MINUTES);
+				} catch (ExecutionException e) {
+					throw new RuntimeException("File download job failed", e);
+				} catch (TimeoutException e) {
+					throw new RuntimeException("File download job timed out", e);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("File download job was interrupted", e);
+				}
+
+				logger.debug("All futures completed for username {}.", username);
 
 				++i;
 			}
@@ -309,6 +474,46 @@ public class BeiweDataDownloader {
 
 			logger.info("*** RESULTS ***\n{}", results.stream().collect(Collectors.joining("\n")));
 		});
+	}
+
+	@NotThreadSafe
+	public static class StudyScreeningAnswerRow {
+		String name;
+		String question;
+		String answer;
+		Instant answerCreatedAt;
+
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public String getQuestion() {
+			return this.question;
+		}
+
+		public void setQuestion(String question) {
+			this.question = question;
+		}
+
+		public String getAnswer() {
+			return this.answer;
+		}
+
+		public void setAnswer(String answer) {
+			this.answer = answer;
+		}
+
+		public Instant getAnswerCreatedAt() {
+			return this.answerCreatedAt;
+		}
+
+		public void setAnswerCreatedAt(Instant answerCreatedAt) {
+			this.answerCreatedAt = answerCreatedAt;
+		}
 	}
 
 	@Nonnull
