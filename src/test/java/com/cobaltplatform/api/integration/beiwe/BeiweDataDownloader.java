@@ -335,14 +335,14 @@ public class BeiweDataDownloader {
 						}))
 						.collect(Collectors.toList());
 
-				ExecutorService executorService = Executors.newFixedThreadPool(8);
+				ExecutorService executorService = Executors.newFixedThreadPool(6);
 				List<CompletableFuture<Void>> completableFutures = new ArrayList<>(fileUploadsToProcess.size());
 				AtomicInteger fileUploadProcessedCount = new AtomicInteger(0);
 
 				for (FileUpload fileUpload : fileUploadsToProcess) {
 					int currentIndex = fileUploadProcessedCount.incrementAndGet();
 
-					logger.debug("Processing file upload {} of {}...", currentIndex, fileUploadsToProcess.size());
+					logger.debug("Processing file upload {} of {} for {}...", currentIndex, fileUploadsToProcess.size(), username);
 
 					boolean isActiveFileUpload = accountCheckInActionFileUploadsById.containsKey(fileUpload.getFileUploadId());
 					boolean isPassiveFileUpload = studyFileUploadsById.containsKey(fileUpload.getFileUploadId());
@@ -401,6 +401,7 @@ public class BeiweDataDownloader {
 
 									if (deleteDecryptionFailures) {
 										// Normal path for unsuccessful decryption: delete the junk encrypted file so it's not included in report data
+										Files.deleteIfExists(encryptedFile);
 										Files.deleteIfExists(decryptedFile);
 									} else {
 										// Alternative path for unsuccessful decryption: store off a .DECRYPTION_FAILED.csv version
@@ -417,7 +418,14 @@ public class BeiweDataDownloader {
 							beiweDownloadResult.downloadErrors++;
 						}
 
-						logger.debug("Finished processing file upload {} of {}.", currentIndex, fileUploadsToProcess.size());
+						logger.debug("Finished processing file upload {} of {} for username {}.", currentIndex, fileUploadsToProcess.size(), username);
+
+						// Sleep a little so we don't overwhelm S3
+						try {
+							Thread.sleep(500L);
+						} catch (InterruptedException ignored) {
+							// Nothing to do
+						}
 
 						// Don't need to return a value for this future
 						return null;
@@ -429,7 +437,7 @@ public class BeiweDataDownloader {
 				logger.debug("Waiting for all futures to complete for username {}...", username);
 
 				try {
-					combinedFuture.get(30, TimeUnit.MINUTES);
+					combinedFuture.get(180, TimeUnit.MINUTES);
 				} catch (ExecutionException e) {
 					throw new RuntimeException("File download job failed", e);
 				} catch (TimeoutException e) {
