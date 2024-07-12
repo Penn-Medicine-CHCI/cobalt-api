@@ -435,18 +435,36 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 				if (fieldLevel1.getFields() != null) {
 					List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
 
-					if (fieldsLevel2.size() != 9)
+					if (fieldsLevel2.size() == 9) {
+						collectedTrafficSource.setManualCampaignId(fieldsLevel2.get(0).getValue());
+						collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(1).getValue());
+						collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
+						collectedTrafficSource.setManualMedium(fieldsLevel2.get(3).getValue());
+						collectedTrafficSource.setManualTerm(fieldsLevel2.get(4).getValue());
+						collectedTrafficSource.setManualContent(fieldsLevel2.get(5).getValue());
+						collectedTrafficSource.setGclid(fieldsLevel2.get(6).getValue());
+						collectedTrafficSource.setDclid(fieldsLevel2.get(7).getValue());
+						collectedTrafficSource.setSrsltid(fieldsLevel2.get(8).getValue());
+					} else if (fieldsLevel2.size() == 3) {
+						// Sometimes, data can come through like this instead:
+						//
+						//     "fields": [
+						//        {
+						//          "value": "(organic)"
+						//        },
+						//        {
+						//          "value": "organic"
+						//        },
+						//        {
+						//          "value": "google"
+						//        }
+						//      ]
+						collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(0).getValue());
+						collectedTrafficSource.setManualMedium(fieldsLevel2.get(1).getValue());
+						collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
+					} else {
 						throw new IllegalStateException("Not sure how to handle collected traffic source field " + trafficSourceField);
-
-					collectedTrafficSource.setManualCampaignId(fieldsLevel2.get(0).getValue());
-					collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(1).getValue());
-					collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
-					collectedTrafficSource.setManualMedium(fieldsLevel2.get(3).getValue());
-					collectedTrafficSource.setManualTerm(fieldsLevel2.get(4).getValue());
-					collectedTrafficSource.setManualContent(fieldsLevel2.get(5).getValue());
-					collectedTrafficSource.setGclid(fieldsLevel2.get(6).getValue());
-					collectedTrafficSource.setDclid(fieldsLevel2.get(7).getValue());
-					collectedTrafficSource.setSrsltid(fieldsLevel2.get(8).getValue());
+					}
 				}
 			}
 
