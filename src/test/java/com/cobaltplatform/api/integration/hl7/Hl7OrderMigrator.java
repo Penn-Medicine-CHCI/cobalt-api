@@ -176,6 +176,10 @@ public class Hl7OrderMigrator {
 
 			System.out.printf("%s=%s\n", mrn, hl7OrderFile);
 		}
+
+		Set<String> mrnsToMigrateWithoutHl7OrderFiles = Sets.difference(mrnsToMigrate, hl7OrderFilesToMigrateByMrn.keySet());
+
+		System.out.printf("There are %d MRNs that do not have corresponding HL7 order files.\n", mrnsToMigrateWithoutHl7OrderFiles.size());
 	}
 
 	@Nonnull
