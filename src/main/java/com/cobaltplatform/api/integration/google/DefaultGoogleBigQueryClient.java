@@ -463,7 +463,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 						collectedTrafficSource.setManualMedium(fieldsLevel2.get(1).getValue());
 						collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
 					} else {
-						throw new IllegalStateException("Not sure how to handle collected traffic source field " + trafficSourceField);
+						throw new IllegalStateException("Not sure how to handle collected traffic source field " + collectedTrafficSourceField);
 					}
 				}
 			}
