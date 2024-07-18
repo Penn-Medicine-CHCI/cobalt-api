@@ -362,6 +362,12 @@ public class AnalyticsGoogleBigQueryEvent {
 		@Nullable
 		private String manualContent;
 		@Nullable
+		private String manualCreativeFormat;
+		@Nullable
+		private String manualMarketingTactic;
+		@Nullable
+		private String manualSourcePlatform;
+		@Nullable
 		private String gclid;
 		@Nullable
 		private String dclid;
@@ -420,6 +426,33 @@ public class AnalyticsGoogleBigQueryEvent {
 
 		public void setManualContent(@Nullable String manualContent) {
 			this.manualContent = manualContent;
+		}
+
+		@Nullable
+		public String getManualCreativeFormat() {
+			return this.manualCreativeFormat;
+		}
+
+		public void setManualCreativeFormat(@Nullable String manualCreativeFormat) {
+			this.manualCreativeFormat = manualCreativeFormat;
+		}
+
+		@Nullable
+		public String getManualMarketingTactic() {
+			return this.manualMarketingTactic;
+		}
+
+		public void setManualMarketingTactic(@Nullable String manualMarketingTactic) {
+			this.manualMarketingTactic = manualMarketingTactic;
+		}
+
+		@Nullable
+		public String getManualSourcePlatform() {
+			return this.manualSourcePlatform;
+		}
+
+		public void setManualSourcePlatform(@Nullable String manualSourcePlatform) {
+			this.manualSourcePlatform = manualSourcePlatform;
 		}
 
 		@Nullable

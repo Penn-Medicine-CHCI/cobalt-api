@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.ByteArrayInputStream;
@@ -436,6 +437,7 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 					List<GoogleBigQueryRestApiQueryResponse.Row.RowField> fieldsLevel2 = fieldLevel1.getFields();
 
 					if (fieldsLevel2.size() == 9) {
+						//  This seems to be legacy format (9 fields) - 12 fields case below is new normal as of mid-July 2024
 						collectedTrafficSource.setManualCampaignId(fieldsLevel2.get(0).getValue());
 						collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(1).getValue());
 						collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
@@ -445,25 +447,52 @@ public class DefaultGoogleBigQueryClient implements GoogleBigQueryClient {
 						collectedTrafficSource.setGclid(fieldsLevel2.get(6).getValue());
 						collectedTrafficSource.setDclid(fieldsLevel2.get(7).getValue());
 						collectedTrafficSource.setSrsltid(fieldsLevel2.get(8).getValue());
-					} else if (fieldsLevel2.size() == 3) {
-						// Sometimes, data can come through like this instead:
+					} else if (fieldsLevel2.size() == 12) {
+						// Data now appears to come through like this (3 new fields) as of mid-July 2024:
 						//
-						//     "fields": [
-						//        {
-						//          "value": "(organic)"
-						//        },
-						//        {
-						//          "value": "organic"
-						//        },
-						//        {
-						//          "value": "google"
-						//        }
-						//      ]
-						collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(0).getValue());
-						collectedTrafficSource.setManualMedium(fieldsLevel2.get(1).getValue());
+						//   "field": {
+						//    "fields": [
+						//      {},
+						//      {
+						//        "value": "(referral)"
+						//      },
+						//      {
+						//        "value": "something.com"
+						//      },
+						//      {
+						//        "value": "referral"
+						//      },
+						//      {},
+						//      {},
+						//      {},
+						//      {},
+						//      {},
+						//      {},
+						//      {},
+						//      {}
+						//    ]
+						//  }
+						//
+						// These are the 3 new fields introduced:
+						//
+						// manual_creative_format
+						// manual_marketing_tactic
+						// manual_source_platform
+						//
+						collectedTrafficSource.setManualCampaignId(fieldsLevel2.get(0).getValue());
+						collectedTrafficSource.setManualCampaignName(fieldsLevel2.get(1).getValue());
 						collectedTrafficSource.setManualSource(fieldsLevel2.get(2).getValue());
+						collectedTrafficSource.setManualMedium(fieldsLevel2.get(3).getValue());
+						collectedTrafficSource.setManualTerm(fieldsLevel2.get(4).getValue());
+						collectedTrafficSource.setManualContent(fieldsLevel2.get(5).getValue());
+						collectedTrafficSource.setManualCreativeFormat(fieldsLevel2.get(6).getValue());
+						collectedTrafficSource.setManualMarketingTactic(fieldsLevel2.get(7).getValue());
+						collectedTrafficSource.setManualSourcePlatform(fieldsLevel2.get(8).getValue());
+						collectedTrafficSource.setGclid(fieldsLevel2.get(9).getValue());
+						collectedTrafficSource.setDclid(fieldsLevel2.get(10).getValue());
+						collectedTrafficSource.setSrsltid(fieldsLevel2.get(11).getValue());
 					} else {
-						throw new IllegalStateException("Not sure how to handle collected traffic source field " + trafficSourceField);
+						throw new IllegalStateException("Not sure how to handle collected traffic source field " + collectedTrafficSourceField);
 					}
 				}
 			}
