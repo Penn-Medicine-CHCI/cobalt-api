@@ -2954,10 +2954,12 @@ public class PatientOrderService implements AutoCloseable {
 				.map(resource -> {
 					String csn = null;
 
-					for (EncounterSearchFhirR4Response.Entry.Resource.Identifier identifier : resource.getIdentifier()) {
-						if (Objects.equals(institution.getEpicPatientEncounterCsnSystem(), identifier.getSystem())) {
-							csn = trimToNull(identifier.getValue());
-							break;
+					if (resource.getIdentifier() != null && resource.getIdentifier().size() > 0) {
+						for (EncounterSearchFhirR4Response.Entry.Resource.Identifier identifier : resource.getIdentifier()) {
+							if (Objects.equals(institution.getEpicPatientEncounterCsnSystem(), identifier.getSystem())) {
+								csn = trimToNull(identifier.getValue());
+								break;
+							}
 						}
 					}
 
