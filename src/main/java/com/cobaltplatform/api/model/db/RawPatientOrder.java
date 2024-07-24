@@ -54,6 +54,8 @@ public class RawPatientOrder {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
+	private Integer referenceNumber;
+	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
 	@Nullable
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
@@ -229,6 +231,15 @@ public class RawPatientOrder {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public Integer getReferenceNumber() {
+		return this.referenceNumber;
+	}
+
+	public void setReferenceNumber(@Nullable Integer referenceNumber) {
+		this.referenceNumber = referenceNumber;
 	}
 
 	@Nullable
