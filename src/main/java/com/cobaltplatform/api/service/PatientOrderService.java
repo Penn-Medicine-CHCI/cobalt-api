@@ -184,6 +184,7 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
@@ -3889,7 +3890,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		// See if there are any scheduled-in-the-future message groups...
+		// See if there are any scheduled-in-the-future message groups of the same type...
 		Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(patientOrderId);
 
 		// ...if so, we're not allowed to schedule any more.
@@ -3920,6 +3921,22 @@ public class PatientOrderService implements AutoCloseable {
 				patientOrderScheduledMessageType, messageTypeIds, scheduledAtDate, scheduledAtTime);
 
 		// TODO: track in event log
+
+		// If this is a welcome message group, immediately schedule a welcome reminder for the following day at the same time.
+		// The reminder will be canceled if an order is closed/archived or a screening session is started.
+		if (patientOrderScheduledMessageTypeId == PatientOrderScheduledMessageTypeId.WELCOME) {
+			LocalDate reminderScheduledAtDate = scheduledAtDateTime.toLocalDate().plusDays(1);
+			LocalTime reminderScheduledAtTime = scheduledAtDateTime.toLocalTime();
+
+			createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.WELCOME_REMINDER);
+				setMessageTypeIds(messageTypeIds);
+				setScheduledAtDate(reminderScheduledAtDate);
+				setScheduledAtTimeAsLocalTime(reminderScheduledAtTime);
+			}});
+		}
 
 		return patientOrderScheduledMessageGroupId;
 	}
@@ -4136,12 +4153,18 @@ public class PatientOrderService implements AutoCloseable {
 		standardMessageContext.put("integratedCareProgramName", institution.getIntegratedCareProgramName());
 		standardMessageContext.put("integratedCarePrimaryCareName", institution.getIntegratedCarePrimaryCareName());
 
-		// For now, all messages get the same standard context.  We might have custom contexts per-message/message type as we introduce more
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
-			EmailMessage emailMessage = new EmailMessage.Builder(institution.getInstitutionId(), EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
+			UUID messageId = UUID.randomUUID();
+			String targetUrl = format("%s?m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+
+			// Mutable copy of standard message context
+			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
+			messageContext.put("targetUrl", targetUrl);
+
+			EmailMessage emailMessage = new EmailMessage.Builder(messageId, institution.getInstitutionId(), EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
 					.toAddresses(List.of(patientOrder.getPatientEmailAddress()))
 					.fromAddress(institution.getDefaultFromEmailAddress())
-					.messageContext(standardMessageContext)
+					.messageContext(messageContext)
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
@@ -4153,8 +4176,15 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
-			SmsMessage smsMessage = new SmsMessage.Builder(institution.getInstitutionId(), SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
-					.messageContext(standardMessageContext)
+			UUID messageId = UUID.randomUUID();
+			String targetUrl = format("%s?m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+
+			// Mutable copy of standard message context
+			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
+			messageContext.put("targetUrl", targetUrl);
+
+			SmsMessage smsMessage = new SmsMessage.Builder(messageId, institution.getInstitutionId(), SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
+					.messageContext(messageContext)
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{

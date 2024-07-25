@@ -5,7 +5,7 @@
 {{/partial}}
 
 {{#partial "body"}}
-	Your {{integratedCarePrimaryCareName}} healthcare provider would like to connect you to further care. Please visit <a href="{{{webappBaseUrl}}}">{{webappBaseUrl}}</a> to get connected.
+	Your {{integratedCarePrimaryCareName}} healthcare provider would like to connect you to further care. Please visit <a href="{{#if targetUrl}}{{{targetUrl}}}{{else}}{{{webappBaseUrl}}}{{/if}}">{{webappBaseUrl}}</a> to get connected.
 	<br/><br/>
 	Questions? Please call us at {{integratedCarePhoneNumberDescription}}.
 {{/partial}}
