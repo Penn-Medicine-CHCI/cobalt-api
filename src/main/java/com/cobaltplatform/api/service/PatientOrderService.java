@@ -1906,7 +1906,43 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		});
 
+		// If there are any pending reminder messages, cancel them
+		deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, accountId, Set.of(
+				PatientOrderScheduledMessageTypeId.WELCOME_REMINDER,
+				PatientOrderScheduledMessageTypeId.APPOINTMENT_BOOKING_REMINDER
+		));
+
 		return true;
+	}
+
+	@Nonnull
+	public Set<UUID> deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(@Nonnull UUID patientOrderId,
+																																									 @Nonnull UUID accountId,
+																																									 @Nonnull Set<PatientOrderScheduledMessageTypeId> patientOrderScheduledMessageTypeIdsToDelete) {
+		requireNonNull(patientOrderId);
+		requireNonNull(accountId);
+		requireNonNull(patientOrderScheduledMessageTypeIdsToDelete);
+
+		Set<UUID> deletedPatientOrderScheduledMessageGroupIds = new HashSet<>();
+
+		Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(patientOrderId);
+
+		List<PatientOrderScheduledMessageGroup> patientOrderScheduledMessageGroupsToDelete = new ArrayList<>();
+
+		for (PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeIdToDelete : patientOrderScheduledMessageTypeIdsToDelete)
+			patientOrderScheduledMessageGroupsToDelete.addAll(futurePatientOrderScheduledMessageGroupsByTypeId.get(patientOrderScheduledMessageTypeIdToDelete));
+
+		for (PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroupToDelete : patientOrderScheduledMessageGroupsToDelete) {
+			boolean deleted = deletePatientOrderScheduledMessageGroup(new DeletePatientOrderScheduledMessageGroupRequest() {{
+				setAccountId(accountId);
+				setPatientOrderScheduledMessageGroupId(patientOrderScheduledMessageGroupToDelete.getPatientOrderScheduledMessageGroupId());
+			}});
+
+			if (deleted)
+				deletedPatientOrderScheduledMessageGroupIds.add(patientOrderScheduledMessageGroupToDelete.getPatientOrderScheduledMessageGroupId());
+		}
+
+		return deletedPatientOrderScheduledMessageGroupIds;
 	}
 
 	@Nonnull

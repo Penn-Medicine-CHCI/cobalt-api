@@ -2,7 +2,8 @@ BEGIN;
 SELECT _v.register_patch('178-order-reference-number', NULL, NULL);
 
 INSERT INTO patient_order_scheduled_message_type VALUES ('WELCOME_REMINDER', 'IC_WELCOME_REMINDER', 'Welcome Reminder', 2);
-UPDATE patient_order_scheduled_message_type SET display_order=3 WHERE patient_order_scheduled_message_type_id='RESOURCE_CHECK_IN';
+INSERT INTO patient_order_scheduled_message_type VALUES ('APPOINTMENT_BOOKING_REMINDER', 'IC_APPOINTMENT_BOOKING_REMINDER', 'Appointment Booking Reminder', 3);
+UPDATE patient_order_scheduled_message_type SET display_order=4 WHERE patient_order_scheduled_message_type_id='RESOURCE_CHECK_IN';
 
 -- Institution-specific sequence numbers for orders.
 -- All other necessary sequences must be created prior to running this script.

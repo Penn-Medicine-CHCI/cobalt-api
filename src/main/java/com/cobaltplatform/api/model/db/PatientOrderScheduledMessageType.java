@@ -41,6 +41,7 @@ public class PatientOrderScheduledMessageType {
 	public enum PatientOrderScheduledMessageTypeId {
 		WELCOME,
 		WELCOME_REMINDER,
+		APPOINTMENT_BOOKING_REMINDER,
 		RESOURCE_CHECK_IN
 	}
 
