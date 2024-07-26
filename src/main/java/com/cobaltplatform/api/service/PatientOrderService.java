@@ -2128,6 +2128,18 @@ public class PatientOrderService implements AutoCloseable {
 			patientOrderTriageIds.add(patientOrderTriageId);
 		}
 
+		// If this triage was manually set to a non-collaborative-care value (i.e. MHIC overrode a triage)
+		// then cancel any scheduled appointment booking reminder messages.
+		if (patientOrderTriageSourceId == PatientOrderTriageSourceId.MANUALLY_SET) {
+			PatientOrder updatedPatientOrder = findPatientOrderById(patientOrderId).get();
+
+			if (updatedPatientOrder.getPatientOrderCareTypeId() != PatientOrderCareTypeId.COLLABORATIVE) {
+				deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, accountId, Set.of(
+						PatientOrderScheduledMessageTypeId.APPOINTMENT_BOOKING_REMINDER
+				));
+			}
+		}
+
 		// TODO: track events
 
 		return patientOrderTriageGroupId;
@@ -2944,6 +2956,10 @@ public class PatientOrderService implements AutoCloseable {
 				""", PatientOrderDispositionId.ARCHIVED, patientOrderId) > 0;
 
 		// TODO: track event
+
+		// If there are any pending messages, cancel them
+		Set<PatientOrderScheduledMessageTypeId> allPatientOrderScheduledMessageTypeIds = Arrays.stream(PatientOrderScheduledMessageTypeId.values()).collect(Collectors.toSet());
+		deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, accountId, allPatientOrderScheduledMessageTypeIds);
 
 		return updated;
 	}

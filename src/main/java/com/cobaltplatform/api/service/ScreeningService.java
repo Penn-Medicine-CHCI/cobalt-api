@@ -27,6 +27,7 @@ import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionReservationRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
@@ -47,6 +48,7 @@ import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCareType.PatientOrderCareTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
@@ -119,6 +121,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.Period;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -807,7 +810,7 @@ public class ScreeningService {
 		}
 
 		if (creatingIntegratedCareScreeningSession) {
-			// If there are any pending welcome reminder messages, cancel them
+			// Integrated care only: if there are any pending welcome reminder messages, cancel them
 			getPatientOrderService().deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, createdByAccountId, Set.of(
 					PatientOrderScheduledMessageTypeId.WELCOME_REMINDER
 			));
@@ -1854,6 +1857,35 @@ public class ScreeningService {
 								setPatientOrderId(patientOrder.getPatientOrderId());
 								setPatientOrderResourcingStatusId(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
 							}});
+						} else if (updatedPatientOrder.getPatientOrderCareTypeId() == PatientOrderCareTypeId.COLLABORATIVE) {
+							// If patient was self-assessing and triage is collaborative, schedule a reminder message to book an appointment.
+							// The reminder will be canceled if:
+							//   * an appointment is scheduled
+							//   * if the triage is changed to something other than collaborative
+							//   * the order is closed or archived
+							Account account = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
+							boolean selfAdministered = account.getRoleId() == RoleId.PATIENT;
+
+							if (selfAdministered) {
+								LocalDateTime currentDateTime = LocalDateTime.now(institution.getTimeZone());
+								LocalDate reminderScheduledAtDate = currentDateTime.toLocalDate().plusDays(1);
+								LocalTime reminderScheduledAtTime = currentDateTime.toLocalTime();
+
+								Set<MessageTypeId> messageTypeIds = new HashSet<>();
+								if (updatedPatientOrder.getPatientEmailAddress() != null)
+									messageTypeIds.add(MessageTypeId.EMAIL);
+								if (updatedPatientOrder.getPatientPhoneNumber() != null)
+									messageTypeIds.add(MessageTypeId.SMS);
+
+								getPatientOrderService().createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+									setPatientOrderId(updatedPatientOrder.getPatientOrderId());
+									setAccountId(account.getAccountId());
+									setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.APPOINTMENT_BOOKING_REMINDER);
+									setMessageTypeIds(messageTypeIds);
+									setScheduledAtDate(reminderScheduledAtDate);
+									setScheduledAtTimeAsLocalTime(reminderScheduledAtTime);
+								}});
+							}
 						}
 					}
 				}

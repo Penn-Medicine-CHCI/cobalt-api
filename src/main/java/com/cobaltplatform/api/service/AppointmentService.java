@@ -95,6 +95,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionType;
 import com.cobaltplatform.api.model.db.MicrosoftTeamsMeeting;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
@@ -194,6 +195,8 @@ public class AppointmentService {
 	@Nonnull
 	private final javax.inject.Provider<SystemService> systemServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider;
@@ -237,6 +240,7 @@ public class AppointmentService {
 														@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 														@Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 														@Nonnull javax.inject.Provider<SystemService> systemServiceProvider,
+														@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 														@Nonnull Formatter formatter,
 														@Nonnull Normalizer normalizer,
 														@Nonnull SessionService sessionService,
@@ -263,6 +267,7 @@ public class AppointmentService {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(systemServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
 		requireNonNull(sessionService);
@@ -291,6 +296,7 @@ public class AppointmentService {
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
 		this.sessionService = sessionService;
@@ -1314,6 +1320,13 @@ public class AppointmentService {
 
 				getInteractionService().linkInteractionInstanceToAppointment(interactionInstanceId, appointmentId);
 			}
+		}
+
+		// For IC, the act of booking an appointment cancels any booking reminder messages that might be pending
+		if (institution.getIntegratedCareEnabled()) {
+			getPatientOrderService().deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, accountId, Set.of(
+					PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId.APPOINTMENT_BOOKING_REMINDER
+			));
 		}
 
 		return appointmentId;
@@ -2398,6 +2411,11 @@ public class AppointmentService {
 	@Nonnull
 	protected SystemService getSystemService() {
 		return this.systemServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull
