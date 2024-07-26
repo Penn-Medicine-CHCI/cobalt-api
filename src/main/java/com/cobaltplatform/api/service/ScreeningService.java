@@ -60,6 +60,7 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.Pat
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientOrderTriageOverrideReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
@@ -803,6 +804,13 @@ public class ScreeningService {
 			getLogger().error(format("Unable to create screening session for screeningFlowVersion %s and accountCheckInActionId %s", screeningFlowVersion.getScreeningFlowVersionId(), accountCheckInActionId), e);
 			validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Cannot start assessment at this time. Please try again later")));
 			throw validationException;
+		}
+
+		if (creatingIntegratedCareScreeningSession) {
+			// If there are any pending welcome reminder messages, cancel them
+			getPatientOrderService().deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, createdByAccountId, Set.of(
+					PatientOrderScheduledMessageTypeId.WELCOME_REMINDER
+			));
 		}
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
