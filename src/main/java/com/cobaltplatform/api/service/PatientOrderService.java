@@ -1298,7 +1298,7 @@ public class PatientOrderService implements AutoCloseable {
 		InstitutionId institutionId = request.getInstitutionId();
 		PatientOrderViewTypeId patientOrderViewTypeId = request.getPatientOrderViewTypeId();
 		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
-		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
+		Set<PatientOrderDispositionId> patientOrderDispositionIds = request.getPatientOrderDispositionIds() == null ? Set.of() : request.getPatientOrderDispositionIds();
 		PatientOrderScreeningStatusId patientOrderScreeningStatusId = request.getPatientOrderScreeningStatusId();
 		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
 		PatientOrderAssignmentStatusId patientOrderAssignmentStatusId = request.getPatientOrderAssignmentStatusId();
@@ -1456,11 +1456,11 @@ public class PatientOrderService implements AutoCloseable {
 			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
 
 			// Default to OPEN orders unless specified otherwise
-			if (patientOrderDispositionId == null)
-				patientOrderDispositionId = PatientOrderDispositionId.OPEN;
+			if (patientOrderDispositionIds.size() == 0)
+				patientOrderDispositionIds = Set.of(PatientOrderDispositionId.OPEN);
 
-			whereClauseLines.add("AND po.patient_order_disposition_id=?");
-			parameters.add(patientOrderDispositionId);
+			whereClauseLines.add(format("AND po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
+			parameters.addAll(patientOrderDispositionIds);
 
 			if (patientOrderConsentStatusId != null) {
 				whereClauseLines.add("AND po.patient_order_consent_status_id=?");
@@ -1582,14 +1582,16 @@ public class PatientOrderService implements AutoCloseable {
 				// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
 				whereClauseLines.add("""
 						      AND (
-						      patient_first_name ILIKE CONCAT('%',?,'%')
-						      OR patient_last_name ILIKE CONCAT('%',?,'%')
-						      OR patient_mrn ILIKE CONCAT('%',?,'%')
-						      OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
-						      OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
+						      CAST (po.reference_number AS TEXT) like CONCAT(?,'%')
+						      OR po.patient_first_name ILIKE CONCAT('%',?,'%')
+						      OR po.patient_last_name ILIKE CONCAT('%',?,'%')
+						      OR po.patient_mrn=?
+						      OR (po.patient_phone_number IS NOT NULL AND po.patient_phone_number ILIKE CONCAT('%',?,'%'))
+						      OR (po.patient_email_address IS NOT NULL AND po.patient_email_address ILIKE CONCAT('%',?,'%'))
 						      )
 						""");
 
+				parameters.add(searchQuery);
 				parameters.add(searchQuery);
 				parameters.add(searchQuery);
 				parameters.add(searchQuery);
@@ -1637,10 +1639,13 @@ public class PatientOrderService implements AutoCloseable {
 		parameters.add(limit);
 		parameters.add(offset);
 
+		// Use special 'v_all_patient_order' if a request comes in for ARCHIVED orders
+		String patientOrderViewName = patientOrderDispositionIds.contains(PatientOrderDispositionId.ARCHIVED) ? "v_all_patient_order" : "v_patient_order";
+
 		String sql = """
 				  WITH base_query AS (
 				  SELECT po.*
-				  FROM v_patient_order po
+				  FROM {{patientOrderViewName}} po
 				  WHERE po.institution_id=?
 				  {{whereClauseLines}}
 				  ),
@@ -1658,6 +1663,7 @@ public class PatientOrderService implements AutoCloseable {
 				  LIMIT ?
 				  OFFSET ?
 				""".trim()
+				.replace("{{patientOrderViewName}}", patientOrderViewName)
 				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
 				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
 				.trim();
@@ -1726,16 +1732,17 @@ public class PatientOrderService implements AutoCloseable {
 						FROM patient_order
 						WHERE institution_id=?
 						AND (
-						patient_first_name ILIKE CONCAT('%',?,'%')
+						CAST (reference_number AS TEXT) like CONCAT(?,'%')
+						OR patient_first_name ILIKE CONCAT('%',?,'%')
 						OR patient_last_name ILIKE CONCAT('%',?,'%')
-						OR patient_mrn ILIKE CONCAT('%',?,'%')
+						OR patient_mrn=?
 						OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
 						OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
 						)
 						ORDER BY patient_last_name, patient_first_name
 						LIMIT 10
 						""", PatientOrderAutocompleteResult.class, institutionId,
-				searchQuery, searchQuery, searchQuery, searchQueryPhoneNumber, searchQuery);
+				searchQuery, searchQuery, searchQuery, searchQuery, searchQueryPhoneNumber, searchQuery);
 	}
 
 	@Nonnull
