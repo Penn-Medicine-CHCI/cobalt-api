@@ -5,7 +5,7 @@
 {{/partial}}
 
 {{#partial "body"}}
-	Hi, it's {{integratedCareProgramName}}. We are checking in to see if the resources we provided were helpful. Please visit <a href="{{{webappBaseUrl}}}">{{{webappBaseUrl}}}</a> to let us know how you're doing.
+	Hi, it's {{integratedCareProgramName}}. We are checking in to see if the resources we provided were helpful. Please visit <a href="{{#if targetUrl}}{{{targetUrl}}}{{else}}{{{webappBaseUrl}}}{{/if}}">{{webappBaseUrl}}</a> to let us know how you're doing.
 	<br/><br/>
 	Questions? Please call us at {{integratedCarePhoneNumberDescription}}.
 {{/partial}}

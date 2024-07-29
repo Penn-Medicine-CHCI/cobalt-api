@@ -666,7 +666,7 @@ public class PatientOrderResource {
 	@GET("/patient-orders")
 	@AuthenticationRequired
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderViewTypeId> patientOrderViewTypeId,
-																			 @Nonnull @QueryParameter Optional<PatientOrderDispositionId> patientOrderDispositionId,
+																			 @Nonnull @QueryParameter("patientOrderDispositionId") Optional<List<PatientOrderDispositionId>> patientOrderDispositionIds,
 																			 @Nonnull @QueryParameter Optional<PatientOrderConsentStatusId> patientOrderConsentStatusId,
 																			 @Nonnull @QueryParameter Optional<PatientOrderScreeningStatusId> patientOrderScreeningStatusId,
 																			 @Nonnull @QueryParameter("patientOrderTriageStatusId") Optional<List<PatientOrderTriageStatusId>> patientOrderTriageStatusIds,
@@ -686,7 +686,7 @@ public class PatientOrderResource {
 																			 @Nonnull @QueryParameter Optional<SortDirectionId> sortDirectionId,
 																			 @Nonnull @QueryParameter Optional<SortNullsId> sortNullsId) {
 		requireNonNull(patientOrderViewTypeId);
-		requireNonNull(patientOrderDispositionId);
+		requireNonNull(patientOrderDispositionIds);
 		requireNonNull(patientOrderConsentStatusId);
 		requireNonNull(patientOrderScreeningStatusId);
 		requireNonNull(patientOrderTriageStatusIds);
@@ -747,7 +747,7 @@ public class PatientOrderResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setPatientOrderViewTypeId(patientOrderViewTypeId.orElse(null));
-				setPatientOrderDispositionId(patientOrderDispositionId.orElse(null));
+				setPatientOrderDispositionIds(new HashSet<>(patientOrderDispositionIds.orElse(List.of())));
 				setPatientOrderConsentStatusId(patientOrderConsentStatusId.orElse(null));
 				setPatientOrderScreeningStatusId(patientOrderScreeningStatusId.orElse(null));
 				setPatientOrderTriageStatusIds(new HashSet<>(patientOrderTriageStatusIds.orElse(List.of())));

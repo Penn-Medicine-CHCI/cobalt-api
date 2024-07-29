@@ -39,6 +39,10 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class PatientOrderAutocompleteResultApiResponse {
 	@Nonnull
+	private final Integer referenceNumber;
+	@Nonnull
+	private final String referenceNumberDescription;
+	@Nonnull
 	private final String patientMrn;
 	@Nonnull
 	private final String patientUniqueId;
@@ -76,6 +80,8 @@ public class PatientOrderAutocompleteResultApiResponse {
 		requireNonNull(strings);
 		requireNonNull(result);
 
+		this.referenceNumber = result.getReferenceNumber();
+		this.referenceNumberDescription = Integer.toString(result.getReferenceNumber(), 10); // Not localized - it's just the digits
 		this.patientMrn = result.getPatientMrn();
 		this.patientUniqueId = result.getPatientUniqueId();
 		this.patientUniqueIdType = result.getPatientUniqueIdType();
@@ -87,6 +93,16 @@ public class PatientOrderAutocompleteResultApiResponse {
 		this.patientPhoneNumber = result.getPatientPhoneNumber();
 		this.patientPhoneNumberDescription = formatter.formatPhoneNumber(result.getPatientPhoneNumber());
 		this.patientEmailAddress = result.getPatientEmailAddress();
+	}
+
+	@Nonnull
+	public Integer getReferenceNumber() {
+		return this.referenceNumber;
+	}
+
+	@Nonnull
+	public String getReferenceNumberDescription() {
+		return this.referenceNumberDescription;
 	}
 
 	@Nonnull

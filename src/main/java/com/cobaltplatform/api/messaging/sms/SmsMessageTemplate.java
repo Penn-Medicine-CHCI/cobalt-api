@@ -25,5 +25,6 @@ package com.cobaltplatform.api.messaging.sms;
 public enum SmsMessageTemplate {
 	FREEFORM,
 	IC_WELCOME,
+	IC_WELCOME_REMINDER,
 	IC_RESOURCE_CHECK_IN
 }

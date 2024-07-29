@@ -184,6 +184,7 @@ import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
@@ -1297,7 +1298,7 @@ public class PatientOrderService implements AutoCloseable {
 		InstitutionId institutionId = request.getInstitutionId();
 		PatientOrderViewTypeId patientOrderViewTypeId = request.getPatientOrderViewTypeId();
 		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
-		PatientOrderDispositionId patientOrderDispositionId = request.getPatientOrderDispositionId();
+		Set<PatientOrderDispositionId> patientOrderDispositionIds = request.getPatientOrderDispositionIds() == null ? Set.of() : request.getPatientOrderDispositionIds();
 		PatientOrderScreeningStatusId patientOrderScreeningStatusId = request.getPatientOrderScreeningStatusId();
 		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
 		PatientOrderAssignmentStatusId patientOrderAssignmentStatusId = request.getPatientOrderAssignmentStatusId();
@@ -1455,11 +1456,11 @@ public class PatientOrderService implements AutoCloseable {
 			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
 
 			// Default to OPEN orders unless specified otherwise
-			if (patientOrderDispositionId == null)
-				patientOrderDispositionId = PatientOrderDispositionId.OPEN;
+			if (patientOrderDispositionIds.size() == 0)
+				patientOrderDispositionIds = Set.of(PatientOrderDispositionId.OPEN);
 
-			whereClauseLines.add("AND po.patient_order_disposition_id=?");
-			parameters.add(patientOrderDispositionId);
+			whereClauseLines.add(format("AND po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
+			parameters.addAll(patientOrderDispositionIds);
 
 			if (patientOrderConsentStatusId != null) {
 				whereClauseLines.add("AND po.patient_order_consent_status_id=?");
@@ -1581,14 +1582,16 @@ public class PatientOrderService implements AutoCloseable {
 				// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
 				whereClauseLines.add("""
 						      AND (
-						      patient_first_name ILIKE CONCAT('%',?,'%')
-						      OR patient_last_name ILIKE CONCAT('%',?,'%')
-						      OR patient_mrn ILIKE CONCAT('%',?,'%')
-						      OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
-						      OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
+						      CAST (po.reference_number AS TEXT) like CONCAT(?,'%')
+						      OR po.patient_first_name ILIKE CONCAT('%',?,'%')
+						      OR po.patient_last_name ILIKE CONCAT('%',?,'%')
+						      OR po.patient_mrn=?
+						      OR (po.patient_phone_number IS NOT NULL AND po.patient_phone_number ILIKE CONCAT('%',?,'%'))
+						      OR (po.patient_email_address IS NOT NULL AND po.patient_email_address ILIKE CONCAT('%',?,'%'))
 						      )
 						""");
 
+				parameters.add(searchQuery);
 				parameters.add(searchQuery);
 				parameters.add(searchQuery);
 				parameters.add(searchQuery);
@@ -1636,10 +1639,13 @@ public class PatientOrderService implements AutoCloseable {
 		parameters.add(limit);
 		parameters.add(offset);
 
+		// Use special 'v_all_patient_order' if a request comes in for ARCHIVED orders
+		String patientOrderViewName = patientOrderDispositionIds.contains(PatientOrderDispositionId.ARCHIVED) ? "v_all_patient_order" : "v_patient_order";
+
 		String sql = """
 				  WITH base_query AS (
 				  SELECT po.*
-				  FROM v_patient_order po
+				  FROM {{patientOrderViewName}} po
 				  WHERE po.institution_id=?
 				  {{whereClauseLines}}
 				  ),
@@ -1657,6 +1663,7 @@ public class PatientOrderService implements AutoCloseable {
 				  LIMIT ?
 				  OFFSET ?
 				""".trim()
+				.replace("{{patientOrderViewName}}", patientOrderViewName)
 				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
 				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
 				.trim();
@@ -1725,16 +1732,17 @@ public class PatientOrderService implements AutoCloseable {
 						FROM patient_order
 						WHERE institution_id=?
 						AND (
-						patient_first_name ILIKE CONCAT('%',?,'%')
+						CAST (reference_number AS TEXT) like CONCAT(?,'%')
+						OR patient_first_name ILIKE CONCAT('%',?,'%')
 						OR patient_last_name ILIKE CONCAT('%',?,'%')
-						OR patient_mrn ILIKE CONCAT('%',?,'%')
+						OR patient_mrn=?
 						OR (patient_phone_number IS NOT NULL AND patient_phone_number ILIKE CONCAT('%',?,'%'))
 						OR (patient_email_address IS NOT NULL AND patient_email_address ILIKE CONCAT('%',?,'%'))
 						)
 						ORDER BY patient_last_name, patient_first_name
 						LIMIT 10
 						""", PatientOrderAutocompleteResult.class, institutionId,
-				searchQuery, searchQuery, searchQuery, searchQueryPhoneNumber, searchQuery);
+				searchQuery, searchQuery, searchQuery, searchQuery, searchQueryPhoneNumber, searchQuery);
 	}
 
 	@Nonnull
@@ -1905,7 +1913,43 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		});
 
+		// If there are any pending reminder messages, cancel them
+		deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, accountId, Set.of(
+				PatientOrderScheduledMessageTypeId.WELCOME_REMINDER,
+				PatientOrderScheduledMessageTypeId.APPOINTMENT_BOOKING_REMINDER
+		));
+
 		return true;
+	}
+
+	@Nonnull
+	public Set<UUID> deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(@Nonnull UUID patientOrderId,
+																																									 @Nonnull UUID accountId,
+																																									 @Nonnull Set<PatientOrderScheduledMessageTypeId> patientOrderScheduledMessageTypeIdsToDelete) {
+		requireNonNull(patientOrderId);
+		requireNonNull(accountId);
+		requireNonNull(patientOrderScheduledMessageTypeIdsToDelete);
+
+		Set<UUID> deletedPatientOrderScheduledMessageGroupIds = new HashSet<>();
+
+		Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(patientOrderId);
+
+		List<PatientOrderScheduledMessageGroup> patientOrderScheduledMessageGroupsToDelete = new ArrayList<>();
+
+		for (PatientOrderScheduledMessageTypeId patientOrderScheduledMessageTypeIdToDelete : patientOrderScheduledMessageTypeIdsToDelete)
+			patientOrderScheduledMessageGroupsToDelete.addAll(futurePatientOrderScheduledMessageGroupsByTypeId.get(patientOrderScheduledMessageTypeIdToDelete));
+
+		for (PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroupToDelete : patientOrderScheduledMessageGroupsToDelete) {
+			boolean deleted = deletePatientOrderScheduledMessageGroup(new DeletePatientOrderScheduledMessageGroupRequest() {{
+				setAccountId(accountId);
+				setPatientOrderScheduledMessageGroupId(patientOrderScheduledMessageGroupToDelete.getPatientOrderScheduledMessageGroupId());
+			}});
+
+			if (deleted)
+				deletedPatientOrderScheduledMessageGroupIds.add(patientOrderScheduledMessageGroupToDelete.getPatientOrderScheduledMessageGroupId());
+		}
+
+		return deletedPatientOrderScheduledMessageGroupIds;
 	}
 
 	@Nonnull
@@ -2089,6 +2133,18 @@ public class PatientOrderService implements AutoCloseable {
 					reason, displayOrder);
 
 			patientOrderTriageIds.add(patientOrderTriageId);
+		}
+
+		// If this triage was manually set to a non-collaborative-care value (i.e. MHIC overrode a triage)
+		// then cancel any scheduled appointment booking reminder messages.
+		if (patientOrderTriageSourceId == PatientOrderTriageSourceId.MANUALLY_SET) {
+			PatientOrder updatedPatientOrder = findPatientOrderById(patientOrderId).get();
+
+			if (updatedPatientOrder.getPatientOrderCareTypeId() != PatientOrderCareTypeId.COLLABORATIVE) {
+				deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, accountId, Set.of(
+						PatientOrderScheduledMessageTypeId.APPOINTMENT_BOOKING_REMINDER
+				));
+			}
 		}
 
 		// TODO: track events
@@ -2907,6 +2963,10 @@ public class PatientOrderService implements AutoCloseable {
 				""", PatientOrderDispositionId.ARCHIVED, patientOrderId) > 0;
 
 		// TODO: track event
+
+		// If there are any pending messages, cancel them
+		Set<PatientOrderScheduledMessageTypeId> allPatientOrderScheduledMessageTypeIds = Arrays.stream(PatientOrderScheduledMessageTypeId.values()).collect(Collectors.toSet());
+		deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, accountId, allPatientOrderScheduledMessageTypeIds);
 
 		return updated;
 	}
@@ -3889,7 +3949,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		// See if there are any scheduled-in-the-future message groups...
+		// See if there are any scheduled-in-the-future message groups of the same type...
 		Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(patientOrderId);
 
 		// ...if so, we're not allowed to schedule any more.
@@ -3920,6 +3980,22 @@ public class PatientOrderService implements AutoCloseable {
 				patientOrderScheduledMessageType, messageTypeIds, scheduledAtDate, scheduledAtTime);
 
 		// TODO: track in event log
+
+		// If this is a welcome message group, immediately schedule a welcome reminder for the following day at the same time.
+		// The reminder will be canceled if an order is closed/archived or a screening session is started.
+		if (patientOrderScheduledMessageTypeId == PatientOrderScheduledMessageTypeId.WELCOME) {
+			LocalDate reminderScheduledAtDate = scheduledAtDateTime.toLocalDate().plusDays(1);
+			LocalTime reminderScheduledAtTime = scheduledAtDateTime.toLocalTime();
+
+			createPatientOrderScheduledMessageGroup(new CreatePatientOrderScheduledMessageGroupRequest() {{
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+				setPatientOrderScheduledMessageTypeId(PatientOrderScheduledMessageTypeId.WELCOME_REMINDER);
+				setMessageTypeIds(messageTypeIds);
+				setScheduledAtDate(reminderScheduledAtDate);
+				setScheduledAtTimeAsLocalTime(reminderScheduledAtTime);
+			}});
+		}
 
 		return patientOrderScheduledMessageGroupId;
 	}
@@ -4136,12 +4212,18 @@ public class PatientOrderService implements AutoCloseable {
 		standardMessageContext.put("integratedCareProgramName", institution.getIntegratedCareProgramName());
 		standardMessageContext.put("integratedCarePrimaryCareName", institution.getIntegratedCarePrimaryCareName());
 
-		// For now, all messages get the same standard context.  We might have custom contexts per-message/message type as we introduce more
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
-			EmailMessage emailMessage = new EmailMessage.Builder(institution.getInstitutionId(), EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
+			UUID messageId = UUID.randomUUID();
+			String targetUrl = format("%s?m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+
+			// Mutable copy of standard message context
+			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
+			messageContext.put("targetUrl", targetUrl);
+
+			EmailMessage emailMessage = new EmailMessage.Builder(messageId, institution.getInstitutionId(), EmailMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), Locale.US)
 					.toAddresses(List.of(patientOrder.getPatientEmailAddress()))
 					.fromAddress(institution.getDefaultFromEmailAddress())
-					.messageContext(standardMessageContext)
+					.messageContext(messageContext)
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
@@ -4153,8 +4235,15 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
-			SmsMessage smsMessage = new SmsMessage.Builder(institution.getInstitutionId(), SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
-					.messageContext(standardMessageContext)
+			UUID messageId = UUID.randomUUID();
+			String targetUrl = format("%s?m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+
+			// Mutable copy of standard message context
+			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
+			messageContext.put("targetUrl", targetUrl);
+
+			SmsMessage smsMessage = new SmsMessage.Builder(messageId, institution.getInstitutionId(), SmsMessageTemplate.valueOf(patientOrderScheduledMessageType.getTemplateName()), patientOrder.getPatientPhoneNumber(), Locale.US)
+					.messageContext(messageContext)
 					.build();
 
 			scheduledMessageIds.add(getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{

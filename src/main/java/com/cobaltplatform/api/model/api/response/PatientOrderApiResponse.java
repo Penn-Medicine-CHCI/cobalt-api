@@ -109,6 +109,10 @@ public class PatientOrderApiResponse {
 	@Nonnull
 	private UUID patientOrderId;
 	@Nullable
+	private Integer referenceNumber;
+	@Nullable
+	private String referenceNumberDescription;
+	@Nullable
 	private PatientOrderTriageStatusId patientOrderTriageStatusId;
 	@Nullable
 	private PatientOrderDispositionId patientOrderDispositionId;
@@ -811,6 +815,8 @@ public class PatientOrderApiResponse {
 
 		// Always available to both patients and MHICs
 		this.patientOrderId = patientOrder.getPatientOrderId();
+		this.referenceNumber = patientOrder.getReferenceNumber();
+		this.referenceNumberDescription = Integer.toString(patientOrder.getReferenceNumber(), 10); // Not localized - it's just the digits
 		this.patientOrderTriageStatusId = patientOrder.getPatientOrderTriageStatusId();
 		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
@@ -1086,6 +1092,16 @@ public class PatientOrderApiResponse {
 	@Nonnull
 	public UUID getPatientOrderId() {
 		return this.patientOrderId;
+	}
+
+	@Nullable
+	public Integer getReferenceNumber() {
+		return this.referenceNumber;
+	}
+
+	@Nullable
+	public String getReferenceNumberDescription() {
+		return this.referenceNumberDescription;
 	}
 
 	@Nullable
