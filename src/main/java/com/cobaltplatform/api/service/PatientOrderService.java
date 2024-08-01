@@ -2934,8 +2934,6 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(request);
 
 		UUID patientOrderId = request.getPatientOrderId();
-		@SuppressWarnings("unused")
-		// Currently unused; would be the account flipping the flag (understood to be 'system' if not specified)
 		UUID accountId = request.getAccountId();
 		RawPatientOrder patientOrder = null;
 		ValidationException validationException = new ValidationException();
@@ -2948,6 +2946,9 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrder == null)
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -4135,6 +4136,8 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(request);
 
 		UUID patientOrderScheduledMessageGroupId = request.getPatientOrderScheduledMessageGroupId();
+		// TODO: we should track footprint information regarding the account that issued the delete
+		@SuppressWarnings("unused")
 		UUID accountId = request.getAccountId();
 		ValidationException validationException = new ValidationException();
 
@@ -6012,6 +6015,8 @@ public class PatientOrderService implements AutoCloseable {
 	@ThreadSafe
 	protected static class BackgroundTask implements Runnable {
 		@Nonnull
+		private final Provider<AccountService> accountServiceProvider;
+		@Nonnull
 		private final InstitutionService institutionService;
 		@Nonnull
 		private final PatientOrderService patientOrderService;
@@ -6029,13 +6034,15 @@ public class PatientOrderService implements AutoCloseable {
 		private final Logger logger;
 
 		@Inject
-		public BackgroundTask(@Nonnull InstitutionService institutionService,
+		public BackgroundTask(@Nonnull Provider<AccountService> accountServiceProvider,
+													@Nonnull InstitutionService institutionService,
 													@Nonnull PatientOrderService patientOrderService,
 													@Nonnull SystemService systemService,
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull CurrentContextExecutor currentContextExecutor,
 													@Nonnull ErrorReporter errorReporter,
 													@Nonnull DatabaseProvider databaseProvider) {
+			requireNonNull(accountServiceProvider);
 			requireNonNull(institutionService);
 			requireNonNull(patientOrderService);
 			requireNonNull(systemService);
@@ -6044,6 +6051,7 @@ public class PatientOrderService implements AutoCloseable {
 			requireNonNull(errorReporter);
 			requireNonNull(databaseProvider);
 
+			this.accountServiceProvider = accountServiceProvider;
 			this.institutionService = institutionService;
 			this.patientOrderService = patientOrderService;
 			this.systemService = systemService;
@@ -6094,12 +6102,18 @@ public class PatientOrderService implements AutoCloseable {
 					     AND episode_closed_at <= ?
 					""", RawPatientOrder.class, institution.getInstitutionId(), PatientOrderDispositionId.CLOSED, archivedThreshold);
 
-			for (RawPatientOrder archivablePatientOrder : archivablePatientOrders) {
-				getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",
-						archivablePatientOrder.getPatientOrderId(), archivablePatientOrder.getEpisodeClosedAt());
-				getPatientOrderService().archivePatientOrder(new ArchivePatientOrderRequest() {{
-					setPatientOrderId(archivablePatientOrder.getPatientOrderId());
-				}});
+			if (archivablePatientOrders.size() > 0) {
+				Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+
+				for (RawPatientOrder archivablePatientOrder : archivablePatientOrders) {
+					getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",
+							archivablePatientOrder.getPatientOrderId(), archivablePatientOrder.getEpisodeClosedAt());
+					
+					getPatientOrderService().archivePatientOrder(new ArchivePatientOrderRequest() {{
+						setPatientOrderId(archivablePatientOrder.getPatientOrderId());
+						setAccountId(serviceAccount.getAccountId());
+					}});
+				}
 			}
 
 			// If any non-test orders haven't had their demographic info pulled in from Epic yet
@@ -6162,6 +6176,11 @@ public class PatientOrderService implements AutoCloseable {
 					}
 				}
 			}
+		}
+
+		@Nonnull
+		protected AccountService getAccountService() {
+			return this.accountServiceProvider.get();
 		}
 
 		@Nonnull
