@@ -21,8 +21,8 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
-import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.service.ContentService;
@@ -55,7 +55,9 @@ public class AdminContentApiResponse {
 	@Nullable
 	private UUID contentId;
 	@Nullable
-	private ContentType.ContentTypeId contentTypeId;
+	private ContentTypeId contentTypeId;
+	@Nonnull
+	private final ContentVisibilityTypeId contentVisibilityTypeId;
 	@Nullable
 	private String title;
 	@Nullable
@@ -180,6 +182,7 @@ public class AdminContentApiResponse {
 
 		this.contentId = adminContent.getContentId();
 		this.contentTypeId = adminContent.getContentTypeId();
+		this.contentVisibilityTypeId = adminContent.getContentVisibilityTypeId();
 		this.title = adminContent.getTitle();
 		this.author = adminContent.getAuthor();
 		this.description = adminContent.getDescription();
@@ -269,7 +272,7 @@ public class AdminContentApiResponse {
 
 		this.dateAddedToInstitution = adminContent.getDateAddedToInstitution();
 
-		this.dateAddedToInstitutionDescription =  adminContent.getDateAddedToInstitution() != null ?
+		this.dateAddedToInstitutionDescription = adminContent.getDateAddedToInstitution() != null ?
 				formatter.formatDate(adminContent.getDateAddedToInstitution(), FormatStyle.SHORT) : "N/A";
 	}
 
@@ -281,6 +284,11 @@ public class AdminContentApiResponse {
 	@Nonnull
 	public ContentTypeId getContentTypeId() {
 		return contentTypeId;
+	}
+
+	@Nonnull
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
 	}
 
 	@Nonnull

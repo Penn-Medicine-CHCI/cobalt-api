@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -50,6 +51,8 @@ public class ContentApiResponse {
 	private final UUID contentId;
 	@Nonnull
 	private final ContentTypeId contentTypeId;
+	@Nonnull
+	private final ContentVisibilityTypeId contentVisibilityTypeId;
 	@Nonnull
 	private final String title;
 	@Nullable
@@ -87,6 +90,7 @@ public class ContentApiResponse {
 	private final List<String> tagIds;
 	@Nullable
 	private final List<TagApiResponse> tags;
+
 	public enum ContentApiResponseSupplement {
 		TAGS
 	}
@@ -124,6 +128,7 @@ public class ContentApiResponse {
 
 		this.contentId = content.getContentId();
 		this.contentTypeId = content.getContentTypeId();
+		this.contentVisibilityTypeId = content.getContentVisibilityTypeId();
 		this.title = content.getTitle();
 		this.url = content.getFileUploadId() != null ? content.getFileUrl() : content.getUrl();
 		this.neverEmbed = content.getNeverEmbed();
@@ -166,22 +171,27 @@ public class ContentApiResponse {
 
 	@Nonnull
 	public UUID getContentId() {
-		return contentId;
+		return this.contentId;
 	}
 
 	@Nonnull
 	public ContentTypeId getContentTypeId() {
-		return contentTypeId;
+		return this.contentTypeId;
+	}
+
+	@Nonnull
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
 	}
 
 	@Nonnull
 	public String getTitle() {
-		return title;
+		return this.title;
 	}
 
 	@Nullable
 	public String getUrl() {
-		return url;
+		return this.url;
 	}
 
 	@Nonnull
@@ -191,57 +201,57 @@ public class ContentApiResponse {
 
 	@Nullable
 	public String getImageUrl() {
-		return imageUrl;
+		return this.imageUrl;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	@Nullable
 	public String getAuthor() {
-		return author;
+		return this.author;
 	}
 
 	@Nullable
 	public Instant getCreated() {
-		return created;
+		return this.created;
 	}
 
 	@Nonnull
 	public String getCreatedDescription() {
-		return createdDescription;
+		return this.createdDescription;
 	}
 
 	@Nullable
 	public Instant getLastUpdated() {
-		return lastUpdated;
+		return this.lastUpdated;
 	}
 
 	@Nullable
 	public String getLastUpdatedDescription() {
-		return lastUpdatedDescription;
+		return this.lastUpdatedDescription;
 	}
 
 	@Nullable
 	public String getContentTypeDescription() {
-		return contentTypeDescription;
+		return this.contentTypeDescription;
 	}
 
 	@Nullable
 	public String getCallToAction() {
-		return callToAction;
+		return this.callToAction;
 	}
 
 	@Nullable
 	public Boolean getNewFlag() {
-		return newFlag;
+		return this.newFlag;
 	}
 
 	@Nullable
 	public String getDuration() {
-		return duration;
+		return this.duration;
 	}
 
 	@Nullable
@@ -267,6 +277,4 @@ public class ContentApiResponse {
 	public Optional<List<TagApiResponse>> getTags() {
 		return Optional.ofNullable(this.tags);
 	}
-
-
 }

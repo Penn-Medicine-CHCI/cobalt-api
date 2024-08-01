@@ -27,6 +27,8 @@ import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionL
 import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.service.GroupSessionService;
@@ -75,6 +77,8 @@ public class GroupSessionApiResponse {
 	private final GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
 	@Nonnull
 	private final GroupSessionLocationTypeId groupSessionLocationTypeId;
+	@Nonnull
+	private final GroupSessionVisibilityTypeId groupSessionVisibilityTypeId;
 	@Nullable
 	private final UUID assessmentId;
 	@Nonnull
@@ -237,6 +241,7 @@ public class GroupSessionApiResponse {
 		this.groupSessionStatusIdDescription = groupSessionService.findGroupSessionStatusById(groupSession.getGroupSessionStatusId()).get().getDescription();
 		this.groupSessionSchedulingSystemId = groupSession.getGroupSessionSchedulingSystemId();
 		this.groupSessionLocationTypeId = groupSession.getGroupSessionLocationTypeId();
+		this.groupSessionVisibilityTypeId = groupSession.getGroupSessionVisibilityTypeId();
 		this.assessmentId = groupSession.getAssessmentId();
 		this.submitterAccountId = groupSession.getSubmitterAccountId();
 
@@ -432,6 +437,11 @@ public class GroupSessionApiResponse {
 	@Nonnull
 	public GroupSessionLocationTypeId getGroupSessionLocationTypeId() {
 		return this.groupSessionLocationTypeId;
+	}
+
+	@Nonnull
+	public GroupSessionVisibilityTypeId getGroupSessionVisibilityTypeId() {
+		return this.groupSessionVisibilityTypeId;
 	}
 
 	@Nullable
