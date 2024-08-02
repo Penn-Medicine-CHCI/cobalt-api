@@ -81,6 +81,56 @@ AS SELECT vac.*,
 	institution_content it
 WHERE vac.content_id = it.content_id;
 
+-- Introduce content audience: who the content is for (myself, someone else)
+CREATE TABLE content_audience_type (
+	content_audience_type_id TEXT PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  sentence_representation VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO content_audience_type (content_audience_type_id, description, sentence_representation, display_order) VALUES ('MYSELF', 'Myself', 'myself', 1);
+INSERT INTO content_audience_type (content_audience_type_id, description, sentence_representation, display_order) VALUES ('SOMEONE_ELSE', 'Someone Else', 'someone else', 2);
+
+-- Introduce content subject: who the content is about (myself, someone else)
+CREATE TABLE content_subject_type (
+	content_subject_type_id TEXT PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  sentence_representation VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('MYSELF', 'Myself', '' 1);
+INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('SOMEONE_ELSE', 'Someone Else', 2);
+
+-- Introduce content subject: who the content is about (myself, someone else)
+CREATE TABLE content_age_type (
+	content_age_type_id TEXT PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  sentence_representation VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('ADULT', 'Adult', 1);
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('CHILD', 'Child', 2);
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('TEEN_OR_YOUNG_ADULT', 'Teen or Young Adult', 3);
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('SENIOR', 'Senior', 4);
+
+-- Combine content audience, subject, and age into a "content target group"
+CREATE TABLE content_target_group (
+	content_target_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	content_id UUID NOT NULL REFERENCES content,
+	content_audience_type_id TEXT NOT NULL REFERENCES content_audience_type,
+	content_subject_type_id TEXT NOT NULL REFERENCES content_subject_type,
+	content_age_type_id TEXT NOT NULL REFERENCES content_age_type,
+	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON content_target_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX content_target_group_unique_idx ON content_target_group USING btree (content_id, content_audience_type_id, content_subject_type_id, content_age_type_id);
+
 -- Introduce group session visibility: public vs. unlisted
 CREATE TABLE group_session_visibility_type (
 	group_session_visibility_type_id TEXT PRIMARY KEY,
