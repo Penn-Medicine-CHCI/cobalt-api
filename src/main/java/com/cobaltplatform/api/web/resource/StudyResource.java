@@ -25,6 +25,7 @@ import com.cobaltplatform.api.integration.beiwe.BeiweCryptoManager;
 import com.cobaltplatform.api.model.api.request.CreateAccountCheckInActionFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountStudyPreferences;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
@@ -682,6 +683,30 @@ public class StudyResource {
 
 		return CustomResponse.instance();
 	}
+
+	@Nonnull
+	@PUT("/studies/update-account-preferences")
+	@AuthenticationRequired
+	public ApiResponse updateAccountStudyPreference(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+		List<Study> studies = getStudyService().findStudiesByInstitutionId(currentAccount.getInstitutionId());
+
+		//TODO: support for multiple studies per institution
+		if (studies.size() != 1)
+			throw new IllegalStateException("This method is only supported for institutions with a single study.");
+
+		UpdateAccountStudyPreferences request = getRequestBodyParser().parse(requestBody, UpdateAccountStudyPreferences.class);
+		request.setStudyId(studies.get(0).getStudyId());
+		request.setInstitutionId(currentAccount.getInstitutionId());
+
+		getStudyService().updateAccountStudyPreferences(request);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("accountStudy", getStudyService().findAccountStudyByUsernameAndStudyId(request.getUsername(), request.getStudyId()));
+		}});
+	}
+
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {

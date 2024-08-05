@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountStudyPreferences;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
@@ -45,6 +46,7 @@ import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.RecordingPreference;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
@@ -57,6 +59,7 @@ import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -91,6 +94,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidEnum;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -187,6 +191,15 @@ public class StudyService implements AutoCloseable {
 		}
 
 		return getDatabase().queryForList(query.toString(), AccountCheckIn.class, sqlParams.toArray());
+	}
+
+	@Nonnull
+	public List<Study> findStudiesByInstitutionId(@Nonnull InstitutionId institutionId) {
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM study 
+				WHERE institution_id = ? AND deleted=false""", Study.class, institutionId);
+
 	}
 
 	@Nonnull
@@ -759,6 +772,20 @@ public class StudyService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public Optional<AccountStudy> findAccountStudyByUsernameAndStudyId(@Nullable String username,
+																																			@Nullable UUID studyId) {
+		if (username == null || studyId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				  SELECT *
+				  FROM v_account_study
+				  WHERE username=?
+				  AND study_id=?
+				""", AccountStudy.class, username, studyId);
+	}
+
+	@Nonnull
 	public Optional<StudyBeiweConfig> findStudyBeiweConfigByStudyId(@Nullable UUID studyId) {
 		if (studyId == null)
 			return Optional.empty();
@@ -991,6 +1018,30 @@ public class StudyService implements AutoCloseable {
 				AND study_id=? """, accountId, studyId);
 	}
 
+	@Nonnull
+	public void updateAccountStudyPreferences(@Nonnull UpdateAccountStudyPreferences request) {
+		ValidationException validationException = new ValidationException();
+
+		getLogger().debug(format("looking for %s, %s, %s", request.getUsername(), AccountSourceId.USERNAME, request.getInstitutionId()));
+		Optional<Account> account = getAccountService()
+				.findAccountByUsernameAndAccountSourceId(request.getUsername(), AccountSourceId.USERNAME, request.getInstitutionId());
+
+		if (!account.isPresent())
+			validationException.add(new FieldError("username", getStrings().get("Could not find username.")));
+
+		if (request.getRecordingPreferenceId() == null)
+			validationException.add(new FieldError("recordingPreferenceId", getStrings().get("A valid recording preference is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE account_study 
+				SET recording_preference_id = ? WHERE account_id = ? 
+				AND study_id = ? """, request.getRecordingPreferenceId().toString(), account.get().getAccountId(), request.getStudyId());
+
+	}
+
 	@Override
 	public void close() throws Exception {
 		stopBackgroundTask();
@@ -1112,19 +1163,19 @@ public class StudyService implements AutoCloseable {
 				getLogger().debug(format("Sending check in reminders for Study check in reminder id %s", studyCheckInReminder.getStudyCheckInReminderId()));
 				List<AccountCheckIn> accountCheckIns =
 						getDatabase().queryForList("""
-										SELECT va.*
-										FROM v_account_check_in va
-										WHERE va.study_id = ?
-										AND va.study_started = TRUE
-										AND va.check_in_status_id != ?
-										AND EXTRACT(EPOCH FROM NOW() at time zone va.time_zone - va.check_in_start_date_time) / 60 >  ?
-										AND now() at time zone va.time_zone BETWEEN check_in_start_date_time AND check_in_end_date_time
-										AND NOT EXISTS
-										(SELECT 'X'
-										FROM account_check_in_reminder ac
-										WHERE ac.account_check_in_id = va.account_check_in_id
-										AND ac.study_check_in_reminder_id = ?)
-								""", AccountCheckIn.class, studyCheckInReminder.getStudyId(), CheckInStatusId.COMPLETE,
+												SELECT va.*
+												FROM v_account_check_in va
+												WHERE va.study_id = ?
+												AND va.study_started = TRUE
+												AND va.check_in_status_id != ?
+												AND EXTRACT(EPOCH FROM NOW() at time zone va.time_zone - va.check_in_start_date_time) / 60 >  ?
+												AND now() at time zone va.time_zone BETWEEN check_in_start_date_time AND check_in_end_date_time
+												AND NOT EXISTS
+												(SELECT 'X'
+												FROM account_check_in_reminder ac
+												WHERE ac.account_check_in_id = va.account_check_in_id
+												AND ac.study_check_in_reminder_id = ?)
+										""", AccountCheckIn.class, studyCheckInReminder.getStudyId(), CheckInStatusId.COMPLETE,
 								studyCheckInReminder.getCheckInReminderNotificationMinutes(), studyCheckInReminder.getStudyCheckInReminderId());
 
 				for (AccountCheckIn accountCheckIn : accountCheckIns) {
@@ -1148,10 +1199,10 @@ public class StudyService implements AutoCloseable {
 						}});
 
 						getDatabase().execute("""
-									INSERT INTO account_check_in_reminder
-								  (account_check_in_id, study_check_in_reminder_id, scheduled_message_id)
-								VALUES
-								  (?,?,?)""",
+											INSERT INTO account_check_in_reminder
+										  (account_check_in_id, study_check_in_reminder_id, scheduled_message_id)
+										VALUES
+										  (?,?,?)""",
 								accountCheckIn.getAccountCheckInId(), studyCheckInReminder.getStudyCheckInReminderId(), scheduledMessageId);
 					}
 
