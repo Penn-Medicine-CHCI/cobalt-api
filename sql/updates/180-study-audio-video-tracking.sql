@@ -25,7 +25,9 @@ ALTER TABLE account_study ADD COLUMN recording_preference_id VARCHAR NOT NULL RE
     a.study_started,
     ac.institution_id,
     ac.time_zone,
-    ac.password_reset_required
+    ac.password_reset_required,
+    a.recording_preference_id,
+    ac.username
    FROM account_study a,
     study s,
     account ac
@@ -34,4 +36,8 @@ ALTER TABLE account_study ADD COLUMN recording_preference_id VARCHAR NOT NULL RE
 
  ALTER TABLE study ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
 
+ INSERT INTO account_capability_type 
+ VALUES
+ ('STUDY_ADMIN', 'Study Administrator');
+ 
 COMMIT;
