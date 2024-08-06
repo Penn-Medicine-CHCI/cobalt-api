@@ -100,8 +100,8 @@ CREATE TABLE content_subject_type (
   display_order INTEGER NOT NULL
 );
 
-INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('MYSELF', 'Myself', '' 1);
-INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('SOMEONE_ELSE', 'Someone Else', 2);
+INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('MYSELF', 'Myself', 'myself', 1);
+INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('SOMEONE_ELSE', 'Someone Else', 'someone else', 2);
 
 -- Introduce content subject: who the content is about (myself, someone else)
 CREATE TABLE content_age_type (
@@ -111,10 +111,10 @@ CREATE TABLE content_age_type (
   display_order INTEGER NOT NULL
 );
 
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('ADULT', 'Adult', 1);
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('CHILD', 'Child', 2);
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('TEEN_OR_YOUNG_ADULT', 'Teen or Young Adult', 3);
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('SENIOR', 'Senior', 4);
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('ADULT', 'Adult', 'adult', 1);
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('CHILD', 'Child', 'adult', 2);
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('TEEN_OR_YOUNG_ADULT', 'Teen or Young Adult', 'teen or young adult', 3);
+INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('SENIOR', 'Senior', 'senior', 4);
 
 -- Combine content audience, subject, and age into a "content target group"
 CREATE TABLE content_target_group (
