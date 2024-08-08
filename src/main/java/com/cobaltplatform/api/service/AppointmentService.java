@@ -81,6 +81,7 @@ import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentCancelationReason.AppointmentCancelationReasonId;
 import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AppointmentReasonType.AppointmentReasonTypeId;
+import com.cobaltplatform.api.model.db.AppointmentScheduledMessageType.AppointmentScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
@@ -1329,7 +1330,61 @@ public class AppointmentService {
 			));
 		}
 
+		scheduleAppointmentFeedbackSurveyMessagesIfEnabled(appointmentId);
+
 		return appointmentId;
+	}
+
+	@Nonnull
+	protected Boolean scheduleAppointmentFeedbackSurveyMessagesIfEnabled(@Nullable UUID appointmentId) {
+		if (appointmentId == null)
+			return false;
+
+		Appointment appointment = findAppointmentById(appointmentId).orElse(null);
+
+		if (appointment == null)
+			return false;
+
+		// These should never be null and will fail-fast if so
+		Account account = getAccountService().findAccountById(appointment.getAccountId()).get();
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		if (!institution.getAppointmentFeedbackSurveyEnabled() || institution.getAppointmentFeedbackSurveyUrl() == null)
+			return false;
+
+		LocalDateTime scheduledAt = appointment.getStartTime().plusMinutes(institution.getAppointmentFeedbackSurveyDelayInMinutes());
+
+		UUID appointmentScheduledMessageId = UUID.randomUUID();
+		UUID messageId = UUID.randomUUID();
+
+		Map<String, Object> messageContext = new HashMap<>();
+		messageContext.put("appointmentFeedbackSurveyUrl", institution.getAppointmentFeedbackSurveyUrl());
+		messageContext.put("appointmentFeedbackSurveyDurationDescription", institution.getAppointmentFeedbackSurveyDurationDescription());
+
+		EmailMessage emailMessage = new EmailMessage.Builder(messageId, institution.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_FEEDBACK_SURVEY_PATIENT, account.getLocale())
+				.toAddresses(List.of(account.getEmailAddress()))
+				.fromAddress(institution.getDefaultFromEmailAddress())
+				.messageContext(messageContext)
+				.build();
+
+		UUID scheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest() {{
+			setMetadata(Map.of("appointmentScheduledMessageId", appointmentScheduledMessageId));
+			setMessage(emailMessage);
+			setTimeZone(appointment.getTimeZone());
+			setScheduledAt(scheduledAt);
+		}});
+
+		getDatabase().execute("""
+						INSERT INTO appointment_scheduled_message (
+							appointment_scheduled_message_id,
+							appointment_scheduled_message_type_id,
+							appointment_id,
+							scheduled_message_id
+						) VALUES (?,?,?,?)
+						""", appointmentScheduledMessageId, AppointmentScheduledMessageTypeId.FEEDBACK_SURVEY,
+				appointment.getAppointmentId(), scheduledMessageId);
+
+		return true;
 	}
 
 	@Nonnull
