@@ -81,6 +81,7 @@ import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentCancelationReason.AppointmentCancelationReasonId;
 import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AppointmentReasonType.AppointmentReasonTypeId;
+import com.cobaltplatform.api.model.db.AppointmentScheduledMessage;
 import com.cobaltplatform.api.model.db.AppointmentScheduledMessageType.AppointmentScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentType;
@@ -101,6 +102,7 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
+import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
@@ -134,6 +136,7 @@ import java.time.ZoneId;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1388,6 +1391,52 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	public List<AppointmentScheduledMessage> findFutureAppointmentScheduledMessagesByAppointmentId(@Nullable UUID appointmentId) {
+		if (appointmentId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT asm.*
+				FROM appointment_scheduled_message asm, scheduled_message sm
+				WHERE asm.appointment_id=?
+				AND asm.scheduled_message_id=sm.scheduled_message_id
+				AND sm.scheduled_at AT TIME ZONE sm.time_zone > NOW()
+				AND sm.scheduled_message_status_id = ?
+				ORDER BY sm.scheduled_at AT TIME ZONE sm.time_zone
+				""", AppointmentScheduledMessage.class, appointmentId, ScheduledMessageStatusId.PENDING);
+	}
+
+	@Nonnull
+	public Set<UUID> cancelAllFutureScheduledMessagesForAppointmentId(@Nonnull UUID appointmentId,
+																																		@Nonnull UUID accountId) {
+		return cancelFutureScheduledMessagesForAppointmentId(appointmentId, accountId, Arrays.stream(AppointmentScheduledMessageTypeId.values()).collect(Collectors.toSet()));
+	}
+
+	@Nonnull
+	public Set<UUID> cancelFutureScheduledMessagesForAppointmentId(@Nonnull UUID appointmentId,
+																																 @Nonnull UUID accountId,
+																																 @Nonnull Set<AppointmentScheduledMessageTypeId> appointmentScheduledMessageTypeIdsToCancel) {
+		requireNonNull(appointmentId);
+		requireNonNull(accountId);
+		requireNonNull(appointmentScheduledMessageTypeIdsToCancel);
+
+		Set<UUID> deletedAppointmentScheduledMessageIds = new HashSet<>();
+
+		List<AppointmentScheduledMessage> futureAppointmentScheduledMessagesToCancel = findFutureAppointmentScheduledMessagesByAppointmentId(appointmentId).stream()
+				.filter(futureAppointmentScheduledMessage -> appointmentScheduledMessageTypeIdsToCancel.contains(futureAppointmentScheduledMessage.getAppointmentScheduledMessageId()))
+				.collect(Collectors.toList());
+
+		for (AppointmentScheduledMessage futureAppointmentScheduledMessageToCancel : futureAppointmentScheduledMessagesToCancel) {
+			boolean canceled = getMessageService().cancelScheduledMessage(futureAppointmentScheduledMessageToCancel.getScheduledMessageId());
+
+			if (canceled)
+				deletedAppointmentScheduledMessageIds.add(futureAppointmentScheduledMessageToCancel.getAppointmentScheduledMessageId());
+		}
+
+		return deletedAppointmentScheduledMessageIds;
+	}
+
+	@Nonnull
 	public UUID createAppointmentType(@Nonnull CreateAppointmentTypeRequest request) {
 		requireNonNull(request);
 
@@ -1837,6 +1886,7 @@ public class AppointmentService {
 				setScheduledAt(LocalDateTime.of(reminderMessageDate, reminderMessageTimeOfDay));
 			}});
 
+			// TODO: this should be migrated over to the appointment_scheduled_message construct
 			getDatabase().execute("""
 					UPDATE appointment
 					SET patient_reminder_scheduled_message_id=? 
@@ -2052,7 +2102,11 @@ public class AppointmentService {
 		Appointment pinnedAppointment = appointment;
 
 		// Cancel any scheduled reminder message for the patient
+		// TODO: this should be migrated over to the appointment_scheduled_message construct
 		getMessageService().cancelScheduledMessage(appointment.getPatientReminderScheduledMessageId());
+
+		// Cancel other future scheduled messages
+		cancelAllFutureScheduledMessagesForAppointmentId(appointment.getAppointmentId(), accountId);
 
 		getDatabase().currentTransaction().get().addPostCommitOperation(() -> {
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY) {
