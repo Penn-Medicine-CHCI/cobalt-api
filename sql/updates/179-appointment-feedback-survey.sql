@@ -8,6 +8,9 @@ ALTER TABLE institution ADD COLUMN appointment_feedback_survey_url TEXT; -- e.g.
 ALTER TABLE institution ADD COLUMN appointment_feedback_survey_duration_description TEXT;  -- e.g. "1-2 minutes"
 ALTER TABLE institution ADD COLUMN appointment_feedback_survey_delay_in_minutes INTEGER NOT NULL DEFAULT 1440; -- 1440 = 24 hours
 
+-- Example:
+-- update institution set appointment_feedback_survey_enabled=TRUE, appointment_feedback_survey_url='https://www.google.com', appointment_feedback_survey_duration_description='1-2 minutes', appointment_feedback_survey_delay_in_minutes=1440 where institution_id='COBALT';
+
 -- Types of scheduled messages we might send for appointments
 CREATE TABLE appointment_scheduled_message_type (
   appointment_scheduled_message_type_id VARCHAR PRIMARY KEY,

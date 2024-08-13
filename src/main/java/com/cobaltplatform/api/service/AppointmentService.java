@@ -1420,20 +1420,20 @@ public class AppointmentService {
 		requireNonNull(accountId);
 		requireNonNull(appointmentScheduledMessageTypeIdsToCancel);
 
-		Set<UUID> deletedAppointmentScheduledMessageIds = new HashSet<>();
+		Set<UUID> canceledAppointmentScheduledMessageIds = new HashSet<>();
 
 		List<AppointmentScheduledMessage> futureAppointmentScheduledMessagesToCancel = findFutureAppointmentScheduledMessagesByAppointmentId(appointmentId).stream()
-				.filter(futureAppointmentScheduledMessage -> appointmentScheduledMessageTypeIdsToCancel.contains(futureAppointmentScheduledMessage.getAppointmentScheduledMessageId()))
+				.filter(futureAppointmentScheduledMessage -> appointmentScheduledMessageTypeIdsToCancel.contains(futureAppointmentScheduledMessage.getAppointmentScheduledMessageTypeId()))
 				.collect(Collectors.toList());
 
 		for (AppointmentScheduledMessage futureAppointmentScheduledMessageToCancel : futureAppointmentScheduledMessagesToCancel) {
 			boolean canceled = getMessageService().cancelScheduledMessage(futureAppointmentScheduledMessageToCancel.getScheduledMessageId());
 
 			if (canceled)
-				deletedAppointmentScheduledMessageIds.add(futureAppointmentScheduledMessageToCancel.getAppointmentScheduledMessageId());
+				canceledAppointmentScheduledMessageIds.add(futureAppointmentScheduledMessageToCancel.getAppointmentScheduledMessageId());
 		}
 
-		return deletedAppointmentScheduledMessageIds;
+		return canceledAppointmentScheduledMessageIds;
 	}
 
 	@Nonnull
