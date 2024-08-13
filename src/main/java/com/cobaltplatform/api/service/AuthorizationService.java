@@ -75,6 +75,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<StudyService> studyServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -85,6 +87,7 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<TopicCenterService> topicCenterServiceProvider,
 															@Nonnull javax.inject.Provider<ReportingService> reportingServiceProvider,
 															@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
+															@Nonnull javax.inject.Provider<StudyService> studyServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
@@ -93,6 +96,7 @@ public class AuthorizationService {
 		requireNonNull(topicCenterServiceProvider);
 		requireNonNull(reportingServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
+		requireNonNull(studyServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
@@ -102,6 +106,7 @@ public class AuthorizationService {
 		this.topicCenterServiceProvider = topicCenterServiceProvider;
 		this.reportingServiceProvider = reportingServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
+		this.studyServiceProvider = studyServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -186,6 +191,7 @@ public class AuthorizationService {
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_VIEWER));
 		accountCapabilityFlags.setCanViewProviderReportAppointmentsEap(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_ADMIN)
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER));
+		accountCapabilityFlags.setCanViewStudyInsights(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.STUDY_ADMIN));
 
 		return accountCapabilityFlags;
 	}
@@ -736,6 +742,9 @@ public class AuthorizationService {
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
 	}
+
+	@Nonnull
+	protected StudyService getStudyService() { return this.studyServiceProvider.get(); }
 
 	@Nonnull
 	protected Normalizer getNormalizer() {
