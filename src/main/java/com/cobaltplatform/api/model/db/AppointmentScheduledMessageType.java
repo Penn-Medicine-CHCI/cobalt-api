@@ -28,41 +28,29 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class AccountCapabilityType {
+public class AppointmentScheduledMessageType {
 	@Nullable
-	private AccountCapabilityTypeId accountCapabilityTypeId;
+	private AppointmentScheduledMessageTypeId appointmentScheduledMessageTypeId;
 	@Nullable
 	private String description;
 
-	public enum AccountCapabilityTypeId {
-		MHIC_SAFETY_PLANNING_ADMIN,
-		MHIC_ADMIN,
-		MHIC_REPORT_VIEWER,
-		MHIC_DEPARTMENT_ADMIN,
-		MHIC_ORDER_SERVICER,
-		GROUP_SESSION_ADMIN,
-		CONTENT_ADMIN,
-		ANALYTICS_VIEWER,
-		PROVIDER_REPORT_ADMIN,
-		PROVIDER_REPORT_UNUSED_AVAILABILITY_VIEWER,
-		PROVIDER_REPORT_APPOINTMENTS_VIEWER,
-		PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER,
-		PROVIDER_REPORT_APPOINTMENT_CANCELATIONS_VIEWER,
-		STUDY_ADMIN
+	public enum AppointmentScheduledMessageTypeId {
+		FEEDBACK_SURVEY
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{accountCapabilityTypeId=%s, description=%s}", getClass().getSimpleName(), getAccountCapabilityTypeId(), getDescription());
+		return format("%s{appointmentScheduledMessageTypeId=%s, description=%s}", getClass().getSimpleName(),
+				getAppointmentScheduledMessageTypeId(), getDescription());
 	}
 
 	@Nullable
-	public AccountCapabilityTypeId getAccountCapabilityTypeId() {
-		return this.accountCapabilityTypeId;
+	public AppointmentScheduledMessageTypeId getAppointmentScheduledMessageTypeId() {
+		return this.appointmentScheduledMessageTypeId;
 	}
 
-	public void setAccountCapabilityTypeId(@Nullable AccountCapabilityTypeId accountCapabilityTypeId) {
-		this.accountCapabilityTypeId = accountCapabilityTypeId;
+	public void setAppointmentScheduledMessageTypeId(@Nullable AppointmentScheduledMessageTypeId appointmentScheduledMessageTypeId) {
+		this.appointmentScheduledMessageTypeId = appointmentScheduledMessageTypeId;
 	}
 
 	@Nullable

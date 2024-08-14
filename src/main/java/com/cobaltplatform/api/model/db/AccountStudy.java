@@ -55,6 +55,9 @@ public class AccountStudy {
 	@Nonnull
 	private Boolean deleted;
 
+	@Nonnull
+	private RecordingPreference.RecordingPreferenceId recordingPreferenceId;
+
 	@Nullable
 	public UUID getAccountStudyId() {
 		return this.accountStudyId;
@@ -143,5 +146,14 @@ public class AccountStudy {
 
 	public void setStudyStarted(@Nullable Boolean studyStarted) {
 		this.studyStarted = studyStarted;
+	}
+
+	@Nonnull
+	public RecordingPreference.RecordingPreferenceId getRecordingPreferenceId() {
+		return recordingPreferenceId;
+	}
+
+	public void setRecordingPreferenceId(@Nonnull RecordingPreference.RecordingPreferenceId recordingPreferenceId) {
+		this.recordingPreferenceId = recordingPreferenceId;
 	}
 }

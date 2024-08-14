@@ -40,6 +40,7 @@ public class AccountCapabilityFlags {
 	private boolean canViewProviderReportAppointmentCancelations;
 	private boolean canViewProviderReportAppointments;
 	private boolean canViewProviderReportAppointmentsEap;
+	private boolean canViewStudyInsights;
 
 	public boolean isCanServiceIcOrders() {
 		return this.canServiceIcOrders;
@@ -151,5 +152,13 @@ public class AccountCapabilityFlags {
 
 	public void setCanViewProviderReportAppointmentsEap(boolean canViewProviderReportAppointmentsEap) {
 		this.canViewProviderReportAppointmentsEap = canViewProviderReportAppointmentsEap;
+	}
+
+	public boolean isCanViewStudyInsights() {
+		return canViewStudyInsights;
+	}
+
+	public void setCanViewStudyInsights(boolean canViewStudyInsights) {
+		this.canViewStudyInsights = canViewStudyInsights;
 	}
 }

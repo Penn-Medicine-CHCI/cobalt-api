@@ -331,6 +331,15 @@ public class Institution {
 	@Nullable
 	private String epicProviderSlotBookingSyncVisitTypeIdType;
 
+	@Nullable
+	private Boolean appointmentFeedbackSurveyEnabled;
+	@Nullable
+	private String appointmentFeedbackSurveyUrl;
+	@Nullable
+	private String appointmentFeedbackSurveyDurationDescription;
+	@Nullable
+	private Integer appointmentFeedbackSurveyDelayInMinutes;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1558,5 +1567,41 @@ public class Institution {
 
 	public void setEpicProviderSlotBookingSyncVisitTypeIdType(@Nullable String epicProviderSlotBookingSyncVisitTypeIdType) {
 		this.epicProviderSlotBookingSyncVisitTypeIdType = epicProviderSlotBookingSyncVisitTypeIdType;
+	}
+
+	@Nullable
+	public Boolean getAppointmentFeedbackSurveyEnabled() {
+		return this.appointmentFeedbackSurveyEnabled;
+	}
+
+	public void setAppointmentFeedbackSurveyEnabled(@Nullable Boolean appointmentFeedbackSurveyEnabled) {
+		this.appointmentFeedbackSurveyEnabled = appointmentFeedbackSurveyEnabled;
+	}
+
+	@Nullable
+	public String getAppointmentFeedbackSurveyUrl() {
+		return this.appointmentFeedbackSurveyUrl;
+	}
+
+	public void setAppointmentFeedbackSurveyUrl(@Nullable String appointmentFeedbackSurveyUrl) {
+		this.appointmentFeedbackSurveyUrl = appointmentFeedbackSurveyUrl;
+	}
+
+	@Nullable
+	public Integer getAppointmentFeedbackSurveyDelayInMinutes() {
+		return this.appointmentFeedbackSurveyDelayInMinutes;
+	}
+
+	public void setAppointmentFeedbackSurveyDelayInMinutes(@Nullable Integer appointmentFeedbackSurveyDelayInMinutes) {
+		this.appointmentFeedbackSurveyDelayInMinutes = appointmentFeedbackSurveyDelayInMinutes;
+	}
+
+	@Nullable
+	public String getAppointmentFeedbackSurveyDurationDescription() {
+		return this.appointmentFeedbackSurveyDurationDescription;
+	}
+
+	public void setAppointmentFeedbackSurveyDurationDescription(@Nullable String appointmentFeedbackSurveyDurationDescription) {
+		this.appointmentFeedbackSurveyDurationDescription = appointmentFeedbackSurveyDurationDescription;
 	}
 }
