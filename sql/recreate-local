@@ -187,7 +187,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/177-epic-provi
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/178-order-reference-number.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/179-appointment-feedback-survey.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/180-study-audio-video-tracking.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/181-content-spring-cleaning.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/181-data-sync.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/182-content-spring-cleaning.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

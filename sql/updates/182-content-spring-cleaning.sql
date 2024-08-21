@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('181-content-spring-cleaning', NULL, NULL);
+SELECT _v.register_patch('182-content-spring-cleaning', NULL, NULL);
 
 -- Introduce WEBSITE content type
 INSERT INTO content_type (content_type_id, description, call_to_action) VALUES ('WEBSITE', 'Website', 'Visit Website');
