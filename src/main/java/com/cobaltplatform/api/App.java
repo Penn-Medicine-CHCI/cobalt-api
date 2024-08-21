@@ -26,6 +26,7 @@ import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.ContentService;
+import com.cobaltplatform.api.service.DataSyncService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.service.PatientOrderService;
@@ -236,6 +237,15 @@ public class App implements AutoCloseable {
 		} catch (Exception e) {
 			getLogger().warn("Failed to start Study Service background task", e);
 		}
+
+		if (getConfiguration().getShouldRunDataSync()) {
+			try {
+				DataSyncService dataSyncService = getInjector().getInstance(DataSyncService.class);
+				dataSyncService.startBackgroundTask();
+			} catch (Exception e) {
+				getLogger().warn("Failed to start Data Sync Service background task", e);
+			}
+		}
 	}
 
 	public void performShutdownTasks() {
@@ -258,6 +268,15 @@ public class App implements AutoCloseable {
 			studyService.stopBackgroundTask();
 		} catch (Exception e) {
 			getLogger().warn("Failed to stop Study Service background task", e);
+		}
+
+		if (getConfiguration().getShouldRunDataSync()) {
+			try {
+				DataSyncService dataSyncService = getInjector().getInstance(DataSyncService.class);
+				dataSyncService.stopBackgroundTask();
+			} catch (Exception e) {
+				getLogger().warn("Failed to stop Data Sync Service background task", e);
+			}
 		}
 
 		try {

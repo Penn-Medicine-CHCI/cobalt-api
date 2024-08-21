@@ -282,6 +282,9 @@ public class Configuration {
 	@Nullable
 	private final AwsSecretManagerClient secretManagerClient;
 
+	@Nonnull
+	private final Boolean shouldRunDataSync;
+
 	static {
 		ENV_ENV_VARIABLE_NAME = "COBALT_API_ENV";
 		PORT_ENV_VARIABLE_NAME = "COBALT_API_PORT";
@@ -446,6 +449,8 @@ public class Configuration {
 		this.samlSettingsByIdentityProvider = Collections.emptyMap();
 
 		this.shouldIncludeTestDataInIcReports = !isProduction();
+
+		this.shouldRunDataSync = valueFor("com.cobaltplatform.api.shouldRunDataSync", Boolean.class);
 
 		if (getAmazonUseLocalstack()) {
 			// Prime the default credential provider chain
@@ -1485,5 +1490,10 @@ public class Configuration {
 	public Boolean isRunningInIntegrationTestMode() {
 		// Integration tests can override this at runtime to unlock "secret" abilities not allowed during normal system operation
 		return false;
+	}
+
+	@Nonnull
+	public Boolean getShouldRunDataSync() {
+		return shouldRunDataSync;
 	}
 }
