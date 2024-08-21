@@ -81,55 +81,64 @@ AS SELECT vac.*,
 	institution_content it
 WHERE vac.content_id = it.content_id;
 
+-- Content audience type group, e.g. "The user's family member" is a group that could include audience types TODDLER, PRETEEN, etc.
+CREATE TABLE content_audience_type_group (
+	content_audience_type_group_id TEXT PRIMARY KEY,
+  description VARCHAR NOT NULL,
+  example_sentence VARCHAR NOT NULL,
+  display_order INTEGER NOT NULL
+);
+
+INSERT INTO content_audience_type_group (content_audience_type_group_id, description, example_sentence, display_order)
+VALUES ('MYSELF', 'The user (who is an adult)', 'I want resources for {myself}', 1);
+
+INSERT INTO content_audience_type_group (content_audience_type_group_id, description, example_sentence, display_order)
+VALUES ('FAMILY_MEMBER', 'The user''s family member', 'I want resources for my {preteen}', 2);
+
 -- Introduce content audience: who the content is for (myself, someone else)
 CREATE TABLE content_audience_type (
 	content_audience_type_id TEXT PRIMARY KEY,
+	content_audience_type_group_id TEXT NOT NULL REFERENCES content_audience_type_group,
   description VARCHAR NOT NULL,
-  sentence_representation VARCHAR NOT NULL,
+  patient_representation VARCHAR NOT NULL,
   display_order INTEGER NOT NULL
 );
 
-INSERT INTO content_audience_type (content_audience_type_id, description, sentence_representation, display_order) VALUES ('MYSELF', 'Myself', 'myself', 1);
-INSERT INTO content_audience_type (content_audience_type_id, description, sentence_representation, display_order) VALUES ('SOMEONE_ELSE', 'Someone Else', 'someone else', 2);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('MYSELF', 'MYSELF', 'Myself', 'myself', 1);
 
--- Introduce content subject: who the content is about (myself, someone else)
-CREATE TABLE content_subject_type (
-	content_subject_type_id TEXT PRIMARY KEY,
-  description VARCHAR NOT NULL,
-  sentence_representation VARCHAR NOT NULL,
-  display_order INTEGER NOT NULL
-);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('TODDLER', 'FAMILY_MEMBER', 'Toddler', 'toddler', 2);
 
-INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('MYSELF', 'Myself', 'myself', 1);
-INSERT INTO content_subject_type (content_subject_type_id, description, sentence_representation, display_order) VALUES ('SOMEONE_ELSE', 'Someone Else', 'someone else', 2);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('CHILD', 'FAMILY_MEMBER', 'Child (6-10)', 'child', 3);
 
--- Introduce content subject: who the content is about (myself, someone else)
-CREATE TABLE content_age_type (
-	content_age_type_id TEXT PRIMARY KEY,
-  description VARCHAR NOT NULL,
-  sentence_representation VARCHAR NOT NULL,
-  display_order INTEGER NOT NULL
-);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('PRETEEN', 'FAMILY_MEMBER', 'Preteen', 'preteen', 4);
 
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('ADULT', 'Adult', 'adult', 1);
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('CHILD', 'Child', 'adult', 2);
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('TEEN_OR_YOUNG_ADULT', 'Teen or Young Adult', 'teen or young adult', 3);
-INSERT INTO content_age_type (content_age_type_id, description, sentence_representation, display_order) VALUES ('SENIOR', 'Senior', 'senior', 4);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('TEEN', 'FAMILY_MEMBER', 'Teen', 'teen', 5);
 
--- Combine content audience, subject, and age into a "content target group"
-CREATE TABLE content_target_group (
-	content_target_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('ADULT_CHILD', 'FAMILY_MEMBER', 'Adult Child', 'adult child', 6);
+
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('SPOUSE', 'FAMILY_MEMBER', 'Spouse (Adult)', 'spouse', 7);
+
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
+VALUES ('AGING_PARENT', 'FAMILY_MEMBER', 'Aging Parent (Senior)', 'aging parent', 8);
+
+-- Combine content with audience types (a single piece of content might have many audience types)
+CREATE TABLE content_audience (
 	content_id UUID NOT NULL REFERENCES content,
 	content_audience_type_id TEXT NOT NULL REFERENCES content_audience_type,
-	content_subject_type_id TEXT NOT NULL REFERENCES content_subject_type,
-	content_age_type_id TEXT NOT NULL REFERENCES content_age_type,
 	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	CONSTRAINT content_audience_pkey PRIMARY KEY(content_id, content_audience_type_id)
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON content_target_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
-CREATE UNIQUE INDEX content_target_group_unique_idx ON content_target_group USING btree (content_id, content_audience_type_id, content_subject_type_id, content_age_type_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON content_audience FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Introduce group session visibility: public vs. unlisted
 CREATE TABLE group_session_visibility_type (
