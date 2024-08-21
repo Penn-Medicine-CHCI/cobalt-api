@@ -101,32 +101,29 @@ CREATE TABLE content_audience_type (
 	content_audience_type_group_id TEXT NOT NULL REFERENCES content_audience_type_group,
   description VARCHAR NOT NULL,
   patient_representation VARCHAR NOT NULL,
+  url_name VARCHAR NOT NULL,
   display_order INTEGER NOT NULL
 );
 
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('MYSELF', 'MYSELF', 'Myself', 'myself', 1);
+CREATE UNIQUE INDEX content_audience_type_url_name_unique_idx ON content_audience_type USING btree (url_name);
 
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('TODDLER', 'FAMILY_MEMBER', 'Toddler', 'toddler', 2);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
+VALUES ('MYSELF', 'MYSELF', 'Myself', 'myself', 'myself', 1);
 
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('CHILD', 'FAMILY_MEMBER', 'Child (6-10)', 'child', 3);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
+VALUES ('TODDLER_OR_CHILD', 'FAMILY_MEMBER', 'Toddler/Child', 'toddler/child', 'toddler-child',  2);
 
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('PRETEEN', 'FAMILY_MEMBER', 'Preteen', 'preteen', 4);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
+VALUES ('PRETEEN_OR_TEEN', 'FAMILY_MEMBER', 'Preteen/Teen', 'preteen/teen', 'preteen-teen',  3);
 
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('TEEN', 'FAMILY_MEMBER', 'Teen', 'teen', 5);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
+VALUES ('ADULT_CHILD', 'FAMILY_MEMBER', 'Adult Child', 'adult child', 'adult-child',  4);
 
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('ADULT_CHILD', 'FAMILY_MEMBER', 'Adult Child', 'adult child', 6);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
+VALUES ('SPOUSE', 'FAMILY_MEMBER', 'Spouse (Adult)', 'spouse', 'spouse',  5);
 
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('SPOUSE', 'FAMILY_MEMBER', 'Spouse (Adult)', 'spouse', 7);
-
-INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, display_order)
-VALUES ('AGING_PARENT', 'FAMILY_MEMBER', 'Aging Parent (Senior)', 'aging parent', 8);
+INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
+VALUES ('AGING_PARENT', 'FAMILY_MEMBER', 'Aging Parent (Senior)', 'aging parent', 'aging-parent',  6);
 
 -- Combine content with audience types (a single piece of content might have many audience types)
 CREATE TABLE content_audience (
