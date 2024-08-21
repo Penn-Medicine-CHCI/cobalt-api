@@ -283,8 +283,7 @@ public class DataSyncService implements AutoCloseable {
 					        FROM remote_institution ri
 					        WHERE ri.institution_id NOT IN
 					        (SELECT i.institution_id
-					        FROM institution i)
-					        AND ri.institution_id IN ('PENN','CHICAGO'))
+					        FROM institution i))
 					""");
 
 			//Pull over any file upload rows that are used by content that we'll be pulling over
