@@ -1,6 +1,195 @@
 BEGIN;
 SELECT _v.register_patch('182-content-spring-cleaning', NULL, NULL);
 
+-- Footprint tracking
+CREATE TABLE footprint_event_group_type (
+  footprint_event_group_type_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO footprint_event_group_type VALUES ('UNSPECIFIED', 'Unspecified');
+INSERT INTO footprint_event_group_type VALUES ('CONTENT_CREATE', 'Content Create');
+INSERT INTO footprint_event_group_type VALUES ('CONTENT_UPDATE', 'Content Update');
+INSERT INTO footprint_event_group_type VALUES ('CONTENT_DELETE', 'Content Delete');
+INSERT INTO footprint_event_group_type VALUES ('CONTENT_PUBLISH', 'Content Publish');
+INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_CREATE', 'Group Session Create');
+INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_UPDATE', 'Group Session Update');
+INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_UPDATE_STATUS', 'Group Session Update Status');
+INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_RESERVATION_CREATE', 'Group Session Reservation Create');
+INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_RESERVATION_CANCEL', 'Group Session Reservation Cancel');
+
+-- Footprint events are logically grouped together.
+-- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event
+-- records associated (insert on content table, inserts on content_tag table, etc.)
+CREATE TABLE footprint_event_group (
+  footprint_event_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  footprint_event_group_type_id VARCHAR NOT NULL REFERENCES footprint_event_group_type,
+  account_id UUID REFERENCES account,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON footprint_event_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Matches Postgres' TG_OP values
+CREATE TABLE footprint_event_operation_type (
+  footprint_event_operation_type_id VARCHAR PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO footprint_event_operation_type VALUES ('INSERT', 'Insert');
+INSERT INTO footprint_event_operation_type VALUES ('UPDATE', 'Update');
+INSERT INTO footprint_event_operation_type VALUES ('DELETE', 'Delete');
+INSERT INTO footprint_event_operation_type VALUES ('TRUNCATE', 'Truncate');
+
+-- Track an insert/update/delete event for a single table.
+-- Events can be logically grouped by footprint_event_group above.
+CREATE TABLE footprint_event (
+  footprint_event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  footprint_event_group_id UUID NOT NULL REFERENCES footprint_event_group,
+  footprint_event_operation_type_id VARCHAR NOT NULL REFERENCES footprint_event_operation_type,
+  table_name VARCHAR NOT NULL,
+  old_value JSONB, -- JSONB representation of old ROW via to_jsonb(). null if inserting
+  new_value JSONB, -- JSONB representation of new ROW via to_jsonb(). null if deleting
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON footprint_event FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Store off insert/update/delete footprint event for a single table.
+-- If we have contextual information about the account or footprint event group, apply it.
+CREATE OR REPLACE FUNCTION perform_footprint() RETURNS TRIGGER AS $$
+DECLARE
+  current_footprint_event_group_id_as_text TEXT;
+  current_account_id_as_text TEXT;
+  current_footprint_event_group_id UUID;
+  current_account_id UUID;
+BEGIN
+  -- Pull values from SET LOCAL (if available).
+  -- Have to do this in two steps to ensure provided data appears valid for casting to UUID type
+  SELECT current_setting('cobalt.footprint_event_group_id', TRUE) INTO current_footprint_event_group_id_as_text;
+  SELECT current_setting('cobalt.account_id', TRUE) INTO current_account_id_as_text;
+
+  IF LENGTH(current_footprint_event_group_id_as_text) = 36 THEN
+    current_footprint_event_group_id := CAST(current_footprint_event_group_id_as_text AS UUID);
+  END IF;
+
+  IF LENGTH(current_account_id_as_text) = 36 THEN
+    current_account_id := CAST(current_account_id_as_text AS UUID);
+  END IF;
+
+  -- If we don't have a defined event group, create one for this insert
+  IF current_footprint_event_group_id IS NULL THEN
+		current_footprint_event_group_id := uuid_generate_v4();
+		INSERT INTO footprint_event_group (footprint_event_group_id, footprint_event_group_type_id, account_id)
+		VALUES (current_footprint_event_group_id, 'UNSPECIFIED', current_account_id);
+  END IF;
+
+  -- Perform the actual event tracking
+	IF (TG_OP = 'INSERT') THEN
+		INSERT INTO footprint_event (footprint_event_group_id, footprint_event_operation_type_id, table_name, old_value, new_value)
+		SELECT current_footprint_event_group_id, 'INSERT', TG_TABLE_NAME, NULL, to_jsonb(NEW);
+		RETURN NEW;
+	ELSIF (TG_OP = 'UPDATE') THEN
+		INSERT INTO footprint_event (footprint_event_group_id, footprint_event_operation_type_id, table_name, old_value, new_value)
+		SELECT current_footprint_event_group_id, 'UPDATE', TG_TABLE_NAME, to_jsonb(OLD), to_jsonb(NEW);
+		RETURN NEW;
+	ELSIF (TG_OP = 'DELETE') THEN
+	  INSERT INTO footprint_event (footprint_event_group_id, footprint_event_operation_type_id, table_name, old_value, new_value)
+		SELECT current_footprint_event_group_id, 'DELETE', TG_TABLE_NAME, to_jsonb(OLD), NULL;
+		RETURN OLD;
+	END IF;
+
+	RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER content_footprint AFTER INSERT OR UPDATE OR DELETE ON content FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER institution_content_footprint AFTER INSERT OR UPDATE OR DELETE ON institution_content FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER tag_content_footprint AFTER INSERT OR UPDATE OR DELETE ON tag_content FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+CREATE TRIGGER group_session_footprint AFTER INSERT OR UPDATE OR DELETE ON group_session FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER tag_group_session_footprint AFTER INSERT OR UPDATE OR DELETE ON tag_group_session FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER group_session_reservation_footprint AFTER INSERT OR UPDATE OR DELETE ON group_session_reservation FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Useful for examining diffs between footprint events
+--
+-- Example:
+-- > select jsonb_diff(old_value, new_value) from footprint_event where footprint_event_id='...'
+--                                jsonb_diff
+-- ----------------------------------------------------------------------
+-- {"canceled": true, "last_updated": "2024-08-22T17:13:58.972176+00:00"}
+--
+-- Sourced from https://gist.github.com/jarppe/f3cdd32ec58a4bdfb29daa67ef6c3b78
+--
+-- Helper function to produce a diff of two jsonb values.
+--
+-- Accepts:
+--   val1: original jsonb value
+--   val2: updated jsonb value
+--
+-- Returns:
+--   jsonb of changed values
+--
+-- Examples:
+--   val1:     {"a": {"b": 1}}
+--   val2:     {"a": {"b": 1, "c": 2}}
+--   returns:  {"a": {"c": 2}}
+--
+create or replace function jsonb_diff
+  (old jsonb, new jsonb)
+  returns jsonb
+  language 'plpgsql'
+as
+$$
+declare
+  result        jsonb;
+  object_result jsonb;
+  k             text;
+  v             record;
+  empty         jsonb = '{}'::jsonb;
+begin
+  if old is null or jsonb_typeof(old) = 'null'
+    then
+      return new;
+  end if;
+
+  if new is null or jsonb_typeof(new) = 'null'
+    then
+      return empty;
+  end if;
+
+  result = old;
+
+  for k in select * from jsonb_object_keys(old)
+    loop
+      result = result || jsonb_build_object(k, null);
+    end loop;
+
+  for v in select * from jsonb_each(new)
+    loop
+      if jsonb_typeof(old -> v.key) = 'object' and jsonb_typeof(new -> v.key) = 'object'
+        then
+          object_result = jsonb_diff(old -> v.key, new -> v.key);
+          if object_result = empty
+            then
+              result = result - v.key;
+            else
+              result = result || jsonb_build_object(v.key, object_result);
+          end if;
+        elsif old -> v.key = new -> v.key
+          then
+            result = result - v.key;
+        else
+          result = result || jsonb_build_object(v.key, v.value);
+      end if;
+    end loop;
+
+  return result;
+end;
+$$;
+
 -- Introduce WEBSITE content type
 INSERT INTO content_type (content_type_id, description, call_to_action) VALUES ('WEBSITE', 'Website', 'Visit Website');
 

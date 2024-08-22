@@ -52,6 +52,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.FileUpload;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
@@ -824,11 +825,13 @@ public class GroupSessionService implements AutoCloseable {
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_CREATE);
+
 		getDatabase().execute("""
 						INSERT INTO group_session (group_session_id, institution_id,
 						group_session_status_id, title, description, submitter_account_id,
 						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
-					  videoconference_url, start_date_time, end_date_time, seats, url_name,
+						 videoconference_url, start_date_time, end_date_time, seats, url_name,
 						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
 						group_session_location_type_id, send_followup_email, followup_email_content, followup_email_survey_url,
 						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
@@ -1227,6 +1230,8 @@ public class GroupSessionService implements AutoCloseable {
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE);
+
 		if (restrictedUpdate) {
 			getDatabase().execute("""
 							UPDATE group_session SET description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
@@ -1440,6 +1445,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE_STATUS);
 
 		// No-op if status is not changing
 		if (groupSessionStatusId == groupSession.getGroupSessionStatusId())
@@ -1655,6 +1662,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_RESERVATION_CREATE);
 
 		if (emailAddress != null) {
 			getAccountService().updateAccountEmailAddress(new UpdateAccountEmailAddressRequest() {{
@@ -1873,6 +1882,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_RESERVATION_CANCEL);
 
 		boolean success = getDatabase().execute("UPDATE group_session_reservation SET canceled=TRUE WHERE group_session_reservation_id=?",
 				groupSessionReservationId) > 0;
@@ -2407,6 +2418,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		return fileUploadResult;
 	}
+
 	@Nonnull
 	public String generateGoogleCalendarTemplateUrl(@Nonnull GroupSession groupSession) {
 		requireNonNull(groupSession);
@@ -2475,10 +2487,10 @@ public class GroupSessionService implements AutoCloseable {
 		if (groupSession.getImageFileUploadId() == null)
 			return null;
 		else {
-			Optional<FileUpload> fileUpload= getDatabase().queryForObject("""
-				SELECT *
-				FROM file_upload
-				WHERE file_upload_id = ?""", FileUpload.class, groupSession.getGroupSessionId());
+			Optional<FileUpload> fileUpload = getDatabase().queryForObject("""
+					SELECT *
+					FROM file_upload
+					WHERE file_upload_id = ?""", FileUpload.class, groupSession.getGroupSessionId());
 
 			if (fileUpload.isPresent())
 				return fileUpload.get().getUrl();

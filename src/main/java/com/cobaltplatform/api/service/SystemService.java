@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.FileUpload;
 import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MicrosoftTeamsMeeting;
 import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
@@ -101,6 +103,8 @@ public class SystemService {
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
+	private final javax.inject.Provider<CurrentContext> currentContextProvider;
+	@Nonnull
 	private final javax.inject.Provider<ProviderService> providerServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<MessageService> messageServiceProvider;
@@ -125,6 +129,7 @@ public class SystemService {
 
 	@Inject
 	public SystemService(@Nonnull DatabaseProvider databaseProvider,
+											 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 											 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 											 @Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 											 @Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
@@ -136,6 +141,7 @@ public class SystemService {
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
 		requireNonNull(databaseProvider);
+		requireNonNull(currentContextProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(accountServiceProvider);
@@ -148,6 +154,7 @@ public class SystemService {
 		requireNonNull(strings);
 
 		this.databaseProvider = databaseProvider;
+		this.currentContextProvider = currentContextProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
@@ -159,6 +166,47 @@ public class SystemService {
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	public Boolean applyFootprintForCurrentAccountToCurrentTransaction() {
+		Account account = getCurrentContext().getAccount().orElse(null);
+		return applyFootprintForCurrentAccountToCurrentTransaction(account == null ? null : account.getAccountId());
+	}
+
+	@Nonnull
+	public Boolean applyFootprintForCurrentAccountToCurrentTransaction(@Nullable UUID accountId) {
+		if (!getDatabase().currentTransaction().isPresent())
+			return false;
+
+		getDatabase().queryForObject("SELECT set_config('cobalt.account_id', CAST(? AS TEXT), TRUE)",
+				String.class, accountId);
+
+		return true;
+	}
+
+	@Nonnull
+	public Boolean applyFootprintEventGroupToCurrentTransaction(@Nonnull FootprintEventGroupTypeId footprintEventGroupTypeId) {
+		requireNonNull(footprintEventGroupTypeId);
+
+		if (!getDatabase().currentTransaction().isPresent())
+			return false;
+
+		Account account = getCurrentContext().getAccount().orElse(null);
+		UUID footprintEventGroupId = UUID.randomUUID();
+
+		getDatabase().execute("""
+				INSERT INTO footprint_event_group (
+				footprint_event_group_id,
+				footprint_event_group_type_id,
+				account_id
+				) VALUES (?,?,?)
+				""", footprintEventGroupId, footprintEventGroupTypeId, account == null ? null : account.getAccountId());
+
+		getDatabase().queryForObject("SELECT set_config('cobalt.footprint_event_group_id', CAST(? AS TEXT), TRUE)",
+				String.class, footprintEventGroupId);
+
+		return true;
 	}
 
 	@Nonnull
@@ -687,6 +735,11 @@ public class SystemService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull
