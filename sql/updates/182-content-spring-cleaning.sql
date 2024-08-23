@@ -25,6 +25,9 @@ CREATE TABLE footprint_event_group (
   footprint_event_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   footprint_event_group_type_id VARCHAR NOT NULL REFERENCES footprint_event_group_type,
   account_id UUID REFERENCES account,
+  connection_username VARCHAR,
+  connection_application_name VARCHAR,
+  connection_ip_address VARCHAR,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -82,8 +85,10 @@ BEGIN
   -- If we don't have a defined event group, create one for this insert
   IF current_footprint_event_group_id IS NULL THEN
 		current_footprint_event_group_id := uuid_generate_v4();
-		INSERT INTO footprint_event_group (footprint_event_group_id, footprint_event_group_type_id, account_id)
-		VALUES (current_footprint_event_group_id, 'UNSPECIFIED', current_account_id);
+		INSERT INTO footprint_event_group (footprint_event_group_id, footprint_event_group_type_id, account_id, connection_username, connection_application_name, connection_ip_address)
+		SELECT current_footprint_event_group_id, 'UNSPECIFIED', current_account_id, usename, application_name, client_addr
+		FROM pg_stat_activity
+		WHERE pid=pg_backend_pid();
   END IF;
 
   -- Perform the actual event tracking

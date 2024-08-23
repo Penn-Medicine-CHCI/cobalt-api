@@ -197,10 +197,16 @@ public class SystemService {
 
 		getDatabase().execute("""
 				INSERT INTO footprint_event_group (
-				footprint_event_group_id,
-				footprint_event_group_type_id,
-				account_id
-				) VALUES (?,?,?)
+				  footprint_event_group_id,
+				  footprint_event_group_type_id,
+				  account_id,
+				  connection_username,
+				  connection_application_name,
+				  connection_ip_address
+				)
+				SELECT ?, ?, ?, usename, application_name, client_addr
+				FROM pg_stat_activity
+				WHERE pid=pg_backend_pid()
 				""", footprintEventGroupId, footprintEventGroupTypeId, account == null ? null : account.getAccountId());
 
 		getDatabase().queryForObject("SELECT set_config('cobalt.footprint_event_group_id', CAST(? AS TEXT), TRUE)",
