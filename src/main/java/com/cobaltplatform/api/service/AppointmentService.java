@@ -1884,7 +1884,7 @@ public class AppointmentService {
 					.messageContext(cobaltPatientEmailMessageContext)
 					.build();
 
-			getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_PATIENT_REMINDER_SCHEDULED_MESSAGE);
+			getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_PATIENT_REMINDER_SCHEDULED_MESSAGE_CREATE);
 
 			UUID patientReminderScheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
 				setMetadata(Map.of("appointmentId", appointmentId));

@@ -66,6 +66,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -172,20 +174,23 @@ public class SystemService {
 	}
 
 	@Nonnull
-	public Boolean applyFootprintForCurrentAccountToCurrentTransaction() {
-		Account account = getCurrentContext().getAccount().orElse(null);
-		return applyFootprintForCurrentAccountToCurrentTransaction(account == null ? null : account.getAccountId());
-	}
-
-	@Nonnull
-	public Boolean applyFootprintForCurrentAccountToCurrentTransaction(@Nullable UUID accountId) {
+	public Boolean applyFootprintForCurrentContextToCurrentTransaction() {
 		if (!getDatabase().currentTransaction().isPresent()) {
 			getLogger().warn("There is no open transaction; not applying current account to footprint");
 			return false;
 		}
 
-		getDatabase().queryForObject("SELECT set_config('cobalt.account_id', CAST(? AS TEXT), TRUE)",
-				String.class, accountId);
+		FootprintContext footprintContext = FootprintContext.forCurrentContext(getCurrentContext());
+
+		getDatabase().queryForObject("""
+						SELECT
+							set_config('cobalt.account_id', CAST(? AS TEXT), TRUE) AS account_id_configured,
+							set_config('cobalt.api_call_url', CAST(? AS TEXT), TRUE) AS api_call_url_configured,
+							set_config('cobalt.background_thread_name', CAST(? AS TEXT), TRUE) AS background_thread_name_configured
+						""", FootprintContextSetResult.class,
+				footprintContext.getAccountId().orElse(null),
+				footprintContext.getApiCallUrl().orElse(null),
+				footprintContext.getBackgroundThreadName().orElse(null));
 
 		return true;
 	}
@@ -199,37 +204,8 @@ public class SystemService {
 			return false;
 		}
 
-		Account account = getCurrentContext().getAccount().orElse(null);
 		UUID footprintEventGroupId = UUID.randomUUID();
-
-		// Determine whether we are in the context of a web request or background thread
-		String apiCallUrl = null;
-		String backgroundThreadName = null;
-
-		try {
-			// If this does not throw IllegalStateException, then we are on a request thread
-			RequestContext requestContext = RequestContext.get();
-			HttpServletRequest httpServletRequest = requestContext.httpServletRequest();
-
-			// e.g. "DELETE /appointments/1234"
-			apiCallUrl = format("%s %s", httpServletRequest.getMethod(), WebUtility.httpServletRequestUrl(httpServletRequest));
-
-			/*
-			  In the future, might want to track the actual method invoked.  Would look like this:
-
-			  Route route = requestContext.route().orElse(null);
-
-			  if(route != null) {
-				  String apiCallHandlerResourceMethodClass = route.resourceMethod().getDeclaringClass().getSimpleName();
-				  String apiCallHandlerResourceMethodName = route.resourceMethod().getName();
-				  String apiCallHandlerResourceMethodParameters = Arrays.stream(route.resourceMethod().getParameters()).map(parameter -> format("%s %s", parameter.getType().getSimpleName(), parameter.getName())).collect(Collectors.joining(", "));
-				  String apiCallHandler = format("%s::%s(%s)", apiCallHandlerResourceMethodClass, apiCallHandlerResourceMethodName, apiCallHandlerResourceMethodParameters);
-				}
-			 */
-		} catch (IllegalStateException ignored) {
-			// This means we are on a background thread
-			backgroundThreadName = Thread.currentThread().getName();
-		}
+		FootprintContext footprintContext = FootprintContext.forCurrentContext(getCurrentContext());
 
 		getDatabase().execute("""
 						INSERT INTO footprint_event_group (
@@ -245,13 +221,124 @@ public class SystemService {
 						SELECT ?, ?, ?, usename, application_name, client_addr, ?, ?
 						FROM pg_stat_activity
 						WHERE pid=pg_backend_pid()
-						""", footprintEventGroupId, footprintEventGroupTypeId, account == null ? null : account.getAccountId(),
-				apiCallUrl, backgroundThreadName);
+						""", footprintEventGroupId, footprintEventGroupTypeId, footprintContext.getAccountId().orElse(null),
+				footprintContext.getApiCallUrl().orElse(null), footprintContext.getBackgroundThreadName().orElse(null));
 
 		getDatabase().queryForObject("SELECT set_config('cobalt.footprint_event_group_id', CAST(? AS TEXT), TRUE)",
 				String.class, footprintEventGroupId);
 
 		return true;
+	}
+
+	@Immutable
+	protected static class FootprintContext {
+		@Nullable
+		private final UUID accountId;
+		@Nullable
+		private final String apiCallUrl;
+		@Nullable
+		private final String backgroundThreadName;
+
+		@Nonnull
+		public static FootprintContext forCurrentContext(@Nonnull CurrentContext currentContext) {
+			requireNonNull(currentContext);
+
+			// Current account
+			Account account = currentContext.getAccount().orElse(null);
+			UUID accountId = account == null ? null : account.getAccountId();
+
+			// Determine whether we are in the context of a web request or background thread
+			String apiCallUrl = null;
+			String backgroundThreadName = null;
+
+			try {
+				// If this does not throw IllegalStateException, then we are on a request thread
+				RequestContext requestContext = RequestContext.get();
+				HttpServletRequest httpServletRequest = requestContext.httpServletRequest();
+
+				// e.g. "DELETE /appointments/1234"
+				apiCallUrl = format("%s %s", httpServletRequest.getMethod(), WebUtility.httpServletRequestUrl(httpServletRequest));
+
+			/*
+			  In the future, might want to track the actual method invoked.  Would look like this:
+
+			  Route route = requestContext.route().orElse(null);
+
+			  if(route != null) {
+				  String apiCallHandlerResourceMethodClass = route.resourceMethod().getDeclaringClass().getSimpleName();
+				  String apiCallHandlerResourceMethodName = route.resourceMethod().getName();
+				  String apiCallHandlerResourceMethodParameters = Arrays.stream(route.resourceMethod().getParameters()).map(parameter -> format("%s %s", parameter.getType().getSimpleName(), parameter.getName())).collect(Collectors.joining(", "));
+				  String apiCallHandler = format("%s::%s(%s)", apiCallHandlerResourceMethodClass, apiCallHandlerResourceMethodName, apiCallHandlerResourceMethodParameters);
+				}
+			 */
+			} catch (IllegalStateException ignored) {
+				// This means we are on a background thread
+				backgroundThreadName = Thread.currentThread().getName();
+			}
+
+			return new FootprintContext(accountId, apiCallUrl, backgroundThreadName);
+		}
+
+		public FootprintContext(@Nullable UUID accountId,
+														@Nullable String apiCallUrl,
+														@Nullable String backgroundThreadName) {
+			this.accountId = accountId;
+			this.apiCallUrl = apiCallUrl;
+			this.backgroundThreadName = backgroundThreadName;
+		}
+
+		@Nonnull
+		public Optional<UUID> getAccountId() {
+			return Optional.ofNullable(this.accountId);
+		}
+
+		@Nonnull
+		public Optional<String> getApiCallUrl() {
+			return Optional.ofNullable(this.apiCallUrl);
+		}
+
+		@Nonnull
+		public Optional<String> getBackgroundThreadName() {
+			return Optional.ofNullable(this.backgroundThreadName);
+		}
+	}
+
+
+	@NotThreadSafe
+	protected static class FootprintContextSetResult {
+		@Nullable
+		private String accountIdConfigured;
+		@Nullable
+		private String apiCallUrlConfigured;
+		@Nullable
+		private String backgroundThreadNameConfigured;
+
+		@Nullable
+		public String getAccountIdConfigured() {
+			return this.accountIdConfigured;
+		}
+
+		public void setAccountIdConfigured(@Nullable String accountIdConfigured) {
+			this.accountIdConfigured = accountIdConfigured;
+		}
+
+		@Nullable
+		public String getApiCallUrlConfigured() {
+			return this.apiCallUrlConfigured;
+		}
+
+		public void setApiCallUrlConfigured(@Nullable String apiCallUrlConfigured) {
+			this.apiCallUrlConfigured = apiCallUrlConfigured;
+		}
+
+		@Nullable
+		public String getBackgroundThreadNameConfigured() {
+			return this.backgroundThreadNameConfigured;
+		}
+
+		public void setBackgroundThreadNameConfigured(@Nullable String backgroundThreadNameConfigured) {
+			this.backgroundThreadNameConfigured = backgroundThreadNameConfigured;
+		}
 	}
 
 	@Nonnull

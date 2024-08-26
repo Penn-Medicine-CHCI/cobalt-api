@@ -109,8 +109,8 @@ public class DatabaseFilter implements Filter {
 			getDatabase().transaction(() -> {
 				// This transaction wraps our HTTP resource methods (those annotated with @GET, @POST, etc.)
 				// We already know the current account (if one has been authenticated) at this point.
-				// Apply the current account to the current transaction for automated DB footprint capture
-				getSystemService().applyFootprintForCurrentAccountToCurrentTransaction();
+				// Apply the current context (account, resource method, etc.) to the current transaction for automated DB footprint capture
+				getSystemService().applyFootprintForCurrentContextToCurrentTransaction();
 
 				getDatabaseContextExecutor().execute(databaseContext, () -> {
 					filterChain.doFilter(servletRequest, servletResponse);

@@ -22,9 +22,8 @@ INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_RESERVATION_CANCEL
 -- Appointments
 INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CREATE', 'Appointment Create');
 INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CANCEL', 'Appointment Cancel');
-INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_PATIENT_REMINDER_SCHEDULED_MESSAGE', 'Appointment Patient Reminder Scheduled Message');
+INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_PATIENT_REMINDER_SCHEDULED_MESSAGE_CREATE', 'Appointment Patient Reminder Scheduled Message Create');
 -- Patient Orders
-INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_CREATE', 'Patient Order Create');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_PANEL_ACCOUNT', 'Patient Order Update Panel Account');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_DISPOSITION', 'Patient Order Update Disposition');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_CONSENT', 'Patient Order Update Consent');
@@ -32,6 +31,8 @@ INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_RESOURCE_CH
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_RESOURCING', 'Patient Order Update Resourcing');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_SAFETY_PLANNING', 'Patient Order Update Safety Planning');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_ENCOUNTER', 'Patient Order Update Encounter');
+-- Patient Order Imports
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_IMPORT_CREATE', 'Patient Order Import Create');
 
 -- Footprint events are logically grouped together.
 -- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event
@@ -85,11 +86,15 @@ DECLARE
   current_account_id_as_text TEXT;
   current_footprint_event_group_id UUID;
   current_account_id UUID;
+  current_api_call_url TEXT;
+  current_background_thread_name TEXT;
 BEGIN
   -- Pull values from SET LOCAL (if available).
   -- Have to do this in two steps to ensure provided data appears valid for casting to UUID type
   SELECT current_setting('cobalt.footprint_event_group_id', TRUE) INTO current_footprint_event_group_id_as_text;
   SELECT current_setting('cobalt.account_id', TRUE) INTO current_account_id_as_text;
+  SELECT NULLIF(current_setting('cobalt.api_call_url', TRUE), '') INTO current_api_call_url;
+  SELECT NULLIF(current_setting('cobalt.background_thread_name', TRUE), '') INTO current_background_thread_name;
 
   IF LENGTH(current_footprint_event_group_id_as_text) = 36 THEN
     current_footprint_event_group_id := CAST(current_footprint_event_group_id_as_text AS UUID);
@@ -102,8 +107,8 @@ BEGIN
   -- If we don't have a defined event group, create one for this insert
   IF current_footprint_event_group_id IS NULL THEN
 		current_footprint_event_group_id := uuid_generate_v4();
-		INSERT INTO footprint_event_group (footprint_event_group_id, footprint_event_group_type_id, account_id, connection_username, connection_application_name, connection_ip_address)
-		SELECT current_footprint_event_group_id, 'UNSPECIFIED', current_account_id, usename, application_name, client_addr
+		INSERT INTO footprint_event_group (footprint_event_group_id, footprint_event_group_type_id, account_id, connection_username, connection_application_name, connection_ip_address, api_call_url, background_thread_name)
+		SELECT current_footprint_event_group_id, 'UNSPECIFIED', current_account_id, usename, application_name, client_addr, current_api_call_url, current_background_thread_name
 		FROM pg_stat_activity
 		WHERE pid=pg_backend_pid();
   END IF;
@@ -142,7 +147,8 @@ CREATE TRIGGER appointment_footprint AFTER INSERT OR UPDATE OR DELETE ON appoint
 CREATE TRIGGER appointment_scheduled_message_footprint AFTER INSERT OR UPDATE OR DELETE ON appointment_scheduled_message FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- Patient Orders
--- TODO
+CREATE TRIGGER patient_order_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_import_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_import FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- Useful for examining diffs between footprint events
 --
