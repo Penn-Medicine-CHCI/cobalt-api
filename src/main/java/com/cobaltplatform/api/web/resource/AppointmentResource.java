@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -44,6 +45,7 @@ import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.ValidationException;
@@ -123,6 +125,8 @@ public class AppointmentResource {
 	@Nonnull
 	private final ProviderService providerService;
 	@Nonnull
+	private final SystemService systemService;
+	@Nonnull
 	private final JsonMapper jsonMapper;
 
 	@Inject
@@ -138,6 +142,7 @@ public class AppointmentResource {
 														 @Nonnull ActivityTrackingService activityTrackingService,
 														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull ProviderService providerService,
+														 @Nonnull SystemService systemService,
 														 @Nonnull JsonMapper jsonMapper) {
 		requireNonNull(appointmentService);
 		requireNonNull(accountService);
@@ -151,6 +156,7 @@ public class AppointmentResource {
 		requireNonNull(activityTrackingService);
 		requireNonNull(authorizationService);
 		requireNonNull(providerService);
+		requireNonNull(systemService);
 		requireNonNull(jsonMapper);
 
 		this.appointmentService = appointmentService;
@@ -166,6 +172,7 @@ public class AppointmentResource {
 		this.activityTrackingService = activityTrackingService;
 		this.authorizationService = authorizationService;
 		this.providerService = providerService;
+		this.systemService = systemService;
 		this.jsonMapper = jsonMapper;
 	}
 
@@ -331,6 +338,8 @@ public class AppointmentResource {
 		if (!getAuthorizationService().canUpdateAppointment(account, appointmentAccount))
 			throw new AuthorizationException();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_RESCHEDULE);
+
 		AuditLog auditLog = new AuditLog();
 		auditLog.setAccountId(account.getAccountId());
 		auditLog.setAuditLogEventId(AuditLogEvent.AuditLogEventId.APPOINTMENT_UPDATE);
@@ -358,6 +367,8 @@ public class AppointmentResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_CREATE);
 
 		AuditLog auditLog = new AuditLog();
 		auditLog.setAccountId(account.getAccountId());
@@ -413,6 +424,8 @@ public class AppointmentResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_CANCEL);
 
 		AuditLog auditLog = new AuditLog();
 		auditLog.setAccountId(account.getAccountId());
@@ -585,6 +598,11 @@ public class AppointmentResource {
 	@Nonnull
 	protected ProviderService getProviderService() {
 		return providerService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull

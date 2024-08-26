@@ -21,8 +21,9 @@ INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_RESERVATION_CREATE
 INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_RESERVATION_CANCEL', 'Group Session Reservation Cancel');
 -- Appointments
 INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CREATE', 'Appointment Create');
+INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CREATE_MESSAGES', 'Appointment Create Messages');
 INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CANCEL', 'Appointment Cancel');
-INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_PATIENT_REMINDER_SCHEDULED_MESSAGE_CREATE', 'Appointment Patient Reminder Scheduled Message Create');
+INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_RESCHEDULE', 'Appointment Reschedule');
 -- Patient Orders
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_PANEL_ACCOUNT', 'Patient Order Update Panel Account');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_DISPOSITION', 'Patient Order Update Disposition');
@@ -33,6 +34,30 @@ INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_SAFETY_PLAN
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_ENCOUNTER', 'Patient Order Update Encounter');
 -- Patient Order Imports
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_IMPORT_CREATE', 'Patient Order Import Create');
+-- Patient Order Notes
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_NOTE_CREATE', 'Patient Order Note Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_NOTE_UPDATE', 'Patient Order Note Update');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_NOTE_DELETE', 'Patient Order Note Delete');
+-- Patient Order Voicemail Tasks
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_VOICEMAIL_TASK_CREATE', 'Patient Order Voicemail Task Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_VOICEMAIL_TASK_UPDATE', 'Patient Order Voicemail Task Update');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_VOICEMAIL_TASK_DELETE', 'Patient Order Voicemail Task Delete');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_VOICEMAIL_TASK_COMPLETE', 'Patient Order Voicemail Task Complete');
+-- Patient Order Scheduled Outreaches
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_OUTREACH_CREATE', 'Patient Order Scheduled Outreach Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_OUTREACH_UPDATE', 'Patient Order Scheduled Outreach Update');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_OUTREACH_CANCEL', 'Patient Order Scheduled Outreach Cancel');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_OUTREACH_COMPLETE', 'Patient Order Scheduled Outreach Complete');
+-- Patient Order Outreaches
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_OUTREACH_CREATE', 'Patient Order Outreach Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_OUTREACH_UPDATE', 'Patient Order Outreach Update');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_OUTREACH_DELETE', 'Patient Order Outreach Delete');
+-- Patient Order Scheduled Message Groups
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_CREATE', 'Patient Order Scheduled Message Group Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_UPDATE', 'Patient Order Scheduled Message Group Update');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_DELETE', 'Patient Order Scheduled Message Group Delete');
+-- Screening Answers
+INSERT INTO footprint_event_group_type VALUES ('SCREENING_ANSWER_CREATE', 'Screening Answer Create');
 
 -- Footprint events are logically grouped together.
 -- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event
@@ -149,6 +174,11 @@ CREATE TRIGGER appointment_scheduled_message_footprint AFTER INSERT OR UPDATE OR
 -- Patient Orders
 CREATE TRIGGER patient_order_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_import_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_import FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_note_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_note FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_voicemail_task_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_voicemail_task FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_scheduled_outreach_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_outreach FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_outreach_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_outreach FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_smg_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_message_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- Useful for examining diffs between footprint events
 --

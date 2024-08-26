@@ -28,7 +28,6 @@ import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
-import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FileUploadResult;
@@ -343,8 +342,6 @@ public class AdminContentService {
 		if (url != null && !url.startsWith("http://") && !url.startsWith("https://"))
 			url = format("https://%s", url);
 
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_CREATE);
-
 		InstitutionId ownerInstitutionId = account.getInstitutionId();
 
 		getDatabase().execute("""
@@ -455,8 +452,6 @@ public class AdminContentService {
 
 		Integer durationInMinutes = durationInMinutesString == null ? null : Integer.parseInt(durationInMinutesString);
 		boolean shouldNotify = false;
-
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_UPDATE);
 
 		getDatabase().execute("""
 							 	UPDATE content SET content_type_id=?, title=?, url=?, 
@@ -609,8 +604,6 @@ public class AdminContentService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_PUBLISH);
-
 		getDatabase().execute("""
 				UPDATE content SET published = true 
 				WHERE content_id=?  				
@@ -666,8 +659,6 @@ public class AdminContentService {
 	@Nonnull
 	public void deleteContentById(@Nonnull UUID contentId) {
 		requireNonNull(contentId);
-
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_DELETE);
 		getDatabase().execute("UPDATE content SET deleted_flag = true WHERE content_id = ? ", contentId);
 	}
 

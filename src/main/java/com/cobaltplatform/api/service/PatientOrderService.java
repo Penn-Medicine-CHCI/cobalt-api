@@ -1244,8 +1244,6 @@ public class PatientOrderService implements AutoCloseable {
 
 		int assignedCount = 0;
 
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_PANEL_ACCOUNT);
-
 		for (UUID patientOrderId : patientOrderIds) {
 			boolean assigned = assignPatientOrderToPanelAccount(patientOrderId, panelAccountId, assignedByAccountId);
 
@@ -4514,8 +4512,6 @@ public class PatientOrderService implements AutoCloseable {
 		if (institution.getEpicPatientUniqueIdType() == null)
 			throw new IllegalStateException(format("No Epic Patient Unique ID Type configured for institution ID %s", institution.getName()));
 
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_IMPORT_CREATE);
-
 		getDatabase().execute("""
 						INSERT INTO patient_order_import (
 						patient_order_import_id,
@@ -6114,6 +6110,7 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (archivablePatientOrders.size() > 0) {
 				Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+				getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_DISPOSITION);
 
 				for (RawPatientOrder archivablePatientOrder : archivablePatientOrders) {
 					getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",

@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.FileUploadType;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -47,6 +48,7 @@ import com.cobaltplatform.api.service.AdminContentService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.DELETE;
@@ -105,6 +107,8 @@ public class AdminResource {
 	@Nonnull
 	private final Provider<AssessmentService> assessmentServiceProvider;
 	@Nonnull
+	private final Provider<SystemService> systemServiceProvider;
+	@Nonnull
 	private final InstitutionService institutionService;
 	@Nonnull
 	private final AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory;
@@ -130,6 +134,7 @@ public class AdminResource {
 											 @Nonnull AdminInstitutionApiResponseFactory adminInstitutionApiResponseFactory,
 											 @Nonnull Provider<PresignedUploadApiResponseFactory> presignedUploadApiResponseFactoryProvider,
 											 @Nonnull Provider<AssessmentService> assessmentServiceProvider,
+											 @Nonnull Provider<SystemService> systemServiceProvider,
 											 @Nonnull TagApiResponseFactory tagApiResponseFactory,
 											 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
 											 @Nonnull ContentStatusApiResponseFactory contentStatusApiResponseFactory,
@@ -145,6 +150,7 @@ public class AdminResource {
 		this.adminInstitutionApiResponseFactory = adminInstitutionApiResponseFactory;
 		this.presignedUploadApiResponseFactoryProvider = presignedUploadApiResponseFactoryProvider;
 		this.assessmentServiceProvider = assessmentServiceProvider;
+		this.systemServiceProvider = systemServiceProvider;
 		this.tagApiResponseFactory = tagApiResponseFactory;
 		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
 		this.contentStatusApiResponseFactory = contentStatusApiResponseFactory;
@@ -202,6 +208,7 @@ public class AdminResource {
 			put("tags", tags);
 		}});
 	}
+
 	@GET("/admin/content-statuses")
 	@AuthenticationRequired
 	public ApiResponse getContentStatuses() {
@@ -223,6 +230,9 @@ public class AdminResource {
 
 		Account account = getCurrentContext().getAccount().get();
 		CreateContentRequest request = getRequestBodyParser().parse(requestBody, CreateContentRequest.class);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_CREATE);
+
 		AdminContent adminContent = getAdminContentService().createContent(account, request);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -240,6 +250,9 @@ public class AdminResource {
 		Account account = getCurrentContext().getAccount().get();
 		UpdateContentRequest request = getRequestBodyParser().parse(requestBody, UpdateContentRequest.class);
 		request.setContentId(contentId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_UPDATE);
+
 		AdminContent adminContent = getAdminContentService().updateContent(account, request);
 
 		AdminContentDisplayType adminContentDisplayType = AdminContentDisplayType.DETAIL;
@@ -278,6 +291,8 @@ public class AdminResource {
 			throw new NotFoundException();
 		else if (!getAdminContentService().hasAdminAccessToContent(account, content.get()))
 			throw new AuthorizationException();
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_DELETE);
 
 		getAdminContentService().deleteContentById(contentId);
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -322,10 +337,11 @@ public class AdminResource {
 			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
 		}});
 	}
+
 	@Nonnull
 	@POST("/admin/content/{contentId}/add")
 	@AuthenticationRequired
-	public ApiResponse addContent(@Nonnull @PathParameter UUID contentId){
+	public ApiResponse addContent(@Nonnull @PathParameter UUID contentId) {
 		Account account = getCurrentContext().getAccount().get();
 
 		getAdminContentService().addContentToInstitution(contentId, account);
@@ -333,14 +349,14 @@ public class AdminResource {
 				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 	}
 
 	@Nonnull
 	@DELETE("/admin/content/{contentId}/remove")
 	@AuthenticationRequired
-	public ApiResponse removeContent(@Nonnull @PathParameter UUID contentId){
+	public ApiResponse removeContent(@Nonnull @PathParameter UUID contentId) {
 		Account account = getCurrentContext().getAccount().get();
 
 		getAdminContentService().removeContentFromInstitution(contentId, account);
@@ -349,14 +365,14 @@ public class AdminResource {
 				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 	}
 
 	@Nonnull
 	@PUT("/admin/content/{contentId}/force-expire")
 	@AuthenticationRequired
-	public ApiResponse forceExpireContent(@Nonnull @PathParameter UUID contentId){
+	public ApiResponse forceExpireContent(@Nonnull @PathParameter UUID contentId) {
 		Account account = getCurrentContext().getAccount().get();
 
 		getAdminContentService().forceExpireContent(contentId, account);
@@ -365,22 +381,23 @@ public class AdminResource {
 				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 	}
 
 	@Nonnull
 	@PUT("/admin/content/{contentId}/publish")
 	@AuthenticationRequired
-	public ApiResponse publishContent(@Nonnull @PathParameter UUID contentId){
-		Account account = getCurrentContext().getAccount().get();
+	public ApiResponse publishContent(@Nonnull @PathParameter UUID contentId) {
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CONTENT_PUBLISH);
 
+		Account account = getCurrentContext().getAccount().get();
 		getAdminContentService().publishContent(contentId, account);
 		Optional<AdminContent> content = getAdminContentService()
 				.findAdminContentByIdForInstitution(account.getInstitutionId(), contentId);
 		List<UUID> institutionContentIds = getAdminContentService().findContentIdsForInstitution(account.getInstitutionId());
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL,institutionContentIds));
+			put("content", getAdminContentApiResponseFactory().create(account, content.get(), AdminContentDisplayType.DETAIL, institutionContentIds));
 		}});
 	}
 
@@ -432,6 +449,11 @@ public class AdminResource {
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return assessmentServiceProvider.get();
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return systemServiceProvider.get();
 	}
 
 	@Nonnull

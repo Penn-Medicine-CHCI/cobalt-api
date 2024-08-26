@@ -825,8 +825,6 @@ public class GroupSessionService implements AutoCloseable {
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_CREATE);
-
 		getDatabase().execute("""
 						INSERT INTO group_session (group_session_id, institution_id,
 						group_session_status_id, title, description, submitter_account_id,
@@ -1230,8 +1228,6 @@ public class GroupSessionService implements AutoCloseable {
 		targetEmailAddress = getNormalizer().normalizeEmailAddress(targetEmailAddress).get();
 		facilitatorEmailAddress = getNormalizer().normalizeEmailAddress(facilitatorEmailAddress).get();
 
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE);
-
 		if (restrictedUpdate) {
 			getDatabase().execute("""
 							UPDATE group_session SET description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
@@ -1445,8 +1441,6 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
-
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE_STATUS);
 
 		// No-op if status is not changing
 		if (groupSessionStatusId == groupSession.getGroupSessionStatusId())
@@ -1662,8 +1656,6 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
-
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_RESERVATION_CREATE);
 
 		if (emailAddress != null) {
 			getAccountService().updateAccountEmailAddress(new UpdateAccountEmailAddressRequest() {{
@@ -1882,8 +1874,6 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (validationException.hasErrors())
 			throw validationException;
-
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_RESERVATION_CANCEL);
 
 		boolean success = getDatabase().execute("UPDATE group_session_reservation SET canceled=TRUE WHERE group_session_reservation_id=?",
 				groupSessionReservationId) > 0;

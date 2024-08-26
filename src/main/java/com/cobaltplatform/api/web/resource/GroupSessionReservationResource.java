@@ -27,12 +27,14 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiRe
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionReservationApiResponse.GroupSessionReservationApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.GroupSessionService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -81,6 +83,8 @@ public class GroupSessionReservationResource {
 	@Nonnull
 	private final GroupSessionService groupSessionService;
 	@Nonnull
+	private final SystemService systemService;
+	@Nonnull
 	private final GroupSessionApiResponseFactory groupSessionApiResponseFactory;
 	@Nonnull
 	private final GroupSessionReservationApiResponseFactory groupSessionReservationApiResponseFactory;
@@ -104,6 +108,7 @@ public class GroupSessionReservationResource {
 	@Inject
 	public GroupSessionReservationResource(@Nonnull AccountService accountService,
 																				 @Nonnull GroupSessionService groupSessionService,
+																				 @Nonnull SystemService systemService,
 																				 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 																				 @Nonnull GroupSessionReservationApiResponseFactory groupSessionReservationApiResponseFactory,
 																				 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
@@ -115,6 +120,7 @@ public class GroupSessionReservationResource {
 																				 @Nonnull JsonMapper jsonMapper) {
 		requireNonNull(accountService);
 		requireNonNull(groupSessionService);
+		requireNonNull(systemService);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionReservationApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
@@ -127,6 +133,7 @@ public class GroupSessionReservationResource {
 
 		this.accountService = accountService;
 		this.groupSessionService = groupSessionService;
+		this.systemService = systemService;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.groupSessionReservationApiResponseFactory = groupSessionReservationApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
@@ -163,6 +170,8 @@ public class GroupSessionReservationResource {
 	@AuthenticationRequired
 	public ApiResponse createGroupSessionReservation(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_RESERVATION_CREATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -204,6 +213,8 @@ public class GroupSessionReservationResource {
 	@AuthenticationRequired
 	public void cancelGroupSessionReservation(@Nonnull @PathParameter UUID groupSessionReservationId) {
 		requireNonNull(groupSessionReservationId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_RESERVATION_CANCEL);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -262,6 +273,11 @@ public class GroupSessionReservationResource {
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return groupSessionService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull

@@ -83,6 +83,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -125,6 +126,7 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
@@ -195,6 +197,8 @@ public class PatientOrderResource {
 	@Nonnull
 	private final ScreeningService screeningService;
 	@Nonnull
+	private final SystemService systemService;
+	@Nonnull
 	private final PatientOrderApiResponseFactory patientOrderApiResponseFactory;
 	@Nonnull
 	private final PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory;
@@ -246,6 +250,7 @@ public class PatientOrderResource {
 															@Nonnull InstitutionService institutionService,
 															@Nonnull AuthorizationService authorizationService,
 															@Nonnull ScreeningService screeningService,
+															@Nonnull SystemService systemService,
 															@Nonnull PatientOrderApiResponseFactory patientOrderApiResponseFactory,
 															@Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 															@Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
@@ -273,6 +278,7 @@ public class PatientOrderResource {
 		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
 		requireNonNull(screeningService);
+		requireNonNull(systemService);
 		requireNonNull(patientOrderApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
@@ -301,6 +307,7 @@ public class PatientOrderResource {
 		this.institutionService = institutionService;
 		this.authorizationService = authorizationService;
 		this.screeningService = screeningService;
+		this.systemService = systemService;
 		this.patientOrderApiResponseFactory = patientOrderApiResponseFactory;
 		this.patientOrderNoteApiResponseFactory = patientOrderNoteApiResponseFactory;
 		this.patientOrderOutreachApiResponseFactory = patientOrderOutreachApiResponseFactory;
@@ -820,6 +827,8 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPatientOrders(institutionId, account))
 			throw new AuthorizationException();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_PANEL_ACCOUNT);
+
 		AssignPatientOrdersRequest request = getRequestBodyParser().parse(requestBody, AssignPatientOrdersRequest.class);
 		request.setAssignedByAccountId(account.getAccountId());
 
@@ -844,6 +853,8 @@ public class PatientOrderResource {
 
 		if (!getAuthorizationService().canImportPatientOrders(account.getInstitutionId(), account))
 			throw new AuthorizationException();
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_IMPORT_CREATE);
 
 		CreatePatientOrderImportRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderImportRequest.class);
 		request.setInstitutionId(account.getInstitutionId());
@@ -889,6 +900,8 @@ public class PatientOrderResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_NOTE_CREATE);
+
 		CreatePatientOrderNoteRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderNoteRequest.class);
 		request.setAccountId(account.getAccountId());
 
@@ -912,6 +925,8 @@ public class PatientOrderResource {
 																						@Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderNoteId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_NOTE_UPDATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -942,6 +957,8 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse deletePatientOrderNote(@Nonnull @PathParameter UUID patientOrderNoteId) {
 		requireNonNull(patientOrderNoteId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_NOTE_DELETE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -985,6 +1002,8 @@ public class PatientOrderResource {
 	public ApiResponse createPatientOrderVoicemailTask(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_VOICEMAIL_TASK_CREATE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		CreatePatientOrderVoicemailTaskRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderVoicemailTaskRequest.class);
@@ -1010,6 +1029,8 @@ public class PatientOrderResource {
 																										 @Nonnull @PathParameter UUID patientOrderVoicemailTaskId) {
 		requireNonNull(requestBody);
 		requireNonNull(patientOrderVoicemailTaskId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_VOICEMAIL_TASK_UPDATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1043,6 +1064,8 @@ public class PatientOrderResource {
 		requireNonNull(requestBody);
 		requireNonNull(patientOrderVoicemailTaskId);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_VOICEMAIL_TASK_DELETE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		PatientOrderVoicemailTask patientOrderVoicemailTask = getPatientOrderService().findPatientOrderVoicemailTaskById(patientOrderVoicemailTaskId).orElse(null);
@@ -1069,6 +1092,8 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse completePatientOrderVoicemailTask(@Nonnull @PathParameter UUID patientOrderVoicemailTaskId) {
 		requireNonNull(patientOrderVoicemailTaskId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_VOICEMAIL_TASK_COMPLETE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1100,6 +1125,8 @@ public class PatientOrderResource {
 	public ApiResponse createPatientOrderScheduledOutreach(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_OUTREACH_CREATE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		CreatePatientOrderScheduledOutreachRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledOutreachRequest.class);
@@ -1125,6 +1152,8 @@ public class PatientOrderResource {
 																												 @Nonnull @PathParameter UUID patientOrderScheduledOutreachId) {
 		requireNonNull(requestBody);
 		requireNonNull(patientOrderScheduledOutreachId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_OUTREACH_UPDATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1156,6 +1185,8 @@ public class PatientOrderResource {
 	public ApiResponse cancelPatientOrderScheduledOutreach(@Nonnull @PathParameter UUID patientOrderScheduledOutreachId) {
 		requireNonNull(patientOrderScheduledOutreachId);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_OUTREACH_CANCEL);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		PatientOrderScheduledOutreach patientOrderScheduledOutreach = getPatientOrderService().findPatientOrderScheduledOutreachById(patientOrderScheduledOutreachId).orElse(null);
@@ -1184,6 +1215,8 @@ public class PatientOrderResource {
 																													 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderScheduledOutreachId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_OUTREACH_COMPLETE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1240,6 +1273,8 @@ public class PatientOrderResource {
 	public ApiResponse createPatientOrderOutreach(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_OUTREACH_CREATE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		CreatePatientOrderOutreachRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderOutreachRequest.class);
@@ -1265,6 +1300,8 @@ public class PatientOrderResource {
 																								@Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderOutreachId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_OUTREACH_UPDATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1296,6 +1333,8 @@ public class PatientOrderResource {
 	public ApiResponse deletePatientOrderOutreach(@Nonnull @PathParameter UUID patientOrderOutreachId) {
 		requireNonNull(patientOrderOutreachId);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_OUTREACH_DELETE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		DeletePatientOrderOutreachRequest request = new DeletePatientOrderOutreachRequest();
@@ -1322,6 +1361,8 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse createPatientOrderScheduledMessageGroup(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_CREATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1355,6 +1396,8 @@ public class PatientOrderResource {
 																														 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderScheduledMessageGroupId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_UPDATE);
 
 		PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroup = getPatientOrderService().findPatientOrderScheduledMessageGroupById(patientOrderScheduledMessageGroupId).orElse(null);
 
@@ -1391,6 +1434,8 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse deletePatientOrderScheduledMessageGroup(@Nonnull @PathParameter UUID patientOrderScheduledMessageGroupId) {
 		requireNonNull(patientOrderScheduledMessageGroupId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_DELETE);
 
 		PatientOrderScheduledMessageGroup patientOrderScheduledMessageGroup = getPatientOrderService().findPatientOrderScheduledMessageGroupById(patientOrderScheduledMessageGroupId).orElse(null);
 
@@ -2118,6 +2163,11 @@ public class PatientOrderResource {
 	@Nonnull
 	protected ScreeningService getScreeningService() {
 		return this.screeningService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull
