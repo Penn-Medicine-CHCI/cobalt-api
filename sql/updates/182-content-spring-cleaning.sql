@@ -8,15 +8,30 @@ CREATE TABLE footprint_event_group_type (
 );
 
 INSERT INTO footprint_event_group_type VALUES ('UNSPECIFIED', 'Unspecified');
+-- Content
 INSERT INTO footprint_event_group_type VALUES ('CONTENT_CREATE', 'Content Create');
 INSERT INTO footprint_event_group_type VALUES ('CONTENT_UPDATE', 'Content Update');
 INSERT INTO footprint_event_group_type VALUES ('CONTENT_DELETE', 'Content Delete');
 INSERT INTO footprint_event_group_type VALUES ('CONTENT_PUBLISH', 'Content Publish');
+-- Group Sessions
 INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_CREATE', 'Group Session Create');
 INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_UPDATE', 'Group Session Update');
 INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_UPDATE_STATUS', 'Group Session Update Status');
 INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_RESERVATION_CREATE', 'Group Session Reservation Create');
 INSERT INTO footprint_event_group_type VALUES ('GROUP_SESSION_RESERVATION_CANCEL', 'Group Session Reservation Cancel');
+-- Appointments
+INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CREATE', 'Appointment Create');
+INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CANCEL', 'Appointment Cancel');
+INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_PATIENT_REMINDER_SCHEDULED_MESSAGE', 'Appointment Patient Reminder Scheduled Message');
+-- Patient Orders
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_CREATE', 'Patient Order Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_PANEL_ACCOUNT', 'Patient Order Update Panel Account');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_DISPOSITION', 'Patient Order Update Disposition');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_CONSENT', 'Patient Order Update Consent');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_RESOURCE_CHECK_IN_RESPONSE', 'Patient Order Update Resource Check-In Response');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_RESOURCING', 'Patient Order Update Resourcing');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_SAFETY_PLANNING', 'Patient Order Update Safety Planning');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_ENCOUNTER', 'Patient Order Update Encounter');
 
 -- Footprint events are logically grouped together.
 -- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event
@@ -28,6 +43,8 @@ CREATE TABLE footprint_event_group (
   connection_username VARCHAR,
   connection_application_name VARCHAR,
   connection_ip_address VARCHAR,
+  api_call_url VARCHAR, -- Set if this event group was created on a web request thread
+  background_thread_name VARCHAR, -- Set if this event group was created on a background thread
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -110,13 +127,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Content
 CREATE TRIGGER content_footprint AFTER INSERT OR UPDATE OR DELETE ON content FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER institution_content_footprint AFTER INSERT OR UPDATE OR DELETE ON institution_content FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER tag_content_footprint AFTER INSERT OR UPDATE OR DELETE ON tag_content FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
+-- Group Sessions
 CREATE TRIGGER group_session_footprint AFTER INSERT OR UPDATE OR DELETE ON group_session FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER tag_group_session_footprint AFTER INSERT OR UPDATE OR DELETE ON tag_group_session FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER group_session_reservation_footprint AFTER INSERT OR UPDATE OR DELETE ON group_session_reservation FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Appointments
+CREATE TRIGGER appointment_footprint AFTER INSERT OR UPDATE OR DELETE ON appointment FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER appointment_scheduled_message_footprint AFTER INSERT OR UPDATE OR DELETE ON appointment_scheduled_message FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Patient Orders
+-- TODO
 
 -- Useful for examining diffs between footprint events
 --

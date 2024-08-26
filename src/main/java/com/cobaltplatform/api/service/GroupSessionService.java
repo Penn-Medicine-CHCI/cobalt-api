@@ -2527,6 +2527,8 @@ public class GroupSessionService implements AutoCloseable {
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
+		private final Provider<SystemService> systemServiceProvider;
+		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
 		private final DatabaseProvider databaseProvider;
@@ -2537,15 +2539,18 @@ public class GroupSessionService implements AutoCloseable {
 
 		@Inject
 		public BackgroundSyncTask(@Nonnull CurrentContextExecutor currentContextExecutor,
+															@Nonnull Provider<SystemService> systemServiceProvider,
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Configuration configuration) {
 			requireNonNull(currentContextExecutor);
+			requireNonNull(systemServiceProvider);
 			requireNonNull(errorReporter);
 			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.currentContextExecutor = currentContextExecutor;
+			this.systemServiceProvider = systemServiceProvider;
 			this.errorReporter = errorReporter;
 			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
@@ -2583,7 +2588,11 @@ public class GroupSessionService implements AutoCloseable {
 
 				if (currentDateTime.isAfter(groupSessionEndDateTime)) {
 					getLogger().info("Group session ID {} is now over, marking as {}...", groupSession.getGroupSessionId(), GroupSessionStatusId.ARCHIVED.name());
-					getDatabase().execute("UPDATE group_session SET group_session_status_id=? WHERE group_session_id=?", GroupSessionStatusId.ARCHIVED, groupSession.getGroupSessionId());
+
+					getDatabase().transaction(() -> {
+						getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE_STATUS);
+						getDatabase().execute("UPDATE group_session SET group_session_status_id=? WHERE group_session_id=?", GroupSessionStatusId.ARCHIVED, groupSession.getGroupSessionId());
+					});
 				}
 			}
 		}
@@ -2591,6 +2600,11 @@ public class GroupSessionService implements AutoCloseable {
 		@Nonnull
 		protected CurrentContextExecutor getCurrentContextExecutor() {
 			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected SystemService getSystemService() {
+			return this.systemServiceProvider.get();
 		}
 
 		@Nonnull

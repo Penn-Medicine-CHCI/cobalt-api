@@ -55,10 +55,12 @@ import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
+import com.soklet.web.request.RequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +69,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -176,8 +179,10 @@ public class SystemService {
 
 	@Nonnull
 	public Boolean applyFootprintForCurrentAccountToCurrentTransaction(@Nullable UUID accountId) {
-		if (!getDatabase().currentTransaction().isPresent())
+		if (!getDatabase().currentTransaction().isPresent()) {
+			getLogger().warn("There is no open transaction; not applying current account to footprint");
 			return false;
+		}
 
 		getDatabase().queryForObject("SELECT set_config('cobalt.account_id', CAST(? AS TEXT), TRUE)",
 				String.class, accountId);
@@ -189,25 +194,59 @@ public class SystemService {
 	public Boolean applyFootprintEventGroupToCurrentTransaction(@Nonnull FootprintEventGroupTypeId footprintEventGroupTypeId) {
 		requireNonNull(footprintEventGroupTypeId);
 
-		if (!getDatabase().currentTransaction().isPresent())
+		if (!getDatabase().currentTransaction().isPresent()) {
+			getLogger().warn("There is no open transaction; not creating footprint event group");
 			return false;
+		}
 
 		Account account = getCurrentContext().getAccount().orElse(null);
 		UUID footprintEventGroupId = UUID.randomUUID();
 
+		// Determine whether we are in the context of a web request or background thread
+		String apiCallUrl = null;
+		String backgroundThreadName = null;
+
+		try {
+			// If this does not throw IllegalStateException, then we are on a request thread
+			RequestContext requestContext = RequestContext.get();
+			HttpServletRequest httpServletRequest = requestContext.httpServletRequest();
+
+			// e.g. "DELETE /appointments/1234"
+			apiCallUrl = format("%s %s", httpServletRequest.getMethod(), WebUtility.httpServletRequestUrl(httpServletRequest));
+
+			/*
+			  In the future, might want to track the actual method invoked.  Would look like this:
+
+			  Route route = requestContext.route().orElse(null);
+
+			  if(route != null) {
+				  String apiCallHandlerResourceMethodClass = route.resourceMethod().getDeclaringClass().getSimpleName();
+				  String apiCallHandlerResourceMethodName = route.resourceMethod().getName();
+				  String apiCallHandlerResourceMethodParameters = Arrays.stream(route.resourceMethod().getParameters()).map(parameter -> format("%s %s", parameter.getType().getSimpleName(), parameter.getName())).collect(Collectors.joining(", "));
+				  String apiCallHandler = format("%s::%s(%s)", apiCallHandlerResourceMethodClass, apiCallHandlerResourceMethodName, apiCallHandlerResourceMethodParameters);
+				}
+			 */
+		} catch (IllegalStateException ignored) {
+			// This means we are on a background thread
+			backgroundThreadName = Thread.currentThread().getName();
+		}
+
 		getDatabase().execute("""
-				INSERT INTO footprint_event_group (
-				  footprint_event_group_id,
-				  footprint_event_group_type_id,
-				  account_id,
-				  connection_username,
-				  connection_application_name,
-				  connection_ip_address
-				)
-				SELECT ?, ?, ?, usename, application_name, client_addr
-				FROM pg_stat_activity
-				WHERE pid=pg_backend_pid()
-				""", footprintEventGroupId, footprintEventGroupTypeId, account == null ? null : account.getAccountId());
+						INSERT INTO footprint_event_group (
+						  footprint_event_group_id,
+						  footprint_event_group_type_id,
+						  account_id,
+						  connection_username,
+						  connection_application_name,
+						  connection_ip_address,
+						  api_call_url,
+						  background_thread_name
+						)
+						SELECT ?, ?, ?, usename, application_name, client_addr, ?, ?
+						FROM pg_stat_activity
+						WHERE pid=pg_backend_pid()
+						""", footprintEventGroupId, footprintEventGroupTypeId, account == null ? null : account.getAccountId(),
+				apiCallUrl, backgroundThreadName);
 
 		getDatabase().queryForObject("SELECT set_config('cobalt.footprint_event_group_id', CAST(? AS TEXT), TRUE)",
 				String.class, footprintEventGroupId);

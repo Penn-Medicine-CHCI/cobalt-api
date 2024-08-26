@@ -92,6 +92,7 @@ import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
@@ -1240,6 +1241,8 @@ public class AppointmentService {
 		if (intakeAssessment.isPresent())
 			intakeAccountSessionId = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment.get()).get().getAccountSessionId();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_CREATE);
+
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
 						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
@@ -1271,15 +1274,17 @@ public class AppointmentService {
 					});
 			} else if (schedulingSystemId == SchedulingSystemId.EPIC) {
 				ForkJoinPool.commonPool().execute(() -> {
-					getEpicSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate());
+					getEpicSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate(), true);
 				});
 			} else if (schedulingSystemId == SchedulingSystemId.EPIC_FHIR) {
 				ForkJoinPool.commonPool().execute(() -> {
-					getEpicFhirSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate());
+					getEpicFhirSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate(), true);
 				});
 			} else if (schedulingSystemId == SchedulingSystemId.COBALT) {
 				// For native appointments, we are responsible for sending emails out
-				sendPatientAndProviderCobaltAppointmentCreatedEmails(appointmentId);
+				getDatabase().transaction(() -> {
+					sendPatientAndProviderCobaltAppointmentCreatedEmails(appointmentId);
+				});
 			}
 		});
 
@@ -1879,6 +1884,8 @@ public class AppointmentService {
 					.messageContext(cobaltPatientEmailMessageContext)
 					.build();
 
+			getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_PATIENT_REMINDER_SCHEDULED_MESSAGE);
+
 			UUID patientReminderScheduledMessageId = getMessageService().createScheduledMessage(new CreateScheduledMessageRequest<>() {{
 				setMetadata(Map.of("appointmentId", appointmentId));
 				setMessage(patientReminderEmailMessage);
@@ -2091,6 +2098,8 @@ public class AppointmentService {
 				getLogger().warn("Unable to cancel Bluejeans meeting, continuing on...", e);
 			}
 		}
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_CANCEL);
 
 		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
 						"canceled_for_reschedule=?, rescheduled_appointment_id=?, appointment_cancelation_reason_id=? WHERE appointment_id=?",
