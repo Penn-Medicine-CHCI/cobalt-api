@@ -188,6 +188,9 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/178-orde
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/179-appointment-feedback-survey.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/180-study-audio-video-tracking.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/181-data-sync.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/183-local-only-data-sync.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/184-remote-tracking-for-data-sync.sql
+
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

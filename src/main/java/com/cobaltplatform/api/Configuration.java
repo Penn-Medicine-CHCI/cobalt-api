@@ -285,6 +285,9 @@ public class Configuration {
 	@Nonnull
 	private final Boolean shouldRunDataSync;
 
+	@Nonnull
+	private final String dataSyncRemoteDb;
+
 	static {
 		ENV_ENV_VARIABLE_NAME = "COBALT_API_ENV";
 		PORT_ENV_VARIABLE_NAME = "COBALT_API_PORT";
@@ -451,6 +454,7 @@ public class Configuration {
 		this.shouldIncludeTestDataInIcReports = !isProduction();
 
 		this.shouldRunDataSync = valueFor("com.cobaltplatform.api.shouldRunDataSync", Boolean.class);
+		this.dataSyncRemoteDb = valueFor("com.cobaltplatform.api.dataSyncRemoteDb", String.class);
 
 		if (getAmazonUseLocalstack()) {
 			// Prime the default credential provider chain
@@ -1495,5 +1499,10 @@ public class Configuration {
 	@Nonnull
 	public Boolean getShouldRunDataSync() {
 		return shouldRunDataSync;
+	}
+
+	@Nonnull
+	public String getDataSyncRemoteDb() {
+		return dataSyncRemoteDb;
 	}
 }
