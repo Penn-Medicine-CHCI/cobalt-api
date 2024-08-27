@@ -188,6 +188,7 @@ CREATE TRIGGER patient_order_voicemail_task_footprint AFTER INSERT OR UPDATE OR 
 CREATE TRIGGER patient_order_scheduled_outreach_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_outreach FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_outreach_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_outreach FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_scheduled_message_group_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_message_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_scheduled_message_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_message FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_scheduled_screening_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_screening FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_triage_group_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_triage_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
