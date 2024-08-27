@@ -202,6 +202,8 @@ public class ScreeningResource {
 	public ApiResponse createScreeningSession(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCREENING_SESSION_CREATE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		CreateScreeningSessionRequest request = getRequestBodyParser().parse(requestBody, CreateScreeningSessionRequest.class);
@@ -358,6 +360,8 @@ public class ScreeningResource {
 	public ApiResponse skipEntireScreeningFlowVersion(@Nonnull @PathParameter UUID screeningFlowVersionId) {
 		requireNonNull(screeningFlowVersionId);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCREENING_SESSION_SKIP_IMMEDIATELY);
+
 		Account account = getCurrentContext().getAccount().get();
 		UUID screeningSessionId = getScreeningService().createScreeningSession(new CreateScreeningSessionRequest() {{
 			setScreeningFlowVersionId(screeningFlowVersionId);
@@ -403,6 +407,8 @@ public class ScreeningResource {
 	@AuthenticationRequired
 	public ApiResponse skipRemainingScreeningFlow(@Nonnull @PathParameter UUID screeningSessionId) {
 		requireNonNull(screeningSessionId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCREENING_SESSION_SKIP);
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).orElse(null);
 

@@ -63,10 +63,27 @@ INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_SCREENIN
 -- Patient Order Triage Groups
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_TRIAGE_GROUP_CREATE', 'Patient Order Triage Group Create');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_TRIAGE_GROUP_RESET', 'Patient Order Triage Group Reset');
--- Screening Answers
-INSERT INTO footprint_event_group_type VALUES ('SCREENING_ANSWER_CREATE', 'Screening Answer Create');
 -- Epic Departments
 INSERT INTO footprint_event_group_type VALUES ('EPIC_DEPARTMENT_UPDATE', 'Epic Department Update');
+-- Screening Answers
+INSERT INTO footprint_event_group_type VALUES ('SCREENING_ANSWER_CREATE', 'Screening Answer Create');
+-- Screening Sessions
+INSERT INTO footprint_event_group_type VALUES ('SCREENING_SESSION_CREATE', 'Screening Session Create');
+INSERT INTO footprint_event_group_type VALUES ('SCREENING_SESSION_SKIP', 'Screening Session Skip');
+INSERT INTO footprint_event_group_type VALUES ('SCREENING_SESSION_SKIP_IMMEDIATELY', 'Screening Session Skip Immediately');
+-- Accounts
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_CREATE_ANONYMOUS', 'Account Create (Anonymous)');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_CREATE_MYCHART', 'Account Create (MyChart)');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_CREATE_SSO', 'Account Create (SSO)');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_EMAIL_ADDRESS', 'Account Update Email Address');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_PHONE_NUMBER', 'Account Update Phone Number');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_CONSENT_FORM_ACCEPTANCE', 'Account Update Consent Form Acceptance');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_FORGOT_PASSWORD', 'Account Update Forgot Password');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_RESET_PASSWORD', 'Account Update Reset Password');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_LOCATION', 'Account Update Location');
+-- Account Email Verification
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_EMAIL_VERIFICATION_CREATE', 'Account Email Verification Create');
+INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_EMAIL_VERIFICATION_APPLY', 'Account Email Verification Apply');
 
 -- Footprint events are logically grouped together.
 -- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event
@@ -193,6 +210,11 @@ CREATE TRIGGER patient_order_scheduled_screening_footprint AFTER INSERT OR UPDAT
 CREATE TRIGGER patient_order_triage_group_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_triage_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER epic_department_footprint AFTER INSERT OR UPDATE OR DELETE ON epic_department FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER screening_session_footprint AFTER INSERT OR UPDATE OR DELETE ON screening_session FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER screening_answer_footprint AFTER INSERT OR UPDATE OR DELETE ON screening_answer FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER account_footprint AFTER INSERT OR UPDATE OR DELETE ON account FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER password_reset_request_footprint AFTER INSERT OR UPDATE OR DELETE ON password_reset_request FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER account_email_verification_footprint AFTER INSERT OR UPDATE OR DELETE ON account_email_verification FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- Useful for examining diffs between footprint events
 --

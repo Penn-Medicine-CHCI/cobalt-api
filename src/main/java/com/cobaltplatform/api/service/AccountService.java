@@ -1470,9 +1470,9 @@ public class AccountService {
 		requireNonNull(accountId);
 
 		return getDatabase().queryForList("""
-						SELECT * 
-						FROM v_account_client_device_push_token vac
-						WHERE vac.account_id = ?""", ClientDevicePushToken.class, accountId);
+				SELECT * 
+				FROM v_account_client_device_push_token vac
+				WHERE vac.account_id = ?""", ClientDevicePushToken.class, accountId);
 	}
 
 	@Nonnull
