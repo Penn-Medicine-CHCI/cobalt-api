@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('183-remote-tracking-for-data-sync', NULL, NULL);
+SELECT _v.register_patch('186-remote-tracking-for-data-sync', NULL, NULL);
 
 ALTER TABLE institution ADD COLUMN remote_data_flag BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE file_upload ADD COLUMN remote_data_flag BOOLEAN NOT NULL DEFAULT false;

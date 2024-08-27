@@ -1,13 +1,6 @@
-CREATE SERVER cobalt_remote
-FOREIGN DATA WRAPPER postgres_fdw
-OPTIONS (host '1.1.1.1', port '5432', dbname 'cobalt'); 
+BEGIN;
+SELECT _v.register_patch('185-foreign-tables', NULL, NULL);
 
-CREATE USER MAPPING FOR cobalt
-SERVER cobalt_remote
-OPTIONS (user 'fdwuser', password 'password');
-
---These foreign table create statements get run as the cobalt_app user
---in both the CI and Penn dev instances
 CREATE FOREIGN TABLE remote_content (
         content_id uuid NOT NULL,
 	content_type_id varchar NOT NULL,
@@ -40,7 +33,8 @@ CREATE FOREIGN TABLE remote_tag_content (
 	tag_id varchar NOT NULL,
 	content_id uuid NOT NULL,
 	created timestamptz DEFAULT now() NOT NULL,
-	last_updated timestamptz DEFAULT now() NOT NULL)
+	last_updated timestamptz DEFAULT now() NOT NULL,
+	remote_data_flag BOOLEAN NOT NULL)
 SERVER cobalt_remote
 OPTIONS (schema_name 'cobalt', table_name 'tag_content');
 
@@ -54,7 +48,8 @@ CREATE FOREIGN TABLE remote_file_upload (
 	created timestamptz DEFAULT now() NOT NULL,
 	last_updated timestamptz DEFAULT now() NOT NULL,
 	file_upload_type_id text DEFAULT 'UNSPECIFIED'::text NOT NULL,
-	filesize numeric NULL)
+	filesize numeric NULL,
+	remote_data_flag BOOLEAN NOT NULL)
 SERVER cobalt_remote
 OPTIONS (schema_name 'cobalt', table_name 'file_upload');
 
@@ -63,7 +58,8 @@ CREATE FOREIGN TABLE remote_institution_content (
 	institution_id varchar NOT NULL,
 	content_id uuid NOT NULL,
 	created timestamptz DEFAULT now() NOT NULL,
-	last_updated timestamptz DEFAULT now() NOT NULL)
+	last_updated timestamptz DEFAULT now() NOT NULL,
+	remote_data_flag BOOLEAN NOT NULL)
 SERVER cobalt_remote
 OPTIONS (schema_name 'cobalt', table_name 'institution_content');
 
@@ -75,7 +71,8 @@ CREATE FOREIGN TABLE remote_tag (
 	en_search_vector tsvector NULL,
 	tag_group_id varchar NOT NULL,
 	created timestamptz DEFAULT now() NOT NULL,
-	last_updated timestamptz DEFAULT now() NOT NULL)
+	last_updated timestamptz DEFAULT now() NOT NULL,
+	remote_data_flag BOOLEAN NOT NULL)
 SERVER cobalt_remote
 OPTIONS (schema_name 'cobalt', table_name 'tag');
 
@@ -212,6 +209,9 @@ CREATE FOREIGN TABLE remote_institution (
 	appointment_feedback_survey_url TEXT,
 	appointment_feedback_survey_duration_description TEXT,
 	appointment_feedback_survey_delay_in_minutes INTEGER NOT NULL DEFAULT 1440,
+	remote_data_flag BOOLEAN NOT NULL,
 	sync_data BOOLEAN)
 SERVER cobalt_remote
 OPTIONS (schema_name 'cobalt', table_name 'institution');
+
+COMMIT;

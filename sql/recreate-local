@@ -188,8 +188,9 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/178-order-refe
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/179-appointment-feedback-survey.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/180-study-audio-video-tracking.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/181-data-sync.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/183-local-only-data-sync.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/184-remote-tracking-for-data-sync.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/183-local-only-foreign-data-wrapper.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/185-foreign-tables.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/186-remote-tracking-for-data-sync.sql
 
 
 if [ -f "initial/bootstrap.sql" ]; then

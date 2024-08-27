@@ -87,7 +87,7 @@ public class DataSyncService implements AutoCloseable {
 	private ScheduledExecutorService backgroundTaskExecutorService;
 
 	static {
-		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L;
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 600L;
 		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
 		FDW_SERVER_NAME = "cobalt_remote";
 	}
