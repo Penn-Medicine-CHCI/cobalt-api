@@ -524,6 +524,8 @@ public class PatientOrderResource {
 																			 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderId);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_DISPOSITION);
+
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
@@ -556,6 +558,8 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderId);
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_CONSENT);
+
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
@@ -585,6 +589,8 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse openPatientOrder(@Nonnull @PathParameter UUID patientOrderId) {
 		requireNonNull(patientOrderId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_DISPOSITION);
 
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
@@ -617,6 +623,8 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderId);
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_TRIAGE_GROUP_CREATE);
+
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
@@ -648,6 +656,8 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse resetPatientOrderTriages(@Nonnull @PathParameter UUID patientOrderId) {
 		requireNonNull(patientOrderId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_TRIAGE_GROUP_RESET);
 
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
@@ -1463,6 +1473,8 @@ public class PatientOrderResource {
 	public ApiResponse createPatientOrderScheduledScreening(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_SCREENING_CREATE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		CreatePatientOrderScheduledScreeningRequest request = getRequestBodyParser().parse(requestBody, CreatePatientOrderScheduledScreeningRequest.class);
@@ -1488,6 +1500,8 @@ public class PatientOrderResource {
 																													@Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderScheduledScreeningId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_SCREENING_UPDATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -1518,6 +1532,8 @@ public class PatientOrderResource {
 	@AuthenticationRequired
 	public ApiResponse cancelPatientOrderScheduledScreening(@Nonnull @PathParameter UUID patientOrderScheduledScreeningId) {
 		requireNonNull(patientOrderScheduledScreeningId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_SCHEDULED_SCREENING_CANCEL);
 
 		Account account = getCurrentContext().getAccount().get();
 		PatientOrderScheduledScreening patientOrderScheduledScreening = getPatientOrderService().findPatientOrderScheduledScreeningById(patientOrderScheduledScreeningId).orElse(null);
@@ -1716,6 +1732,8 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderId);
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_RESOURCE_CHECK_IN_RESPONSE);
+
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
@@ -1748,6 +1766,8 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderId);
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_RESOURCING);
+
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
 
@@ -1779,6 +1799,8 @@ public class PatientOrderResource {
 																														@Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_SAFETY_PLANNING);
 
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
@@ -1830,6 +1852,8 @@ public class PatientOrderResource {
 																					@Nonnull @RequestBody String requestBody) {
 		requireNonNull(epicDepartmentId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.EPIC_DEPARTMENT_UPDATE);
 
 		Account account = getCurrentContext().getAccount().get();
 		EpicDepartment epicDepartment = getProviderService().findEpicDepartmentById(epicDepartmentId).orElse(null);
@@ -1884,6 +1908,8 @@ public class PatientOrderResource {
 																										@Nonnull @RequestBody String requestBody) {
 		requireNonNull(patientOrderId);
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_ENCOUNTER);
 
 		Account account = getCurrentContext().getAccount().get();
 		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);

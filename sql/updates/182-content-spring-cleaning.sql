@@ -56,8 +56,17 @@ INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_OUTREACH_DELETE', 
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_CREATE', 'Patient Order Scheduled Message Group Create');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_UPDATE', 'Patient Order Scheduled Message Group Update');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_MESSAGE_GROUP_DELETE', 'Patient Order Scheduled Message Group Delete');
+-- Patient Order Scheduled Screenings
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_SCREENING_CREATE', 'Patient Order Scheduled Screening Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_SCREENING_UPDATE', 'Patient Order Scheduled Screening Update');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_SCHEDULED_SCREENING_CANCEL', 'Patient Order Scheduled Screening Cancel');
+-- Patient Order Triage Groups
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_TRIAGE_GROUP_CREATE', 'Patient Order Triage Group Create');
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_TRIAGE_GROUP_RESET', 'Patient Order Triage Group Reset');
 -- Screening Answers
 INSERT INTO footprint_event_group_type VALUES ('SCREENING_ANSWER_CREATE', 'Screening Answer Create');
+-- Epic Departments
+INSERT INTO footprint_event_group_type VALUES ('EPIC_DEPARTMENT_UPDATE', 'Epic Department Update');
 
 -- Footprint events are logically grouped together.
 -- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event
@@ -178,7 +187,11 @@ CREATE TRIGGER patient_order_note_footprint AFTER INSERT OR UPDATE OR DELETE ON 
 CREATE TRIGGER patient_order_voicemail_task_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_voicemail_task FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_scheduled_outreach_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_outreach FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_outreach_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_outreach FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
-CREATE TRIGGER patient_order_smg_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_message_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_scheduled_message_group_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_message_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_scheduled_screening_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_screening FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_triage_group_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER patient_order_triage_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+CREATE TRIGGER epic_department_footprint AFTER INSERT OR UPDATE OR DELETE ON epic_department FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- Useful for examining diffs between footprint events
 --
