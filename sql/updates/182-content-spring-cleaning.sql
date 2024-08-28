@@ -25,6 +25,7 @@ INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CREATE_MESSAGES', 'A
 INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_CANCEL', 'Appointment Cancel');
 INSERT INTO footprint_event_group_type VALUES ('APPOINTMENT_RESCHEDULE', 'Appointment Reschedule');
 -- Patient Orders
+INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_GENERAL', 'Patient Order Update (General)');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_PANEL_ACCOUNT', 'Patient Order Update Panel Account');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_DISPOSITION', 'Patient Order Update Disposition');
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_UPDATE_CONSENT', 'Patient Order Update Consent');
@@ -81,9 +82,11 @@ INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_CONSENT_FORM_ACCE
 INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_FORGOT_PASSWORD', 'Account Update Forgot Password');
 INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_RESET_PASSWORD', 'Account Update Reset Password');
 INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_UPDATE_LOCATION', 'Account Update Location');
--- Account Email Verification
+-- Account Email Verifications
 INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_EMAIL_VERIFICATION_CREATE', 'Account Email Verification Create');
 INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_EMAIL_VERIFICATION_APPLY', 'Account Email Verification Apply');
+-- Scheduled Messages
+INSERT INTO footprint_event_group_type VALUES ('SCHEDULED_MESSAGE_SEND', 'Scheduled Message Send');
 
 -- Footprint events are logically grouped together.
 -- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event
@@ -96,6 +99,7 @@ CREATE TABLE footprint_event_group (
   connection_application_name VARCHAR,
   connection_ip_address VARCHAR,
   api_call_url VARCHAR, -- Set if this event group was created on a web request thread
+  api_call_request_body VARCHAR, -- Set if this event group was created on a web request thread and request body exists
   background_thread_name VARCHAR, -- Set if this event group was created on a background thread
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -138,6 +142,7 @@ DECLARE
   current_footprint_event_group_id UUID;
   current_account_id UUID;
   current_api_call_url TEXT;
+  current_api_call_request_body TEXT;
   current_background_thread_name TEXT;
 BEGIN
   -- Pull values from SET LOCAL (if available).
@@ -145,6 +150,7 @@ BEGIN
   SELECT current_setting('cobalt.footprint_event_group_id', TRUE) INTO current_footprint_event_group_id_as_text;
   SELECT current_setting('cobalt.account_id', TRUE) INTO current_account_id_as_text;
   SELECT NULLIF(current_setting('cobalt.api_call_url', TRUE), '') INTO current_api_call_url;
+  SELECT NULLIF(current_setting('cobalt.api_call_request_body', TRUE), '') INTO current_api_call_request_body;
   SELECT NULLIF(current_setting('cobalt.background_thread_name', TRUE), '') INTO current_background_thread_name;
 
   IF LENGTH(current_footprint_event_group_id_as_text) = 36 THEN
@@ -158,8 +164,8 @@ BEGIN
   -- If we don't have a defined event group, create one for this insert
   IF current_footprint_event_group_id IS NULL THEN
 		current_footprint_event_group_id := uuid_generate_v4();
-		INSERT INTO footprint_event_group (footprint_event_group_id, footprint_event_group_type_id, account_id, connection_username, connection_application_name, connection_ip_address, api_call_url, background_thread_name)
-		SELECT current_footprint_event_group_id, 'UNSPECIFIED', current_account_id, usename, application_name, client_addr, current_api_call_url, current_background_thread_name
+		INSERT INTO footprint_event_group (footprint_event_group_id, footprint_event_group_type_id, account_id, connection_username, connection_application_name, connection_ip_address, api_call_url, api_call_request_body, background_thread_name)
+		SELECT current_footprint_event_group_id, 'UNSPECIFIED', current_account_id, usename, application_name, client_addr, current_api_call_url, current_api_call_request_body, current_background_thread_name
 		FROM pg_stat_activity
 		WHERE pid=pg_backend_pid();
   END IF;
@@ -209,12 +215,24 @@ CREATE TRIGGER patient_order_scheduled_message_footprint AFTER INSERT OR UPDATE 
 CREATE TRIGGER patient_order_scheduled_screening_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_scheduled_screening FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_triage_group_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage_group FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER patient_order_triage_footprint AFTER INSERT OR UPDATE OR DELETE ON patient_order_triage FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Epic Departments
 CREATE TRIGGER epic_department_footprint AFTER INSERT OR UPDATE OR DELETE ON epic_department FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Screening Sessions
 CREATE TRIGGER screening_session_footprint AFTER INSERT OR UPDATE OR DELETE ON screening_session FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER screening_answer_footprint AFTER INSERT OR UPDATE OR DELETE ON screening_answer FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Accounts
 CREATE TRIGGER account_footprint AFTER INSERT OR UPDATE OR DELETE ON account FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER password_reset_request_footprint AFTER INSERT OR UPDATE OR DELETE ON password_reset_request FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER account_email_verification_footprint AFTER INSERT OR UPDATE OR DELETE ON account_email_verification FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Scheduled Messages
+CREATE TRIGGER scheduled_message_footprint AFTER INSERT OR UPDATE OR DELETE ON scheduled_message FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
+
+-- Institutions
+CREATE TRIGGER institution_footprint AFTER INSERT OR UPDATE OR DELETE ON institution FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- Useful for examining diffs between footprint events
 --

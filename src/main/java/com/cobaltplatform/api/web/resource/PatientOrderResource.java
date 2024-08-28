@@ -392,6 +392,8 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canEditPatientOrder(patientOrder, account))
 			throw new AuthorizationException();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_GENERAL);
+
 		// Only patch fields specified in the request
 		Map<String, Object> requestBodyAsJson = getJsonMapper().fromJson(requestBody);
 

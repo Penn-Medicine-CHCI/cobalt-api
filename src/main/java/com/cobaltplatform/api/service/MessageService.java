@@ -39,6 +39,7 @@ import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.messaging.sms.SmsMessageSerializer;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionColorValue;
@@ -956,6 +957,8 @@ public class MessageService implements AutoCloseable {
 		@Nonnull
 		private final MessageService messageService;
 		@Nonnull
+		private final Provider<SystemService> systemServiceProvider;
+		@Nonnull
 		private final EmailMessageSerializer emailMessageSerializer;
 		@Nonnull
 		private final SmsMessageSerializer smsMessageSerializer;
@@ -978,6 +981,7 @@ public class MessageService implements AutoCloseable {
 
 		@Inject
 		public ScheduledMessageTask(@Nonnull MessageService messageService,
+																@Nonnull Provider<SystemService> systemServiceProvider,
 																@Nonnull EmailMessageSerializer emailMessageSerializer,
 																@Nonnull SmsMessageSerializer smsMessageSerializer,
 																@Nonnull CallMessageSerializer callMessageSerializer,
@@ -988,6 +992,7 @@ public class MessageService implements AutoCloseable {
 																@Nonnull Formatter formatter,
 																@Nonnull Configuration configuration) {
 			requireNonNull(messageService);
+			requireNonNull(systemServiceProvider);
 			requireNonNull(emailMessageSerializer);
 			requireNonNull(smsMessageSerializer);
 			requireNonNull(callMessageSerializer);
@@ -999,6 +1004,7 @@ public class MessageService implements AutoCloseable {
 			requireNonNull(configuration);
 
 			this.messageService = messageService;
+			this.systemServiceProvider = systemServiceProvider;
 			this.emailMessageSerializer = emailMessageSerializer;
 			this.smsMessageSerializer = smsMessageSerializer;
 			this.callMessageSerializer = callMessageSerializer;
@@ -1032,6 +1038,8 @@ public class MessageService implements AutoCloseable {
 
 					getLogger().info("Detected {} scheduled message[s] that are ready to send, enqueuing for send now...", sendableScheduledMessages.size());
 					int i = 0;
+
+					getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCHEDULED_MESSAGE_SEND);
 
 					for (ScheduledMessage scheduledMessage : sendableScheduledMessages) {
 						getLogger().info("Enqueuing scheduled message {} of {}...", i + 1, sendableScheduledMessages.size());
@@ -1078,6 +1086,11 @@ public class MessageService implements AutoCloseable {
 		@Nonnull
 		protected MessageService getMessageService() {
 			return this.messageService;
+		}
+
+		@Nonnull
+		protected SystemService getSystemService() {
+			return this.systemServiceProvider.get();
 		}
 
 		@Nonnull

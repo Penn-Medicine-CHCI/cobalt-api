@@ -47,6 +47,7 @@ import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.PublicKeyFormat.PublicKeyFormatId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.security.RequestBodyMightContainSensitiveData;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.PresignedUpload;
@@ -57,10 +58,12 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.common.io.CharStreams;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.request.RequestContext;
+import com.soklet.web.routing.Route;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +78,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.security.KeyPair;
 import java.time.Instant;
@@ -91,6 +95,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -186,10 +191,12 @@ public class SystemService {
 						SELECT
 							set_config('cobalt.account_id', CAST(? AS TEXT), TRUE) AS account_id_configured,
 							set_config('cobalt.api_call_url', CAST(? AS TEXT), TRUE) AS api_call_url_configured,
+							set_config('cobalt.api_call_request_body', CAST(? AS TEXT), TRUE) AS api_call_request_body_configured,
 							set_config('cobalt.background_thread_name', CAST(? AS TEXT), TRUE) AS background_thread_name_configured
 						""", FootprintContextSetResult.class,
 				footprintContext.getAccountId().orElse(null),
 				footprintContext.getApiCallUrl().orElse(null),
+				footprintContext.getApiCallRequestBody().orElse(null),
 				footprintContext.getBackgroundThreadName().orElse(null));
 
 		return true;
@@ -216,13 +223,15 @@ public class SystemService {
 						  connection_application_name,
 						  connection_ip_address,
 						  api_call_url,
+						  api_call_request_body,
 						  background_thread_name
 						)
-						SELECT ?, ?, ?, usename, application_name, client_addr, ?, ?
+						SELECT ?, ?, ?, usename, application_name, client_addr, ?, ?, ?
 						FROM pg_stat_activity
 						WHERE pid=pg_backend_pid()
 						""", footprintEventGroupId, footprintEventGroupTypeId, footprintContext.getAccountId().orElse(null),
-				footprintContext.getApiCallUrl().orElse(null), footprintContext.getBackgroundThreadName().orElse(null));
+				footprintContext.getApiCallUrl().orElse(null), footprintContext.getApiCallRequestBody().orElse(null),
+				footprintContext.getBackgroundThreadName().orElse(null));
 
 		getDatabase().queryForObject("SELECT set_config('cobalt.footprint_event_group_id', CAST(? AS TEXT), TRUE)",
 				String.class, footprintEventGroupId);
@@ -232,12 +241,24 @@ public class SystemService {
 
 	@Immutable
 	protected static class FootprintContext {
+		@Nonnull
+		private static final Set<String> HTTP_METHODS_THAT_CAN_HAVE_REQUEST_BODIES;
+		@Nonnull
+		private static final Logger LOGGER;
+
 		@Nullable
 		private final UUID accountId;
 		@Nullable
 		private final String apiCallUrl;
 		@Nullable
+		private final String apiCallRequestBody;
+		@Nullable
 		private final String backgroundThreadName;
+
+		static {
+			HTTP_METHODS_THAT_CAN_HAVE_REQUEST_BODIES = Set.of("POST", "PUT", "DELETE", "PATCH");
+			LOGGER = LoggerFactory.getLogger(FootprintContext.class);
+		}
 
 		@Nonnull
 		public static FootprintContext forCurrentContext(@Nonnull CurrentContext currentContext) {
@@ -249,6 +270,7 @@ public class SystemService {
 
 			// Determine whether we are in the context of a web request or background thread
 			String apiCallUrl = null;
+			String apiCallRequestBody = null;
 			String backgroundThreadName = null;
 
 			try {
@@ -259,7 +281,29 @@ public class SystemService {
 				// e.g. "DELETE /appointments/1234"
 				apiCallUrl = format("%s %s", httpServletRequest.getMethod(), WebUtility.httpServletRequestUrl(httpServletRequest));
 
-			/*
+				// Only pull request body for certain HTTP methods...
+				boolean couldHaveRequestBody = HTTP_METHODS_THAT_CAN_HAVE_REQUEST_BODIES.contains(httpServletRequest.getMethod());
+
+				if (couldHaveRequestBody) {
+					// ...and don't pull request bodies that might have sensitive data (e.g. SAML assertions)
+					boolean requestBodyMightContainSensitiveData = false;
+
+					Route route = requestContext.route().orElse(null);
+
+					if (route != null && route.resourceMethod().getAnnotation(RequestBodyMightContainSensitiveData.class) != null)
+						requestBodyMightContainSensitiveData = true;
+
+					try (Reader reader = httpServletRequest.getReader()) {
+						apiCallRequestBody = trimToNull(CharStreams.toString(reader));
+					} catch (IOException e) {
+						LOGGER.error("Unable to extract API call request body", e);
+					}
+
+					if (apiCallRequestBody != null && requestBodyMightContainSensitiveData)
+						apiCallRequestBody = "[elided - sensitive data]";
+				}
+
+			  /*
 			  In the future, might want to track the actual method invoked.  Would look like this:
 
 			  Route route = requestContext.route().orElse(null);
@@ -270,20 +314,22 @@ public class SystemService {
 				  String apiCallHandlerResourceMethodParameters = Arrays.stream(route.resourceMethod().getParameters()).map(parameter -> format("%s %s", parameter.getType().getSimpleName(), parameter.getName())).collect(Collectors.joining(", "));
 				  String apiCallHandler = format("%s::%s(%s)", apiCallHandlerResourceMethodClass, apiCallHandlerResourceMethodName, apiCallHandlerResourceMethodParameters);
 				}
-			 */
+			  */
 			} catch (IllegalStateException ignored) {
 				// This means we are on a background thread
 				backgroundThreadName = Thread.currentThread().getName();
 			}
 
-			return new FootprintContext(accountId, apiCallUrl, backgroundThreadName);
+			return new FootprintContext(accountId, apiCallUrl, apiCallRequestBody, backgroundThreadName);
 		}
 
 		public FootprintContext(@Nullable UUID accountId,
 														@Nullable String apiCallUrl,
+														@Nullable String apiCallRequestBody,
 														@Nullable String backgroundThreadName) {
 			this.accountId = accountId;
 			this.apiCallUrl = apiCallUrl;
+			this.apiCallRequestBody = apiCallRequestBody;
 			this.backgroundThreadName = backgroundThreadName;
 		}
 
@@ -295,6 +341,11 @@ public class SystemService {
 		@Nonnull
 		public Optional<String> getApiCallUrl() {
 			return Optional.ofNullable(this.apiCallUrl);
+		}
+
+		@Nonnull
+		public Optional<String> getApiCallRequestBody() {
+			return Optional.ofNullable(this.apiCallRequestBody);
 		}
 
 		@Nonnull

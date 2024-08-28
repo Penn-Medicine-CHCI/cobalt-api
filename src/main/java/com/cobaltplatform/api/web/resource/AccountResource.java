@@ -89,6 +89,7 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.security.RequestBodyMightContainSensitiveData;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.service.AccountService;
@@ -706,6 +707,7 @@ public class AccountResource {
 
 	@Nonnull
 	@POST("/accounts/mychart")
+	@RequestBodyMightContainSensitiveData
 	public ApiResponse createMyChartAccount(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
