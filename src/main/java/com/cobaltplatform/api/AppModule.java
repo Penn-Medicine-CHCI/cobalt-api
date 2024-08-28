@@ -64,6 +64,7 @@ import com.cobaltplatform.api.model.api.response.AccountCheckInActionApiResponse
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSessionApiResponse.AccountSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AccountStudyApiResponse.AccountStudyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ActivityTrackingApiResponse.ActivityTrackingApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
@@ -341,6 +342,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ClientDeviceActivityApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledOutreachApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FaqSubtopicApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AccountStudyApiResponseFactory.class)));
 	}
 
 	@Provides
