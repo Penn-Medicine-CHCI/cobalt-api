@@ -187,6 +187,13 @@ public class SystemService {
 
 		FootprintContext footprintContext = FootprintContext.forCurrentContext(getCurrentContext());
 
+		String apiCallRequestBody = footprintContext.getApiCallRequestBody().orElse(null);
+
+		// Enforce a limit on API call request body logging length.
+		// It's unclear what Postgres' true hard limits are, so we are picking a smallish limit we know is acceptable
+		if (apiCallRequestBody != null & apiCallRequestBody.length() > 10_000)
+			apiCallRequestBody = format("%s...[remainder elided]", apiCallRequestBody.substring(0, 10_000));
+
 		getDatabase().queryForObject("""
 						SELECT
 							set_config('cobalt.account_id', CAST(? AS TEXT), TRUE) AS account_id_configured,
@@ -196,7 +203,7 @@ public class SystemService {
 						""", FootprintContextSetResult.class,
 				footprintContext.getAccountId().orElse(null),
 				footprintContext.getApiCallUrl().orElse(null),
-				footprintContext.getApiCallRequestBody().orElse(null),
+				apiCallRequestBody,
 				footprintContext.getBackgroundThreadName().orElse(null));
 
 		return true;
