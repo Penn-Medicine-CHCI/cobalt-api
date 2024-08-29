@@ -191,7 +191,7 @@ public class SystemService {
 
 		// Enforce a limit on API call request body logging length.
 		// It's unclear what Postgres' true hard limits are, so we are picking a smallish limit we know is acceptable
-		if (apiCallRequestBody != null & apiCallRequestBody.length() > 10_000)
+		if (apiCallRequestBody != null && apiCallRequestBody.length() > 10_000)
 			apiCallRequestBody = format("%s...[remainder elided]", apiCallRequestBody.substring(0, 10_000));
 
 		getDatabase().queryForObject("""

@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.request.CreateStudyFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountStudyPreferences;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
 import com.cobaltplatform.api.model.api.response.AccountCheckInApiResponse.AccountCheckInApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AccountStudyApiResponse.AccountStudyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
@@ -134,6 +135,8 @@ public class StudyResource {
 	@Nonnull
 	private final StudyApiResponseFactory studyApiResponseFactory;
 	@Nonnull
+	private final AccountStudyApiResponseFactory accountStudyApiResponseFactory;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Formatter formatter;
@@ -152,6 +155,7 @@ public class StudyResource {
 											 @Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											 @Nonnull StudyApiResponseFactory studyApiResponseFactory,
 											 @Nonnull ClientDeviceApiResponseFactory clientDeviceApiResponseFactory,
+											 @Nonnull AccountStudyApiResponseFactory accountStudyApiResponseFactory,
 											 @Nonnull RequestBodyParser requestBodyParser,
 											 @Nonnull Strings strings,
 											 @Nonnull Formatter formatter,
@@ -168,6 +172,7 @@ public class StudyResource {
 		requireNonNull(fileUploadResultApiResponseFactory);
 		requireNonNull(studyApiResponseFactory);
 		requireNonNull(clientDeviceApiResponseFactory);
+		requireNonNull(accountStudyApiResponseFactory);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 		requireNonNull(beiweCryptoManager);
@@ -185,6 +190,7 @@ public class StudyResource {
 		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 		this.studyApiResponseFactory = studyApiResponseFactory;
 		this.clientDeviceApiResponseFactory = clientDeviceApiResponseFactory;
+		this.accountStudyApiResponseFactory = accountStudyApiResponseFactory;
 		this.strings = strings;
 		this.formatter = formatter;
 		this.beiweCryptoManager = beiweCryptoManager;
@@ -707,6 +713,27 @@ public class StudyResource {
 		}});
 	}
 
+	@Nonnull
+	@GET("/studies/{studyIdentifier}/account-study")
+	@AuthenticationRequired
+	public ApiResponse accountStudyForCurrentAccount(@Nonnull @PathParameter String studyIdentifier) {
+		requireNonNull(studyIdentifier);
+		
+		Account currentAccount = getCurrentContext().getAccount().get();
+		Study study = getStudyService().findStudyByIdentifier(studyIdentifier).orElse(null);
+
+		if (study == null)
+			throw new NotFoundException();
+
+		AccountStudy accountStudy = getStudyService().findAccountStudyByAccountIdAndStudyId(currentAccount.getAccountId(), study.getStudyId()).orElse(null);
+
+		if (accountStudy == null)
+			throw new NotFoundException();
+
+		return new ApiResponse(Map.of(
+				"accountStudy", getAccountStudyApiResponseFactory().create(accountStudy)
+		));
+	}
 
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
@@ -766,6 +793,11 @@ public class StudyResource {
 	@Nonnull
 	protected ClientDeviceApiResponseFactory getClientDeviceApiResponseFactory() {
 		return this.clientDeviceApiResponseFactory;
+	}
+
+	@Nonnull
+	protected AccountStudyApiResponseFactory getAccountStudyApiResponseFactory() {
+		return this.accountStudyApiResponseFactory;
 	}
 
 	@Nonnull

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('182-content-spring-cleaning', NULL, NULL);
+SELECT _v.register_patch('187-content-spring-cleaning', NULL, NULL);
 
 -- Footprint tracking
 CREATE TABLE footprint_event_group_type (

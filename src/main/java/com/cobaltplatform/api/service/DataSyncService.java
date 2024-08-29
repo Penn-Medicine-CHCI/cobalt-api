@@ -39,6 +39,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -57,6 +59,8 @@ public class DataSyncService implements AutoCloseable {
 	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final String FDW_SERVER_NAME;
 	@Nonnull
 	private final Provider<BackgroundSyncTask> backgroundSyncTaskProvider;
 	@Nonnull
@@ -83,8 +87,9 @@ public class DataSyncService implements AutoCloseable {
 	private ScheduledExecutorService backgroundTaskExecutorService;
 
 	static {
-		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L;
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 600L;
 		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+		FDW_SERVER_NAME = "cobalt_remote";
 	}
 
 	@Inject
@@ -174,6 +179,28 @@ public class DataSyncService implements AutoCloseable {
 		getSystemService().performAdvisoryLockOperationIfAvailable(AdvisoryLock.DATA_SYNC, () -> {
 			Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(InstitutionId.COBALT).get();
 
+			//Check to see if we need to update the IP address for the database
+			InetAddress address = null;
+			try {
+				address = InetAddress.getByName(getConfiguration().getDataSyncRemoteDb());
+			} catch (UnknownHostException e) {
+				throw new RuntimeException(e);
+			}
+
+			Optional<String> fdwServerAddress = getDatabase().queryForObject("""
+					SELECT SUBSTR(srvoptions[1], POSITION('=' IN srvoptions[1]) + 1, 15) 
+					FROM pg_foreign_server
+					WHERE srvname=?""", String.class, FDW_SERVER_NAME);
+
+			if (!fdwServerAddress.isPresent())
+				throw new RuntimeException(format("Could not find foreign server %s", FDW_SERVER_NAME));
+
+			if (address.getHostAddress().compareTo(fdwServerAddress.get()) != 0) {
+				getLogger().debug(format("Remote DB IP Address is %s, fdw server address is %s", address.getHostAddress(), fdwServerAddress.get()));
+				getDatabase().execute(format("ALTER SERVER %s OPTIONS (SET host '%s')", FDW_SERVER_NAME, address.getHostAddress()));
+			}
+
+			System.out.println(address.getHostAddress());
 			getDatabase().execute("""
 					INSERT INTO institution
 					(institution_id,
@@ -227,7 +254,8 @@ public class DataSyncService implements AutoCloseable {
 					sms_messages_enabled,
 					epic_provider_slot_booking_sync_enabled,
 					appointment_feedback_survey_enabled,
-					appointment_feedback_survey_delay_in_minutes)
+					appointment_feedback_survey_delay_in_minutes,
+					remote_data_flag)
 					(SELECT institution_id,
 					        name,
 					        created,
@@ -279,8 +307,9 @@ public class DataSyncService implements AutoCloseable {
 					        sms_messages_enabled,
 					        epic_provider_slot_booking_sync_enabled,
 					        appointment_feedback_survey_enabled,
-					        appointment_feedback_survey_delay_in_minutes
-					        FROM remote_institution ri
+					        appointment_feedback_survey_delay_in_minutes,
+					        TRUE
+					        FROM v_remote_institution ri
 					        WHERE ri.institution_id NOT IN
 					        (SELECT i.institution_id
 					        FROM institution i))
@@ -290,33 +319,27 @@ public class DataSyncService implements AutoCloseable {
 			getDatabase().execute("""
 					INSERT INTO file_upload
 					(file_upload_id, account_id, url, storage_key,
-					filename, content_type, file_upload_type_id, filesize)
+					filename, content_type, file_upload_type_id, filesize, remote_data_flag)
 					(SELECT rfu.file_upload_id, ?, rfu.url, rfu.storage_key,
-					rfu.filename, rfu.content_type, rfu.file_upload_type_id, rfu.filesize 
+					rfu.filename, rfu.content_type, rfu.file_upload_type_id, rfu.filesize, TRUE
 					FROM remote_file_upload rfu 
 					WHERE rfu.file_upload_id NOT IN
 					(SELECT fu.file_upload_id
 					FROM file_upload fu)
 					AND rfu.file_upload_id IN
-					(SELECT rc1.file_upload_id 
-					FROM remote_content rc1
-					WHERE rc1.shared_flag=TRUE
-					AND rc1.published=TRUE
-				  AND rc1.deleted_flag=FALSE
+					(SELECT vrc1.file_upload_id 
+					FROM v_remote_content vrc1
 					UNION ALL
-					SELECT rc2.image_file_upload_id 
-					FROM remote_content rc2
-					WHERE rc2.shared_flag=TRUE
-					AND rc2.published=TRUE
-				  AND rc2.deleted_flag=FALSE));""", serviceAccount.getAccountId());
+					SELECT vrc2.image_file_upload_id 
+					FROM v_remote_content vrc2))""", serviceAccount.getAccountId());
 
 			//Pull in any new tags that do not exist in this database instance
 			getDatabase().execute("""
 					INSERT INTO tag 
-					(tag_id, name, url_name, description, en_search_vector, tag_group_id)
-					(SELECT rt.tag_id, rt.name, rt.url_name, rt.description, rt.en_search_vector, rt.tag_group_id
-					FROM remote_tag rt 
-					WHERE rt.tag_id NOT IN 
+					(tag_id, name, url_name, description, en_search_vector, tag_group_id, remote_data_flag)
+					(SELECT vrt.tag_id, vrt.name, vrt.url_name, vrt.description, vrt.en_search_vector, vrt.tag_group_id, TRUE
+					FROM v_remote_tag vrt 
+					WHERE vrt.tag_id NOT IN 
 					(SELECT t.tag_id FROM tag t))""");
 
 			//Pull over any content data that is shared and does not exist in this database instance
@@ -326,51 +349,29 @@ public class DataSyncService implements AutoCloseable {
 					 owner_institution_id, deleted_flag, duration_in_minutes, en_search_vector, never_embed, shared_flag,
 					 search_terms, publish_start_date, publish_end_date, publish_recurring, published, file_upload_id,
 					 image_file_upload_id, remote_data_flag)
-					(SELECT rc.content_id, content_type_id, title, url, date_created, description, author,
+					(SELECT content_id, content_type_id, title, url, date_created, description, author,
 					 owner_institution_id, deleted_flag, duration_in_minutes, en_search_vector, never_embed, shared_flag,
 					 search_terms, publish_start_date, publish_end_date, publish_recurring, published, file_upload_id,
 					 image_file_upload_id, 'TRUE'
-					FROM remote_content rc
-					WHERE rc.content_id NOT IN 
+					FROM v_remote_content vrc
+					WHERE vrc.content_id NOT IN 
 					(SELECT c.content_id 
-					FROM content c)
-					 AND rc.shared_flag=TRUE 
-					 AND rc.published=TRUE
-					 AND rc.deleted_flag=FALSE)""");
+					FROM content c))""");
 
 			//Pull over any content_tag data that we do not have in this database instance
 			getDatabase().execute("""
 					INSERT INTO tag_content 
-					(tag_content_id, tag_id, content_id)
-					(SELECT rtc.tag_content_id, rtc.tag_id, rtc.content_id 
-					FROM remote_tag_content rtc, remote_content rc 
-					WHERE rtc.content_id = rc.content_id
-					AND rc.shared_flag=TRUE
-					AND rc.published=TRUE
-					AND rc.deleted_flag=FALSE
-					AND rtc.tag_content_id NOT IN 
+					(tag_content_id, tag_id, content_id, remote_data_flag)
+					(SELECT vrtc.tag_content_id, vrtc.tag_id, vrtc.content_id, TRUE 
+					FROM v_remote_tag_content vrtc
+					WHERE vrtc.tag_content_id NOT IN 
 					(SELECT tc.tag_content_id 
-					FROM tag_content tc, content c
-					WHERE tc.content_id = c.content_id
-					AND c.shared_flag=TRUE 
-					AND c.published=TRUE
-					AND c.deleted_flag=FALSE)
+					FROM tag_content tc)
 					AND NOT EXISTS
 					(SELECT 'X'
 					FROM tag_content tc2
-					WHERE rtc.tag_id = tc2.tag_id
-					 AND rtc.content_id = tc2.content_id))""");
-
-			//Remove any tags that are no longer associated to content that we have synced over
-			getDatabase().execute("""
-					DELETE FROM tag_content
-					WHERE tag_content_id NOT IN
-					(SELECT rtc.tag_content_id 
-					FROM remote_tag_content rtc)
-					AND content_id IN
-					(SELECT c.content_id
-					FROM content c
-					WHERE remote_data_flag = true)""");
+					WHERE vrtc.tag_id = tc2.tag_id
+					AND vrtc.content_id = tc2.content_id))""");
 
 			//Update any content attributes that may have changed.
 			getDatabase().execute("""
@@ -393,11 +394,31 @@ public class DataSyncService implements AutoCloseable {
 					    published =rc.published,
 					    file_upload_id =rc.file_upload_id,
 					    image_file_upload_id=rc.image_file_upload_id
-					FROM remote_content rc
+					FROM v_remote_content rc
 					WHERE content.content_id = rc.content_id
 					AND content.remote_data_flag = TRUE""");
 		});
 
+		// Copy over any institution_content records. This is only needed when the same institution exists
+		// in both the remote and local database. The only instance of this is to support local development
+		// where the COBALT instance exists bot remotely and locally.
+		getDatabase().execute("""
+    		INSERT INTO institution_content
+    		(institution_content_id, institution_id, content_id)
+    		SELECT institution_content_id, institution_id, content_id
+    		FROM v_remote_institution_content virc
+    		WHERE institution_content_id NOT IN
+    		(SELECT ic.institution_content_id
+    		FROM institution_content ic)
+				""");
+
+		//Remove any tags that are no longer associated to content that we have synced over
+		getDatabase().execute("""
+				DELETE FROM tag_content
+				WHERE tag_content_id NOT IN
+				(SELECT vrtc.tag_content_id 
+				FROM v_remote_tag_content vrtc)
+				AND remote_data_flag = true""");
 
 	}
 
