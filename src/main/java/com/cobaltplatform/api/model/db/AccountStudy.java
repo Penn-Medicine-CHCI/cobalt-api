@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.RecordingPreference.RecordingPreferenceId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -56,7 +57,7 @@ public class AccountStudy {
 	private Boolean deleted;
 
 	@Nonnull
-	private RecordingPreference.RecordingPreferenceId recordingPreferenceId;
+	private RecordingPreferenceId recordingPreferenceId;
 
 	@Nullable
 	public UUID getAccountStudyId() {
@@ -149,11 +150,11 @@ public class AccountStudy {
 	}
 
 	@Nonnull
-	public RecordingPreference.RecordingPreferenceId getRecordingPreferenceId() {
+	public RecordingPreferenceId getRecordingPreferenceId() {
 		return recordingPreferenceId;
 	}
 
-	public void setRecordingPreferenceId(@Nonnull RecordingPreference.RecordingPreferenceId recordingPreferenceId) {
+	public void setRecordingPreferenceId(@Nonnull RecordingPreferenceId recordingPreferenceId) {
 		this.recordingPreferenceId = recordingPreferenceId;
 	}
 }
