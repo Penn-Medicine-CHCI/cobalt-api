@@ -180,7 +180,7 @@ public class DataSyncService implements AutoCloseable {
 			Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(InstitutionId.COBALT).get();
 
 			//Check to see if we need to update the IP address for the database
-			InetAddress address = null;
+			InetAddress address;
 			try {
 				address = InetAddress.getByName(getConfiguration().getDataSyncRemoteDb());
 			} catch (UnknownHostException e) {
@@ -205,8 +205,7 @@ public class DataSyncService implements AutoCloseable {
 							SELECT count(*) > 0
 							FROM remote_content""", Boolean.class);
 				} catch (Exception e) {
-					getErrorReporter().report(format("Remote DB IP Address has changed to %s. Please whitelist this in AWS.", address.getHostAddress()));
-					return;
+					throw new RuntimeException(format("Remote DB IP Address has changed to %s. Please whitelist this in AWS.", address.getHostAddress()), e);
 				}
 			}
 
@@ -405,6 +404,7 @@ public class DataSyncService implements AutoCloseable {
 					    image_file_upload_id=rc.image_file_upload_id
 					FROM v_remote_content rc
 					WHERE content.content_id = rc.content_id
+					AND content.last_updated < rc.last_updated
 					AND content.remote_data_flag = TRUE""");
 
 			// Copy over any institution_content records. This is only needed when the same institution exists
@@ -472,7 +472,9 @@ public class DataSyncService implements AutoCloseable {
 
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				try {
-					getDataSyncService().syncData();
+					getDatabase().transaction(() -> {
+						getDataSyncService().syncData();
+					});
 				} catch (Exception e) {
 					getLogger().error("Unable to sync data", e);
 					getErrorReporter().report(e);
