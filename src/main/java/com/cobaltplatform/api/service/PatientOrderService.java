@@ -242,9 +242,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -317,6 +322,8 @@ public class PatientOrderService implements AutoCloseable {
 	private Boolean backgroundTaskStarted;
 	@Nullable
 	private ScheduledExecutorService backgroundTaskExecutorService;
+	@Nullable
+	private ExecutorService parallelQueryExecutorService;
 
 	@Inject
 	public PatientOrderService(@Nonnull Provider<AddressService> addressServiceProvider,
@@ -390,6 +397,7 @@ public class PatientOrderService implements AutoCloseable {
 
 			getLogger().trace("Starting Patient Order background tasks...");
 
+			this.parallelQueryExecutorService = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("patient-order-parallel-query-task").build());
 			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("patient-order-background-task").build());
 			this.backgroundTaskStarted = true;
 
@@ -421,6 +429,9 @@ public class PatientOrderService implements AutoCloseable {
 				return false;
 
 			getLogger().trace("Stopping Patient Order background tasks...");
+
+			getParallelQueryExecutorService().get().shutdownNow();
+			this.parallelQueryExecutorService = null;
 
 			getBackgroundTaskExecutorService().get().shutdownNow();
 			this.backgroundTaskExecutorService = null;
@@ -848,7 +859,7 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	public Map<PatientOrderViewTypeId, Integer> findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(@Nullable InstitutionId institutionId,
 																																																						 @Nullable UUID panelAccountId) {
-		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = new HashMap<>(PatientOrderViewTypeId.values().length);
+		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = new ConcurrentHashMap<>(PatientOrderViewTypeId.values().length);
 
 		// Seed the map with zeroes for all possible view types
 		for (PatientOrderViewTypeId patientOrderViewTypeId : PatientOrderViewTypeId.values())
@@ -857,28 +868,64 @@ public class PatientOrderService implements AutoCloseable {
 		if (institutionId == null)
 			return patientOrderCountsByPatientOrderViewTypeId;
 
+		// Fan out and run our 6 queries in parallel
+		ExecutorService parallelQueryExecutorService = getParallelQueryExecutorService().get();
+		List<CompletableFuture<Void>> completableFutures = new ArrayList<>(6);
+
 		// SCHEDULED
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, findScheduledPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+		completableFutures.add(CompletableFuture.supplyAsync(() -> {
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, findScheduledPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+			return null;
+		}, parallelQueryExecutorService));
 
 		// NEED_ASSESSMENT
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, findNeedAssessmentPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+		completableFutures.add(CompletableFuture.supplyAsync(() -> {
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, findNeedAssessmentPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+			return null;
+		}, parallelQueryExecutorService));
 
 		// NEED_DOCUMENTATION
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, findNeedDocumentationPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+		completableFutures.add(CompletableFuture.supplyAsync(() -> {
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, findNeedDocumentationPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+			return null;
+		}, parallelQueryExecutorService));
 
 		// SCHEDULED_OUTREACH
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, findScheduledOutreachPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+		completableFutures.add(CompletableFuture.supplyAsync(() -> {
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, findScheduledOutreachPatientOrderCountForInstitutionId(institutionId, panelAccountId));
+			return null;
+		}, parallelQueryExecutorService));
 
 		// SUBCLINICAL
 		// MHP
 		// SPECIALTY_CARE
-		Map<PatientOrderTriageStatusId, Integer> countsByPatientOrderTriageStatusId = findPatientOrderTriageStatusCountsForInstitutionId(institutionId, panelAccountId);
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SPECIALTY_CARE));
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SUBCLINICAL));
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.MHP));
+		completableFutures.add(CompletableFuture.supplyAsync(() -> {
+			Map<PatientOrderTriageStatusId, Integer> countsByPatientOrderTriageStatusId = findPatientOrderTriageStatusCountsForInstitutionId(institutionId, panelAccountId);
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SPECIALTY_CARE));
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SUBCLINICAL));
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.MHP));
+			return null;
+		}, parallelQueryExecutorService));
 
 		// CLOSED
-		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.CLOSED, findPatientOrderDispositionCountForInstitutionId(institutionId, panelAccountId, PatientOrderDispositionId.CLOSED));
+		completableFutures.add(CompletableFuture.supplyAsync(() -> {
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.CLOSED, findPatientOrderDispositionCountForInstitutionId(institutionId, panelAccountId, PatientOrderDispositionId.CLOSED));
+			return null;
+		}, parallelQueryExecutorService));
+
+		// Make a future that combines all the tasks...
+		CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+
+		// ...and wait for the data to come back.
+		try {
+			combinedFuture.get(20, TimeUnit.SECONDS);
+		} catch (ExecutionException e) {
+			throw new RuntimeException("Patient order count task failed", e);
+		} catch (TimeoutException e) {
+			throw new RuntimeException("Patient order count task timed out", e);
+		} catch (InterruptedException e) {
+			throw new RuntimeException("Patient order count task was interrupted", e);
+		}
 
 		return patientOrderCountsByPatientOrderViewTypeId;
 	}
@@ -6108,7 +6155,7 @@ public class PatientOrderService implements AutoCloseable {
 				for (RawPatientOrder archivablePatientOrder : archivablePatientOrders) {
 					getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",
 							archivablePatientOrder.getPatientOrderId(), archivablePatientOrder.getEpisodeClosedAt());
-					
+
 					getPatientOrderService().archivePatientOrder(new ArchivePatientOrderRequest() {{
 						setPatientOrderId(archivablePatientOrder.getPatientOrderId());
 						setAccountId(serviceAccount.getAccountId());
@@ -6410,6 +6457,11 @@ public class PatientOrderService implements AutoCloseable {
 		} finally {
 			getBackgroundTaskLock().unlock();
 		}
+	}
+
+	@Nonnull
+	protected Optional<ExecutorService> getParallelQueryExecutorService() {
+		return Optional.ofNullable(this.parallelQueryExecutorService);
 	}
 
 	@Nonnull
