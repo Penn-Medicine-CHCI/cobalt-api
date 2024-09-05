@@ -87,6 +87,8 @@ INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_EMAIL_VERIFICATION_CREAT
 INSERT INTO footprint_event_group_type VALUES ('ACCOUNT_EMAIL_VERIFICATION_APPLY', 'Account Email Verification Apply');
 -- Scheduled Messages
 INSERT INTO footprint_event_group_type VALUES ('SCHEDULED_MESSAGE_SEND', 'Scheduled Message Send');
+-- Remote Data Sync
+INSERT INTO footprint_event_group_type VALUES ('REMOTE_DATA_SYNC', 'Remote Data Sync');
 
 -- Footprint events are logically grouped together.
 -- For example, a CONTENT_CREATE footprint_event_group might have many footprint_event

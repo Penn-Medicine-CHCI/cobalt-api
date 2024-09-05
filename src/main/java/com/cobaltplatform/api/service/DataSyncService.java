@@ -24,6 +24,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -433,6 +434,8 @@ public class DataSyncService implements AutoCloseable {
 	@ThreadSafe
 	protected static class BackgroundSyncTask implements Runnable {
 		@Nonnull
+		private final Provider<SystemService> systemServiceProvider;
+		@Nonnull
 		private final Provider<DataSyncService> dataSyncServiceProvider;
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
@@ -446,17 +449,20 @@ public class DataSyncService implements AutoCloseable {
 		private final Logger logger;
 
 		@Inject
-		public BackgroundSyncTask(@Nonnull Provider<DataSyncService> dataSyncServiceProvider,
+		public BackgroundSyncTask(@Nonnull Provider<SystemService> systemServiceProvider,
+															@Nonnull Provider<DataSyncService> dataSyncServiceProvider,
 															@Nonnull CurrentContextExecutor currentContextExecutor,
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Configuration configuration) {
+			requireNonNull(systemServiceProvider);
 			requireNonNull(dataSyncServiceProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
 			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
+			this.systemServiceProvider = systemServiceProvider;
 			this.dataSyncServiceProvider = dataSyncServiceProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
@@ -473,6 +479,7 @@ public class DataSyncService implements AutoCloseable {
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				try {
 					getDatabase().transaction(() -> {
+						getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.REMOTE_DATA_SYNC);
 						getDataSyncService().syncData();
 					});
 				} catch (Exception e) {
@@ -480,6 +487,11 @@ public class DataSyncService implements AutoCloseable {
 					getErrorReporter().report(e);
 				}
 			});
+		}
+
+		@Nonnull
+		protected SystemService getSystemService() {
+			return this.systemServiceProvider.get();
 		}
 
 		@Nonnull

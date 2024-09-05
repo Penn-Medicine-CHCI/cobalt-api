@@ -112,7 +112,9 @@ public class FootprintEventGroupType {
 		ACCOUNT_EMAIL_VERIFICATION_CREATE,
 		ACCOUNT_EMAIL_VERIFICATION_APPLY,
 		// Scheduled Messages
-		SCHEDULED_MESSAGE_SEND
+		SCHEDULED_MESSAGE_SEND,
+		// Remote Data Sync
+		REMOTE_DATA_SYNC
 	}
 
 	@Override
