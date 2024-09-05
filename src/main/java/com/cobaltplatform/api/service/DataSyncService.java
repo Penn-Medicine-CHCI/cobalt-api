@@ -196,11 +196,20 @@ public class DataSyncService implements AutoCloseable {
 				throw new RuntimeException(format("Could not find foreign server %s", FDW_SERVER_NAME));
 
 			if (address.getHostAddress().compareTo(fdwServerAddress.get()) != 0) {
-				getLogger().debug(format("Remote DB IP Address is %s, fdw server address is %s", address.getHostAddress(), fdwServerAddress.get()));
+				getLogger().debug(format("Remote DB IP Address is %s, fdw server address is %s, updating remote server host.", address.getHostAddress(), fdwServerAddress.get()));
 				getDatabase().execute(format("ALTER SERVER %s OPTIONS (SET host '%s')", FDW_SERVER_NAME, address.getHostAddress()));
+
+				//Try to execute a query against the remote database to make sure it is accessible
+				try {
+					getDatabase().queryForObject("""
+							SELECT count(*) > 0
+							FROM remote_content""", Boolean.class);
+				} catch (Exception e) {
+					getErrorReporter().report(format("Remote DB IP Address has changed to %s. Please whitelist this in AWS.", address.getHostAddress()));
+					return;
+				}
 			}
 
-			System.out.println(address.getHostAddress());
 			getDatabase().execute("""
 					INSERT INTO institution
 					(institution_id,
@@ -397,29 +406,28 @@ public class DataSyncService implements AutoCloseable {
 					FROM v_remote_content rc
 					WHERE content.content_id = rc.content_id
 					AND content.remote_data_flag = TRUE""");
+
+			// Copy over any institution_content records. This is only needed when the same institution exists
+			// in both the remote and local database. The only instance of this is to support local development
+			// where the COBALT instance exists bot remotely and locally.
+			getDatabase().execute("""
+							INSERT INTO institution_content
+							(institution_content_id, institution_id, content_id)
+							SELECT institution_content_id, institution_id, content_id
+							FROM v_remote_institution_content virc
+							WHERE institution_content_id NOT IN
+							(SELECT ic.institution_content_id
+							FROM institution_content ic)
+					""");
+
+			//Remove any tags that are no longer associated to content that we have synced over
+			getDatabase().execute("""
+					DELETE FROM tag_content
+					WHERE tag_content_id NOT IN
+					(SELECT vrtc.tag_content_id 
+					FROM v_remote_tag_content vrtc)
+					AND remote_data_flag = true""");
 		});
-
-		// Copy over any institution_content records. This is only needed when the same institution exists
-		// in both the remote and local database. The only instance of this is to support local development
-		// where the COBALT instance exists bot remotely and locally.
-		getDatabase().execute("""
-    		INSERT INTO institution_content
-    		(institution_content_id, institution_id, content_id)
-    		SELECT institution_content_id, institution_id, content_id
-    		FROM v_remote_institution_content virc
-    		WHERE institution_content_id NOT IN
-    		(SELECT ic.institution_content_id
-    		FROM institution_content ic)
-				""");
-
-		//Remove any tags that are no longer associated to content that we have synced over
-		getDatabase().execute("""
-				DELETE FROM tag_content
-				WHERE tag_content_id NOT IN
-				(SELECT vrtc.tag_content_id 
-				FROM v_remote_tag_content vrtc)
-				AND remote_data_flag = true""");
-
 	}
 
 	@ThreadSafe
