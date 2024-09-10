@@ -1583,7 +1583,6 @@ public class PatientOrderResource {
 	@Nonnull
 	@GET("/integrated-care/panel-counts")
 	@AuthenticationRequired
-	@ReadReplica
 	public ApiResponse panelCounts(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
 		requireNonNull(panelAccountId);
 
