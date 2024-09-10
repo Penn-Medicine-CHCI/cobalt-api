@@ -128,6 +128,7 @@ import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.PatientOrderCsvGenerator;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.DELETE;
@@ -1497,6 +1498,7 @@ public class PatientOrderResource {
 	@Nonnull
 	@GET("/integrated-care/panel-today")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse panelToday(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
 		requireNonNull(panelAccountId);
 
@@ -1581,6 +1583,7 @@ public class PatientOrderResource {
 	@Nonnull
 	@GET("/integrated-care/panel-counts")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse panelCounts(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
 		requireNonNull(panelAccountId);
 
