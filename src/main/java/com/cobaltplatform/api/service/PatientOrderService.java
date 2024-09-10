@@ -243,14 +243,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -325,8 +321,6 @@ public class PatientOrderService implements AutoCloseable {
 	private Boolean backgroundTaskStarted;
 	@Nullable
 	private ScheduledExecutorService backgroundTaskExecutorService;
-	@Nullable
-	private ExecutorService parallelQueryExecutorService;
 
 	@Inject
 	public PatientOrderService(@Nonnull Provider<AddressService> addressServiceProvider,
@@ -403,7 +397,6 @@ public class PatientOrderService implements AutoCloseable {
 
 			getLogger().trace("Starting Patient Order background tasks...");
 
-			this.parallelQueryExecutorService = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("patient-order-parallel-query-task").build());
 			this.backgroundTaskExecutorService = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setNameFormat("patient-order-background-task").build());
 			this.backgroundTaskStarted = true;
 
@@ -435,9 +428,6 @@ public class PatientOrderService implements AutoCloseable {
 				return false;
 
 			getLogger().trace("Stopping Patient Order background tasks...");
-
-			getParallelQueryExecutorService().get().shutdownNow();
-			this.parallelQueryExecutorService = null;
 
 			getBackgroundTaskExecutorService().get().shutdownNow();
 			this.backgroundTaskExecutorService = null;
@@ -871,68 +861,90 @@ public class PatientOrderService implements AutoCloseable {
 		for (PatientOrderViewTypeId patientOrderViewTypeId : PatientOrderViewTypeId.values())
 			patientOrderCountsByPatientOrderViewTypeId.put(patientOrderViewTypeId, 0);
 
-		if (institutionId == null)
+		if (institutionId == null || panelAccountId == null)
 			return patientOrderCountsByPatientOrderViewTypeId;
 
-		// Fan out and run our 6 queries in parallel
-		ExecutorService parallelQueryExecutorService = getParallelQueryExecutorService().get();
-		List<CompletableFuture<Void>> completableFutures = new ArrayList<>(6);
+		// Instead of running a bunch of queries in parallel, it's faster to pull all the open orders for the panel account and filter in code here.
+		// TODO: would be nice to put this in v_patient_order eventually.
+		List<PatientOrder> openPatientOrders = findOpenPatientOrdersForPanelAccountId(panelAccountId);
 
-		// SCHEDULED
-		completableFutures.add(CompletableFuture.supplyAsync(() -> {
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, findScheduledPatientOrderCountForInstitutionId(institutionId, panelAccountId));
-			return null;
-		}, parallelQueryExecutorService));
+		for (PatientOrder openPatientOrder : openPatientOrders) {
+			// SCHEDULED
+			// Patients scheduled to take the assessment by phone
+			// Definition:
+			// Order State = Open
+			// Assessment Status = Scheduled
+			if (openPatientOrder.getPatientOrderScreeningStatusId() == PatientOrderScreeningStatusId.SCHEDULED) {
+				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SCHEDULED) + 1;
+				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, updatedCount);
+			}
 
-		// NEED_ASSESSMENT
-		completableFutures.add(CompletableFuture.supplyAsync(() -> {
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, findNeedAssessmentPatientOrderCountForInstitutionId(institutionId, panelAccountId));
-			return null;
-		}, parallelQueryExecutorService));
+			// NEED_ASSESSMENT
+			// Patients that have not started or been scheduled for an assessment
+			// Definition:
+			// Order State = Open
+			// Outreach = 1 or greater
+			// Assessment Status = Not Started
+			// Assessment Status = In Progress
+			// Consent = None
+			// Consent = Yes
+			if (openPatientOrder.getTotalOutreachCount() != null
+					&& openPatientOrder.getTotalOutreachCount() > 0
+					&& openPatientOrder.getPatientOrderScreeningStatusId() == PatientOrderScreeningStatusId.NOT_SCREENED
+					&& (openPatientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.UNKNOWN
+					|| openPatientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.CONSENTED)) {
+				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.NEED_ASSESSMENT) + 1;
+				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, updatedCount);
+			}
 
-		// NEED_DOCUMENTATION
-		completableFutures.add(CompletableFuture.supplyAsync(() -> {
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, findNeedDocumentationPatientOrderCountForInstitutionId(institutionId, panelAccountId));
-			return null;
-		}, parallelQueryExecutorService));
+			// NEED_DOCUMENTATION
+			// Patients scheduled to take the assessment by phone
+			// Definition:
+			// Order State = Open
+			// Encounter Documentation Status = Needs Documentation
+			if (openPatientOrder.getPatientOrderEncounterDocumentationStatusId() == PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION) {
+				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.NEED_DOCUMENTATION) + 1;
+				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, updatedCount);
+			}
 
-		// SCHEDULED_OUTREACH
-		completableFutures.add(CompletableFuture.supplyAsync(() -> {
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, findScheduledOutreachPatientOrderCountForInstitutionId(institutionId, panelAccountId));
-			return null;
-		}, parallelQueryExecutorService));
+			// SCHEDULED_OUTREACH
+			// If there is a scheduled outreach
+			// Definition:
+			// Order State = Open
+			// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
+			if (openPatientOrder.getNextContactTypeId() != null && (
+					openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.ASSESSMENT_OUTREACH
+							|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.ASSESSMENT
+							|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.OTHER
+							|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.RESOURCE_FOLLOWUP
+			)) {
+				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SCHEDULED_OUTREACH) + 1;
+				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, updatedCount);
+			}
 
-		// SUBCLINICAL
-		// MHP
-		// SPECIALTY_CARE
-		completableFutures.add(CompletableFuture.supplyAsync(() -> {
-			Map<PatientOrderTriageStatusId, Integer> countsByPatientOrderTriageStatusId = findPatientOrderTriageStatusCountsForInstitutionId(institutionId, panelAccountId);
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SPECIALTY_CARE));
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.SUBCLINICAL));
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, countsByPatientOrderTriageStatusId.get(PatientOrderTriageStatusId.MHP));
-			return null;
-		}, parallelQueryExecutorService));
+			// SUBCLINICAL
+			if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.SUBCLINICAL) {
+				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SUBCLINICAL) + 1;
+				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, updatedCount);
+			}
 
-		// CLOSED
-		completableFutures.add(CompletableFuture.supplyAsync(() -> {
-			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.CLOSED, findPatientOrderDispositionCountForInstitutionId(institutionId, panelAccountId, PatientOrderDispositionId.CLOSED));
-			return null;
-		}, parallelQueryExecutorService));
+			// MHP
+			if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.MHP) {
+				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.MHP) + 1;
+				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, updatedCount);
+			}
 
-		// Make a future that combines all the tasks...
-		CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
-
-		// ...and wait for the data to come back.
-		try {
-			combinedFuture.get(20, TimeUnit.SECONDS);
-		} catch (ExecutionException e) {
-			throw new RuntimeException("Patient order count task failed", e);
-		} catch (TimeoutException e) {
-			throw new RuntimeException("Patient order count task timed out", e);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Patient order count task was interrupted", e);
+			// SPECIALTY_CARE
+			if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.SPECIALTY_CARE) {
+				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SPECIALTY_CARE) + 1;
+				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, updatedCount);
+			}
 		}
 
+		// CLOSED
+		// We do a separate query here because it's fast
+		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.CLOSED, findPatientOrderDispositionCountForInstitutionId(institutionId, panelAccountId, PatientOrderDispositionId.CLOSED));
+		
 		return patientOrderCountsByPatientOrderViewTypeId;
 	}
 
@@ -6468,11 +6480,6 @@ public class PatientOrderService implements AutoCloseable {
 		} finally {
 			getBackgroundTaskLock().unlock();
 		}
-	}
-
-	@Nonnull
-	protected Optional<ExecutorService> getParallelQueryExecutorService() {
-		return Optional.ofNullable(this.parallelQueryExecutorService);
 	}
 
 	@Nonnull
