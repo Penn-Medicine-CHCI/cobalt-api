@@ -179,7 +179,10 @@ public class CurrentContextRequestHandler {
 		// This is later cleared out via a finally {} block in AppModule
 		MDC.put(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY, currentContextDescription);
 
-		getLogger().debug("Received {}", FormatUtils.httpServletRequestDescription(httpServletRequest));
+		boolean healthCheck = httpServletRequest.getRequestURI().startsWith("/system/health-check");
+
+		if (!healthCheck)
+			getLogger().debug("Received {}", FormatUtils.httpServletRequestDescription(httpServletRequest));
 
 		getErrorReporter().startScope();
 
