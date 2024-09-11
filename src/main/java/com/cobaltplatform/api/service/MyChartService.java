@@ -93,6 +93,8 @@ public class MyChartService {
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
+	private final Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final Authenticator authenticator;
@@ -117,6 +119,7 @@ public class MyChartService {
 	@Inject
 	public MyChartService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
 												@Nonnull Provider<AccountService> accountServiceProvider,
+												@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 												@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												@Nonnull Authenticator authenticator,
 												@Nonnull Normalizer normalizer,
@@ -125,6 +128,7 @@ public class MyChartService {
 												@Nonnull Strings strings) {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(accountServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(authenticator);
 		requireNonNull(normalizer);
@@ -134,6 +138,7 @@ public class MyChartService {
 
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.authenticator = authenticator;
 		this.normalizer = normalizer;
@@ -334,8 +339,13 @@ public class MyChartService {
 		Account existingAccount = getAccountService().findAccountByAccountSourceIdAndSsoIdAndInstitutionId(AccountSourceId.MYCHART, ssoId, institutionId).orElse(null);
 
 		// Account already exists for this account source/SSO ID/institution, return it instead of creating another
-		if (existingAccount != null)
+		if (existingAccount != null) {
+			// If there are any patient orders to associate this account with, do it now
+			if (institution.getIntegratedCareEnabled())
+				getPatientOrderService().associatePatientAccountWithPatientOrders(existingAccount.getAccountId());
+
 			return existingAccount.getAccountId();
+		}
 
 		GenderIdentityId genderIdentityId = patient.extractGenderIdentityId().orElse(null);
 		RaceId raceId = patient.extractRaceId().orElse(null);
@@ -456,6 +466,11 @@ public class MyChartService {
 	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull
