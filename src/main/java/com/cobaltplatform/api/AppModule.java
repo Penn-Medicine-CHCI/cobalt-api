@@ -162,6 +162,7 @@ import com.cobaltplatform.api.util.HandlebarsTemplater;
 import com.cobaltplatform.api.util.HttpLoggingInterceptor;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.JsonMapper.MappingNullability;
+import com.cobaltplatform.api.util.LoggingUtility;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.util.db.WritableMaster;
 import com.cobaltplatform.api.web.filter.AuthorizationFilter;
@@ -205,6 +206,7 @@ import okhttp3.OkHttpClient;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -213,9 +215,13 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -493,6 +499,15 @@ public class AppModule extends AbstractModule {
 			}
 
 			@Override
+			public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+				try {
+					super.doFilter(servletRequest, servletResponse, filterChain);
+				} finally {
+					MDC.remove(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY);
+				}
+			}
+
+			@Override
 			protected void logException(HttpServletRequest httpServletRequest,
 																	HttpServletResponse httpServletResponse,
 																	Optional<Route> route,
@@ -506,8 +521,7 @@ public class AppModule extends AbstractModule {
 
 			@Override
 			protected void logRequestStart(HttpServletRequest httpServletRequest) {
-				if (shouldLog(httpServletRequest))
-					super.logRequestStart(httpServletRequest);
+				// We perform our own request logging in CurrentContextRequestHandler
 			}
 
 			@Override
