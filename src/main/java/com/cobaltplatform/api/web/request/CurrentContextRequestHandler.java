@@ -41,8 +41,10 @@ import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.service.FingerprintService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
+import com.cobaltplatform.api.util.LoggingUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
+import com.soklet.util.FormatUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -54,10 +56,13 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.WebUtility.extractValueFromRequest;
 import static java.lang.String.format;
@@ -87,9 +92,6 @@ public class CurrentContextRequestHandler {
 	private static final String DEBUG_SIMULATE_DELAY_PROPERTY_NAME;
 	@Nonnull
 	private static final String INSTITUTION_ID_PROPERTY_NAME;
-
-	@Nonnull
-	private static final String CURRENT_CONTEXT_LOGGING_KEY;
 
 	@Nonnull
 	private final CurrentContextExecutor currentContextExecutor;
@@ -122,8 +124,6 @@ public class CurrentContextRequestHandler {
 		WEBAPP_CURRENT_URL_PROPERTY_NAME = "X-Cobalt-Webapp-Current-Url";
 		DEBUG_SIMULATE_DELAY_PROPERTY_NAME = "X-Cobalt-Debug-Simulate-Delay";
 		INSTITUTION_ID_PROPERTY_NAME = "X-Cobalt-Institution-Id";
-
-		CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
 	}
 
 	@Inject
@@ -162,6 +162,24 @@ public class CurrentContextRequestHandler {
 										 @Nonnull CurrentContextOperation currentContextOperation) {
 		requireNonNull(httpServletRequest);
 		requireNonNull(currentContextOperation);
+
+		boolean performingAutoRefresh = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Autorefresh"), "true");
+		boolean usingReadReplica = getDatabase().equals(getDatabaseProvider().getReadReplicaDatabase());
+
+		List<String> currentContextComponents = new ArrayList<>(2);
+
+		if (performingAutoRefresh)
+			currentContextComponents.add("AUTOREFRESH");
+
+		if (usingReadReplica)
+			currentContextComponents.add("READ_REPLICA");
+
+		String currentContextDescription = currentContextComponents.stream().collect(Collectors.joining(", "));
+
+		// This is later cleared out via a finally {} block in AppModule
+		MDC.put(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY, currentContextDescription);
+
+		getLogger().debug("Received {}", FormatUtils.httpServletRequestDescription(httpServletRequest));
 
 		getErrorReporter().startScope();
 
@@ -295,34 +313,37 @@ public class CurrentContextRequestHandler {
 					.myChartAccessToken(myChartAccessToken)
 					.build();
 
-			String currentContextDescription;
+			currentContextComponents = new ArrayList<>(5);
 
-			if (account != null) {
-				String accountIdentifier = account.getEmailAddress() == null ? "[anonymous]" : account.getEmailAddress();
-				getLogger().debug(format("Authenticated '%s' for this request.", accountIdentifier));
+			if (performingAutoRefresh)
+				currentContextComponents.add("AUTOREFRESH");
 
-				currentContextDescription = format("%s, %s, %s",
-						accountIdentifier,
-						locale.toLanguageTag(),
-						timeZone.getId());
+			if (usingReadReplica)
+				currentContextComponents.add("READ_REPLICA");
+
+			String accountIdentifier = null;
+
+			if (account == null) {
+				currentContextComponents.add(remoteClient.getDescription());
+				currentContextComponents.add(locale.toLanguageTag());
+				currentContextComponents.add((timeZone.getId()));
 			} else {
-				getLogger().trace("This request is unauthenticated.");
-
-				currentContextDescription = format("%s, %s, %s",
-						remoteClient.getDescription(),
-						locale.toLanguageTag(),
-						timeZone.getId());
+				accountIdentifier = account.getEmailAddress() == null ? format("Account ID %s", account.getAccountId()) : account.getEmailAddress();
+				currentContextComponents.add(accountIdentifier);
 			}
+
+			currentContextDescription = currentContextComponents.stream().collect(Collectors.joining(", "));
 
 			// Store off the client device if we have it available to us
 			persistClientDeviceIfNecessary(remoteClient, institution, account);
 
-			try {
-				MDC.put(getCurrentContextLoggingKey(), currentContextDescription);
-				getCurrentContextExecutor().execute(currentContext, currentContextOperation);
-			} finally {
-				MDC.remove(getCurrentContextLoggingKey());
-			}
+			// This is later cleared out via a finally {} block in AppModule
+			MDC.put(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY, currentContextDescription);
+
+			if (accountIdentifier != null)
+				getLogger().debug(format("Authenticated %s for this request.", accountIdentifier));
+
+			getCurrentContextExecutor().execute(currentContext, currentContextOperation);
 		} finally {
 			getErrorReporter().endScope();
 		}
@@ -421,11 +442,6 @@ public class CurrentContextRequestHandler {
 	}
 
 	@Nonnull
-	public static String getCurrentContextLoggingKey() {
-		return CURRENT_CONTEXT_LOGGING_KEY;
-	}
-
-	@Nonnull
 	protected CurrentContextExecutor getCurrentContextExecutor() {
 		return this.currentContextExecutor;
 	}
@@ -453,6 +469,11 @@ public class CurrentContextRequestHandler {
 	@Nonnull
 	protected Authenticator getAuthenticator() {
 		return this.authenticator;
+	}
+
+	@Nonnull
+	protected DatabaseProvider getDatabaseProvider() {
+		return this.databaseProvider;
 	}
 
 	@Nonnull
