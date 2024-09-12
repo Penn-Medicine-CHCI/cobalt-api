@@ -63,6 +63,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.security.PublicKey;
+import java.security.Security;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -189,6 +190,12 @@ public class SystemResource {
 	@GET("/system/configuration")
 	public ApiResponse systemConfiguration() {
 		ZoneId displayTimezone = ZoneId.of("America/New_York");
+		String ttlCache = Security.getProperty("networkaddress.cache.ttl");
+
+		if (ttlCache == null)
+			ttlCache = "[unspecified]";
+
+		String pinnedTtlCache = ttlCache;
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("environment", getConfiguration().getEnvironment());
@@ -198,6 +205,9 @@ public class SystemResource {
 			put("deploymentTimestampDescription", getFormatter().formatTimestamp(getConfiguration().getDeploymentTimestamp(), FormatStyle.LONG, FormatStyle.LONG, displayTimezone));
 			put("uptime", getFormatter().formatDuration(Duration.between(getConfiguration().getDeploymentTimestamp(), Instant.now())));
 			put("nodeIdentifier", getConfiguration().getNodeIdentifier());
+			put("security", Map.of(
+					"networkaddress.cache.ttl", pinnedTtlCache
+			));
 			// put("gitBranch", getConfiguration().getGitBranch());
 			// put("gitCommitHash", getConfiguration().getGitCommitHash());
 		}});

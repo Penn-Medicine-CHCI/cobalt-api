@@ -29,6 +29,8 @@ RUN mvn --no-transfer-progress -o -DincludeScope=runtime dependency:copy-depende
 FROM public.ecr.aws/ews-network/amazoncorretto:17 as run
 ARG GIT_COMMIT_HASH=None
 ARG GIT_BRANCH=None
+# Ensure cache entries for successful DNS lookups expire after 5 seconds
+RUN echo -e "\nnetworkaddress.cache.ttl=5\n" >> /usr/lib/jvm/java-17-amazon-corretto/conf/security/java.security
 # RUN apk add --no-cache curl
 RUN yum -y install curl
 WORKDIR /opt/app
