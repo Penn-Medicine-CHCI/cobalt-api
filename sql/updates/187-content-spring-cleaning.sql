@@ -403,10 +403,10 @@ CREATE TABLE content_audience_type_group (
 );
 
 INSERT INTO content_audience_type_group (content_audience_type_group_id, description, example_sentence, display_order)
-VALUES ('MYSELF', 'The user (who is an adult)', 'I want resources for {myself}', 1);
+VALUES ('MYSELF', 'The user (who is an adult)', 'I want resources for myself...', 1);
 
 INSERT INTO content_audience_type_group (content_audience_type_group_id, description, example_sentence, display_order)
-VALUES ('FAMILY_MEMBER', 'The user''s family member', 'I want resources for my {preteen}', 2);
+VALUES ('FAMILY_MEMBER', 'The user''s family member', 'I want resources for...', 2);
 
 -- Introduce content audience: who the content is for (myself, someone else)
 CREATE TABLE content_audience_type (
@@ -424,10 +424,10 @@ INSERT INTO content_audience_type (content_audience_type_id, content_audience_ty
 VALUES ('MYSELF', 'MYSELF', 'Myself', 'myself', 'myself', 1);
 
 INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
-VALUES ('TODDLER_OR_CHILD', 'FAMILY_MEMBER', 'Toddler/Child', 'toddler/child', 'toddler-child',  2);
+VALUES ('CHILD', 'FAMILY_MEMBER', 'Toddler/Child', 'toddler/child', 'child',  2);
 
 INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
-VALUES ('PRETEEN_OR_TEEN', 'FAMILY_MEMBER', 'Preteen/Teen', 'preteen/teen', 'preteen-teen',  3);
+VALUES ('TEEN', 'FAMILY_MEMBER', 'Preteen/Teen', 'preteen/teen', 'teen',  3);
 
 INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
 VALUES ('ADULT_CHILD', 'FAMILY_MEMBER', 'Adult Child', 'adult child', 'adult-child',  4);
@@ -436,7 +436,7 @@ INSERT INTO content_audience_type (content_audience_type_id, content_audience_ty
 VALUES ('SPOUSE', 'FAMILY_MEMBER', 'Spouse (Adult)', 'spouse', 'spouse',  5);
 
 INSERT INTO content_audience_type (content_audience_type_id, content_audience_type_group_id, description, patient_representation, url_name, display_order)
-VALUES ('AGING_PARENT', 'FAMILY_MEMBER', 'Aging Parent (Senior)', 'aging parent', 'aging-parent',  6);
+VALUES ('PARENT', 'FAMILY_MEMBER', 'Aging Parent (Senior)', 'aging parent', 'parent',  6);
 
 -- Combine content with audience types (a single piece of content might have many audience types)
 CREATE TABLE content_audience (

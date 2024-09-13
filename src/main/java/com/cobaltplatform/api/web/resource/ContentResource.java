@@ -22,6 +22,10 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse.ContentAudienceTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeGroupApiResponse;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeGroupApiResponse.ContentAudienceTypeGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -42,7 +46,10 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -65,29 +72,40 @@ public class ContentResource {
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final ContentApiResponseFactory contentApiResponseFactory;
+	@Nonnull
+	private final ContentAudienceTypeApiResponseFactory contentAudienceTypeApiResponseFactory;
+	@Nonnull
+	private final ContentAudienceTypeGroupApiResponseFactory contentAudienceTypeGroupApiResponseFactory;
 
 	@Inject
 	public ContentResource(@Nonnull ContentService contentService,
 												 @Nonnull TagService tagService,
 												 @Nonnull RequestBodyParser requestBodyParser,
 												 @Nonnull Provider<CurrentContext> currentContextProvider,
-												 @Nonnull ContentApiResponse.ContentApiResponseFactory contentApiResponseFactory) {
+												 @Nonnull ContentApiResponse.ContentApiResponseFactory contentApiResponseFactory,
+												 @Nonnull ContentAudienceTypeApiResponseFactory contentAudienceTypeApiResponseFactory,
+												 @Nonnull ContentAudienceTypeGroupApiResponseFactory contentAudienceTypeGroupApiResponseFactory) {
 		requireNonNull(contentService);
 		requireNonNull(tagService);
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(contentApiResponseFactory);
+		requireNonNull(contentAudienceTypeApiResponseFactory);
+		requireNonNull(contentAudienceTypeGroupApiResponseFactory);
 
 		this.contentService = contentService;
 		this.tagService = tagService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.contentApiResponseFactory = contentApiResponseFactory;
+		this.contentAudienceTypeApiResponseFactory = contentAudienceTypeApiResponseFactory;
+		this.contentAudienceTypeGroupApiResponseFactory = contentAudienceTypeGroupApiResponseFactory;
 	}
 
-	@GET("/content/{contentId}")
+	@Nonnull
 	@AuthenticationRequired
-	public ApiResponse getContentById(@Nonnull @PathParameter UUID contentId) {
+	@GET("/content/{contentId}")
+	public ApiResponse findContentById(@Nonnull @PathParameter UUID contentId) {
 		requireNonNull(contentId);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -123,6 +141,42 @@ public class ContentResource {
 	}
 
 	@Nonnull
+	@AuthenticationRequired
+	@GET("/content-audience-types")
+	public ApiResponse findContentAudienceTypes() {
+		List<ContentAudienceTypeApiResponse> contentAudienceTypes = getContentService().findContentAudienceTypes().stream()
+				.map(contentAudienceType -> getContentAudienceTypeApiResponseFactory().create(contentAudienceType))
+				.collect(Collectors.toList());
+
+		List<ContentAudienceTypeGroupApiResponse> contentAudienceTypeGroups = getContentService().findContentAudienceTypeGroups().stream()
+				.map(contentAudienceTypeGroup -> getContentAudienceTypeGroupApiResponseFactory().create(contentAudienceTypeGroup))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(Map.of(
+				"contentAudienceTypes", contentAudienceTypes,
+				"contentAudienceTypeGroups", contentAudienceTypeGroups
+		));
+	}
+
+	@Nonnull
+	@AuthenticationRequired
+	@GET("/content-audience-type-groups")
+	public ApiResponse findContentAudienceTypeGroups() {
+		List<ContentAudienceTypeGroupApiResponse> contentAudienceTypeGroups = getContentService().findContentAudienceTypeGroups().stream()
+				.map(contentAudienceTypeGroup -> getContentAudienceTypeGroupApiResponseFactory().create(contentAudienceTypeGroup))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(Map.of(
+				"contentAudienceTypeGroups", contentAudienceTypeGroups
+		));
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
 	protected ContentService getContentService() {
 		return this.contentService;
 	}
@@ -143,7 +197,12 @@ public class ContentResource {
 	}
 
 	@Nonnull
-	protected CurrentContext getCurrentContext() {
-		return this.currentContextProvider.get();
+	protected ContentAudienceTypeApiResponseFactory getContentAudienceTypeApiResponseFactory() {
+		return this.contentAudienceTypeApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ContentAudienceTypeGroupApiResponseFactory getContentAudienceTypeGroupApiResponseFactory() {
+		return this.contentAudienceTypeGroupApiResponseFactory;
 	}
 }

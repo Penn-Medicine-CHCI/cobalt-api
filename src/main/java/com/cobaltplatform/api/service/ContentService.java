@@ -30,6 +30,9 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentAudience;
+import com.cobaltplatform.api.model.db.ContentAudienceType;
+import com.cobaltplatform.api.model.db.ContentAudienceTypeGroup;
 import com.cobaltplatform.api.model.db.ContentFeedback;
 import com.cobaltplatform.api.model.db.ContentFeedbackType.ContentFeedbackTypeId;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
@@ -646,6 +649,37 @@ public class ContentService implements AutoCloseable {
 			adminContent.setInUseInstitutionDescription(institutions);
 			adminContent.setInUseCount(inUseCount);
 		}
+	}
+
+	@Nonnull
+	public List<ContentAudienceTypeGroup> findContentAudienceTypeGroups() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM content_audience_type_group
+				ORDER BY display_order
+				""", ContentAudienceTypeGroup.class);
+	}
+
+	@Nonnull
+	public List<ContentAudienceType> findContentAudienceTypes() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM content_audience_type
+				ORDER BY display_order
+				""", ContentAudienceType.class);
+	}
+
+	@Nonnull
+	public List<ContentAudience> findContentAudiencesByContentId(@Nullable UUID contentId) {
+		if (contentId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM content_audience
+				WHERE content_id=?
+				ORDER BY content_audience_type_id
+				""", ContentAudience.class, contentId);
 	}
 
 	@Override
