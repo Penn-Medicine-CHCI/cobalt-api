@@ -421,6 +421,7 @@ public class AppModule extends AbstractModule {
 				setUsername(getConfiguration().getJdbcReadReplicaUsername());
 				setPassword(getConfiguration().getJdbcReadReplicaPassword());
 				setMaximumPoolSize(getConfiguration().getJdbcReadReplicaMaximumPoolSize());
+				setMaxLifetime(45_000); // 45 seconds to ensure DNS switching between read replica instances
 			}
 		});
 	}
