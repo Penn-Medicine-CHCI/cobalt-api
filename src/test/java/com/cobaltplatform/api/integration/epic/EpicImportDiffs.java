@@ -176,6 +176,7 @@ public class EpicImportDiffs {
 				epicOrder.setOrderStatus(trimToNull(record.get("ORDERSTATUS")));
 				epicOrder.setOrderDate(LocalDate.parse(trimToNull(record.get("ORDERING_DATE")), epicOrderDateFormatter));
 				epicOrder.setEncounterDate(LocalDate.parse(trimToNull(record.get("ENC_DATE")), epicOrderDateFormatter));
+				epicOrder.setReferringPractice(trimToNull(record.get("REFERRINGPRACTICE")));
 
 				String reasonForReferral = trimToNull(record.get("REASON(S) FOR REFERRAL. CONCERN FOR:"));
 
@@ -275,10 +276,12 @@ public class EpicImportDiffs {
 		final List<String> DIFF_ANALYSIS_CSV_HEADERS = List.of(
 				"Order ID",
 				"Epic Order Date",
-				"Cobalt Order Date",
 				"Epic Order Status",
-				//"Order Was Ignored By Cobalt?",
-				"Order Failed Import Into Cobalt?"
+				"Epic Referring Practice",
+				"Order Received By Cobalt?",
+				"Order Successfully Imported Into Cobalt?",
+				"Order Deliberately Discarded By Cobalt?",
+				"Notes"
 		);
 
 		try (Writer writer = new FileWriter(diffAnalysisCsvFile.toFile(), StandardCharsets.UTF_8);
@@ -288,38 +291,38 @@ public class EpicImportDiffs {
 
 				recordElements.add(epicOrder.getOrderId().toString());
 				recordElements.add(epicOrder.getOrderDate().toString());
+				recordElements.add(epicOrder.getOrderStatus());
+				recordElements.add(epicOrder.getReferringPractice());
 
+				boolean orderImportedIntoCobalt = false;
 				CobaltOrder cobaltOrder = cobaltOrdersByOrderId.get(epicOrder.getOrderId());
 
-				if (cobaltOrder != null) {
-					recordElements.add(cobaltOrder.getOrderDate().toString());
-				} else {
-					recordElements.add(null);
+				if (cobaltOrder != null)
+					orderImportedIntoCobalt = true;
+
+				boolean orderDeliberatelyDiscardedByCobalt = false;
+
+				if (failedHl7OrdersByOrderId.containsKey(epicOrder.getOrderId()))
+					orderDeliberatelyDiscardedByCobalt = true;
+
+				boolean orderReceivedByCobalt = orderImportedIntoCobalt || orderDeliberatelyDiscardedByCobalt;
+
+				recordElements.add(orderReceivedByCobalt ? "Yes" : "No");
+				recordElements.add(orderImportedIntoCobalt ? "Yes" : "No");
+				recordElements.add(orderDeliberatelyDiscardedByCobalt ? "Yes" : "No");
+
+				String notes = null;
+
+				if (!orderReceivedByCobalt) {
+					notes = format("Cobalt never received an HL7 message for Order ID %s.", epicOrder.getOrderId());
+				} else if (orderReceivedByCobalt && !orderImportedIntoCobalt && orderDeliberatelyDiscardedByCobalt) {
+					notes = "TODO: display open order ID for this patient that would have prevented this order from being imported.";
+
+				} else if (orderReceivedByCobalt && orderImportedIntoCobalt && orderDeliberatelyDiscardedByCobalt) {
+					notes = format("Cobalt received duplicate HL7 messages for Order ID %s.  One was imported and other[s] were discarded.", epicOrder.getOrderId());
 				}
 
-				recordElements.add(epicOrder.getOrderStatus());
-
-				// Ignored orders that were never imported
-//				if (cobaltOrder == null) {
-//					if (ignoredHl7OrdersByOrderId.containsKey(epicOrder.getOrderId())) {
-//						recordElements.add("Yes");
-//					} else {
-//						recordElements.add("No");
-//					}
-//				} else {
-//					recordElements.add("No");
-//				}
-
-				// Failed orders
-				if (cobaltOrder == null) {
-					if (failedHl7OrdersByOrderId.containsKey(epicOrder.getOrderId())) {
-						recordElements.add("Yes");
-					} else {
-						recordElements.add("No");
-					}
-				} else {
-					recordElements.add("No");
-				}
+				recordElements.add(notes);
 
 				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
 			}
@@ -383,6 +386,8 @@ public class EpicImportDiffs {
 		@Nullable
 		private LocalDate encounterDate;
 		@Nullable
+		private String referringPractice;
+		@Nullable
 		private List<String> reasonsForReferral = new ArrayList<>();
 
 		@Nullable
@@ -419,6 +424,15 @@ public class EpicImportDiffs {
 
 		public void setEncounterDate(@Nullable LocalDate encounterDate) {
 			this.encounterDate = encounterDate;
+		}
+
+		@Nullable
+		public String getReferringPractice() {
+			return this.referringPractice;
+		}
+
+		public void setReferringPractice(@Nullable String referringPractice) {
+			this.referringPractice = referringPractice;
 		}
 
 		@Nullable
