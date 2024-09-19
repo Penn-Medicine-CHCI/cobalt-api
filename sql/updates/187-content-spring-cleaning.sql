@@ -448,6 +448,7 @@ CREATE TABLE content_audience (
 	CONSTRAINT content_audience_pkey PRIMARY KEY(content_id, content_audience_type_id)
 );
 
+CREATE TRIGGER content_audience_footprint AFTER INSERT OR UPDATE OR DELETE ON content_audience FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON content_audience FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Introduce group session visibility: public vs. unlisted

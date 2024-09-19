@@ -25,9 +25,11 @@ import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.UpdateContentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentStatus;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.FileUploadResult;
@@ -54,6 +56,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.model.db.Role.RoleId;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
@@ -287,6 +290,10 @@ public class AdminContentService {
 		Boolean sharedFlag = command.getSharedFlag();
 		UUID fileUploadId = command.getFileUploadId();
 		UUID imageFileUploadId = command.getImageFileUploadId();
+		ContentVisibilityTypeId contentVisibilityTypeId = command.getContentVisibilityTypeId();
+		Set<ContentAudienceTypeId> contentAudienceTypeIds = command.getContentAudienceTypeIds() == null ? Set.of() : command.getContentAudienceTypeIds().stream()
+				.filter(contentAudienceTypeId -> contentAudienceTypeId != null)
+				.collect(Collectors.toSet());
 
 		ValidationException validationException = new ValidationException();
 
@@ -333,6 +340,11 @@ public class AdminContentService {
 		} else if (publishStartDate == null)
 			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date is required")));
 
+		if (contentVisibilityTypeId == null)
+			validationException.add(new FieldError("contentVisibilityTypeId", getStrings().get("You must specify a visibility setting for this content.")));
+
+		if (contentAudienceTypeIds.size() == 0)
+			validationException.add(new FieldError("contentAudienceTypeIds", getStrings().get("You must specify at least one target for this content.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -348,12 +360,13 @@ public class AdminContentService {
 						INSERT INTO content (content_id, content_type_id, title, url,
 						duration_in_minutes, description, author, shared_flag,
 						search_terms, publish_start_date, publish_end_date, publish_recurring, owner_institution_id, date_created, 
-						file_upload_id, image_file_upload_id)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,now(),?,?)												
+						file_upload_id, image_file_upload_id,content_visibility_type_id)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,now(),?,?,?)												
 						""",
 				contentId, command.getContentTypeId(), title, url,
 				durationInMinutes, description, author, sharedFlag,
-				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId, fileUploadId, imageFileUploadId);
+				searchTerms, publishStartDate, publishEndDate, publishRecurring, ownerInstitutionId, fileUploadId,
+				imageFileUploadId, contentVisibilityTypeId);
 
 		addContentToInstitution(contentId, account);
 
@@ -368,6 +381,12 @@ public class AdminContentService {
 					VALUES (?,?)
 					""", tagId, contentId);
 		}
+
+		for (ContentAudienceTypeId contentAudienceTypeId : contentAudienceTypeIds)
+			getDatabase().execute("""
+					INSERT INTO content_audience(content_id, content_audience_type_id, created_by_account_id)
+					VALUES (?,?,?)
+					""", contentId, contentAudienceTypeId, account.getAccountId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), contentId).get();
 		applyTagsToAdminContent(adminContent, account.getInstitutionId());
@@ -395,6 +414,10 @@ public class AdminContentService {
 		Boolean sharedFlag = command.getSharedFlag();
 		UUID fileUploadId = command.getFileUploadId();
 		UUID imageFileUploadId = command.getImageFileUploadId();
+		ContentVisibilityTypeId contentVisibilityTypeId = command.getContentVisibilityTypeId();
+		Set<ContentAudienceTypeId> contentAudienceTypeIds = command.getContentAudienceTypeIds() == null ? Set.of() : command.getContentAudienceTypeIds().stream()
+				.filter(contentAudienceTypeId -> contentAudienceTypeId != null)
+				.collect(Collectors.toSet());
 
 		ValidationException validationException = new ValidationException();
 		AdminContent existingContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElseThrow();
@@ -447,6 +470,12 @@ public class AdminContentService {
 		} else if (publishStartDate == null)
 			validationException.add(new FieldError("publishStartDate", getStrings().get("Start date is required")));
 
+		if (contentVisibilityTypeId == null)
+			validationException.add(new FieldError("contentVisibilityTypeId", getStrings().get("You must specify a visibility setting for this content.")));
+
+		if (contentAudienceTypeIds.size() == 0)
+			validationException.add(new FieldError("contentAudienceTypeIds", getStrings().get("You must specify at least one target for this content.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -454,14 +483,14 @@ public class AdminContentService {
 		boolean shouldNotify = false;
 
 		getDatabase().execute("""
-							 	UPDATE content SET content_type_id=?, title=?, url=?, 
+							 	UPDATE content SET content_type_id=?, title=?, url=?,
 							 	duration_in_minutes=?, description=?, author=?, publish_start_date=?, publish_end_date=?,
-							 	publish_recurring=?, search_terms=?, shared_flag=?, file_upload_id=?, image_file_upload_id=?
+							 	publish_recurring=?, search_terms=?, shared_flag=?, file_upload_id=?, image_file_upload_id=?, content_visibility_type_id=?
 								WHERE content_id=?
 						""",
 				contentTypeIdCommand, titleCommand, urlCommand,
 				durationInMinutes, descriptionCommand, authorCommand, publishStartDate, publishEndDate,
-				publishRecurring, searchTerms, sharedFlag, fileUploadId, imageFileUploadId,
+				publishRecurring, searchTerms, sharedFlag, fileUploadId, imageFileUploadId, contentVisibilityTypeId,
 				command.getContentId());
 
 		AdminContent adminContent = findAdminContentByIdForInstitution(account.getInstitutionId(), command.getContentId()).orElse(null);
@@ -485,6 +514,17 @@ public class AdminContentService {
 					VALUES (?,?)
 					""", tagId, command.getContentId());
 		}
+
+		getDatabase().execute("""
+				DELETE FROM content_audience
+				WHERE content_id=?
+				""", command.getContentId());
+
+		for (ContentAudienceTypeId contentAudienceTypeId : contentAudienceTypeIds)
+			getDatabase().execute("""
+					INSERT INTO content_audience(content_id, content_audience_type_id, created_by_account_id)
+					VALUES (?,?,?)
+					""", command.getContentId(), contentAudienceTypeId, account.getAccountId());
 
 		/*
 		if (shouldNotify) {
