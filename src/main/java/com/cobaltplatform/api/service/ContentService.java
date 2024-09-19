@@ -30,7 +30,6 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Content;
-import com.cobaltplatform.api.model.db.ContentAudience;
 import com.cobaltplatform.api.model.db.ContentAudienceType;
 import com.cobaltplatform.api.model.db.ContentAudienceTypeGroup;
 import com.cobaltplatform.api.model.db.ContentFeedback;
@@ -670,16 +669,17 @@ public class ContentService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<ContentAudience> findContentAudiencesByContentId(@Nullable UUID contentId) {
+	public List<ContentAudienceType> findContentAudienceTypesByContentId(@Nullable UUID contentId) {
 		if (contentId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT *
-				FROM content_audience
-				WHERE content_id=?
-				ORDER BY content_audience_type_id
-				""", ContentAudience.class, contentId);
+				SELECT cat.*
+				FROM content_audience ca, content_audience_type cat
+				WHERE ca.content_id=?
+				AND ca.content_audience_type_id=cat.content_audience_type_id
+				ORDER BY cat.content_audience_type_id
+				""", ContentAudienceType.class, contentId);
 	}
 
 	@Override

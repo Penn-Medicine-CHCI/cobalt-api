@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse.ContentAudienceTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
@@ -150,6 +152,9 @@ public class AdminContentApiResponse {
 	@Nullable
 	private String filesizeDescription;
 
+	@Nonnull
+	private final List<ContentAudienceTypeApiResponse> contentAudienceTypes;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface AdminContentApiResponseFactory {
@@ -168,7 +173,8 @@ public class AdminContentApiResponse {
 																 @Assisted @Nonnull AdminContentDisplayType adminContentDisplayType,
 																 @Assisted @Nonnull List<UUID> institutionContentIds,
 																 @Nonnull Strings strings,
-																 @Nonnull TagApiResponse.TagApiResponseFactory tagApiResponseFactory) {
+																 @Nonnull TagApiResponseFactory tagApiResponseFactory,
+																 @Nonnull ContentAudienceTypeApiResponseFactory contentAudienceTypeApiResponseFactory) {
 		requireNonNull(formatter);
 		requireNonNull(adminContent);
 		requireNonNull(contentService);
@@ -176,6 +182,7 @@ public class AdminContentApiResponse {
 		requireNonNull(institutionContentIds);
 		requireNonNull(strings);
 		requireNonNull(tagApiResponseFactory);
+		requireNonNull(contentAudienceTypeApiResponseFactory);
 
 		List<ContentActionId> contentActionIdList = new ArrayList<>();
 		Boolean contentOwnedByCurrentAccount = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId());
@@ -274,6 +281,10 @@ public class AdminContentApiResponse {
 
 		this.dateAddedToInstitutionDescription = adminContent.getDateAddedToInstitution() != null ?
 				formatter.formatDate(adminContent.getDateAddedToInstitution(), FormatStyle.SHORT) : "N/A";
+
+		this.contentAudienceTypes = contentService.findContentAudienceTypesByContentId(contentId).stream()
+				.map(contentAudienceType -> contentAudienceTypeApiResponseFactory.create(contentAudienceType))
+				.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -480,5 +491,10 @@ public class AdminContentApiResponse {
 	@Nullable
 	public String getFilesizeDescription() {
 		return filesizeDescription;
+	}
+
+	@Nonnull
+	public List<ContentAudienceTypeApiResponse> getContentAudienceTypes() {
+		return this.contentAudienceTypes;
 	}
 }
