@@ -46,6 +46,8 @@ public class TagApiResponse {
 	private final String urlName;
 	@Nonnull
 	private final String description;
+	@Nonnull
+	private final Boolean deprecated;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -65,6 +67,7 @@ public class TagApiResponse {
 		this.name = tag.getName();
 		this.urlName = tag.getUrlName();
 		this.description = tag.getDescription();
+		this.deprecated = tag.getDeprecated();
 	}
 
 	@Nonnull
@@ -90,5 +93,10 @@ public class TagApiResponse {
 	@Nonnull
 	public String getDescription() {
 		return this.description;
+	}
+
+	@Nonnull
+	public Boolean getDeprecated() {
+		return this.deprecated;
 	}
 }

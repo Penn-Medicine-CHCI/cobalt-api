@@ -43,6 +43,8 @@ public class TagGroup {
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
+	private Boolean deprecated;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -99,6 +101,15 @@ public class TagGroup {
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public Boolean getDeprecated() {
+		return this.deprecated;
+	}
+
+	public void setDeprecated(@Nullable Boolean deprecated) {
+		this.deprecated = deprecated;
 	}
 
 	@Nullable

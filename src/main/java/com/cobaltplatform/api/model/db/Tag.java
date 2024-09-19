@@ -39,6 +39,8 @@ public class Tag {
 	@Nullable
 	private String description;
 	@Nullable
+	private Boolean deprecated;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -86,6 +88,15 @@ public class Tag {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Boolean getDeprecated() {
+		return this.deprecated;
+	}
+
+	public void setDeprecated(@Nullable Boolean deprecated) {
+		this.deprecated = deprecated;
 	}
 
 	@Nullable

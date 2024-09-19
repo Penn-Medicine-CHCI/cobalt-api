@@ -20,8 +20,8 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.db.Color.ColorId;
-import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.service.TagService;
 import com.google.inject.Provider;
@@ -31,8 +31,8 @@ import com.google.inject.assistedinject.AssistedInject;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
-
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -52,7 +52,9 @@ public class TagGroupApiResponse {
 	@Nonnull
 	private final String description;
 	@Nonnull
-	private final List<Tag> tags;
+	private final Boolean deprecated;
+	@Nonnull
+	private final List<TagApiResponse> tags;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -62,19 +64,24 @@ public class TagGroupApiResponse {
 	}
 
 	@AssistedInject
-	public TagGroupApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
-														 @Assisted @Nonnull TagGroup tagGroup,
-														 @Nonnull TagService tagService) {
+	public TagGroupApiResponse(@Nonnull TagService tagService,
+														 @Nonnull TagApiResponseFactory tagApiResponseFactory,
+														 @Nonnull Provider<CurrentContext> currentContextProvider,
+														 @Assisted @Nonnull TagGroup tagGroup) {
+		requireNonNull(tagService);
+		requireNonNull(tagApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(tagGroup);
-		requireNonNull(tagService);
 
 		this.tagGroupId = tagGroup.getTagGroupId();
 		this.colorId = tagGroup.getColorId();
 		this.name = tagGroup.getName();
 		this.urlName = tagGroup.getUrlName();
 		this.description = tagGroup.getDescription();
-		this.tags = tagService.findTagsByTagGroupId(tagGroup.getTagGroupId());
+		this.deprecated = tagGroup.getDeprecated();
+		this.tags = tagService.findTagsByTagGroupId(tagGroup.getTagGroupId()).stream()
+				.map(tag -> tagApiResponseFactory.create(tag))
+				.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -103,7 +110,12 @@ public class TagGroupApiResponse {
 	}
 
 	@Nonnull
-	public List<Tag> getTags() {
-		return tags;
+	public Boolean getDeprecated() {
+		return this.deprecated;
+	}
+
+	@Nonnull
+	public List<TagApiResponse> getTags() {
+		return this.tags;
 	}
 }
