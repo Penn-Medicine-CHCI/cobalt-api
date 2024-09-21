@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
 import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
@@ -87,7 +88,7 @@ public class CreateGroupSessionRequest {
 	@Nullable
 	private UUID groupSessionCollectionId;
 	@Nullable
-	private Boolean visibleFlag;
+	private GroupSessionVisibilityTypeId groupSessionVisibilityTypeId;
 	@Nullable
 	private UUID screeningFlowId;
 	@Nullable
@@ -250,6 +251,7 @@ public class CreateGroupSessionRequest {
 	public void setSeats(@Nullable Integer seats) {
 		this.seats = seats;
 	}
+
 	@Nullable
 	public String getVideoconferenceUrl() {
 		return videoconferenceUrl;
@@ -332,12 +334,12 @@ public class CreateGroupSessionRequest {
 	}
 
 	@Nullable
-	public Boolean getVisibleFlag() {
-		return visibleFlag;
+	public GroupSessionVisibilityTypeId getGroupSessionVisibilityTypeId() {
+		return this.groupSessionVisibilityTypeId;
 	}
 
-	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
-		this.visibleFlag = visibleFlag;
+	public void setGroupSessionVisibilityTypeId(@Nullable GroupSessionVisibilityTypeId groupSessionVisibilityTypeId) {
+		this.groupSessionVisibilityTypeId = groupSessionVisibilityTypeId;
 	}
 
 	@Nullable

@@ -82,6 +82,7 @@ import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -498,7 +499,7 @@ public class AccountResource {
 			setInstitutionId(account.getInstitutionId());
 			setOrderBy(OrderBy.START_TIME_ASCENDING);
 		}}).getResults()).stream()
-				.filter(groupSession -> groupSession.getVisibleFlag() != null & groupSession.getVisibleFlag())
+				.filter(groupSession -> groupSession.getGroupSessionVisibilityTypeId() == GroupSessionVisibilityTypeId.PUBLIC)
 				.collect(Collectors.toList());
 
 		// Don't show too many events

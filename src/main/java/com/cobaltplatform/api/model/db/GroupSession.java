@@ -417,15 +417,6 @@ public class GroupSession {
 	}
 
 	@Nullable
-	public Boolean getVisibleFlag() {
-		return visibleFlag;
-	}
-
-	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
-		this.visibleFlag = visibleFlag;
-	}
-
-	@Nullable
 	public UUID getScreeningFlowId() {
 		return screeningFlowId;
 	}

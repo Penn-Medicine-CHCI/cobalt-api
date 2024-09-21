@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -210,7 +211,7 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<String> groupSessionCollectionUrlName,
 																	 @Nonnull @QueryParameter Optional<GroupSessionStatusId> groupSessionStatusId,
 																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId,
-																	 @Nonnull @QueryParameter Optional<Boolean> visibleFlag) {
+																	 @Nonnull @QueryParameter Optional<GroupSessionVisibilityTypeId> groupSessionVisibilityTypeId) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(viewType);
@@ -221,7 +222,7 @@ public class GroupSessionResource {
 		requireNonNull(groupSessionCollectionUrlName);
 		requireNonNull(groupSessionStatusId);
 		requireNonNull(groupSessionSchedulingSystemId);
-		requireNonNull(visibleFlag);
+		requireNonNull(groupSessionVisibilityTypeId);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -236,7 +237,7 @@ public class GroupSessionResource {
 		request.setGroupSessionStatusId(groupSessionStatusId.orElse(null));
 		request.setGroupSessionCollectionId(groupSessionCollectionId.orElse(null));
 		request.setGroupSessionSchedulingSystemId(groupSessionSchedulingSystemId.orElse(null));
-		request.setVisibleFlag(visibleFlag.orElse(null));
+		request.setGroupSessionVisibilityTypeId(groupSessionVisibilityTypeId.orElse(null));
 
 		// If a groupSessionCollectionUrlName is specified, use it override the groupSessionCollectionId
 		if (groupSessionCollectionUrlName.isPresent()) {
@@ -257,11 +258,11 @@ public class GroupSessionResource {
 		} else {
 			// Only show 'added' sessions for patient views no matter what your role is...
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
-			request.setVisibleFlag(true);
+			request.setGroupSessionVisibilityTypeId(GroupSessionVisibilityTypeId.PUBLIC);
 
 			//...unless this is a collection.  In that case, we can see all sessions associated, even invisible ones
 			if (request.getGroupSessionCollectionId() != null)
-				request.setVisibleFlag(null);
+				request.setGroupSessionVisibilityTypeId(null);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);

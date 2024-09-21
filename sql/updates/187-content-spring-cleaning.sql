@@ -461,10 +461,13 @@ INSERT INTO group_session_visibility_type (group_session_visibility_type_id, des
 INSERT INTO group_session_visibility_type (group_session_visibility_type_id, description) VALUES ('UNLISTED', 'Unlisted');
 
 -- Retrofit content to respect visibility
-ALTER TABLE group_session ADD COLUMN group_session_visibility_type_id TEXT NOT NULL REFERENCES group_session_visibility_type DEFAULT 'PUBLIC';
-
--- Introduce new group_session_visibility_type_id column
 DROP VIEW v_group_session;
+
+ALTER TABLE group_session ADD COLUMN group_session_visibility_type_id TEXT NOT NULL REFERENCES group_session_visibility_type DEFAULT 'PUBLIC';
+UPDATE group_session SET group_session_visibility_type_id='UNLISTED' WHERE visible_flag=FALSE;
+ALTER TABLE group_session DROP COLUMN visible_flag;
+
+-- Introduce new group_session_visibility_type_id column, remove deleted visible_flag column
 CREATE VIEW v_group_session AS
  SELECT gs.group_session_id,
     gs.institution_id,
@@ -502,7 +505,6 @@ CREATE VIEW v_group_session AS
            FROM group_session_reservation gsr
           WHERE gsr.group_session_id = gs.group_session_id AND gsr.canceled = false)) AS seats_available,
     gs.screening_flow_id,
-    gs.visible_flag,
     gs.group_session_collection_id,
     gs.followup_time_of_day,
     gs.followup_day_offset,
