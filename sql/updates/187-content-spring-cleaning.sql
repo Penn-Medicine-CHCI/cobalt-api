@@ -534,4 +534,26 @@ ALTER TABLE tag_group ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER FOREIGN TABLE remote_content ADD COLUMN content_visibility_type_id TEXT NOT NULL;
 ALTER FOREIGN TABLE remote_tag ADD COLUMN deprecated BOOLEAN NOT NULL;
 
+-- Prior to running this 187 script, in each Cobalt instance, manually run steps 1 and 2.
+-- After running this 187 script in all instances, manually run step 4.
+--
+-- 1. Store off institutions that are sync-enabled
+-- CREATE TEMP TABLE sync_enabled_institution AS
+-- SELECT institution_id, sync_data
+-- FROM institution
+-- WHERE sync_data = TRUE;
+
+-- 2. Disable syncing for those institutions
+-- UPDATE institution SET sync_data=FALSE WHERE sync_data=TRUE;
+
+-- 3. Do updates that affect syncing here (not shown)
+
+-- 4. Re-enable syncing for those institutions
+-- UPDATE institution
+-- SET sync_data = TRUE
+-- FROM sync_enabled_institution
+-- WHERE sync_enabled_institution.institution_id = institution.institution_id;
+
+-- DROP TABLE sync_enabled_institution;
+
 COMMIT;
