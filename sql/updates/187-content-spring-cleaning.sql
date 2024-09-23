@@ -530,4 +530,8 @@ CREATE VIEW v_group_session AS
 ALTER TABLE tag ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE tag_group ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Update remote tables
+ALTER FOREIGN TABLE remote_content ADD COLUMN content_visibility_type_id TEXT NOT NULL;
+ALTER FOREIGN TABLE remote_tag ADD COLUMN deprecated BOOLEAN NOT NULL;
+
 COMMIT;
