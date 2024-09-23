@@ -345,8 +345,8 @@ public class DataSyncService implements AutoCloseable {
 			//Pull in any new tags that do not exist in this database instance
 			getDatabase().execute("""
 					INSERT INTO tag 
-					(tag_id, name, url_name, description, en_search_vector, tag_group_id, remote_data_flag)
-					(SELECT vrt.tag_id, vrt.name, vrt.url_name, vrt.description, vrt.en_search_vector, vrt.tag_group_id, TRUE
+					(tag_id, name, url_name, description, en_search_vector, tag_group_id, remote_data_flag, deprecated)
+					(SELECT vrt.tag_id, vrt.name, vrt.url_name, vrt.description, vrt.en_search_vector, vrt.tag_group_id, TRUE, deprecated
 					FROM v_remote_tag vrt 
 					WHERE vrt.tag_id NOT IN 
 					(SELECT t.tag_id FROM tag t))""");
@@ -357,11 +357,11 @@ public class DataSyncService implements AutoCloseable {
 					(content_id, content_type_id, title, url, date_created, description, author,
 					 owner_institution_id, deleted_flag, duration_in_minutes, en_search_vector, never_embed, shared_flag,
 					 search_terms, publish_start_date, publish_end_date, publish_recurring, published, file_upload_id,
-					 image_file_upload_id, remote_data_flag)
+					 image_file_upload_id, remote_data_flag, content_visibility_type_id)
 					(SELECT content_id, content_type_id, title, url, date_created, description, author,
 					 owner_institution_id, deleted_flag, duration_in_minutes, en_search_vector, never_embed, shared_flag,
 					 search_terms, publish_start_date, publish_end_date, publish_recurring, published, file_upload_id,
-					 image_file_upload_id, 'TRUE'
+					 image_file_upload_id, 'TRUE', content_visibility_type_id
 					FROM v_remote_content vrc
 					WHERE vrc.content_id NOT IN 
 					(SELECT c.content_id 

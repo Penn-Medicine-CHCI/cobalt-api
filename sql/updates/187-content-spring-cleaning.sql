@@ -526,4 +526,8 @@ CREATE VIEW v_group_session AS
    LEFT OUTER JOIN file_upload fu ON gs.image_file_upload_id = fu.file_upload_id
   WHERE gs.group_session_status_id::text <> 'DELETED'::text;
 
+-- Prepare tags and tag groups to be deprecate-able
+ALTER TABLE tag ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE tag_group ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT FALSE;
+
 COMMIT;
