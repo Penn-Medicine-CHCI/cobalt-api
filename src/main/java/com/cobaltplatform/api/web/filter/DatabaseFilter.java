@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.filter;
 
 import com.cobaltplatform.api.context.DatabaseContext;
 import com.cobaltplatform.api.context.DatabaseContextExecutor;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.pyranid.StatementLog;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -55,6 +57,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class DatabaseFilter implements Filter {
 	@Nonnull
+	private Provider<SystemService> systemServiceProvider;
+	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
 	private final DatabaseContextExecutor databaseContextExecutor;
@@ -62,11 +66,14 @@ public class DatabaseFilter implements Filter {
 	private final Logger logger;
 
 	@Inject
-	public DatabaseFilter(@Nonnull DatabaseProvider databaseProvider,
+	public DatabaseFilter(@Nonnull Provider<SystemService> systemServiceProvider,
+												@Nonnull DatabaseProvider databaseProvider,
 												@Nonnull DatabaseContextExecutor databaseContextExecutor) {
+		requireNonNull(systemServiceProvider);
 		requireNonNull(databaseProvider);
 		requireNonNull(databaseContextExecutor);
 
+		this.systemServiceProvider = systemServiceProvider;
 		this.databaseProvider = databaseProvider;
 		this.databaseContextExecutor = databaseContextExecutor;
 		this.logger = LoggerFactory.getLogger("com.cobaltplatform.api.sql.REQUEST_SQL");
@@ -100,6 +107,11 @@ public class DatabaseFilter implements Filter {
 
 		try {
 			getDatabase().transaction(() -> {
+				// This transaction wraps our HTTP resource methods (those annotated with @GET, @POST, etc.)
+				// We already know the current account (if one has been authenticated) at this point.
+				// Apply the current context (account, resource method, etc.) to the current transaction for automated DB footprint capture
+				getSystemService().applyFootprintForCurrentContextToCurrentTransaction();
+
 				getDatabaseContextExecutor().execute(databaseContext, () -> {
 					filterChain.doFilter(servletRequest, servletResponse);
 				});
@@ -135,6 +147,11 @@ public class DatabaseFilter implements Filter {
 	@Override
 	public void destroy() {
 		// Nothing for now
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemServiceProvider.get();
 	}
 
 	@Nonnull

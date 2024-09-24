@@ -19,7 +19,9 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nonnull;
@@ -39,6 +41,8 @@ public class Content {
 	private UUID contentId;
 	@Nonnull
 	private ContentTypeId contentTypeId;
+	@Nullable
+	private ContentVisibilityTypeId contentVisibilityTypeId;
 	@Nonnull
 	private String title;
 	@Nullable
@@ -93,7 +97,7 @@ public class Content {
 	@Nullable
 	private Boolean sharedFlag;
 	@Nullable
-	private ContentStatus.ContentStatusId contentStatusId;
+	private ContentStatusId contentStatusId;
 
 	@Nullable
 	private String contentStatusDescription;
@@ -124,6 +128,15 @@ public class Content {
 
 	public void setContentTypeId(@Nonnull ContentTypeId contentTypeId) {
 		this.contentTypeId = contentTypeId;
+	}
+
+	@Nullable
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
+	}
+
+	public void setContentVisibilityTypeId(@Nullable ContentVisibilityTypeId contentVisibilityTypeId) {
+		this.contentVisibilityTypeId = contentVisibilityTypeId;
 	}
 
 	@Nonnull
@@ -316,11 +329,11 @@ public class Content {
 	}
 
 	@Nullable
-	public ContentStatus.ContentStatusId getContentStatusId() {
+	public ContentStatusId getContentStatusId() {
 		return contentStatusId;
 	}
 
-	public void setContentStatusId(@Nullable ContentStatus.ContentStatusId contentStatusId) {
+	public void setContentStatusId(@Nullable ContentStatusId contentStatusId) {
 		this.contentStatusId = contentStatusId;
 	}
 

@@ -19,10 +19,12 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse.ContentAudienceTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
-import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.service.ContentService;
@@ -55,7 +57,9 @@ public class AdminContentApiResponse {
 	@Nullable
 	private UUID contentId;
 	@Nullable
-	private ContentType.ContentTypeId contentTypeId;
+	private ContentTypeId contentTypeId;
+	@Nonnull
+	private final ContentVisibilityTypeId contentVisibilityTypeId;
 	@Nullable
 	private String title;
 	@Nullable
@@ -148,6 +152,9 @@ public class AdminContentApiResponse {
 	@Nullable
 	private String filesizeDescription;
 
+	@Nonnull
+	private final List<ContentAudienceTypeApiResponse> contentAudienceTypes;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface AdminContentApiResponseFactory {
@@ -166,7 +173,8 @@ public class AdminContentApiResponse {
 																 @Assisted @Nonnull AdminContentDisplayType adminContentDisplayType,
 																 @Assisted @Nonnull List<UUID> institutionContentIds,
 																 @Nonnull Strings strings,
-																 @Nonnull TagApiResponse.TagApiResponseFactory tagApiResponseFactory) {
+																 @Nonnull TagApiResponseFactory tagApiResponseFactory,
+																 @Nonnull ContentAudienceTypeApiResponseFactory contentAudienceTypeApiResponseFactory) {
 		requireNonNull(formatter);
 		requireNonNull(adminContent);
 		requireNonNull(contentService);
@@ -174,12 +182,14 @@ public class AdminContentApiResponse {
 		requireNonNull(institutionContentIds);
 		requireNonNull(strings);
 		requireNonNull(tagApiResponseFactory);
+		requireNonNull(contentAudienceTypeApiResponseFactory);
 
 		List<ContentActionId> contentActionIdList = new ArrayList<>();
 		Boolean contentOwnedByCurrentAccount = account.getInstitutionId().equals(adminContent.getOwnerInstitutionId());
 
 		this.contentId = adminContent.getContentId();
 		this.contentTypeId = adminContent.getContentTypeId();
+		this.contentVisibilityTypeId = adminContent.getContentVisibilityTypeId();
 		this.title = adminContent.getTitle();
 		this.author = adminContent.getAuthor();
 		this.description = adminContent.getDescription();
@@ -269,8 +279,12 @@ public class AdminContentApiResponse {
 
 		this.dateAddedToInstitution = adminContent.getDateAddedToInstitution();
 
-		this.dateAddedToInstitutionDescription =  adminContent.getDateAddedToInstitution() != null ?
+		this.dateAddedToInstitutionDescription = adminContent.getDateAddedToInstitution() != null ?
 				formatter.formatDate(adminContent.getDateAddedToInstitution(), FormatStyle.SHORT) : "N/A";
+
+		this.contentAudienceTypes = contentService.findContentAudienceTypesByContentId(contentId).stream()
+				.map(contentAudienceType -> contentAudienceTypeApiResponseFactory.create(contentAudienceType))
+				.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -281,6 +295,11 @@ public class AdminContentApiResponse {
 	@Nonnull
 	public ContentTypeId getContentTypeId() {
 		return contentTypeId;
+	}
+
+	@Nonnull
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
 	}
 
 	@Nonnull
@@ -472,5 +491,10 @@ public class AdminContentApiResponse {
 	@Nullable
 	public String getFilesizeDescription() {
 		return filesizeDescription;
+	}
+
+	@Nonnull
+	public List<ContentAudienceTypeApiResponse> getContentAudienceTypes() {
+		return this.contentAudienceTypes;
 	}
 }

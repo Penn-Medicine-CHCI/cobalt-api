@@ -20,8 +20,9 @@
 package com.cobaltplatform.api.model.service;
 
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
-import com.cobaltplatform.api.model.db.ContentType;
-import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 
 import javax.annotation.Nonnull;
@@ -35,11 +36,13 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @Immutable
-public class AdminContent{
+public class AdminContent {
 	@Nonnull
 	private UUID contentId;
 	@Nonnull
-	private ContentType.ContentTypeId contentTypeId;
+	private ContentTypeId contentTypeId;
+	@Nullable
+	private ContentVisibilityTypeId contentVisibilityTypeId;
 	@Nonnull
 	private String title;
 	@Nonnull
@@ -57,7 +60,7 @@ public class AdminContent{
 	@Nonnull
 	private Integer views;
 	@Nonnull
-	private Institution.InstitutionId ownerInstitutionId;
+	private InstitutionId ownerInstitutionId;
 	@Nullable
 	private Integer totalCount;
 	@Nullable
@@ -122,13 +125,23 @@ public class AdminContent{
 	public void setContentId(@Nonnull UUID contentId) {
 		this.contentId = contentId;
 	}
+
 	@Nonnull
-	public ContentType.ContentTypeId getContentTypeId() {
+	public ContentTypeId getContentTypeId() {
 		return contentTypeId;
 	}
 
-	public void setContentTypeId(@Nonnull ContentType.ContentTypeId contentTypeId) {
+	public void setContentTypeId(@Nonnull ContentTypeId contentTypeId) {
 		this.contentTypeId = contentTypeId;
+	}
+
+	@Nullable
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
+	}
+
+	public void setContentVisibilityTypeId(@Nullable ContentVisibilityTypeId contentVisibilityTypeId) {
+		this.contentVisibilityTypeId = contentVisibilityTypeId;
 	}
 
 	@Nonnull
@@ -204,13 +217,14 @@ public class AdminContent{
 	}
 
 	@Nonnull
-	public Institution.InstitutionId getOwnerInstitutionId() {
+	public InstitutionId getOwnerInstitutionId() {
 		return ownerInstitutionId;
 	}
 
-	public void setOwnerInstitutionId(@Nonnull Institution.InstitutionId ownerInstitutionId) {
+	public void setOwnerInstitutionId(@Nonnull InstitutionId ownerInstitutionId) {
 		this.ownerInstitutionId = ownerInstitutionId;
 	}
+
 	@Nullable
 	public Integer getTotalCount() {
 		return totalCount;

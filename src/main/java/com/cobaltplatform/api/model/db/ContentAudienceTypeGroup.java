@@ -28,43 +28,33 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ContentType {
+public class ContentAudienceTypeGroup {
 	@Nullable
-	private ContentTypeId contentTypeId;
+	private ContentAudienceTypeGroupId contentAudienceTypeGroupId;
 	@Nullable
 	private String description;
 	@Nullable
-	private String callToAction;
+	private String exampleSentence;
 	@Nullable
-	private Boolean deleted;
+	private Integer displayOrder;
 
-	public enum ContentTypeId {
-		@Deprecated
-		INT_BLOG,
-		@Deprecated
-		EXT_BLOG,
-		VIDEO,
-		@Deprecated
-		AUDIO,
-		ARTICLE,
-		WORKSHEET,
-		PODCAST,
-		APP,
-		WEBSITE
+	public enum ContentAudienceTypeGroupId {
+		MYSELF,
+		FAMILY_MEMBER
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{contentTypeId=%s, description=%s}", getClass().getSimpleName(), getContentTypeId(), getDescription());
+		return format("%s{contentAudienceTypeGroupId=%s, description=%s}", getClass().getSimpleName(), getContentAudienceTypeGroupId(), getDescription());
 	}
 
 	@Nullable
-	public ContentTypeId getContentTypeId() {
-		return contentTypeId;
+	public ContentAudienceTypeGroupId getContentAudienceTypeGroupId() {
+		return this.contentAudienceTypeGroupId;
 	}
 
-	public void setContentTypeId(@Nullable ContentTypeId contentTypeId) {
-		this.contentTypeId = contentTypeId;
+	public void setContentAudienceTypeGroupId(@Nullable ContentAudienceTypeGroupId contentAudienceTypeGroupId) {
+		this.contentAudienceTypeGroupId = contentAudienceTypeGroupId;
 	}
 
 	@Nullable
@@ -77,20 +67,20 @@ public class ContentType {
 	}
 
 	@Nullable
-	public String getCallToAction() {
-		return callToAction;
+	public String getExampleSentence() {
+		return this.exampleSentence;
 	}
 
-	public void setCallToAction(@Nullable String callToAction) {
-		this.callToAction = callToAction;
+	public void setExampleSentence(@Nullable String exampleSentence) {
+		this.exampleSentence = exampleSentence;
 	}
 
 	@Nullable
-	public Boolean getDeleted() {
-		return this.deleted;
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
 	}
 
-	public void setDeleted(@Nullable Boolean deleted) {
-		this.deleted = deleted;
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }

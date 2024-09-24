@@ -28,43 +28,29 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ContentType {
+public class ContentVisibilityType {
 	@Nullable
-	private ContentTypeId contentTypeId;
+	private ContentVisibilityTypeId contentVisibilityTypeId;
 	@Nullable
 	private String description;
-	@Nullable
-	private String callToAction;
-	@Nullable
-	private Boolean deleted;
 
-	public enum ContentTypeId {
-		@Deprecated
-		INT_BLOG,
-		@Deprecated
-		EXT_BLOG,
-		VIDEO,
-		@Deprecated
-		AUDIO,
-		ARTICLE,
-		WORKSHEET,
-		PODCAST,
-		APP,
-		WEBSITE
+	public enum ContentVisibilityTypeId {
+		PUBLIC,
+		UNLISTED
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{contentTypeId=%s, description=%s}", getClass().getSimpleName(), getContentTypeId(), getDescription());
+		return format("%s{contentVisibilityTypeId=%s, description=%s}", getClass().getSimpleName(), getContentVisibilityTypeId(), getDescription());
 	}
 
 	@Nullable
-	public ContentTypeId getContentTypeId() {
-		return contentTypeId;
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
 	}
 
-	public void setContentTypeId(@Nullable ContentTypeId contentTypeId) {
-		this.contentTypeId = contentTypeId;
+	public void setContentVisibilityTypeId(@Nullable ContentVisibilityTypeId contentVisibilityTypeId) {
+		this.contentVisibilityTypeId = contentVisibilityTypeId;
 	}
 
 	@Nullable
@@ -74,23 +60,5 @@ public class ContentType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
-	}
-
-	@Nullable
-	public String getCallToAction() {
-		return callToAction;
-	}
-
-	public void setCallToAction(@Nullable String callToAction) {
-		this.callToAction = callToAction;
-	}
-
-	@Nullable
-	public Boolean getDeleted() {
-		return this.deleted;
-	}
-
-	public void setDeleted(@Nullable Boolean deleted) {
-		this.deleted = deleted;
 	}
 }

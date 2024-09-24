@@ -83,6 +83,8 @@ import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientD
 import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse.ContentAudienceTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeGroupApiResponse.ContentAudienceTypeGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentFeedbackApiResponse.ContentFeedbackApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
@@ -349,6 +351,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PatientOrderScheduledOutreachApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(FaqSubtopicApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AccountStudyApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ContentAudienceTypeApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ContentAudienceTypeGroupApiResponseFactory.class)));
 	}
 
 	@Provides

@@ -52,6 +52,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.FileUpload;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionLearnMoreMethodId;
@@ -64,6 +65,7 @@ import com.cobaltplatform.api.model.db.GroupSessionResponse;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Question;
@@ -326,7 +328,7 @@ public class GroupSessionService implements AutoCloseable {
 		FindGroupSessionsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindGroupSessionsRequest.OrderBy.START_TIME_DESCENDING : request.getOrderBy();
 		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
 		GroupSessionSchedulingSystemId groupSessionSchedulingSystemId = request.getGroupSessionSchedulingSystemId();
-		Boolean visibleFlag = request.getVisibleFlag();
+		GroupSessionVisibilityTypeId groupSessionVisibilityTypeId = request.getGroupSessionVisibilityTypeId();
 
 		List<Object> parameters = new ArrayList<>();
 
@@ -375,11 +377,10 @@ public class GroupSessionService implements AutoCloseable {
 			parameters.add(getNormalizer().normalizeEmailAddress(account.getEmailAddress()).orElse(null));
 		}
 
-		if (visibleFlag != null)
-			if (visibleFlag == true)
-				sql.append("AND gs.visible_flag = TRUE ");
-			else
-				sql.append("AND gs.visible_flag = FALSE ");
+		if (groupSessionVisibilityTypeId != null) {
+			sql.append("AND gs.group_session_visibility_type_id = ? ");
+			parameters.add(groupSessionVisibilityTypeId);
+		}
 
 		if (groupSessionCollectionId != null) {
 			sql.append("AND group_session_collection_id = ? ");
@@ -596,7 +597,7 @@ public class GroupSessionService implements AutoCloseable {
 						videoconference_url, start_date_time, end_date_time, seats, url_name,
 						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id, group_session_location_type_id,
 						send_followup_email, followup_email_content, followup_email_survey_url,
-						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
+						group_session_collection_id, group_session_visibility_type_id, screening_flow_id, send_reminder_email, reminder_email_content,
 						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, 
 						learn_more_description, in_person_location, image_file_upload_id)
 						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
@@ -608,7 +609,7 @@ public class GroupSessionService implements AutoCloseable {
 				sourceGroupSession.getSeats(), sourceGroupSession.getUrlName(), sourceGroupSession.getConfirmationEmailContent(),
 				sourceGroupSession.getLocale(), sourceGroupSession.getTimeZone(), sourceGroupSession.getGroupSessionSchedulingSystemId(),
 				sourceGroupSession.getGroupSessionLocationTypeId(), sourceGroupSession.getSendFollowupEmail(), sourceGroupSession.getFollowupEmailContent(),
-				sourceGroupSession.getFollowupEmailSurveyUrl(), sourceGroupSession.getGroupSessionCollectionId(), sourceGroupSession.getVisibleFlag(),
+				sourceGroupSession.getFollowupEmailSurveyUrl(), sourceGroupSession.getGroupSessionCollectionId(), sourceGroupSession.getGroupSessionVisibilityTypeId(),
 				sourceGroupSession.getScreeningFlowId(), sourceGroupSession.getSendReminderEmail(), sourceGroupSession.getReminderEmailContent(),
 				sourceGroupSession.getFollowupTimeOfDay(), sourceGroupSession.getFollowupDayOffset(), sourceGroupSession.getSingleSessionFlag(),
 				sourceGroupSession.getDateTimeDescription(), sourceGroupSession.getGroupSessionLearnMoreMethodId(), sourceGroupSession.getLearnMoreDescription(),
@@ -655,7 +656,7 @@ public class GroupSessionService implements AutoCloseable {
 		Institution institution = null;
 		UUID groupSessionId = UUID.randomUUID();
 		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
-		Boolean visibleFlag = request.getVisibleFlag();
+		GroupSessionVisibilityTypeId groupSessionVisibilityTypeId = request.getGroupSessionVisibilityTypeId();
 		UUID screeningFlowId = request.getScreeningFlowId();
 		Boolean sendReminderEmail = request.getSendReminderEmail();
 		String reminderEmailContent = trimToNull(request.getReminderEmailContent());
@@ -680,9 +681,6 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (sendReminderEmail == null)
 			sendReminderEmail = false;
-
-		if (visibleFlag == null)
-			visibleFlag = true;
 
 		if (singleSessionFlag == null)
 			singleSessionFlag = true;
@@ -712,6 +710,9 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
+
+		if (groupSessionVisibilityTypeId == null)
+			validationException.add(new FieldError("groupSessionVisibilityTypeId", getStrings().get("Visibility setting is required.")));
 
 		// If a non-administrator is adding this content, sanitize its HTML
 		if (description != null && account.getRoleId() != RoleId.ADMINISTRATOR)
@@ -828,10 +829,10 @@ public class GroupSessionService implements AutoCloseable {
 						INSERT INTO group_session (group_session_id, institution_id,
 						group_session_status_id, title, description, submitter_account_id,
 						target_email_address, facilitator_account_id, facilitator_name, facilitator_email_address,
-					  videoconference_url, start_date_time, end_date_time, seats, url_name,
+						 videoconference_url, start_date_time, end_date_time, seats, url_name,
 						confirmation_email_content, locale, time_zone, group_session_scheduling_system_id,
 						group_session_location_type_id, send_followup_email, followup_email_content, followup_email_survey_url,
-						group_session_collection_id, visible_flag, screening_flow_id, send_reminder_email, reminder_email_content,
+						group_session_collection_id, group_session_visibility_type_id, screening_flow_id, send_reminder_email, reminder_email_content,
 						followup_time_of_day, followup_day_offset, single_session_flag, date_time_description, group_session_learn_more_method_id, 
 						learn_more_description, different_email_address_for_notifications, in_person_location, registration_end_date_time, image_file_upload_id)
 						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
@@ -840,7 +841,7 @@ public class GroupSessionService implements AutoCloseable {
 				title, description, submitterAccountId, targetEmailAddress, facilitatorAccountId, facilitatorName, facilitatorEmailAddress, videoconferenceUrl,
 				startDateTime, endDateTime, seats, urlName, confirmationEmailContent, institution.getLocale(), institution.getTimeZone(),
 				groupSessionSchedulingSystemId, groupSessionLocationTypeId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
-				groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
+				groupSessionCollectionId, groupSessionVisibilityTypeId, screeningFlowId, sendReminderEmail, reminderEmailContent,
 				followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription, groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications,
 				inPersonLocation, registrationEndDateTime, imageFileUploadId);
 
@@ -1066,7 +1067,7 @@ public class GroupSessionService implements AutoCloseable {
 		GroupSession groupSession = findGroupSessionById(groupSessionId, account).get();
 		Institution institution = getInstitutionService().findInstitutionById(groupSession.getInstitutionId()).get();
 		UUID groupSessionCollectionId = request.getGroupSessionCollectionId();
-		Boolean visibleFlag = request.getVisibleFlag();
+		GroupSessionVisibilityTypeId groupSessionVisibilityTypeId = request.getGroupSessionVisibilityTypeId();
 		UUID screeningFlowId = request.getScreeningFlowId();
 		Boolean sendReminderEmail = request.getSendReminderEmail();
 		String reminderEmailContent = trimToNull(request.getReminderEmailContent());
@@ -1096,9 +1097,6 @@ public class GroupSessionService implements AutoCloseable {
 		if (sendReminderEmail == null)
 			sendReminderEmail = false;
 
-		if (visibleFlag == null)
-			visibleFlag = true;
-
 		if (singleSessionFlag == null)
 			singleSessionFlag = true;
 
@@ -1110,6 +1108,9 @@ public class GroupSessionService implements AutoCloseable {
 
 		if (title == null)
 			validationException.add(new FieldError("title", getStrings().get("Title is required.")));
+
+		if (groupSessionVisibilityTypeId == null)
+			validationException.add(new FieldError("groupSessionVisibilityTypeId", getStrings().get("Visibility setting is required.")));
 
 		// If a non-administrator is updating this content, sanitize its HTML
 		if (description != null && account.getRoleId() != RoleId.ADMINISTRATOR)
@@ -1232,14 +1233,14 @@ public class GroupSessionService implements AutoCloseable {
 							UPDATE group_session SET description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
 							target_email_address=?, videoconference_url=?, seats=?,
 							confirmation_email_content=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
-							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
-							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?, 
+							group_session_collection_id=?, group_session_visibility_type_id=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
+							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?,
 							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?,
 							group_session_location_type_id=?, in_person_location=?, registration_end_date_time=?, image_file_upload_id=?
 							WHERE group_session_id=?
 							""", description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
 					targetEmailAddress, videoconferenceUrl, seats, confirmationEmailContent,
-					sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionCollectionId, visibleFlag, screeningFlowId,
+					sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl, groupSessionCollectionId, groupSessionVisibilityTypeId, screeningFlowId,
 					sendReminderEmail, reminderEmailContent, followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
 					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionLocationTypeId,
 					inPersonLocation, registrationEndDateTime, imageFileUploadId, groupSessionId);
@@ -1248,7 +1249,7 @@ public class GroupSessionService implements AutoCloseable {
 							UPDATE group_session SET title=?, description=?, facilitator_account_id=?, facilitator_name=?, facilitator_email_address=?,
 							target_email_address=?, videoconference_url=?, start_date_time=?, end_date_time=?, seats=?, url_name=?,
 							confirmation_email_content=?, group_session_scheduling_system_id=?, send_followup_email=?, followup_email_content=?, followup_email_survey_url=?,
-							group_session_collection_id=?, visible_flag=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
+							group_session_collection_id=?, group_session_visibility_type_id=?, screening_flow_id=?, send_reminder_email=?, reminder_email_content=?,
 							followup_time_of_day=?, followup_day_offset=?, single_session_flag=?, date_time_description=?,
 							group_session_learn_more_method_id=?, learn_more_description=?, different_email_address_for_notifications=?,
 							group_session_location_type_id=?, in_person_location=?, registration_end_date_time=?, image_file_upload_id=?
@@ -1257,7 +1258,7 @@ public class GroupSessionService implements AutoCloseable {
 					title, description, facilitatorAccountId, facilitatorName, facilitatorEmailAddress,
 					targetEmailAddress, videoconferenceUrl, startDateTime, endDateTime, seats, urlName, confirmationEmailContent,
 					groupSessionSchedulingSystemId, sendFollowupEmail, followupEmailContent, followupEmailSurveyUrl,
-					groupSessionCollectionId, visibleFlag, screeningFlowId, sendReminderEmail, reminderEmailContent,
+					groupSessionCollectionId, groupSessionVisibilityTypeId, screeningFlowId, sendReminderEmail, reminderEmailContent,
 					followupTimeOfDay, followupDayOffset, singleSessionFlag, dateTimeDescription,
 					groupSessionLearnMoreMethodId, learnMoreDescription, differentEmailAddressForNotifications, groupSessionLocationTypeId,
 					inPersonLocation, registrationEndDateTime, imageFileUploadId, groupSessionId);
@@ -2407,6 +2408,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		return fileUploadResult;
 	}
+
 	@Nonnull
 	public String generateGoogleCalendarTemplateUrl(@Nonnull GroupSession groupSession) {
 		requireNonNull(groupSession);
@@ -2475,10 +2477,10 @@ public class GroupSessionService implements AutoCloseable {
 		if (groupSession.getImageFileUploadId() == null)
 			return null;
 		else {
-			Optional<FileUpload> fileUpload= getDatabase().queryForObject("""
-				SELECT *
-				FROM file_upload
-				WHERE file_upload_id = ?""", FileUpload.class, groupSession.getGroupSessionId());
+			Optional<FileUpload> fileUpload = getDatabase().queryForObject("""
+					SELECT *
+					FROM file_upload
+					WHERE file_upload_id = ?""", FileUpload.class, groupSession.getGroupSessionId());
 
 			if (fileUpload.isPresent())
 				return fileUpload.get().getUrl();
@@ -2515,6 +2517,8 @@ public class GroupSessionService implements AutoCloseable {
 		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
+		private final Provider<SystemService> systemServiceProvider;
+		@Nonnull
 		private final ErrorReporter errorReporter;
 		@Nonnull
 		private final DatabaseProvider databaseProvider;
@@ -2525,15 +2529,18 @@ public class GroupSessionService implements AutoCloseable {
 
 		@Inject
 		public BackgroundSyncTask(@Nonnull CurrentContextExecutor currentContextExecutor,
+															@Nonnull Provider<SystemService> systemServiceProvider,
 															@Nonnull ErrorReporter errorReporter,
 															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Configuration configuration) {
 			requireNonNull(currentContextExecutor);
+			requireNonNull(systemServiceProvider);
 			requireNonNull(errorReporter);
 			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.currentContextExecutor = currentContextExecutor;
+			this.systemServiceProvider = systemServiceProvider;
 			this.errorReporter = errorReporter;
 			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
@@ -2571,7 +2578,11 @@ public class GroupSessionService implements AutoCloseable {
 
 				if (currentDateTime.isAfter(groupSessionEndDateTime)) {
 					getLogger().info("Group session ID {} is now over, marking as {}...", groupSession.getGroupSessionId(), GroupSessionStatusId.ARCHIVED.name());
-					getDatabase().execute("UPDATE group_session SET group_session_status_id=? WHERE group_session_id=?", GroupSessionStatusId.ARCHIVED, groupSession.getGroupSessionId());
+
+					getDatabase().transaction(() -> {
+						getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE_STATUS);
+						getDatabase().execute("UPDATE group_session SET group_session_status_id=? WHERE group_session_id=?", GroupSessionStatusId.ARCHIVED, groupSession.getGroupSessionId());
+					});
 				}
 			}
 		}
@@ -2579,6 +2590,11 @@ public class GroupSessionService implements AutoCloseable {
 		@Nonnull
 		protected CurrentContextExecutor getCurrentContextExecutor() {
 			return this.currentContextExecutor;
+		}
+
+		@Nonnull
+		protected SystemService getSystemService() {
+			return this.systemServiceProvider.get();
 		}
 
 		@Nonnull

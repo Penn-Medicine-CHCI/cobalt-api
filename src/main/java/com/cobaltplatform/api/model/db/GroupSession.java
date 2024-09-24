@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionL
 import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nonnull;
@@ -51,6 +52,8 @@ public class GroupSession {
 	private GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
 	@Nullable
 	private GroupSessionLocationTypeId groupSessionLocationTypeId;
+	@Nullable
+	private GroupSessionVisibilityTypeId groupSessionVisibilityTypeId;
 	@Nullable
 	private UUID assessmentId;
 	@Nullable
@@ -187,6 +190,15 @@ public class GroupSession {
 
 	public void setGroupSessionLocationTypeId(@Nullable GroupSessionLocationTypeId groupSessionLocationTypeId) {
 		this.groupSessionLocationTypeId = groupSessionLocationTypeId;
+	}
+
+	@Nullable
+	public GroupSessionVisibilityTypeId getGroupSessionVisibilityTypeId() {
+		return this.groupSessionVisibilityTypeId;
+	}
+
+	public void setGroupSessionVisibilityTypeId(@Nullable GroupSessionVisibilityTypeId groupSessionVisibilityTypeId) {
+		this.groupSessionVisibilityTypeId = groupSessionVisibilityTypeId;
 	}
 
 	@Nullable
@@ -402,15 +414,6 @@ public class GroupSession {
 
 	public void setGroupSessionCollectionId(UUID groupSessionCollectionId) {
 		this.groupSessionCollectionId = groupSessionCollectionId;
-	}
-
-	@Nullable
-	public Boolean getVisibleFlag() {
-		return visibleFlag;
-	}
-
-	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
-		this.visibleFlag = visibleFlag;
 	}
 
 	@Nullable

@@ -77,10 +77,12 @@ import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionRequestStatus.GroupSessionRequestStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -88,6 +90,7 @@ import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.security.RequestBodyMightContainSensitiveData;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.service.AccountService;
@@ -104,6 +107,7 @@ import com.cobaltplatform.api.service.MyChartService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.SessionService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
@@ -211,6 +215,8 @@ public class AccountResource {
 	@Nonnull
 	private final AssessmentService assessmentService;
 	@Nonnull
+	private final SystemService systemService;
+	@Nonnull
 	private final AssessmentFormApiResponseFactory assessmentFormApiResponseFactory;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -248,6 +254,7 @@ public class AccountResource {
 												 @Nonnull ProviderService providerService,
 												 @Nonnull SessionService sessionService,
 												 @Nonnull AssessmentService assessmentService,
+												 @Nonnull SystemService systemService,
 												 @Nonnull AssessmentFormApiResponseFactory assessmentFormApiResponseFactory,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												 @Nonnull TagApiResponseFactory tagApiResponseFactory,
@@ -279,6 +286,7 @@ public class AccountResource {
 		requireNonNull(providerService);
 		requireNonNull(sessionService);
 		requireNonNull(assessmentService);
+		requireNonNull(systemService);
 		requireNonNull(assessmentFormApiResponseFactory);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(tagApiResponseFactory);
@@ -313,6 +321,7 @@ public class AccountResource {
 		this.providerService = providerService;
 		this.sessionService = sessionService;
 		this.assessmentService = assessmentService;
+		this.systemService = systemService;
 		this.assessmentFormApiResponseFactory = assessmentFormApiResponseFactory;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.tagApiResponseFactory = tagApiResponseFactory;
@@ -490,7 +499,7 @@ public class AccountResource {
 			setInstitutionId(account.getInstitutionId());
 			setOrderBy(OrderBy.START_TIME_ASCENDING);
 		}}).getResults()).stream()
-				.filter(groupSession -> groupSession.getVisibleFlag() != null & groupSession.getVisibleFlag())
+				.filter(groupSession -> groupSession.getGroupSessionVisibilityTypeId() == GroupSessionVisibilityTypeId.PUBLIC)
 				.collect(Collectors.toList());
 
 		// Don't show too many events
@@ -517,7 +526,7 @@ public class AccountResource {
 
 		// Show the latest and greatest visible content
 		List<Content> contents = getContentService().findVisibleContentByAccountId(accountId);
-		
+
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
 			contents = contents.subList(0, MAXIMUM_CONTENTS /* exclusive */);
@@ -629,6 +638,8 @@ public class AccountResource {
 		if (!supportsAnonymous)
 			throw new IllegalStateException(format("Not permitted to create anonymous accounts for institution ID %s", institutionId.name()));
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_CREATE_ANONYMOUS);
+
 		// For now - this is only to generate anonymous accounts
 		UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
 			setRoleId(RoleId.PATIENT);
@@ -671,6 +682,8 @@ public class AccountResource {
 		requireNonNull(accountId);
 		requireNonNull(body);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_UPDATE_EMAIL_ADDRESS);
+
 		Account currentAccount = getCurrentContext().getAccount().get();
 
 		if (!currentAccount.getAccountId().equals(accountId))
@@ -695,8 +708,11 @@ public class AccountResource {
 
 	@Nonnull
 	@POST("/accounts/mychart")
+	@RequestBodyMightContainSensitiveData
 	public ApiResponse createMyChartAccount(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_CREATE_MYCHART);
 
 		CreateOrUpdateMyChartAccountRequest request = getRequestBodyParser().parse(requestBody, CreateOrUpdateMyChartAccountRequest.class);
 		request.setInstitutionId(getCurrentContext().getInstitutionId());
@@ -713,6 +729,8 @@ public class AccountResource {
 																							@Nonnull @RequestBody String body) {
 		requireNonNull(accountId);
 		requireNonNull(body);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_UPDATE_PHONE_NUMBER);
 
 		Account currentAccount = getCurrentContext().getAccount().get();
 
@@ -758,6 +776,8 @@ public class AccountResource {
 		requireNonNull(accountId);
 		requireNonNull(accepted);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_UPDATE_CONSENT_FORM_ACCEPTANCE);
+
 		Account currentAccount = getCurrentContext().getAccount().get();
 
 		if (!currentAccount.getAccountId().equals(accountId))
@@ -785,6 +805,8 @@ public class AccountResource {
 	public ApiResponse forgotPassword(@Nonnull @RequestBody String body) {
 		requireNonNull(body);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_UPDATE_FORGOT_PASSWORD);
+
 		ForgotPasswordRequest request = getRequestBodyParser().parse(body, ForgotPasswordRequest.class);
 		request.setUserExperienceTypeId(getCurrentContext().getUserExperienceTypeId().get());
 		request.setInstitutionId(getCurrentContext().getInstitutionId());
@@ -797,6 +819,8 @@ public class AccountResource {
 	@PUT("/accounts/reset-password")
 	public ApiResponse resetPassword(@Nonnull @RequestBody String body) {
 		requireNonNull(body);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_UPDATE_RESET_PASSWORD);
 
 		ResetPasswordRequest request = getRequestBodyParser().parse(body, ResetPasswordRequest.class);
 		Account account = getAccountService().resetPassword(request).orElse(null);
@@ -1090,6 +1114,8 @@ public class AccountResource {
 		requireNonNull(accountId);
 		requireNonNull(body);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_EMAIL_VERIFICATION_CREATE);
+
 		CreateAccountEmailVerificationRequest request = getRequestBodyParser().parse(body, CreateAccountEmailVerificationRequest.class);
 		request.setAccountId(accountId);
 
@@ -1117,6 +1143,8 @@ public class AccountResource {
 																											 @Nonnull @RequestBody String body) {
 		requireNonNull(accountId);
 		requireNonNull(body);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_EMAIL_VERIFICATION_APPLY);
 
 		ApplyAccountEmailVerificationCodeRequest request = getRequestBodyParser().parse(body, ApplyAccountEmailVerificationCodeRequest.class);
 		request.setAccountId(accountId);
@@ -1162,6 +1190,8 @@ public class AccountResource {
 																					 @Nonnull @RequestBody String body) {
 		requireNonNull(accountId);
 		requireNonNull(body);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_UPDATE_LOCATION);
 
 		Account currentAccount = getCurrentContext().getAccount().get();
 
@@ -1313,6 +1343,11 @@ public class AccountResource {
 	@Nonnull
 	protected AssessmentService getAssessmentService() {
 		return this.assessmentService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull

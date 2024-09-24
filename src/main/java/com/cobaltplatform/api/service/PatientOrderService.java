@@ -96,6 +96,7 @@ import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.Flowsheet;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -288,6 +289,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
+	private final Provider<SystemService> systemServiceProvider;
+	@Nonnull
 	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -326,6 +329,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<InstitutionService> institutionServiceProvider,
 														 @Nonnull Provider<ScreeningService> screeningServiceProvider,
 														 @Nonnull Provider<AuthorizationService> authorizationServiceProvider,
+														 @Nonnull Provider<SystemService> systemServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
@@ -342,6 +346,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(screeningServiceProvider);
 		requireNonNull(authorizationServiceProvider);
+		requireNonNull(systemServiceProvider);
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
@@ -359,6 +364,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.institutionServiceProvider = institutionServiceProvider;
 		this.screeningServiceProvider = screeningServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
+		this.systemServiceProvider = systemServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
@@ -6163,6 +6169,7 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (archivablePatientOrders.size() > 0) {
 				Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+				getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_UPDATE_DISPOSITION);
 
 				for (RawPatientOrder archivablePatientOrder : archivablePatientOrders) {
 					getLogger().info("Detected that patient order ID {} was closed on {} - archiving...",
@@ -6445,8 +6452,12 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory
-			() {
+	protected SystemService getSystemService() {
+		return this.systemServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderScheduledMessageGroupApiResponseFactory getPatientOrderScheduledMessageGroupApiResponseFactory() {
 		return this.patientOrderScheduledMessageGroupApiResponseFactory;
 	}
 

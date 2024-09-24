@@ -19,10 +19,10 @@
 
 package com.cobaltplatform.api.error;
 
-import com.google.common.io.CharStreams;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
+import com.google.common.io.CharStreams;
 import io.sentry.Breadcrumb;
 import io.sentry.Hub;
 import io.sentry.IHub;
@@ -39,6 +39,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.io.Reader;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -238,8 +239,8 @@ public class SentryErrorReporter extends AbstractErrorReporter {
 
 				String requestBody = null;
 
-				try {
-					requestBody = CharStreams.toString(httpServletRequest.getReader());
+				try (Reader reader = httpServletRequest.getReader()) {
+					requestBody = CharStreams.toString(reader);
 				} catch (IOException e) {
 					getLogger().warn("Unable to extract request body", e);
 				}

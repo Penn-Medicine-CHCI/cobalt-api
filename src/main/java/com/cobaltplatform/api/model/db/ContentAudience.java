@@ -19,84 +19,54 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Tag {
+public class ContentAudience {
 	@Nullable
-	private String tagId;
+	private UUID contentId;
 	@Nullable
-	private String tagGroupId;
+	private ContentAudienceTypeId contentAudienceTypeId;
 	@Nullable
-	private String name;
-	@Nullable
-	private String urlName;
-	@Nullable
-	private String description;
-	@Nullable
-	private Boolean deprecated;
+	private UUID createdByAccountId;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
 	@Nullable
-	public String getTagId() {
-		return this.tagId;
+	public UUID getContentId() {
+		return this.contentId;
 	}
 
-	public void setTagId(@Nullable String tagId) {
-		this.tagId = tagId;
-	}
-
-	@Nullable
-	public String getTagGroupId() {
-		return this.tagGroupId;
-	}
-
-	public void setTagGroupId(@Nullable String tagGroupId) {
-		this.tagGroupId = tagGroupId;
+	public void setContentId(@Nullable UUID contentId) {
+		this.contentId = contentId;
 	}
 
 	@Nullable
-	public String getName() {
-		return this.name;
+	public ContentAudienceTypeId getContentAudienceTypeId() {
+		return this.contentAudienceTypeId;
 	}
 
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
-
-	@Nullable
-	public String getUrlName() {
-		return this.urlName;
-	}
-
-	public void setUrlName(@Nullable String urlName) {
-		this.urlName = urlName;
+	public void setContentAudienceTypeId(@Nullable ContentAudienceTypeId contentAudienceTypeId) {
+		this.contentAudienceTypeId = contentAudienceTypeId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return this.description;
+	public UUID getCreatedByAccountId() {
+		return this.createdByAccountId;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
-	}
-
-	@Nullable
-	public Boolean getDeprecated() {
-		return this.deprecated;
-	}
-
-	public void setDeprecated(@Nullable Boolean deprecated) {
-		this.deprecated = deprecated;
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
 	}
 
 	@Nullable

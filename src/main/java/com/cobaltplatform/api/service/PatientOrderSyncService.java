@@ -27,6 +27,7 @@ import com.cobaltplatform.api.integration.hl7.Hl7Client;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderImportRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.EpicDepartment;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
@@ -270,6 +271,8 @@ public class PatientOrderSyncService implements AutoCloseable {
 						try {
 							getDatabase().transaction(() -> {
 								Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+								
+								getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_IMPORT_CREATE);
 
 								CreatePatientOrderImportRequest importRequest = new CreatePatientOrderImportRequest();
 								importRequest.setPatientOrderImportTypeId(PatientOrderImportTypeId.HL7_MESSAGE);

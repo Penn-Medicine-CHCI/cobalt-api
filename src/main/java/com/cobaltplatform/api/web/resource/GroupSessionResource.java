@@ -37,11 +37,13 @@ import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResult
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FileUploadType;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -49,9 +51,9 @@ import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.GroupSessionStatusWithCount;
 import com.cobaltplatform.api.model.service.GroupSessionUrlValidationResult;
-import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.GroupSessionService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -116,7 +118,7 @@ public class GroupSessionResource {
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
-	private final AuditLogService auditLogService;
+	private final SystemService systemService;
 	@Nonnull
 	private final JsonMapper jsonMapper;
 	@Nonnull
@@ -137,7 +139,7 @@ public class GroupSessionResource {
 															@Nonnull Formatter formatter,
 															@Nonnull Strings strings,
 															@Nonnull Provider<CurrentContext> currentContextProvider,
-															@Nonnull AuditLogService auditLogService,
+															@Nonnull SystemService systemService,
 															@Nonnull JsonMapper jsonMapper,
 															@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 															@Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory) {
@@ -149,7 +151,7 @@ public class GroupSessionResource {
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
-		requireNonNull(auditLogService);
+		requireNonNull(systemService);
 		requireNonNull(jsonMapper);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(groupSessionCollectionResponseFactory);
@@ -166,7 +168,7 @@ public class GroupSessionResource {
 		this.strings = strings;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.auditLogService = auditLogService;
+		this.systemService = systemService;
 		this.jsonMapper = jsonMapper;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.groupSessionCollectionResponseFactory = groupSessionCollectionResponseFactory;
@@ -209,7 +211,7 @@ public class GroupSessionResource {
 																	 @Nonnull @QueryParameter Optional<String> groupSessionCollectionUrlName,
 																	 @Nonnull @QueryParameter Optional<GroupSessionStatusId> groupSessionStatusId,
 																	 @Nonnull @QueryParameter Optional<GroupSessionSchedulingSystemId> groupSessionSchedulingSystemId,
-																	 @Nonnull @QueryParameter Optional<Boolean> visibleFlag) {
+																	 @Nonnull @QueryParameter Optional<GroupSessionVisibilityTypeId> groupSessionVisibilityTypeId) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(viewType);
@@ -220,7 +222,7 @@ public class GroupSessionResource {
 		requireNonNull(groupSessionCollectionUrlName);
 		requireNonNull(groupSessionStatusId);
 		requireNonNull(groupSessionSchedulingSystemId);
-		requireNonNull(visibleFlag);
+		requireNonNull(groupSessionVisibilityTypeId);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -235,7 +237,7 @@ public class GroupSessionResource {
 		request.setGroupSessionStatusId(groupSessionStatusId.orElse(null));
 		request.setGroupSessionCollectionId(groupSessionCollectionId.orElse(null));
 		request.setGroupSessionSchedulingSystemId(groupSessionSchedulingSystemId.orElse(null));
-		request.setVisibleFlag(visibleFlag.orElse(null));
+		request.setGroupSessionVisibilityTypeId(groupSessionVisibilityTypeId.orElse(null));
 
 		// If a groupSessionCollectionUrlName is specified, use it override the groupSessionCollectionId
 		if (groupSessionCollectionUrlName.isPresent()) {
@@ -256,11 +258,11 @@ public class GroupSessionResource {
 		} else {
 			// Only show 'added' sessions for patient views no matter what your role is...
 			request.setGroupSessionStatusId(GroupSessionStatusId.ADDED);
-			request.setVisibleFlag(true);
+			request.setGroupSessionVisibilityTypeId(GroupSessionVisibilityTypeId.PUBLIC);
 
 			//...unless this is a collection.  In that case, we can see all sessions associated, even invisible ones
 			if (request.getGroupSessionCollectionId() != null)
-				request.setVisibleFlag(null);
+				request.setGroupSessionVisibilityTypeId(null);
 		}
 
 		FindResult<GroupSession> findResult = getGroupSessionService().findGroupSessions(request);
@@ -332,6 +334,8 @@ public class GroupSessionResource {
 	@AuthenticationRequired
 	public ApiResponse createGroupSession(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_CREATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -405,6 +409,8 @@ public class GroupSessionResource {
 		if (!getAuthorizationService().canEditGroupSession(groupSession, account))
 			throw new AuthorizationException();
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE_STATUS);
+
 		UpdateGroupSessionStatusRequest request = getRequestBodyParser().parse(requestBody, UpdateGroupSessionStatusRequest.class);
 		request.setAccountId(account.getAccountId());
 		request.setGroupSessionId(groupSessionId);
@@ -438,6 +444,8 @@ public class GroupSessionResource {
 
 		if (!getAuthorizationService().canEditGroupSession(groupSession, account))
 			throw new AuthorizationException();
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.GROUP_SESSION_UPDATE);
 
 		UpdateGroupSessionRequest request = getRequestBodyParser().parse(requestBody, UpdateGroupSessionRequest.class);
 		request.setGroupSessionId(groupSessionId);
@@ -528,8 +536,8 @@ public class GroupSessionResource {
 	}
 
 	@Nonnull
-	protected AuditLogService getAuditLogService() {
-		return auditLogService;
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull

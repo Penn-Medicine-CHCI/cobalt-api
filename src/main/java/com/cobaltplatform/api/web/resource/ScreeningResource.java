@@ -37,6 +37,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse;
 import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.ScreeningTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningVersionApiResponse.ScreeningVersionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.Screening;
@@ -58,6 +59,7 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
@@ -105,6 +107,8 @@ public class ScreeningResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
+	private final SystemService systemService;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory;
@@ -138,6 +142,7 @@ public class ScreeningResource {
 													 @Nonnull PatientOrderService patientOrderService,
 													 @Nonnull AccountService accountService,
 													 @Nonnull AuthorizationService authorizationService,
+													 @Nonnull SystemService systemService,
 													 @Nonnull RequestBodyParser requestBodyParser,
 													 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 													 @Nonnull ScreeningQuestionApiResponseFactory screeningQuestionApiResponseFactory,
@@ -155,6 +160,7 @@ public class ScreeningResource {
 		requireNonNull(patientOrderService);
 		requireNonNull(accountService);
 		requireNonNull(authorizationService);
+		requireNonNull(systemService);
 		requireNonNull(requestBodyParser);
 		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(screeningQuestionApiResponseFactory);
@@ -173,6 +179,7 @@ public class ScreeningResource {
 		this.patientOrderService = patientOrderService;
 		this.accountService = accountService;
 		this.authorizationService = authorizationService;
+		this.systemService = systemService;
 		this.requestBodyParser = requestBodyParser;
 		this.screeningSessionApiResponseFactory = screeningSessionApiResponseFactory;
 		this.screeningQuestionApiResponseFactory = screeningQuestionApiResponseFactory;
@@ -194,6 +201,8 @@ public class ScreeningResource {
 	@AuthenticationRequired
 	public ApiResponse createScreeningSession(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCREENING_SESSION_CREATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -351,6 +360,8 @@ public class ScreeningResource {
 	public ApiResponse skipEntireScreeningFlowVersion(@Nonnull @PathParameter UUID screeningFlowVersionId) {
 		requireNonNull(screeningFlowVersionId);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCREENING_SESSION_SKIP_IMMEDIATELY);
+
 		Account account = getCurrentContext().getAccount().get();
 		UUID screeningSessionId = getScreeningService().createScreeningSession(new CreateScreeningSessionRequest() {{
 			setScreeningFlowVersionId(screeningFlowVersionId);
@@ -396,6 +407,8 @@ public class ScreeningResource {
 	@AuthenticationRequired
 	public ApiResponse skipRemainingScreeningFlow(@Nonnull @PathParameter UUID screeningSessionId) {
 		requireNonNull(screeningSessionId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCREENING_SESSION_SKIP);
 
 		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).orElse(null);
 
@@ -517,6 +530,8 @@ public class ScreeningResource {
 	@AuthenticationRequired
 	public ApiResponse createScreeningAnswers(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.SCREENING_ANSWER_CREATE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -660,6 +675,11 @@ public class ScreeningResource {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull

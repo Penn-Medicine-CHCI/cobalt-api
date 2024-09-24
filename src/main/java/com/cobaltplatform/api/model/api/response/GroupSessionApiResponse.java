@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod.GroupSessionL
 import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.service.GroupSessionService;
@@ -75,6 +76,8 @@ public class GroupSessionApiResponse {
 	private final GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
 	@Nonnull
 	private final GroupSessionLocationTypeId groupSessionLocationTypeId;
+	@Nonnull
+	private final GroupSessionVisibilityTypeId groupSessionVisibilityTypeId;
 	@Nullable
 	private final UUID assessmentId;
 	@Nonnull
@@ -156,8 +159,6 @@ public class GroupSessionApiResponse {
 	@Nullable
 	private final UUID groupSessionCollectionId;
 	@Nullable
-	private final Boolean visibleFlag;
-	@Nullable
 	private final UUID screeningFlowId;
 	@Nullable
 	private final Boolean sendReminderEmail;
@@ -237,6 +238,7 @@ public class GroupSessionApiResponse {
 		this.groupSessionStatusIdDescription = groupSessionService.findGroupSessionStatusById(groupSession.getGroupSessionStatusId()).get().getDescription();
 		this.groupSessionSchedulingSystemId = groupSession.getGroupSessionSchedulingSystemId();
 		this.groupSessionLocationTypeId = groupSession.getGroupSessionLocationTypeId();
+		this.groupSessionVisibilityTypeId = groupSession.getGroupSessionVisibilityTypeId();
 		this.assessmentId = groupSession.getAssessmentId();
 		this.submitterAccountId = groupSession.getSubmitterAccountId();
 
@@ -374,7 +376,6 @@ public class GroupSessionApiResponse {
 		this.followupEmailContent = groupSession.getFollowupEmailContent();
 		this.followupEmailSurveyUrl = groupSession.getFollowupEmailSurveyUrl();
 		this.groupSessionCollectionId = groupSession.getGroupSessionCollectionId();
-		this.visibleFlag = groupSession.getVisibleFlag();
 		this.screeningFlowId = groupSession.getScreeningFlowId();
 		this.sendReminderEmail = groupSession.getSendReminderEmail();
 		this.reminderEmailContent = groupSession.getReminderEmailContent();
@@ -432,6 +433,11 @@ public class GroupSessionApiResponse {
 	@Nonnull
 	public GroupSessionLocationTypeId getGroupSessionLocationTypeId() {
 		return this.groupSessionLocationTypeId;
+	}
+
+	@Nonnull
+	public GroupSessionVisibilityTypeId getGroupSessionVisibilityTypeId() {
+		return this.groupSessionVisibilityTypeId;
 	}
 
 	@Nullable
@@ -612,11 +618,6 @@ public class GroupSessionApiResponse {
 	@Nullable
 	public UUID getGroupSessionCollectionId() {
 		return this.groupSessionCollectionId;
-	}
-
-	@Nullable
-	public Boolean getVisibleFlag() {
-		return this.visibleFlag;
 	}
 
 	@Nullable

@@ -92,6 +92,7 @@ import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
@@ -1271,15 +1272,18 @@ public class AppointmentService {
 					});
 			} else if (schedulingSystemId == SchedulingSystemId.EPIC) {
 				ForkJoinPool.commonPool().execute(() -> {
-					getEpicSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate());
+					getEpicSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate(), true);
 				});
 			} else if (schedulingSystemId == SchedulingSystemId.EPIC_FHIR) {
 				ForkJoinPool.commonPool().execute(() -> {
-					getEpicFhirSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate());
+					getEpicFhirSyncManager().syncProviderAvailability(providerId, meetingStartTime.toLocalDate(), true);
 				});
 			} else if (schedulingSystemId == SchedulingSystemId.COBALT) {
 				// For native appointments, we are responsible for sending emails out
-				sendPatientAndProviderCobaltAppointmentCreatedEmails(appointmentId);
+				getDatabase().transaction(() -> {
+					getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_CREATE_MESSAGES);
+					sendPatientAndProviderCobaltAppointmentCreatedEmails(appointmentId);
+				});
 			}
 		});
 

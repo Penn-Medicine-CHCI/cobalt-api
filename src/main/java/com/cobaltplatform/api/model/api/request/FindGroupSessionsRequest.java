@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nonnull;
@@ -57,7 +58,7 @@ public class FindGroupSessionsRequest {
 	@Nonnull
 	private GroupSessionSchedulingSystemId groupSessionSchedulingSystemId;
 	@Nonnull
-	private Boolean visibleFlag;
+	private GroupSessionVisibilityTypeId groupSessionVisibilityTypeId;
 
 	public enum FilterBehavior {
 		DEFAULT,
@@ -175,11 +176,11 @@ public class FindGroupSessionsRequest {
 	}
 
 	@Nonnull
-	public Boolean getVisibleFlag() {
-		return visibleFlag;
+	public GroupSessionVisibilityTypeId getGroupSessionVisibilityTypeId() {
+		return this.groupSessionVisibilityTypeId;
 	}
 
-	public void setVisibleFlag(@Nonnull Boolean visibleFlag) {
-		this.visibleFlag = visibleFlag;
+	public void setGroupSessionVisibilityTypeId(@Nonnull GroupSessionVisibilityTypeId groupSessionVisibilityTypeId) {
+		this.groupSessionVisibilityTypeId = groupSessionVisibilityTypeId;
 	}
 }

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 import com.cobaltplatform.api.model.db.GroupSessionLearnMoreMethod;
 import com.cobaltplatform.api.model.db.GroupSessionLocationType.GroupSessionLocationTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSchedulingSystem.GroupSessionSchedulingSystemId;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -81,9 +82,10 @@ public class UpdateGroupSessionRequest {
 	private String followupEmailContent;
 	@Nullable
 	private String followupEmailSurveyUrl;
+	@Nullable
 	private UUID groupSessionCollectionId;
 	@Nullable
-	private Boolean visibleFlag;
+	private GroupSessionVisibilityTypeId groupSessionVisibilityTypeId;
 	@Nullable
 	private UUID screeningFlowId;
 	@Nullable
@@ -308,21 +310,22 @@ public class UpdateGroupSessionRequest {
 		this.followupEmailSurveyUrl = followupEmailSurveyUrl;
 	}
 
+	@Nullable
 	public UUID getGroupSessionCollectionId() {
-		return groupSessionCollectionId;
+		return this.groupSessionCollectionId;
 	}
 
-	public void setGroupSessionCollectionId(UUID groupSessionCollectionId) {
+	public void setGroupSessionCollectionId(@Nullable UUID groupSessionCollectionId) {
 		this.groupSessionCollectionId = groupSessionCollectionId;
 	}
 
 	@Nullable
-	public Boolean getVisibleFlag() {
-		return visibleFlag;
+	public GroupSessionVisibilityTypeId getGroupSessionVisibilityTypeId() {
+		return this.groupSessionVisibilityTypeId;
 	}
 
-	public void setVisibleFlag(@Nullable Boolean visibleFlag) {
-		this.visibleFlag = visibleFlag;
+	public void setGroupSessionVisibilityTypeId(@Nullable GroupSessionVisibilityTypeId groupSessionVisibilityTypeId) {
+		this.groupSessionVisibilityTypeId = groupSessionVisibilityTypeId;
 	}
 
 	@Nullable

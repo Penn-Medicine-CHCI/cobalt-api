@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionCollection;
 import com.cobaltplatform.api.model.db.GroupSessionStatus;
+import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.GroupSessionService;
@@ -83,7 +84,7 @@ public class GroupSessionCollectionWithGroupSessionsApiResponse {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setFilterBehavior(FindGroupSessionsRequest.FilterBehavior.DEFAULT);
 		request.setGroupSessionStatusId(GroupSessionStatus.GroupSessionStatusId.ADDED);
-		request.setVisibleFlag(true);
+		request.setGroupSessionVisibilityTypeId(GroupSessionVisibilityTypeId.PUBLIC);
 		request.setGroupSessionCollectionId(groupSessionCollection.getGroupSessionCollectionId());
 		FindResult<GroupSession> findResult = groupSessionService.findGroupSessions(request);
 

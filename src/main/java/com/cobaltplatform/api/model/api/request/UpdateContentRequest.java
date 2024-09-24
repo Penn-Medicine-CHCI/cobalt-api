@@ -19,8 +19,9 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.ContentStatus;
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -64,6 +65,10 @@ public class UpdateContentRequest {
 	private UUID fileUploadId;
 	@Nullable
 	private UUID imageFileUploadId;
+	@Nullable
+	private ContentVisibilityTypeId contentVisibilityTypeId;
+	@Nullable
+	private Set<ContentAudienceTypeId> contentAudienceTypeIds;
 
 	@Nullable
 	public UUID getContentId() {
@@ -198,5 +203,23 @@ public class UpdateContentRequest {
 
 	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
 		this.imageFileUploadId = imageFileUploadId;
+	}
+
+	@Nullable
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
+	}
+
+	public void setContentVisibilityTypeId(@Nullable ContentVisibilityTypeId contentVisibilityTypeId) {
+		this.contentVisibilityTypeId = contentVisibilityTypeId;
+	}
+
+	@Nullable
+	public Set<ContentAudienceTypeId> getContentAudienceTypeIds() {
+		return this.contentAudienceTypeIds;
+	}
+
+	public void setContentAudienceTypeIds(@Nullable Set<ContentAudienceTypeId> contentAudienceTypeIds) {
+		this.contentAudienceTypeIds = contentAudienceTypeIds;
 	}
 }

@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
 import com.cobaltplatform.api.integration.common.ProviderAvailabilitySyncManager;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
@@ -39,12 +40,14 @@ import com.cobaltplatform.api.model.db.BetaFeature;
 import com.cobaltplatform.api.model.db.EncryptionKeypair;
 import com.cobaltplatform.api.model.db.FileUpload;
 import com.cobaltplatform.api.model.db.FileUploadType.FileUploadTypeId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MicrosoftTeamsMeeting;
 import com.cobaltplatform.api.model.db.PrivateKeyFormat.PrivateKeyFormatId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.PublicKeyFormat.PublicKeyFormatId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.security.RequestBodyMightContainSensitiveData;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.PresignedUpload;
@@ -53,21 +56,29 @@ import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.common.io.CharStreams;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
+import com.soklet.web.request.RequestContext;
+import com.soklet.web.routing.Route;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.security.KeyPair;
 import java.time.Instant;
@@ -84,6 +95,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -100,6 +112,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class SystemService {
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
+	@Nonnull
+	private final javax.inject.Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final javax.inject.Provider<ProviderService> providerServiceProvider;
 	@Nonnull
@@ -125,6 +139,7 @@ public class SystemService {
 
 	@Inject
 	public SystemService(@Nonnull DatabaseProvider databaseProvider,
+											 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 											 @Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 											 @Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 											 @Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
@@ -136,6 +151,7 @@ public class SystemService {
 											 @Nonnull Configuration configuration,
 											 @Nonnull Strings strings) {
 		requireNonNull(databaseProvider);
+		requireNonNull(currentContextProvider);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(accountServiceProvider);
@@ -148,6 +164,7 @@ public class SystemService {
 		requireNonNull(strings);
 
 		this.databaseProvider = databaseProvider;
+		this.currentContextProvider = currentContextProvider;
 		this.providerServiceProvider = providerServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
@@ -159,6 +176,227 @@ public class SystemService {
 		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	public Boolean applyFootprintForCurrentContextToCurrentTransaction() {
+		if (!getDatabase().currentTransaction().isPresent()) {
+			getLogger().warn("There is no open transaction; not applying current account to footprint");
+			return false;
+		}
+
+		FootprintContext footprintContext = FootprintContext.forCurrentContext(getCurrentContext());
+
+		String apiCallRequestBody = footprintContext.getApiCallRequestBody().orElse(null);
+
+		// Enforce a limit on API call request body logging length.
+		// It's unclear what Postgres' true hard limits are, so we are picking a smallish limit we know is acceptable
+		if (apiCallRequestBody != null && apiCallRequestBody.length() > 10_000)
+			apiCallRequestBody = format("%s...[remainder elided]", apiCallRequestBody.substring(0, 10_000));
+
+		getDatabase().queryForObject("""
+						SELECT
+							set_config('cobalt.account_id', CAST(? AS TEXT), TRUE) AS account_id_configured,
+							set_config('cobalt.api_call_url', CAST(? AS TEXT), TRUE) AS api_call_url_configured,
+							set_config('cobalt.api_call_request_body', CAST(? AS TEXT), TRUE) AS api_call_request_body_configured,
+							set_config('cobalt.background_thread_name', CAST(? AS TEXT), TRUE) AS background_thread_name_configured
+						""", FootprintContextSetResult.class,
+				footprintContext.getAccountId().orElse(null),
+				footprintContext.getApiCallUrl().orElse(null),
+				apiCallRequestBody,
+				footprintContext.getBackgroundThreadName().orElse(null));
+
+		return true;
+	}
+
+	@Nonnull
+	public Boolean applyFootprintEventGroupToCurrentTransaction(@Nonnull FootprintEventGroupTypeId footprintEventGroupTypeId) {
+		requireNonNull(footprintEventGroupTypeId);
+
+		if (!getDatabase().currentTransaction().isPresent()) {
+			getLogger().warn("There is no open transaction; not creating footprint event group");
+			return false;
+		}
+
+		UUID footprintEventGroupId = UUID.randomUUID();
+		FootprintContext footprintContext = FootprintContext.forCurrentContext(getCurrentContext());
+
+		getDatabase().execute("""
+						INSERT INTO footprint_event_group (
+						  footprint_event_group_id,
+						  footprint_event_group_type_id,
+						  account_id,
+						  connection_username,
+						  connection_application_name,
+						  connection_ip_address,
+						  api_call_url,
+						  api_call_request_body,
+						  background_thread_name
+						)
+						SELECT ?, ?, ?, usename, application_name, client_addr, ?, ?, ?
+						FROM pg_stat_activity
+						WHERE pid=pg_backend_pid()
+						""", footprintEventGroupId, footprintEventGroupTypeId, footprintContext.getAccountId().orElse(null),
+				footprintContext.getApiCallUrl().orElse(null), footprintContext.getApiCallRequestBody().orElse(null),
+				footprintContext.getBackgroundThreadName().orElse(null));
+
+		getDatabase().queryForObject("SELECT set_config('cobalt.footprint_event_group_id', CAST(? AS TEXT), TRUE)",
+				String.class, footprintEventGroupId);
+
+		return true;
+	}
+
+	@Immutable
+	protected static class FootprintContext {
+		@Nonnull
+		private static final Set<String> HTTP_METHODS_THAT_CAN_HAVE_REQUEST_BODIES;
+		@Nonnull
+		private static final Logger LOGGER;
+
+		@Nullable
+		private final UUID accountId;
+		@Nullable
+		private final String apiCallUrl;
+		@Nullable
+		private final String apiCallRequestBody;
+		@Nullable
+		private final String backgroundThreadName;
+
+		static {
+			HTTP_METHODS_THAT_CAN_HAVE_REQUEST_BODIES = Set.of("POST", "PUT", "DELETE", "PATCH");
+			LOGGER = LoggerFactory.getLogger(FootprintContext.class);
+		}
+
+		@Nonnull
+		public static FootprintContext forCurrentContext(@Nonnull CurrentContext currentContext) {
+			requireNonNull(currentContext);
+
+			// Current account
+			Account account = currentContext.getAccount().orElse(null);
+			UUID accountId = account == null ? null : account.getAccountId();
+
+			// Determine whether we are in the context of a web request or background thread
+			String apiCallUrl = null;
+			String apiCallRequestBody = null;
+			String backgroundThreadName = null;
+
+			try {
+				// If this does not throw IllegalStateException, then we are on a request thread
+				RequestContext requestContext = RequestContext.get();
+				HttpServletRequest httpServletRequest = requestContext.httpServletRequest();
+
+				// e.g. "DELETE /appointments/1234"
+				apiCallUrl = format("%s %s", httpServletRequest.getMethod(), WebUtility.httpServletRequestUrl(httpServletRequest));
+
+				// Only pull request body for certain HTTP methods...
+				boolean couldHaveRequestBody = HTTP_METHODS_THAT_CAN_HAVE_REQUEST_BODIES.contains(httpServletRequest.getMethod());
+
+				if (couldHaveRequestBody) {
+					// ...and don't pull request bodies that might have sensitive data (e.g. SAML assertions)
+					boolean requestBodyMightContainSensitiveData = false;
+
+					Route route = requestContext.route().orElse(null);
+
+					if (route != null && route.resourceMethod().getAnnotation(RequestBodyMightContainSensitiveData.class) != null)
+						requestBodyMightContainSensitiveData = true;
+
+					try (Reader reader = httpServletRequest.getReader()) {
+						apiCallRequestBody = trimToNull(CharStreams.toString(reader));
+					} catch (IOException e) {
+						LOGGER.error("Unable to extract API call request body", e);
+					}
+
+					if (apiCallRequestBody != null && requestBodyMightContainSensitiveData)
+						apiCallRequestBody = "[elided - sensitive data]";
+				}
+
+			  /*
+			  In the future, might want to track the actual method invoked.  Would look like this:
+
+			  Route route = requestContext.route().orElse(null);
+
+			  if(route != null) {
+				  String apiCallHandlerResourceMethodClass = route.resourceMethod().getDeclaringClass().getSimpleName();
+				  String apiCallHandlerResourceMethodName = route.resourceMethod().getName();
+				  String apiCallHandlerResourceMethodParameters = Arrays.stream(route.resourceMethod().getParameters()).map(parameter -> format("%s %s", parameter.getType().getSimpleName(), parameter.getName())).collect(Collectors.joining(", "));
+				  String apiCallHandler = format("%s::%s(%s)", apiCallHandlerResourceMethodClass, apiCallHandlerResourceMethodName, apiCallHandlerResourceMethodParameters);
+				}
+			  */
+			} catch (IllegalStateException ignored) {
+				// This means we are on a background thread
+				backgroundThreadName = Thread.currentThread().getName();
+			}
+
+			return new FootprintContext(accountId, apiCallUrl, apiCallRequestBody, backgroundThreadName);
+		}
+
+		public FootprintContext(@Nullable UUID accountId,
+														@Nullable String apiCallUrl,
+														@Nullable String apiCallRequestBody,
+														@Nullable String backgroundThreadName) {
+			this.accountId = accountId;
+			this.apiCallUrl = apiCallUrl;
+			this.apiCallRequestBody = apiCallRequestBody;
+			this.backgroundThreadName = backgroundThreadName;
+		}
+
+		@Nonnull
+		public Optional<UUID> getAccountId() {
+			return Optional.ofNullable(this.accountId);
+		}
+
+		@Nonnull
+		public Optional<String> getApiCallUrl() {
+			return Optional.ofNullable(this.apiCallUrl);
+		}
+
+		@Nonnull
+		public Optional<String> getApiCallRequestBody() {
+			return Optional.ofNullable(this.apiCallRequestBody);
+		}
+
+		@Nonnull
+		public Optional<String> getBackgroundThreadName() {
+			return Optional.ofNullable(this.backgroundThreadName);
+		}
+	}
+
+
+	@NotThreadSafe
+	protected static class FootprintContextSetResult {
+		@Nullable
+		private String accountIdConfigured;
+		@Nullable
+		private String apiCallUrlConfigured;
+		@Nullable
+		private String backgroundThreadNameConfigured;
+
+		@Nullable
+		public String getAccountIdConfigured() {
+			return this.accountIdConfigured;
+		}
+
+		public void setAccountIdConfigured(@Nullable String accountIdConfigured) {
+			this.accountIdConfigured = accountIdConfigured;
+		}
+
+		@Nullable
+		public String getApiCallUrlConfigured() {
+			return this.apiCallUrlConfigured;
+		}
+
+		public void setApiCallUrlConfigured(@Nullable String apiCallUrlConfigured) {
+			this.apiCallUrlConfigured = apiCallUrlConfigured;
+		}
+
+		@Nullable
+		public String getBackgroundThreadNameConfigured() {
+			return this.backgroundThreadNameConfigured;
+		}
+
+		public void setBackgroundThreadNameConfigured(@Nullable String backgroundThreadNameConfigured) {
+			this.backgroundThreadNameConfigured = backgroundThreadNameConfigured;
+		}
 	}
 
 	@Nonnull
@@ -687,6 +925,11 @@ public class SystemService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull

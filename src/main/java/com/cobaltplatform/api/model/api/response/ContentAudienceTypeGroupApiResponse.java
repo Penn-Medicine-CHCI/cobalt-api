@@ -20,7 +20,8 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.db.Tag;
+import com.cobaltplatform.api.model.db.ContentAudienceTypeGroup;
+import com.cobaltplatform.api.model.db.ContentAudienceTypeGroup.ContentAudienceTypeGroupId;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -35,59 +36,35 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @Immutable
-public class TagApiResponse {
+public class ContentAudienceTypeGroupApiResponse {
 	@Nonnull
-	private final String tagId;
-	@Nonnull
-	private final String tagGroupId;
-	@Nonnull
-	private final String name;
-	@Nonnull
-	private final String urlName;
+	private final ContentAudienceTypeGroupId contentAudienceTypeGroupId;
 	@Nonnull
 	private final String description;
 	@Nonnull
-	private final Boolean deprecated;
+	private final String exampleSentence;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface TagApiResponseFactory {
+	public interface ContentAudienceTypeGroupApiResponseFactory {
 		@Nonnull
-		TagApiResponse create(@Nonnull Tag tag);
+		ContentAudienceTypeGroupApiResponse create(@Nonnull ContentAudienceTypeGroup contentAudienceTypeGroup);
 	}
 
 	@AssistedInject
-	public TagApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
-												@Assisted @Nonnull Tag tag) {
+	public ContentAudienceTypeGroupApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
+																						 @Assisted @Nonnull ContentAudienceTypeGroup contentAudienceTypeGroup) {
 		requireNonNull(currentContextProvider);
-		requireNonNull(tag);
+		requireNonNull(contentAudienceTypeGroup);
 
-		this.tagId = tag.getTagId();
-		this.tagGroupId = tag.getTagGroupId();
-		this.name = tag.getName();
-		this.urlName = tag.getUrlName();
-		this.description = tag.getDescription();
-		this.deprecated = tag.getDeprecated();
+		this.contentAudienceTypeGroupId = contentAudienceTypeGroup.getContentAudienceTypeGroupId();
+		this.description = contentAudienceTypeGroup.getDescription();
+		this.exampleSentence = contentAudienceTypeGroup.getExampleSentence();
 	}
 
 	@Nonnull
-	public String getTagId() {
-		return this.tagId;
-	}
-
-	@Nonnull
-	public String getTagGroupId() {
-		return this.tagGroupId;
-	}
-
-	@Nonnull
-	public String getName() {
-		return this.name;
-	}
-
-	@Nonnull
-	public String getUrlName() {
-		return this.urlName;
+	public ContentAudienceTypeGroupId getContentAudienceTypeGroupId() {
+		return this.contentAudienceTypeGroupId;
 	}
 
 	@Nonnull
@@ -96,7 +73,7 @@ public class TagApiResponse {
 	}
 
 	@Nonnull
-	public Boolean getDeprecated() {
-		return this.deprecated;
+	public String getExampleSentence() {
+		return this.exampleSentence;
 	}
 }
