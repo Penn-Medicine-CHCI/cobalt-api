@@ -346,7 +346,7 @@ public class DataSyncService implements AutoCloseable {
 			getDatabase().execute("""
 					INSERT INTO tag 
 					(tag_id, name, url_name, description, en_search_vector, tag_group_id, remote_data_flag, deprecated)
-					(SELECT vrt.tag_id, vrt.name, vrt.url_name, vrt.description, vrt.en_search_vector, vrt.tag_group_id, TRUE, deprecated
+					(SELECT vrt.tag_id, vrt.name, vrt.url_name, vrt.description, vrt.en_search_vector, vrt.tag_group_id, TRUE, vrt.deprecated
 					FROM v_remote_tag vrt 
 					WHERE vrt.tag_id NOT IN 
 					(SELECT t.tag_id FROM tag t))""");
