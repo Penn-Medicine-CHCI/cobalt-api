@@ -192,7 +192,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/183-loca
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/185-foreign-tables.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/186-remote-tracking-for-data-sync.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/187-content-spring-cleaning.sql
-
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/188-data-sync.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
