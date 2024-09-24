@@ -19,9 +19,12 @@
 
 package com.cobaltplatform.api.integration.beiwe;
 
+import com.cobaltplatform.api.integration.beiwe.BeiweActiveDataAnalyzer.FFProbeResult.FFProbeStream;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -30,9 +33,12 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -68,8 +74,17 @@ public class BeiweActiveDataAnalyzer {
 		if (!Files.isDirectory(dataDirectory))
 			throw new IllegalArgumentException(format("Unable to find data directory at %s", dataDirectory.toAbsolutePath()));
 
+		String outputCsvFileEnvVarValue = requiredEnvironmentVariableValue("OUTPUT_FILE");
+		Path outputFile = Path.of(outputCsvFileEnvVarValue);
+
+		if (Files.isDirectory(outputFile))
+			throw new IllegalArgumentException(format("Output file is a directory at %s", outputFile.toAbsolutePath()));
+
+		List<ActiveDataCsvRow> rows = new ArrayList<>();
+
 		Files.list(dataDirectory)
 				.filter(dataDirectoryFile -> Files.isDirectory(dataDirectoryFile))
+				.sorted()
 				.forEach(usernameDirectory -> {
 					try {
 						Path activeDirectory = usernameDirectory.resolve("active");
@@ -78,12 +93,42 @@ public class BeiweActiveDataAnalyzer {
 						if (Files.isDirectory(activeDirectory)) {
 							Files.list(usernameDirectory.resolve("active"))
 									.filter(file -> !file.getFileName().toString().equals(".DS_Store"))
+									.sorted()
 									.forEach(activeDataFile -> {
 										activeFileDetected.set(true);
 
 										try {
 											FFProbeResult ffProbeResult = extractFFProbeResultFromFile(ffprobeFile, activeDataFile);
-											System.out.println(ffProbeResult);
+
+											FFProbeStream audioStream = null;
+											FFProbeStream videoStream = null;
+
+											for (FFProbeStream stream : ffProbeResult.getStreams()) {
+												if ("audio".equals(stream.getCodecType()))
+													audioStream = stream;
+												else if ("video".equals(stream.getCodecType()))
+													videoStream = stream;
+												else
+													System.err.println(format("Unexpected codec type '%s' for %s: %s", stream.getCodecType(), activeDataFile.toAbsolutePath(), stream));
+											}
+
+											if (audioStream == null && videoStream == null)
+												throw new IllegalStateException(format("Unable to find any video/audio streams for %s", activeDataFile.toAbsolutePath()));
+
+											ActiveDataCsvRow row = new ActiveDataCsvRow();
+											row.setUsername(usernameDirectory.getFileName().toString());
+											row.setRecordingType(videoStream != null ? "VIDEO" : "AUDIO");
+											row.setDuration(videoStream != null ? videoStream.getDuration() : audioStream.getDuration());
+											row.setFilesize(String.valueOf(activeDataFile.toFile().length()));
+											row.setVideoWidth(videoStream != null ? videoStream.getWidth() : null);
+											row.setVideoHeight(videoStream != null ? videoStream.getHeight() : null);
+											row.setVideoCodecName(videoStream != null ? videoStream.getCodecName() : null);
+											row.setVideoCodecLongName(videoStream != null ? videoStream.getCodecLongName() : null);
+											row.setAudioSampleRate(audioStream != null ? audioStream.getSampleRate() : null);
+											row.setAudioCodecName(audioStream != null ? audioStream.getCodecName() : null);
+											row.setAudioCodecLongName(audioStream != null ? audioStream.getCodecLongName() : null);
+
+											rows.add(row);
 										} catch (IOException e) {
 											throw new UncheckedIOException(e);
 										}
@@ -96,6 +141,170 @@ public class BeiweActiveDataAnalyzer {
 						throw new UncheckedIOException(e);
 					}
 				});
+
+		final List<String> CSV_HEADERS = List.of(
+				"Username",
+				"Recording Type",
+				"Duration (Seconds)",
+				"Filesize (Bytes)",
+				"Video Width (Pixels)",
+				"Video Height (Pixels)",
+				"Video Codec Name",
+				"Video Codec Long Name",
+				"Audio Sample Rate",
+				"Audio Codec Name",
+				"Audio Codec Long Name"
+		);
+
+		try (Writer writer = new FileWriter(outputFile.toFile(), StandardCharsets.UTF_8);
+				 CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(CSV_HEADERS.toArray(new String[0])))) {
+			for (ActiveDataCsvRow row : rows) {
+				List<String> recordElements = new ArrayList<>();
+
+				recordElements.add(row.getUsername());
+				recordElements.add(row.getRecordingType());
+				recordElements.add(row.getDuration());
+				recordElements.add(row.getFilesize());
+				recordElements.add(row.getVideoWidth());
+				recordElements.add(row.getVideoHeight());
+				recordElements.add(row.getVideoCodecName());
+				recordElements.add(row.getVideoCodecLongName());
+				recordElements.add(row.getAudioSampleRate());
+				recordElements.add(row.getAudioCodecName());
+				recordElements.add(row.getAudioCodecLongName());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@NotThreadSafe
+	public static class ActiveDataCsvRow {
+		@Nullable
+		private String username;
+		@Nullable
+		private String recordingType;
+		@Nullable
+		private String duration;
+		@Nullable
+		private String filesize;
+		@Nullable
+		private String videoWidth;
+		@Nullable
+		private String videoHeight;
+		@Nullable
+		private String videoCodecName;
+		@Nullable
+		private String videoCodecLongName;
+		@Nullable
+		private String audioSampleRate;
+		@Nullable
+		private String audioCodecName;
+		@Nullable
+		private String audioCodecLongName;
+
+		@Nullable
+		public String getUsername() {
+			return this.username;
+		}
+
+		public void setUsername(@Nullable String username) {
+			this.username = username;
+		}
+
+		@Nullable
+		public String getRecordingType() {
+			return this.recordingType;
+		}
+
+		public void setRecordingType(@Nullable String recordingType) {
+			this.recordingType = recordingType;
+		}
+
+		@Nullable
+		public String getDuration() {
+			return this.duration;
+		}
+
+		public void setDuration(@Nullable String duration) {
+			this.duration = duration;
+		}
+
+		@Nullable
+		public String getFilesize() {
+			return this.filesize;
+		}
+
+		public void setFilesize(@Nullable String filesize) {
+			this.filesize = filesize;
+		}
+
+		@Nullable
+		public String getVideoWidth() {
+			return this.videoWidth;
+		}
+
+		public void setVideoWidth(@Nullable String videoWidth) {
+			this.videoWidth = videoWidth;
+		}
+
+		@Nullable
+		public String getVideoHeight() {
+			return this.videoHeight;
+		}
+
+		public void setVideoHeight(@Nullable String videoHeight) {
+			this.videoHeight = videoHeight;
+		}
+
+		@Nullable
+		public String getVideoCodecName() {
+			return this.videoCodecName;
+		}
+
+		public void setVideoCodecName(@Nullable String videoCodecName) {
+			this.videoCodecName = videoCodecName;
+		}
+
+		@Nullable
+		public String getVideoCodecLongName() {
+			return this.videoCodecLongName;
+		}
+
+		public void setVideoCodecLongName(@Nullable String videoCodecLongName) {
+			this.videoCodecLongName = videoCodecLongName;
+		}
+
+		@Nullable
+		public String getAudioSampleRate() {
+			return this.audioSampleRate;
+		}
+
+		public void setAudioSampleRate(@Nullable String audioSampleRate) {
+			this.audioSampleRate = audioSampleRate;
+		}
+
+		@Nullable
+		public String getAudioCodecName() {
+			return this.audioCodecName;
+		}
+
+		public void setAudioCodecName(@Nullable String audioCodecName) {
+			this.audioCodecName = audioCodecName;
+		}
+
+		@Nullable
+		public String getAudioCodecLongName() {
+			return this.audioCodecLongName;
+		}
+
+		public void setAudioCodecLongName(@Nullable String audioCodecLongName) {
+			this.audioCodecLongName = audioCodecLongName;
+		}
 	}
 
 	@NotThreadSafe
