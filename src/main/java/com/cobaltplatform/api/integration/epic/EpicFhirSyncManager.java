@@ -46,12 +46,14 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.net.SocketException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -317,7 +319,7 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 					ExecutorService epicFhirExecutorService = null;
 
 					try {
-						epicFhirExecutorService = Executors.newFixedThreadPool(10);
+						epicFhirExecutorService = Executors.newFixedThreadPool(8);
 
 						// First, make a list of dates to call.
 						LocalDate startDate = LocalDate.now(institution.getTimeZone());
@@ -353,7 +355,28 @@ public class EpicFhirSyncManager implements ProviderAvailabilitySyncManager, Aut
 
 									if (cacheEntryExpired) {
 										getLogger().debug("Cache entry is stale for {} on {}, asking Epic for data...", institution.getInstitutionId().name(), date);
-										syncDate(institution, epicClient, date);
+
+										try {
+											syncDate(institution, epicClient, date);
+										} catch (EpicException epicException) {
+											// Special handling: for periodic "Connection reset" issues, log them out and keep moving.
+											// The next pass of the sync job will likely work - data will not be stale for long.
+											// This avoids excess spurious error reports
+											boolean rethrow = true;
+											Throwable epicExceptionCause = epicException.getCause();
+
+											if (epicExceptionCause != null && epicExceptionCause instanceof SocketException) {
+												SocketException socketException = (SocketException) epicExceptionCause;
+												// Unfortunately doesn't appear to be a better way to detect "Connection reset" than a string comparison
+												if (Objects.equals("Connection reset", socketException.getMessage())) {
+													getLogger().warn("Detected 'Connection reset' when attempting to sync date {} for institution {}, ignoring it and leaving date unsynced.", date, institution.getInstitutionId().name(), date);
+													rethrow = false;
+												}
+											}
+
+											if (rethrow)
+												throw epicException;
+										}
 									} else {
 										getLogger().debug("Cache is still fresh for {} on {}, nothing to do.", institution.getInstitutionId().name(), date);
 									}
