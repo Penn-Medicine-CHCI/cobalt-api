@@ -668,7 +668,7 @@ public class StudyService implements AutoCloseable {
 			accountCheckIn = findAccountCheckInById(accountCheckInAction.get().getAccountCheckInId());
 			if (!accountCheckIn.isPresent())
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
-			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE))
+			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE) || accountCheckInAction.get().getCheckInActionStatusId() == CheckInActionStatusId.COMPLETE)
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
 			else if (accountCheckInAction.get().getCheckInActionStatusId().compareTo(CheckInActionStatusId.IN_PROGRESS) != 0) {
 				if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
