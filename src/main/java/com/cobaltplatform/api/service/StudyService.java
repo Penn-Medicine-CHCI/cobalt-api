@@ -46,7 +46,6 @@ import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.RecordingPreference;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.StudyBeiweConfig;
@@ -59,7 +58,6 @@ import com.cobaltplatform.api.model.service.StudyAccount;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
-import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -94,7 +92,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.cobaltplatform.api.util.ValidationUtility.isValidEnum;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -181,7 +178,7 @@ public class StudyService implements AutoCloseable {
 				SELECT *
 					FROM v_account_check_in 
 					WHERE account_id = ? AND study_id = ?
-					""");
+				""");
 		sqlParams.add(account.getAccountId());
 		sqlParams.add(studyId);
 
@@ -681,7 +678,8 @@ public class StudyService implements AutoCloseable {
 
 		if (checkInActionStatusId == null)
 			validationException.add(new FieldError("checkInStatusId", getStrings().get("checkInStatusId is required.")));
-		else if (validationException.hasErrors())
+
+		if (validationException.hasErrors())
 			throw validationException;
 
 		//TODO: validate account owns the check-in and validate status changes, should not be able to go from COMPLETE -> INCOMPLETE
@@ -773,7 +771,7 @@ public class StudyService implements AutoCloseable {
 
 	@Nonnull
 	public Optional<AccountStudy> findAccountStudyByUsernameAndStudyId(@Nullable String username,
-																																			@Nullable UUID studyId) {
+																																		 @Nullable UUID studyId) {
 		if (username == null || studyId == null)
 			return Optional.empty();
 
