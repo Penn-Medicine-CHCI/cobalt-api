@@ -44,6 +44,7 @@ import com.cobaltplatform.api.model.db.AccountStudy;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatus.CheckInStatusId;
 import com.cobaltplatform.api.model.db.CheckInStatusGroup.CheckInStatusGroupId;
+import com.cobaltplatform.api.model.db.CheckInType.CheckInTypeId;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -666,11 +667,19 @@ public class StudyService implements AutoCloseable {
 		Optional<AccountCheckIn> accountCheckIn = null;
 		if (accountCheckInAction.isPresent()) {
 			accountCheckIn = findAccountCheckInById(accountCheckInAction.get().getAccountCheckInId());
-			if (!accountCheckIn.isPresent())
+			if (!accountCheckIn.isPresent()) {
 				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in not found.")));
-			else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE) || accountCheckInAction.get().getCheckInActionStatusId() == CheckInActionStatusId.COMPLETE)
-				validationException.add(new FieldError("accountCheckIn", getStrings().get("Account check-in is complete.")));
-			else if (accountCheckInAction.get().getCheckInActionStatusId().compareTo(CheckInActionStatusId.IN_PROGRESS) != 0) {
+			} else if (accountCheckIn.get().getCheckInStatusId().equals(CheckInStatusId.COMPLETE) || accountCheckInAction.get().getCheckInActionStatusId() == CheckInActionStatusId.COMPLETE) {
+				String checkInActionDescription = getStrings().get("action");
+
+				if (accountCheckIn.get().getCheckInTypeId() == CheckInTypeId.SCREENING)
+					checkInActionDescription = getStrings().get("assessment");
+				else if (accountCheckIn.get().getCheckInTypeId() == CheckInTypeId.VIDEO)
+					checkInActionDescription = getStrings().get("recording");
+
+				validationException.add(new FieldError("accountCheckIn", getStrings().get("This check-in's {{checkInActionDescription}} has already been completed. You won't be able to do another one until your next check-in time.",
+						Map.of("checkInActionDescription", checkInActionDescription))));
+			} else if (accountCheckInAction.get().getCheckInActionStatusId().compareTo(CheckInActionStatusId.IN_PROGRESS) != 0) {
 				if (accountCheckIn.get().getCheckInStartDateTime().isAfter(currentLocalDateTime) || accountCheckIn.get().getCheckInEndDateTime().isBefore(currentLocalDateTime))
 					validationException.add(new FieldError("accountCheckIn", getStrings().get("Check-in is not permitted at this time.")));
 			}
