@@ -25,6 +25,7 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.tableau.TableauClient;
 import com.cobaltplatform.api.integration.tableau.TableauException;
 import com.cobaltplatform.api.integration.tableau.request.AccessTokenRequest;
+import com.cobaltplatform.api.model.api.request.CreateAnalyticsNativeEventRequest;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -42,6 +43,7 @@ import com.cobaltplatform.api.model.db.TopicCenterDisplayStyle.TopicCenterDispla
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
@@ -67,9 +69,12 @@ import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.QueryParameter;
+import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
@@ -145,6 +150,8 @@ public class AnalyticsResource {
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
+	private final RequestBodyParser requestBodyParser;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final Formatter formatter;
@@ -162,6 +169,7 @@ public class AnalyticsResource {
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+													 @Nonnull RequestBodyParser requestBodyParser,
 													 @Nonnull Strings strings,
 													 @Nonnull Formatter formatter) {
 		requireNonNull(analyticsService);
@@ -174,6 +182,7 @@ public class AnalyticsResource {
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(enterprisePluginProvider);
+		requireNonNull(requestBodyParser);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 
@@ -187,9 +196,30 @@ public class AnalyticsResource {
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
+		this.requestBodyParser = requestBodyParser;
 		this.strings = strings;
 		this.formatter = formatter;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	@POST("/analytics-native-events")
+	public ApiResponse createAnalyticsNativeEvent(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().orElse(null);
+		RemoteClient remoteClient = getCurrentContext().getRemoteClient().orElse(null);
+
+		CreateAnalyticsNativeEventRequest request = getRequestBodyParser().parse(requestBody, CreateAnalyticsNativeEventRequest.class);
+		request.setInstitutionId(institutionId);
+		request.setAccountId(account == null ? null : account.getAccountId());
+
+		// TODO: additional work to set values
+
+		UUID analyticsNativeEventId = getAnalyticsService().createAnalyticsNativeEvent(request);
+
+		return new ApiResponse(Map.of("analyticsNativeEventId", analyticsNativeEventId));
 	}
 
 	@Nonnull
@@ -2379,6 +2409,11 @@ public class AnalyticsResource {
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected RequestBodyParser getRequestBodyParser() {
+		return this.requestBodyParser;
 	}
 
 	@Nonnull

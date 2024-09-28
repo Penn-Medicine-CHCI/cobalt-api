@@ -30,6 +30,7 @@ import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryExportRecord;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelEvent;
+import com.cobaltplatform.api.model.api.request.CreateAnalyticsNativeEventRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AnalyticsEventDateSync;
 import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
@@ -222,6 +223,15 @@ public class AnalyticsService implements AutoCloseable {
 
 			return true;
 		}
+	}
+
+	@Nonnull
+	public UUID createAnalyticsNativeEvent(@Nonnull CreateAnalyticsNativeEventRequest request) {
+		requireNonNull(request);
+
+		// TODO: implementation
+
+		return UUID.randomUUID();
 	}
 
 	/**
@@ -754,7 +764,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM ts
 				GROUP BY ts.medium
 				ORDER BY user_count DESC
-					""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
+				""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
 
 		// Nicer names here
 		for (TrafficSourceMediumCount trafficSourceMediumCount : trafficSourceMediumCounts) {
@@ -802,7 +812,7 @@ public class AnalyticsService implements AutoCloseable {
 					FROM rd
 					GROUP BY referrer
 					ORDER BY user_count DESC
-										""", TrafficSourceReferrerCount.class, webappBaseUrl, startTimestamp, endTimestamp, institutionId);
+					""", TrafficSourceReferrerCount.class, webappBaseUrl, startTimestamp, endTimestamp, institutionId);
 		}
 
 		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream()
@@ -853,7 +863,7 @@ public class AnalyticsService implements AutoCloseable {
 					AND ss.target_account_id=a.account_id
 					AND a.institution_id=?
 					AND ss.created BETWEEN ? AND ?
-										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
+					""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
 
 			StringBuilder completedSql = new StringBuilder("""
 					SELECT count(ss.*)
@@ -977,7 +987,7 @@ public class AnalyticsService implements AutoCloseable {
 				AND a.institution_id=?
 				AND ss.created BETWEEN ? AND ?
 				AND ss.crisis_indicated=TRUE
-								""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+				""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
 
 		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
 				SELECT COUNT(*) AS count, 'HP Chiclet' AS name
@@ -1090,7 +1100,7 @@ public class AnalyticsService implements AutoCloseable {
 				AND p.provider_id=psr.provider_id
 				AND psr.support_role_id=sr.support_role_id
 				ORDER BY p.name, sr.description
-								""", ProviderWithSupportRole.class, institutionId);
+				""", ProviderWithSupportRole.class, institutionId);
 
 		Map<UUID, List<String>> supportRoleDescriptionsByProviderId = new HashMap<>(providerWithSupportRoles.size());
 
@@ -1298,7 +1308,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM tag_group_page_normalized_view tgpnv, tag_group tg
 				WHERE tg.url_name = REVERSE(SUBSTR(REVERSE(tgpnv.url_path), 0, STRPOS(REVERSE(tgpnv.url_path), '/')))
 				ORDER BY tgpnv.page_view_count DESC
-												""", TagGroupPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+				""", TagGroupPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
 		// Tag page views
 		// Chops off query parameters, so /resource-library/tags/anxiety?test=123 is counted as /resource-library/tags/anxiety.
@@ -1325,7 +1335,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM tag_page_normalized_view tpnv, tag t
 				WHERE t.url_name = REVERSE(SUBSTR(REVERSE(tpnv.url_path), 0, STRPOS(REVERSE(tpnv.url_path), '/')))
 				ORDER BY tpnv.page_view_count DESC
-								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+				""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
 		// Index by tag ID for easy access
 		Map<String, TagPageView> directTagPageViewsByTagId = directTagPageViews.stream()
@@ -1388,7 +1398,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM page_views_by_tag pvbt, tag t
 				WHERE pvbt.tag_id=t.tag_id
 				GROUP BY pvbt.tag_id, t.name, t.tag_group_id, t.url_name
-								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?", institutionId);
+				""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?", institutionId);
 
 		// Overlay the query results onto the zeroed-out initial list
 		for (TagPageView activeContentTagPageView : activeContentTagPageViews) {
@@ -1724,7 +1734,7 @@ public class AnalyticsService implements AutoCloseable {
 						ORDER BY
 						    COALESCE(MAX(page_view_count), 0) DESC,
 						    tcr.name
-										""", TopicCenterInteraction.class, urlPathRegex, startTimestamp, endTimestamp, institutionId,
+						""", TopicCenterInteraction.class, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, institutionId, startTimestamp, endTimestamp,

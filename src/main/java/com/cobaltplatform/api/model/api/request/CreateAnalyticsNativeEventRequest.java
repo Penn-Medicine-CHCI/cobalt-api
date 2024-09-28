@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -47,7 +48,7 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private String url;
 	@Nullable
-	private String data; // Understood to be a JSON object with type-specific data, e.g. {"topicCenterId": "[uuid]"}
+	private Map<String, Object> data; // Understood to be a JSON object with type-specific data, e.g. {"topicCenterId": "[uuid]"}
 	@Nullable
 	private String clientName; // Explicitly specified by client. Example for web: "Cobalt Website". Example for native app: "Cobalt App XYZ"
 	@Nullable
@@ -151,11 +152,11 @@ public class CreateAnalyticsNativeEventRequest {
 	}
 
 	@Nullable
-	public String getData() {
+	public Map<String, Object> getData() {
 		return this.data;
 	}
 
-	public void setData(@Nullable String data) {
+	public void setData(@Nullable Map<String, Object> data) {
 		this.data = data;
 	}
 
