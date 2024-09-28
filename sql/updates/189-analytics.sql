@@ -66,11 +66,17 @@ CREATE TABLE analytics_native_event (
   url TEXT,
   -- Bag of data that corresponds to the event type.
   data JSONB NOT NULL DEFAULT '{}'::JSONB,
-  -- If explicitly specified by client. Example for native app: iPhone13,2
+  -- Explicitly specified by client. Example for web: "Cobalt Website". Example for native app: "Cobalt App XYZ"
+  client_name TEXT NOT NULL,
+  -- Explicitly specified by client. Example for web: "cbf1b9a1be984a9f61b79a05f23b19f66d533537" (git commit hash). Example for native app: "1.2.3 (4)"
+  client_version TEXT NOT NULL,
+  -- If explicitly specified by client. Example for native app: "iPhone"
+  client_device_family TEXT,
+  -- If explicitly specified by client. Example for native app: "iPhone13,2"
   client_device_model TEXT,
-  -- If explicitly specified by client. Example for native app: Apple
+  -- If explicitly specified by client. Example for native app: "Apple"
   client_device_brand TEXT,
-  -- If explicitly specified by client.  Example for native app: iOS
+  -- If explicitly specified by client.  Example for native app: "iOS"
   client_device_operating_system TEXT,
   -- The value of window.navigator.userAgent
   user_agent TEXT,
@@ -95,7 +101,7 @@ CREATE TABLE analytics_native_event (
 	-- Provided by JS window.screen object on web
 	screen_orientation TEXT,
 	-- Provided by JS window object on web
-	window_device_pixel_ratio INTEGER,
+	window_device_pixel_ratio NUMERIC(4,2),
 	-- Provided by JS window object on web
 	window_width NUMERIC(8,2),
 	-- Provided by JS window object on web
