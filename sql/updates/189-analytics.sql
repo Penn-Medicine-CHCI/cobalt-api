@@ -15,15 +15,37 @@ CREATE TABLE analytics_native_event_type (
 -- When the browser tab is closed, the session ends (there is no corresponding SESSION_ENDED event for this currently).
 -- See https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage for details
 -- In a native app, this would be when the app first launches
+-- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('SESSION_STARTED', 'Session Started');
 -- When the user brings the browser tab into focus (unminimizes the window, switches into it from another tab)
 -- See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
 -- In a native app, this would be fired when the app is brought to the foreground
+-- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('BROUGHT_TO_FOREGROUND', 'Brought to Foreground');
 -- When the user brings the browser tab out of focus (minimizes the window, switches to another tab)
 -- See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
 -- In a native app, this would be fired when the app is sent to the background
+-- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('SENT_TO_BACKGROUND', 'Sent to Background');
+-- When an API call returns a status >= 400.
+-- Additional data:
+-- * statusCode (Integer, e.g. 422, 500, ...)
+-- * responseBody (String)
+-- * errorCode (String, if "errorCode" field is available from API response, e.g. "VALIDATION_FAILED")
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('API_CALL_ERROR', 'API Call Error');
+-- On the web, when the "sign-in" page is rendered.
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_SIGN_IN', 'Page View (Sign In)');
+-- On the web, when the "sign-in with email" page is rendered.
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_SIGN_IN_EMAIL', 'Page View (Sign In - Email)');
+-- On the web, when the "home" page is rendered (default landing screen after sign-in).
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_HOME', 'Page View (Home)');
+-- On the web, when a "topic center" page is rendered.
+-- Additional data:
+-- * topicCenterId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_TOPIC_CENTER', 'Page View (Topic Center)');
 
 -- Cobalt native analytics events
 CREATE TABLE analytics_native_event (
@@ -32,14 +54,11 @@ CREATE TABLE analytics_native_event (
   institution_id VARCHAR NOT NULL REFERENCES institution,
   client_device_id UUID NOT NULL REFERENCES client_device,
   account_id UUID,
-  -- A unique value that identifies the client's device (generally generated once and stored in a cookie/localstorage).
-  -- Might be reset if cookies/storage are cleared.
-  -- For Incognito Windows, will be unique per window.
-  -- fingerprint UUID NOT NULL,
   -- A session-specific identifier that follows the lifecycle defined by JS sessionStorage.
   -- For example, a session is created when a browser tab is first opened and destroyed once it's closed.
   -- Session storage will survive navigations/reloads/etc.
   -- See https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage for details
+  -- In a native app, this would be generated and stored when the app first launches
   session_id UUID NOT NULL,
   -- The client-specified timestamp for this event
   timestamp TIMESTAMPTZ NOT NULL,
