@@ -38,7 +38,9 @@ public class ClientDeviceType {
 	public enum ClientDeviceTypeId {
 		IOS_APP,
 		ANDROID_APP,
-		WEB_BROWSER;
+		WEB_BROWSER,
+		WEB_CRAWLER,
+		UNKNOWN;
 
 		@Nonnull
 		public static Boolean isNativeApp(@Nullable ClientDeviceTypeId clientDeviceTypeId) {
