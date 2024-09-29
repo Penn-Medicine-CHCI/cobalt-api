@@ -180,8 +180,9 @@ public class CurrentContextRequestHandler {
 		MDC.put(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY, currentContextDescription);
 
 		boolean healthCheck = httpServletRequest.getRequestURI().startsWith("/system/health-check");
+		boolean analytics = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Analytics"), "true");
 
-		if (!healthCheck)
+		if (!healthCheck && !analytics)
 			getLogger().debug("Received {}", FormatUtils.httpServletRequestDescription(httpServletRequest));
 
 		getErrorReporter().startScope();

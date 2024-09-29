@@ -228,6 +228,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -541,8 +542,9 @@ public class AppModule extends AbstractModule {
 
 				boolean staticFile = httpServletRequest.getRequestURI().startsWith("/static/");
 				boolean healthCheck = httpServletRequest.getRequestURI().startsWith("/system/health-check");
+				boolean analytics = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Analytics"), "true");
 
-				return !staticFile && !healthCheck;
+				return !staticFile && !healthCheck && !analytics;
 			}
 		};
 	}
