@@ -27,6 +27,11 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- In a native app, this would be fired when the app is sent to the background
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('SENT_TO_BACKGROUND', 'Sent to Background');
+-- When the browser's URL changes, either from initial page load or SPA client-side routing
+-- Additional data:
+-- * url (String, the URL that was changed to)
+-- * responseBody (String, the URL that was navigated away from, may be null for initial loads/external referrals)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('URL_CHANGED', 'URL Changed');
 -- When an API call returns a status >= 400.
 -- Additional data:
 -- * statusCode (Integer, e.g. 422, 500, ...)

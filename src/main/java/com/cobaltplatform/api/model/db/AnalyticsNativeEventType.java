@@ -50,6 +50,11 @@ public class AnalyticsNativeEventType {
 		// In a native app, this would be fired when the app is sent to the background
 		// There is no additional data associated with this event type.
 		SENT_TO_BACKGROUND,
+		// When the browser's URL changes, either from initial page load or SPA client-side routing
+		// Additional data:
+		// * url (String, the URL that was changed to)
+		// * responseBody (String, the URL that was navigated away from, may be null for initial loads/external referrals)
+		URL_CHANGED,
 		// When an API call returns a status >= 400.
 		// Additional data:
 		// * statusCode (Integer, e.g. 422, 500, ...)
