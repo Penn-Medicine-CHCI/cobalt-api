@@ -712,7 +712,7 @@ public class ReportingService {
 				format("""
 						WITH pot_reason AS
 						(SELECT DISTINCT potg.patient_order_id, potor.description as reason
-						FROM patient_order_triage_group potg, v_patient_order vpo, patient_order_triage_override_reason potor
+						FROM patient_order_triage_group potg, v_all_patient_order vpo, patient_order_triage_override_reason potor
 						%s
 						AND potg.patient_order_id = vpo.patient_order_id
 						AND potg.patient_order_triage_source_id='%s'
@@ -758,12 +758,12 @@ public class ReportingService {
 
 		//All patient orders matching the report filters
 		List<PatientOrder> patientOrders = getDatabase().queryForList(
-				format("SELECT * FROM v_patient_order %s", whereClauseWithParameters.getWhereClause()), PatientOrder.class, whereClauseWithParameters.getParameters().toArray());
+				format("SELECT * FROM v_all_patient_order %s", whereClauseWithParameters.getWhereClause()), PatientOrder.class, whereClauseWithParameters.getParameters().toArray());
 
 		//List of referral reasons
 		StringBuilder reasonForReferralQuery = new StringBuilder(format("""
 				SELECT reason_for_referral as description, count(*) as count
-				FROM v_patient_order
+				FROM v_all_patient_order
 				%s
 				GROUP BY reason_for_referral
 				ORDER BY reason_for_referral""", whereClauseWithParameters.getWhereClause()));
@@ -807,14 +807,14 @@ public class ReportingService {
 
 			Optional<String> avgDaysFromReferralToCompletedAssessment = getDatabase().queryForObject(format("""
 					SELECT to_char(avg(most_recent_screening_session_completed_at - order_date ) , 'DD') 
-					FROM v_patient_order
+					FROM v_all_patient_order
 					%s
 					AND patient_order_screening_status_id = 'COMPLETE'""", whereClauseWithParameters.getWhereClause()), String.class, whereClauseWithParameters.getParameters().toArray());
 			csvPrinter.printRecord("Average Days to Complete Assessment", avgDaysFromReferralToCompletedAssessment.isPresent() ? avgDaysFromReferralToCompletedAssessment.get() : "N/A");
 
 			Optional<String> avgDaysToSelfScheduleAppointment = getDatabase().queryForObject(format("""
 					SELECT to_char(avg(appointment_start_time - order_date), 'DD')
-					FROM v_patient_order
+					FROM v_all_patient_order
 					%s
 					AND appointment_scheduled_by_patient = true""", whereClauseWithParameters.getWhereClause()), String.class, whereClauseWithParameters.getParameters().toArray());
 			csvPrinter.printRecord("Average Days to Self Schedule Appointment", avgDaysToSelfScheduleAppointment.isPresent() ? avgDaysToSelfScheduleAppointment.get() : "N/A");
@@ -884,13 +884,13 @@ public class ReportingService {
 
 		//All patient orders matching the report filters
 		List<PatientOrder> patientOrders = getDatabase().queryForList(
-				format("SELECT * FROM v_patient_order %s", whereClauseWithParameters.getWhereClause()), PatientOrder.class, whereClauseWithParameters.getParameters().toArray());
+				format("SELECT * FROM v_all_patient_order %s", whereClauseWithParameters.getWhereClause()), PatientOrder.class, whereClauseWithParameters.getParameters().toArray());
 		//Just Open Orders
 		List<PatientOrder> openPatientOrders = patientOrders.stream().filter(it -> it.getPatientOrderDispositionId() == PatientOrderDispositionId.OPEN).collect(Collectors.toList());
 
 		List<DescriptionWithCountRecord> assessmentStatusCounts = getDatabase().queryForList(format("""
 						SELECT patient_order_screening_status_description as description, COUNT(*) as count
-						FROM v_patient_order
+						FROM v_all_patient_order
 						%s
 						AND patient_order_screening_status_id != 'COMPLETE'
 						AND patient_order_disposition_id = 'OPEN'
@@ -935,7 +935,7 @@ public class ReportingService {
 
 			//All patient orders matching the report filters
 			List<PatientOrder> patientOrdersForMhics = getDatabase().queryForList(
-					format("SELECT * FROM v_patient_order %s", whereClauseWithParametersForMhics.getWhereClause()), PatientOrder.class, whereClauseWithParametersForMhics.getParameters().toArray());
+					format("SELECT * FROM v_all_patient_order %s", whereClauseWithParametersForMhics.getWhereClause()), PatientOrder.class, whereClauseWithParametersForMhics.getParameters().toArray());
 			addFilterDescription(csvPrinter, payorName, referringPracticeIds, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, panelAccountId);
 			csvPrinter.printRecord("Calls/Voicemails", patientOrdersForMhics.stream().map(it -> it.getOutreachCount()).reduce(0, Integer::sum));
 			csvPrinter.printRecord("Texts/Emails", patientOrdersForMhics.stream().map(it -> it.getScheduledMessageGroupDeliveredCount()).reduce(0, Integer::sum));
@@ -994,7 +994,7 @@ public class ReportingService {
 
 		//All patient orders matching the report filters
 		List<PatientOrder> patientOrders = getDatabase().queryForList(
-				format("SELECT * FROM v_patient_order %s", whereClauseWithParameters.getWhereClause()), PatientOrder.class, whereClauseWithParameters.getParameters().toArray());
+				format("SELECT * FROM v_all_patient_order %s", whereClauseWithParameters.getWhereClause()), PatientOrder.class, whereClauseWithParameters.getParameters().toArray());
 
 		List<AssessmentScoreRecord> assessmentScores = getDatabase().queryForList(
 				format("""
