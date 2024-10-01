@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.service;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.util.UserAgent;
 import com.cobaltplatform.api.util.UserAgentParser;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
 
 import javax.annotation.Nonnull;
@@ -29,6 +30,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -43,7 +45,11 @@ public class RemoteClient {
 	private static final UserAgentParser USER_AGENT_PARSER;
 
 	@Nullable
-	private final String fingerprint;
+	private final UUID sessionId;
+	@Nullable
+	private final UUID fingerprint;
+	@Nullable
+	private final String appName;
 	@Nullable
 	private final String appVersion;
 	@Nullable
@@ -69,7 +75,9 @@ public class RemoteClient {
 		USER_AGENT_PARSER = new UserAgentParser();
 	}
 
-	private RemoteClient(@Nullable String fingerprint,
+	private RemoteClient(@Nullable UUID sessionId,
+											 @Nullable UUID fingerprint,
+											 @Nullable String appName,
 											 @Nullable String appVersion,
 											 @Nullable String appBuildNumber,
 											 @Nullable ClientDeviceTypeId typeId,
@@ -80,7 +88,9 @@ public class RemoteClient {
 											 @Nullable String manufacturer,
 											 @Nullable UserAgent userAgent,
 											 @Nullable String ipAddress) {
+		this.sessionId = sessionId;
 		this.fingerprint = fingerprint;
+		this.appName = appName;
 		this.appVersion = appVersion;
 		this.appBuildNumber = appBuildNumber;
 		this.typeId = typeId;
@@ -101,7 +111,13 @@ public class RemoteClient {
 		String ipAddressFromHeader = trimToNull(httpServletRequest.getHeader("X-Real-IP"));
 		String ipAddress = ipAddressFromHeader == null ? httpServletRequest.getRemoteAddr() : ipAddressFromHeader;
 
-		String fingerprint = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Fingerprint").orElse(null);
+		String fingerprintAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Fingerprint").orElse(null);
+		UUID fingerprint = null;
+
+		if (fingerprintAsString != null && ValidationUtility.isValidUUID(fingerprintAsString))
+			fingerprint = UUID.fromString(fingerprintAsString);
+
+		String appName = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Name").orElse(null);
 		String appVersion = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Version").orElse(null);
 		String appBuildNumber = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Build-Number").orElse(null);
 		String typeIdAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Type-Id").orElse(null);
@@ -112,14 +128,16 @@ public class RemoteClient {
 		String operatingSystemName = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Operating-System-Name").orElse(null);
 		String operatingSystemVersion = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Operating-System-Version").orElse(null);
 
-		if (operatingSystemName == null)
-			operatingSystemName = userAgent.getOperatingSystemName().orElse(null);
+		String sessionIdAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Session-Id").orElse(null);
+		UUID sessionId = null;
 
-		if (operatingSystemVersion == null)
-			operatingSystemVersion = userAgent.getOperatingSystemVersion().orElse(null);
+		if (sessionIdAsString != null && ValidationUtility.isValidUUID(sessionIdAsString))
+			sessionId = UUID.fromString(sessionIdAsString);
 
 		return new RemoteClient(
+				sessionId,
 				fingerprint,
+				appName,
 				appVersion,
 				appBuildNumber,
 				typeId,
@@ -147,7 +165,16 @@ public class RemoteClient {
 		if ((appVersion == null || clientDeviceTypeId == null) && userAgent != null)
 			return userAgent.getDescription();
 
-		String operatingSystemVersion = getOperatingSystemVersion().orElse("Unknown OS Version");
+		String operatingSystemName = getOperatingSystemName().orElse(null);
+
+		if (operatingSystemName == null && userAgent != null)
+			operatingSystemName = userAgent.getOperatingSystemName().orElse("Unknown OS");
+
+		String operatingSystemVersion = getOperatingSystemVersion().orElse(null);
+
+		if (operatingSystemVersion == null && userAgent != null)
+			operatingSystemVersion = userAgent.getOperatingSystemVersion().orElse("Unknown OS Version");
+
 		String model = getModel().orElse("Unknown Model");
 
 		String clientDeviceTypeIdDescription = "Unknown App";
@@ -157,12 +184,22 @@ public class RemoteClient {
 		else if (clientDeviceTypeId == ClientDeviceTypeId.IOS_APP)
 			clientDeviceTypeIdDescription = "iOS App";
 
-		return format("%s %s (App %s on %s)", clientDeviceTypeIdDescription, operatingSystemVersion, appVersion, model);
+		return format("%s %s %s (App %s on %s)", clientDeviceTypeIdDescription, operatingSystemName, operatingSystemVersion, appVersion, model);
 	}
 
 	@Nonnull
-	public Optional<String> getFingerprint() {
+	public Optional<UUID> getSessionId() {
+		return Optional.ofNullable(this.sessionId);
+	}
+
+	@Nonnull
+	public Optional<UUID> getFingerprint() {
 		return Optional.ofNullable(this.fingerprint);
+	}
+
+	@Nonnull
+	public Optional<String> getAppName() {
+		return Optional.ofNullable(this.appName);
 	}
 
 	@Nonnull

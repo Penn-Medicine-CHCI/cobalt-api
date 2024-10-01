@@ -40,8 +40,6 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
-	private UUID fingerprint; // Client device fingerprint
-	@Nullable
 	private UUID sessionId;
 	@Nullable
 	private Instant timestamp;
@@ -58,7 +56,9 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private String clientDeviceBrand; // If explicitly specified by client. Example for native app: Apple
 	@Nullable
-	private String clientDeviceOperatingSystem; // If explicitly specified by client.  Example for native app: iOS
+	private String clientDeviceOperatingSystemName; // If explicitly specified by client.  Example for native app: iOS
+	@Nullable
+	private String clientDeviceOperatingSystemVersion; // If explicitly specified by client.  Example for native app: 18
 	@Nullable
 	private String userAgent; // The value of window.navigator.userAgent
 	@Nullable
@@ -113,15 +113,6 @@ public class CreateAnalyticsNativeEventRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
-	}
-
-	@Nullable
-	public UUID getFingerprint() {
-		return this.fingerprint;
-	}
-
-	public void setFingerprint(@Nullable UUID fingerprint) {
-		this.fingerprint = fingerprint;
 	}
 
 	@Nullable
@@ -197,12 +188,21 @@ public class CreateAnalyticsNativeEventRequest {
 	}
 
 	@Nullable
-	public String getClientDeviceOperatingSystem() {
-		return this.clientDeviceOperatingSystem;
+	public String getClientDeviceOperatingSystemName() {
+		return this.clientDeviceOperatingSystemName;
 	}
 
-	public void setClientDeviceOperatingSystem(@Nullable String clientDeviceOperatingSystem) {
-		this.clientDeviceOperatingSystem = clientDeviceOperatingSystem;
+	public void setClientDeviceOperatingSystemName(@Nullable String clientDeviceOperatingSystemName) {
+		this.clientDeviceOperatingSystemName = clientDeviceOperatingSystemName;
+	}
+
+	@Nullable
+	public String getClientDeviceOperatingSystemVersion() {
+		return this.clientDeviceOperatingSystemVersion;
+	}
+
+	public void setClientDeviceOperatingSystemVersion(@Nullable String clientDeviceOperatingSystemVersion) {
+		this.clientDeviceOperatingSystemVersion = clientDeviceOperatingSystemVersion;
 	}
 
 	@Nullable

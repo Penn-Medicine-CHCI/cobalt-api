@@ -42,6 +42,7 @@ import com.cobaltplatform.api.service.FingerprintService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LoggingUtility;
+import com.cobaltplatform.api.util.UserAgent;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.soklet.util.FormatUtils;
@@ -367,7 +368,7 @@ public class CurrentContextRequestHandler {
 			return false;
 
 		UUID accountId = account == null ? null : account.getAccountId();
-		String fingerprint = remoteClient.getFingerprint().orElse(null);
+		UUID fingerprint = remoteClient.getFingerprint().orElse(null);
 
 		// ...and 2: They have a fingerprint specified
 		if (fingerprint == null) {
@@ -375,14 +376,25 @@ public class CurrentContextRequestHandler {
 			return false;
 		}
 
+		UserAgent userAgent = remoteClient.getUserAgent().orElse(null);
+		String operatingSystemName = remoteClient.getOperatingSystemName().orElse(null);
+
+		if (operatingSystemName == null && userAgent != null)
+			operatingSystemName = userAgent.getOperatingSystemName().orElse(null);
+
+		String operatingSystemVersion = remoteClient.getOperatingSystemVersion().orElse(null);
+
+		if (operatingSystemVersion == null && userAgent != null)
+			operatingSystemVersion = userAgent.getOperatingSystemVersion().orElse(null);
+
 		UpsertClientDeviceRequest request = new UpsertClientDeviceRequest();
 		request.setAccountId(accountId);
 		request.setClientDeviceTypeId(clientDeviceTypeId);
 		request.setFingerprint(fingerprint);
 		request.setBrand(remoteClient.getBrand().orElse(null));
 		request.setModel(remoteClient.getModel().orElse(null));
-		request.setOperatingSystemName(remoteClient.getOperatingSystemName().orElse(null));
-		request.setOperatingSystemVersion(remoteClient.getOperatingSystemVersion().orElse(null));
+		request.setOperatingSystemName(operatingSystemName);
+		request.setOperatingSystemVersion(operatingSystemVersion);
 
 		// We are outside of the context of the "request" transaction, so we make one here.
 		// It's necessary because the upsert requires one to recover in the event of a unique constraint violation.

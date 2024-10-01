@@ -36,7 +36,7 @@ public class ClientDevice {
 	@Nullable
 	private ClientDeviceTypeId clientDeviceTypeId;
 	@Nullable
-	private String fingerprint;
+	private UUID fingerprint;
 	@Nullable
 	private String operatingSystemName;
 	@Nullable
@@ -69,11 +69,11 @@ public class ClientDevice {
 	}
 
 	@Nullable
-	public String getFingerprint() {
+	public UUID getFingerprint() {
 		return this.fingerprint;
 	}
 
-	public void setFingerprint(@Nullable String fingerprint) {
+	public void setFingerprint(@Nullable UUID fingerprint) {
 		this.fingerprint = fingerprint;
 	}
 

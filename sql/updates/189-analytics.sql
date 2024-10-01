@@ -1,6 +1,10 @@
 BEGIN;
 SELECT _v.register_patch('189-analytics', NULL, NULL);
 
+-- Force fingerprints to UUID for faster access/consistency.
+-- In practice, they are UUID strings currently.
+ALTER TABLE client_device ALTER COLUMN fingerprint TYPE uuid USING fingerprint::uuid;
+
 INSERT INTO client_device_type VALUES ('WEB_CRAWLER', 'Web Crawler');
 INSERT INTO client_device_type VALUES ('UNKNOWN', 'Unknown');
 

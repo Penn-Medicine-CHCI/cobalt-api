@@ -112,9 +112,7 @@ public class ClientDeviceService {
 	}
 
 	@Nonnull
-	public Optional<ClientDevice> findClientDeviceByFingerprint(@Nullable String fingerprint) {
-		fingerprint = trimToNull(fingerprint);
-
+	public Optional<ClientDevice> findClientDeviceByFingerprint(@Nullable UUID fingerprint) {
 		if (fingerprint == null)
 			return Optional.empty();
 
@@ -215,7 +213,7 @@ public class ClientDeviceService {
 
 		UUID accountId = request.getAccountId();
 		ClientDeviceTypeId clientDeviceTypeId = request.getClientDeviceTypeId();
-		String fingerprint = trimToNull(request.getFingerprint());
+		UUID fingerprint = request.getFingerprint();
 		String model = trimToNull(request.getModel());
 		String brand = trimToNull(request.getBrand());
 		String operatingSystemName = trimToNull(request.getOperatingSystemName());
@@ -278,7 +276,7 @@ public class ClientDeviceService {
 		requireNonNull(request);
 
 		UUID clientDeviceId = request.getClientDeviceId();
-		String fingerprint = trimToNull(request.getFingerprint());
+		UUID fingerprint = request.getFingerprint();
 		String pushToken = trimToNull(request.getPushToken());
 		ClientDevicePushTokenTypeId clientDevicePushTokenTypeId = request.getClientDevicePushTokenTypeId();
 		ClientDevice clientDevice = null;
@@ -351,7 +349,7 @@ public class ClientDeviceService {
 		requireNonNull(request);
 
 		UUID clientDeviceId = request.getClientDeviceId();
-		String fingerprint = trimToNull(request.getFingerprint());
+		UUID fingerprint = request.getFingerprint();
 		ClientDeviceActivityTypeId clientDeviceActivityTypeId = request.getClientDeviceActivityTypeId();
 		UUID accountId = request.getAccountId();
 		UUID clientDeviceActivityId = UUID.randomUUID();
