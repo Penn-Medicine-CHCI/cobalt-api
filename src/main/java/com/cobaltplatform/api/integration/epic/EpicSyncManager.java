@@ -444,6 +444,12 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 					GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
+					if (response.getScheduleSlots() == null)
+						throw new IllegalStateException(format("Unable to detect schedule slots in Epic response for provider %s (%s) " +
+										"in department ID %s and visit type ID %s on %s.  Epic response JSON follows:\n%s",
+								provider.getName(), provider.getEpicProviderId(), epicDepartment.getDepartmentId(), appointmentType.getEpicVisitTypeId(),
+								date, response.getRawJson()));
+
 					// First, walk the data to figure out what slots are explicitly blocked off as unbookable
 					Set<Range> unbookableRanges = new HashSet<>(response.getScheduleSlots().size());
 
