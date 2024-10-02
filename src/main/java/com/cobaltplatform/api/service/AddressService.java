@@ -19,14 +19,18 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +45,7 @@ import java.util.UUID;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166CountryCode;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUsPostalCode;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -53,6 +58,8 @@ public class AddressService {
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
 	private final Strings strings;
@@ -61,13 +68,16 @@ public class AddressService {
 
 	@Inject
 	public AddressService(@Nonnull DatabaseProvider databaseProvider,
+												@Nonnull ErrorReporter errorReporter,
 												@Nonnull Normalizer normalizer,
 												@Nonnull Strings strings) {
 		requireNonNull(databaseProvider);
+		requireNonNull(errorReporter);
 		requireNonNull(normalizer);
 		requireNonNull(strings);
 
 		this.databaseProvider = databaseProvider;
+		this.errorReporter = errorReporter;
 		this.normalizer = normalizer;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -120,24 +130,36 @@ public class AddressService {
 		ValidationException validationException = new ValidationException();
 
 		if (postalName == null)
-			validationException.add(new ValidationException.FieldError("postalName", getStrings().get("Postal name is required.")));
+			validationException.add(new FieldError("postalName", getStrings().get("Postal name is required.")));
 
 		if (streetAddress1 == null)
-			validationException.add(new ValidationException.FieldError("streetAddress1", getStrings().get("Street address is required.")));
+			validationException.add(new FieldError("streetAddress1", getStrings().get("Street address is required.")));
+
+		// TODO: remove this workaround once we determine the source of bad country data for some patients
+
+		if (countryCode == null) {
+			countryCode = "US";
+			getErrorReporter().report(format("Warning: missing country code for address %s", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE)));
+		} else if (!isValidIso3166CountryCode(countryCode)) {
+			countryCode = "US";
+			getErrorReporter().report(format("Warning: invalid country code for address %s", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE)));
+		}
+
+		// *** END WORKAROUND
 
 		// Currently we only support US addresses.
 		// Once we have international rollout, build out more rigorous support for non-US address validation
 		if (countryCode == null) {
-			validationException.add(new ValidationException.FieldError("countryCode", getStrings().get("Country code is required.")));
+			validationException.add(new FieldError("countryCode", getStrings().get("Country code is required.")));
 		} else if (!isValidIso3166CountryCode(countryCode)) {
-			validationException.add(new ValidationException.FieldError("countryCode", getStrings().get("Country code must be a valid ISO-3166 (2 or 3 letter) value.")));
+			validationException.add(new FieldError("countryCode", getStrings().get("Country code must be a valid ISO-3166 (2 or 3 letter) value.")));
 		} else {
 			countryCode = getNormalizer().normalizeCountryCodeToIso3166TwoLetter(countryCode).get();
 
 			// US address validation
 			if ("US".equals(countryCode)) {
 				if (locality == null)
-					validationException.add(new ValidationException.FieldError("locality", getStrings().get("City name is required.")));
+					validationException.add(new FieldError("locality", getStrings().get("City name is required.")));
 
 				// Normalize state abbreviation
 				if (region != null)
@@ -145,23 +167,25 @@ public class AddressService {
 
 				// TODO: don't use US-specific wording once we go international
 				if (region == null)
-					validationException.add(new ValidationException.FieldError("region", getStrings().get("State abbreviation is required.")));
+					validationException.add(new FieldError("region", getStrings().get("State abbreviation is required.")));
 				else if (Region.forAbbreviationAndCountryCode(region, "US").isEmpty())
-					validationException.add(new ValidationException.FieldError("region", getStrings().get("A valid state abbreviation is required.")));
+					validationException.add(new FieldError("region", getStrings().get("A valid state abbreviation is required.")));
 
 				// TODO: don't use US-specific wording once we go international
 				if (postalCode == null)
-					validationException.add(new ValidationException.FieldError("postalCode", getStrings().get("ZIP code is required.")));
+					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is required.")));
 				else if (!isValidUsPostalCode(postalCode))
-					validationException.add(new ValidationException.FieldError("postalCode", getStrings().get("ZIP code is invalid.")));
+					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is invalid.")));
 			} else {
 				// TODO: remove once we go international
-				validationException.add(new ValidationException.FieldError("countryCode", getStrings().get("Sorry, only US addresses are supported at this time.")));
+				validationException.add(new FieldError("countryCode", getStrings().get("Sorry, only US addresses are supported at this time.")));
 			}
 		}
 
-		if (validationException.hasErrors())
+		if (validationException.hasErrors()) {
+			getErrorReporter().report(format("Warning: validation failed for address %s: %s", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE), validationException));
 			throw validationException;
+		}
 
 		getDatabase().execute("""
 						INSERT INTO address (
@@ -189,6 +213,11 @@ public class AddressService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull
