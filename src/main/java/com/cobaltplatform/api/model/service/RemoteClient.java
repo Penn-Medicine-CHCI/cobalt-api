@@ -67,6 +67,8 @@ public class RemoteClient {
 	@Nullable
 	private final String manufacturer;
 	@Nullable
+	private final String rawUserAgent;
+	@Nullable
 	private final UserAgent userAgent;
 	@Nullable
 	private final String ipAddress;
@@ -87,6 +89,7 @@ public class RemoteClient {
 											 @Nullable String brand,
 											 @Nullable String manufacturer,
 											 @Nullable UserAgent userAgent,
+											 @Nullable String rawUserAgent,
 											 @Nullable String ipAddress) {
 		this.sessionId = sessionId;
 		this.fingerprint = fingerprint;
@@ -100,6 +103,7 @@ public class RemoteClient {
 		this.brand = brand;
 		this.manufacturer = manufacturer;
 		this.userAgent = userAgent;
+		this.rawUserAgent = rawUserAgent;
 		this.ipAddress = ipAddress;
 	}
 
@@ -107,7 +111,8 @@ public class RemoteClient {
 	public static RemoteClient fromHttpServletRequest(@Nonnull HttpServletRequest httpServletRequest) {
 		requireNonNull(httpServletRequest);
 
-		UserAgent userAgent = USER_AGENT_PARSER.parse(httpServletRequest);
+		String rawUserAgent = trimToNull(httpServletRequest.getHeader("User-Agent"));
+		UserAgent userAgent = USER_AGENT_PARSER.parse(rawUserAgent);
 		String ipAddressFromHeader = trimToNull(httpServletRequest.getHeader("X-Real-IP"));
 		String ipAddress = ipAddressFromHeader == null ? httpServletRequest.getRemoteAddr() : ipAddressFromHeader;
 
@@ -147,6 +152,7 @@ public class RemoteClient {
 				brand,
 				manufacturer,
 				userAgent,
+				rawUserAgent,
 				ipAddress
 		);
 	}
@@ -162,7 +168,7 @@ public class RemoteClient {
 		ClientDeviceTypeId clientDeviceTypeId = getTypeId().orElse(null);
 		UserAgent userAgent = getUserAgent().orElse(null);
 
-		if ((appVersion == null || clientDeviceTypeId == null) && userAgent != null)
+		if (((appVersion == null || clientDeviceTypeId == null) && userAgent != null) || clientDeviceTypeId == ClientDeviceTypeId.WEB_BROWSER)
 			return userAgent.getDescription();
 
 		String operatingSystemName = getOperatingSystemName().orElse(null);
@@ -245,6 +251,11 @@ public class RemoteClient {
 	@Nonnull
 	public Optional<UserAgent> getUserAgent() {
 		return Optional.ofNullable(this.userAgent);
+	}
+
+	@Nonnull
+	public Optional<String> getRawUserAgent() {
+		return Optional.ofNullable(this.rawUserAgent);
 	}
 
 	@Nonnull

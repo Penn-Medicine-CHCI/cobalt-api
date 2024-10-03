@@ -76,17 +76,15 @@ CREATE TABLE analytics_native_event (
   -- Bag of data that corresponds to the event type.
   data JSONB NOT NULL DEFAULT '{}'::JSONB,
   -- Explicitly specified by client. Example for web: "Cobalt Website". Example for native app: "Cobalt App XYZ"
-  client_name TEXT NOT NULL,
+  app_name TEXT NOT NULL,
   -- Explicitly specified by client. Example for web: "cbf1b9a1be984a9f61b79a05f23b19f66d533537" (git commit hash). Example for native app: "1.2.3 (4)"
-  client_version TEXT NOT NULL,
-  -- If explicitly specified by client. Example for native app: "iPhone"
-  client_device_family TEXT,
-  -- If explicitly specified by client. Example for native app: "iPhone13,2"
-  client_device_model TEXT,
-  -- If explicitly specified by client. Example for native app: "Apple"
-  client_device_brand TEXT,
+  app_version TEXT NOT NULL,
+  -- Client device OS name at this moment in time.  May be different from client_device record - which only shows current device state - if user updates their OS
   -- If explicitly specified by client.  Example for native app: "iOS"
-  client_device_operating_system TEXT,
+  client_device_operating_system_name TEXT,
+  -- Client device OS version at this moment in time.  May be different from client_device record - which only shows current device state - if user updates their OS
+  -- If explicitly specified by client.  Example for native app: "17.6"
+  client_device_operating_system_version TEXT,
   -- The value of window.navigator.userAgent
   user_agent TEXT,
   -- Parsed from User-Agent

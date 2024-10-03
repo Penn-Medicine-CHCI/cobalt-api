@@ -40,6 +40,8 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private UUID clientDeviceId;
+	@Nullable
 	private UUID sessionId;
 	@Nullable
 	private Instant timestamp;
@@ -48,17 +50,17 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private Map<String, Object> data; // Understood to be a JSON object with type-specific data, e.g. {"topicCenterId": "[uuid]"}
 	@Nullable
-	private String clientName; // Explicitly specified by client. Example for web: "Cobalt Website". Example for native app: "Cobalt App XYZ"
+	private String appName; // Explicitly specified by client. Example for web: "Cobalt Website". Example for native app: "Cobalt App XYZ"
 	@Nullable
-	private String clientVersion; // Explicitly specified by client. Example for web: "cbf1b9a1be984a9f61b79a05f23b19f66d533537" (git commit hash). Example for native app: "1.2.3 (4)"
+	private String appVersion; // Explicitly specified by client. Example for web: "cbf1b9a1be984a9f61b79a05f23b19f66d533537" (git commit hash). Example for native app: "1.2.3 (4)"
+	// Client device OS name at this moment in time.  May be different from client_device record - which only shows current device state - if user updates their OS
+	// If explicitly specified by client.  Example for native app: "iOS"
 	@Nullable
-	private String clientDeviceModel; // If explicitly specified by client. Example for native app: iPhone13,2
+	private String clientDeviceOperatingSystemName;
+	// Client device OS version at this moment in time.  May be different from client_device record - which only shows current device state - if user updates their OS
+	// If explicitly specified by client.  Example for native app: "17.6"
 	@Nullable
-	private String clientDeviceBrand; // If explicitly specified by client. Example for native app: Apple
-	@Nullable
-	private String clientDeviceOperatingSystemName; // If explicitly specified by client.  Example for native app: iOS
-	@Nullable
-	private String clientDeviceOperatingSystemVersion; // If explicitly specified by client.  Example for native app: 18
+	private String clientDeviceOperatingSystemVersion;
 	@Nullable
 	private String userAgent; // The value of window.navigator.userAgent
 	@Nullable
@@ -125,6 +127,15 @@ public class CreateAnalyticsNativeEventRequest {
 	}
 
 	@Nullable
+	public UUID getClientDeviceId() {
+		return this.clientDeviceId;
+	}
+
+	public void setClientDeviceId(@Nullable UUID clientDeviceId) {
+		this.clientDeviceId = clientDeviceId;
+	}
+
+	@Nullable
 	public Instant getTimestamp() {
 		return this.timestamp;
 	}
@@ -152,39 +163,21 @@ public class CreateAnalyticsNativeEventRequest {
 	}
 
 	@Nullable
-	public String getClientName() {
-		return this.clientName;
+	public String getAppName() {
+		return this.appName;
 	}
 
-	public void setClientName(@Nullable String clientName) {
-		this.clientName = clientName;
-	}
-
-	@Nullable
-	public String getClientVersion() {
-		return this.clientVersion;
-	}
-
-	public void setClientVersion(@Nullable String clientVersion) {
-		this.clientVersion = clientVersion;
+	public void setAppName(@Nullable String appName) {
+		this.appName = appName;
 	}
 
 	@Nullable
-	public String getClientDeviceModel() {
-		return this.clientDeviceModel;
+	public String getAppVersion() {
+		return this.appVersion;
 	}
 
-	public void setClientDeviceModel(@Nullable String clientDeviceModel) {
-		this.clientDeviceModel = clientDeviceModel;
-	}
-
-	@Nullable
-	public String getClientDeviceBrand() {
-		return this.clientDeviceBrand;
-	}
-
-	public void setClientDeviceBrand(@Nullable String clientDeviceBrand) {
-		this.clientDeviceBrand = clientDeviceBrand;
+	public void setAppVersion(@Nullable String appVersion) {
+		this.appVersion = appVersion;
 	}
 
 	@Nullable

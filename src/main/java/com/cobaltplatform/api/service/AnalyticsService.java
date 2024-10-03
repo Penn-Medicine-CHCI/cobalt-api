@@ -57,6 +57,8 @@ import com.google.analytics.data.v1beta.RunReportResponse;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -229,7 +231,7 @@ public class AnalyticsService implements AutoCloseable {
 	public UUID createAnalyticsNativeEvent(@Nonnull CreateAnalyticsNativeEventRequest request) {
 		requireNonNull(request);
 
-		// TODO: implementation
+		getLogger().debug("TODO: insert {}", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE));
 
 		return UUID.randomUUID();
 	}
