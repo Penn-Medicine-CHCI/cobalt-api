@@ -4282,7 +4282,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
 			UUID messageId = UUID.randomUUID();
-			String targetUrl = format("%s?m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+			String targetUrl = format("%s?a.m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
 
 			// Mutable copy of standard message context
 			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
@@ -4304,7 +4304,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
 			UUID messageId = UUID.randomUUID();
-			String targetUrl = format("%s?m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+			String targetUrl = format("%s?a.m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
 
 			// Mutable copy of standard message context
 			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
