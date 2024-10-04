@@ -83,8 +83,15 @@ CREATE TABLE analytics_native_event (
   -- This can be optionally combined with referring_message_id.
   -- On the web, a referring campaign means the "a.c=[campaignId]" query parameter was detected
   referring_campaign_id TEXT,
-  -- The client-specified timestamp for this event
+  -- The client-specified timestamp for this event.
+  -- Postgres does not natively store high precision times, e.g. nanos.  It's possible to receive events for the same millisecond,
+  -- so use timestamp_epoch_second and timestamp_epoch_second_nano_offset if full precision is needed
   timestamp TIMESTAMPTZ NOT NULL,
+  -- The client-specified timestamp represented as seconds since epoch.
+  -- Combine with timestamp_epoch_second_nano_offset below for high-resolution time.
+  timestamp_epoch_second INTEGER NOT NULL, -- Careful, will wrap in January 2038 when we hit 2147483647 seconds
+  -- The client-specified timestamp's nanosecond offset from timestamp_epoch_second
+  timestamp_epoch_second_nano_offset INTEGER NOT NULL,
   -- The value of the browser's URL bar at the time this event was captured (window.location.href)
   url TEXT,
   -- Bag of data that corresponds to the event type.

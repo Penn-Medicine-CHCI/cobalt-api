@@ -335,6 +335,8 @@ public class AnalyticsService implements AutoCloseable {
 							referring_message_id,
 							referring_campaign_id,
 							timestamp,
+							timestamp_epoch_second,
+							timestamp_epoch_second_nano_offset,
 							url,
 							data,
 							app_name,
@@ -355,7 +357,7 @@ public class AnalyticsService implements AutoCloseable {
 							window_device_pixel_ratio,
 							window_width,
 							window_height
-						) VALUES (?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				analyticsNativeEventId,
 				analyticsNativeEventTypeId,
@@ -365,7 +367,9 @@ public class AnalyticsService implements AutoCloseable {
 				sessionId,
 				referringMessageId,
 				referringCampaignId,
-				timestamp,
+				java.sql.Timestamp.from(timestamp),
+				timestamp.getEpochSecond(),
+				timestamp.getNano(),
 				url,
 				dataAsString,
 				appName,
