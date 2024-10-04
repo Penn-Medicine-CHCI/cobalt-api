@@ -85,18 +85,23 @@ public final class GsonUtility {
 					JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
 
 					if (jsonPrimitive.isNumber()) {
-						// Instants might be pure long values (millis) or include a fractional component too (micros)
+						// Instants might be pure long values (millis) or include a fractional component too
 						BigDecimal instantAsBigDecimal = BigDecimal.valueOf(json.getAsDouble());
+
 						BigInteger integerPart = instantAsBigDecimal.toBigInteger();
 						BigDecimal fractionalPart = instantAsBigDecimal.subtract(new BigDecimal(integerPart));
 
 						// Start with low resolution (millis)
 						Instant instant = Instant.ofEpochMilli(integerPart.longValue());
 
-						// If there is a fractional part (micros), add them on for higher precision
+						// If there is a fractional part (fractions of a millisecond), add them on for higher precision
 						if (!fractionalPart.equals(BigDecimal.ZERO)) {
-							BigInteger fractionalPartAsInteger = fractionalPart.remainder(BigDecimal.ONE).movePointRight(fractionalPart.scale()).toBigInteger();
-							instant = instant.plus(fractionalPartAsInteger.longValue(), ChronoUnit.MICROS);
+							// Example:
+							// Raw JSON: 1728069834089.0999
+							// Low resolution instant (millisecond precision only): 2024-10-04T19:23:54.089Z
+							// High resolution instant (adds fractional milliseconds as nanoseconds): 2024-10-04T19:23:54.089099900Z
+							BigDecimal fractionalPartAsNanoseconds = fractionalPart.multiply(BigDecimal.valueOf(1_000_000));
+							instant = instant.plus(fractionalPartAsNanoseconds.longValue(), ChronoUnit.NANOS);
 						}
 
 						return instant;
