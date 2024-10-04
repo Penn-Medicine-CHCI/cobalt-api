@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.api.request.CreateAnalyticsNativeEventReques
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AnalyticsEventDateSync;
 import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
+import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
 import com.cobaltplatform.api.model.db.AnalyticsSyncStatus.AnalyticsSyncStatusId;
 import com.cobaltplatform.api.model.db.AnalyticsVendor.AnalyticsVendorId;
 import com.cobaltplatform.api.model.db.Feature;
@@ -46,7 +47,9 @@ import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningWithType;
+import com.cobaltplatform.api.util.GsonUtility;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
@@ -55,10 +58,10 @@ import com.google.analytics.data.v1beta.Row;
 import com.google.analytics.data.v1beta.RunReportRequest;
 import com.google.analytics.data.v1beta.RunReportResponse;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,12 +95,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -109,10 +115,22 @@ public class AnalyticsService implements AutoCloseable {
 	private static final Long ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final Pattern JWT_PATTERN;
+	@Nonnull
+	private static final Gson GSON_FOR_ANALYTICS_NATIVE_DATA;
 
 	static {
 		ANALYTICS_SYNC_INTERVAL_IN_SECONDS = 60L * 5L;
 		ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS = 10L;
+
+		// Thanks to https://stackoverflow.com/a/65755789
+		JWT_PATTERN = Pattern.compile("(?:[\\w-]*\\.){2}[\\w-]*");
+
+		GsonBuilder gsonBuilder = new GsonBuilder().disableHtmlEscaping();
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+
+		GSON_FOR_ANALYTICS_NATIVE_DATA = gsonBuilder.create();
 	}
 
 	@Nonnull
@@ -231,9 +249,164 @@ public class AnalyticsService implements AutoCloseable {
 	public UUID createAnalyticsNativeEvent(@Nonnull CreateAnalyticsNativeEventRequest request) {
 		requireNonNull(request);
 
-		getLogger().debug("TODO: insert {}", ToStringBuilder.reflectionToString(request, ToStringStyle.MULTI_LINE_STYLE));
+		AnalyticsNativeEventTypeId analyticsNativeEventTypeId = request.getAnalyticsNativeEventTypeId();
+		InstitutionId institutionId = request.getInstitutionId();
+		UUID accountId = request.getAccountId();
+		UUID clientDeviceId = request.getClientDeviceId();
+		UUID sessionId = request.getSessionId();
+		UUID referringMessageId = request.getReferringMessageId();
+		String referringCampaignId = trimToNull(request.getReferringCampaignId());
+		Instant timestamp = request.getTimestamp();
+		String url = trimToNull(request.getUrl());
+		Map<String, Object> data = request.getData() == null ? new HashMap<>() : new HashMap<>(request.getData()); // Mutable copy so we can, for example, elide sensitive data before inserting
+		String appName = trimToNull(request.getAppName());
+		String appVersion = trimToNull(request.getAppVersion());
+		String clientDeviceOperatingSystemName = trimToNull(request.getClientDeviceOperatingSystemName());
+		String clientDeviceOperatingSystemVersion = trimToNull(request.getClientDeviceOperatingSystemVersion());
+		String userAgent = trimToNull(request.getUserAgent());
+		String userAgentDeviceFamily = trimToNull(request.getUserAgentDeviceFamily());
+		String userAgentBrowserFamily = trimToNull(request.getUserAgentBrowserFamily());
+		String userAgentBrowserVersion = trimToNull(request.getUserAgentBrowserVersion());
+		String userAgentOperatingSystemName = trimToNull(request.getUserAgentOperatingSystemName());
+		String userAgentOperatingSystemVersion = trimToNull(request.getUserAgentOperatingSystemVersion());
+		Integer screenColorDepth = request.getScreenColorDepth();
+		Integer screenPixelDepth = request.getScreenPixelDepth();
+		Double screenWidth = request.getScreenWidth();
+		Double screenHeight = request.getScreenHeight();
+		String screenOrientation = trimToNull(request.getScreenOrientation());
+		Double windowDevicePixelRatio = request.getWindowDevicePixelRatio();
+		Double windowWidth = request.getWindowWidth();
+		Double windowHeight = request.getWindowHeight();
 
-		return UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (analyticsNativeEventTypeId == null)
+			validationException.add(new FieldError("analyticsNativeEventTypeId", getStrings().get("Analytics Native Event Type ID is required.")));
+
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
+		if (institutionId == null)
+			validationException.add(new FieldError("clientDeviceId", getStrings().get("Client Device ID is required.")));
+
+		if (sessionId == null)
+			validationException.add(new FieldError("sessionId", getStrings().get("Session ID is required.")));
+
+		if (timestamp == null)
+			validationException.add(new FieldError("timestamp", getStrings().get("Timestamp is required.")));
+
+		if (appName == null)
+			validationException.add(new FieldError("appName", getStrings().get("App name is required.")));
+
+		if (appVersion == null)
+			validationException.add(new FieldError("appVersion", getStrings().get("App version is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Ensure we don't have any sensitive data in URLs that are stored off
+		url = replaceSensitiveDataInString(url);
+
+		// Do the same for event types that we know can include sensitive data in payloads
+		if (analyticsNativeEventTypeId == AnalyticsNativeEventTypeId.URL_CHANGED) {
+			String dataUrl = (String) data.get("url");
+
+			if (dataUrl != null)
+				data.put("url", replaceSensitiveDataInString(dataUrl));
+
+			String dataPreviousUrl = (String) data.get("previousUrl");
+
+			if (dataPreviousUrl != null)
+				data.put("previousUrl", replaceSensitiveDataInString(dataPreviousUrl));
+		}
+
+		String dataAsString = getGsonForAnalyticsNativeData().toJson(data);
+
+		UUID analyticsNativeEventId = UUID.randomUUID();
+
+		getDatabase().execute("""
+						INSERT INTO analytics_native_event (
+							analytics_native_event_id,
+							analytics_native_event_type_id,
+							institution_id,
+							client_device_id,
+							account_id,
+							session_id,
+							referring_message_id,
+							referring_campaign_id,
+							timestamp,
+							url,
+							data,
+							app_name,
+							app_version,
+							client_device_operating_system_name,
+							client_device_operating_system_version,
+							user_agent,
+							user_agent_device_family,
+							user_agent_browser_family,
+							user_agent_browser_version,
+							user_agent_operating_system_name,
+							user_agent_operating_system_version,
+							screen_color_depth,
+							screen_pixel_depth,
+							screen_width,
+							screen_height,
+							screen_orientation,
+							window_device_pixel_ratio,
+							window_width,
+							window_height
+						) VALUES (?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						""",
+				analyticsNativeEventId,
+				analyticsNativeEventTypeId,
+				institutionId,
+				clientDeviceId,
+				accountId,
+				sessionId,
+				referringMessageId,
+				referringCampaignId,
+				timestamp,
+				url,
+				dataAsString,
+				appName,
+				appVersion,
+				clientDeviceOperatingSystemName,
+				clientDeviceOperatingSystemVersion,
+				userAgent,
+				userAgentDeviceFamily,
+				userAgentBrowserFamily,
+				userAgentBrowserVersion,
+				userAgentOperatingSystemName,
+				userAgentOperatingSystemVersion,
+				screenColorDepth,
+				screenPixelDepth,
+				screenWidth,
+				screenHeight,
+				screenOrientation,
+				windowDevicePixelRatio,
+				windowWidth,
+				windowHeight
+		);
+
+		return analyticsNativeEventId;
+	}
+
+	@Nonnull
+	protected String replaceSensitiveDataInString(@Nonnull String string) {
+		requireNonNull(string);
+		// Not localized because this is designed for internal use
+		return replaceSensitiveDataInString(string, "[elided]");
+	}
+
+	@Nonnull
+	protected String replaceSensitiveDataInString(@Nonnull String string,
+																								@Nonnull String replacementValue) {
+		requireNonNull(string);
+		requireNonNull(replacementValue);
+
+		// Currently we only replace JWTs
+		Matcher matcher = getJwtPattern().matcher(string);
+		return matcher.replaceAll(replacementValue);
 	}
 
 	/**
@@ -3233,6 +3406,16 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	protected Long getAnalyticsSyncIntervalInSeconds() {
 		return ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Pattern getJwtPattern() {
+		return JWT_PATTERN;
+	}
+
+	@Nonnull
+	protected Gson getGsonForAnalyticsNativeData() {
+		return GSON_FOR_ANALYTICS_NATIVE_DATA;
 	}
 
 	@Nonnull

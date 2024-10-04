@@ -34,7 +34,7 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- When the browser's URL changes, either from initial page load or SPA client-side routing
 -- Additional data:
 -- * url (String, the URL that was changed to)
--- * responseBody (String, the URL that was navigated away from, may be null for initial loads/external referrals)
+-- * previousUrl (String, the URL that was navigated away from, may be null for initial loads/external referrals)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('URL_CHANGED', 'URL Changed');
 -- When an API call returns a status >= 400.
 -- Additional data:
