@@ -134,6 +134,8 @@ CREATE TABLE analytics_native_event (
 	window_width NUMERIC(8,2),
 	-- Provided by JS window object on web
 	window_height NUMERIC(8,2),
+	-- Provided by document.visibilityState on web
+	document_visibility_state TEXT,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

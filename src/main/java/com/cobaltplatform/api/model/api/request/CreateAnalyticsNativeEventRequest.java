@@ -93,6 +93,8 @@ public class CreateAnalyticsNativeEventRequest {
 	private Double windowWidth; // Provided by JS window object on web
 	@Nullable
 	private Double windowHeight; // Provided by JS window object on web
+	@Nullable
+	private String documentVisibilityState; // Provided by document.visibilityState on web
 
 	@Nullable
 	public AnalyticsNativeEventTypeId getAnalyticsNativeEventTypeId() {
@@ -344,5 +346,14 @@ public class CreateAnalyticsNativeEventRequest {
 
 	public void setWindowHeight(@Nullable Double windowHeight) {
 		this.windowHeight = windowHeight;
+	}
+
+	@Nullable
+	public String getDocumentVisibilityState() {
+		return this.documentVisibilityState;
+	}
+
+	public void setDocumentVisibilityState(@Nullable String documentVisibilityState) {
+		this.documentVisibilityState = documentVisibilityState;
 	}
 }

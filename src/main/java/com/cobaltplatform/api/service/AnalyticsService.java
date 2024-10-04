@@ -277,6 +277,7 @@ public class AnalyticsService implements AutoCloseable {
 		Double windowDevicePixelRatio = request.getWindowDevicePixelRatio();
 		Double windowWidth = request.getWindowWidth();
 		Double windowHeight = request.getWindowHeight();
+		String documentVisibilityState = trimToNull(request.getDocumentVisibilityState());
 
 		ValidationException validationException = new ValidationException();
 
@@ -356,8 +357,9 @@ public class AnalyticsService implements AutoCloseable {
 							screen_orientation,
 							window_device_pixel_ratio,
 							window_width,
-							window_height
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+							window_height,
+							document_visibility_state
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				analyticsNativeEventId,
 				analyticsNativeEventTypeId,
@@ -389,7 +391,8 @@ public class AnalyticsService implements AutoCloseable {
 				screenOrientation,
 				windowDevicePixelRatio,
 				windowWidth,
-				windowHeight
+				windowHeight,
+				documentVisibilityState
 		);
 
 		return analyticsNativeEventId;
