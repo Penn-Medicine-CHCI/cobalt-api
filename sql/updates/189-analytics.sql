@@ -69,6 +69,20 @@ CREATE TABLE analytics_native_event (
   -- See https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage for details
   -- In a native app, this would be generated and stored when the app first launches
   session_id UUID NOT NULL,
+  -- Set when this event occurs in a session that is initiated by or involves clicking a link from a message
+  -- represented in the message_log table (e.g. an email or SMS the system sends).
+  -- This value follows the lifecycle rules governing session_id - that is, if set, it should persist for
+  -- all events in the session until the session's life has ended.
+  -- This can be optionally combined with referring_campaign_id.
+  -- On the web, a referring message means the "a.m=[messageId]" query parameter was detected
+  referring_message_id UUID REFERENCES message_log(message_id),
+  -- Set when this event occurs in a session that is initiated by or involves clicking a link associated with
+  -- a marketing campaign.
+  -- This value follows the lifecycle rules governing session_id - that is, if set, it should persist for
+  -- all events in the session until the session's life has ended.
+  -- This can be optionally combined with referring_message_id.
+  -- On the web, a referring campaign means the "a.c=[campaignId]" query parameter was detected
+  referring_campaign_id TEXT,
   -- The client-specified timestamp for this event
   timestamp TIMESTAMPTZ NOT NULL,
   -- The value of the browser's URL bar at the time this event was captured (window.location.href)

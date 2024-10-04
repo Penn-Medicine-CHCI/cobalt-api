@@ -24,6 +24,7 @@ import com.cobaltplatform.api.util.UserAgent;
 import com.cobaltplatform.api.util.UserAgentParser;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
+import com.devskiller.friendly_id.FriendlyId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -72,6 +73,10 @@ public class RemoteClient {
 	private final UserAgent userAgent;
 	@Nullable
 	private final String ipAddress;
+	@Nullable
+	private final UUID referringMessageId;
+	@Nullable
+	private final String referringCampaignId;
 
 	static {
 		USER_AGENT_PARSER = new UserAgentParser();
@@ -90,7 +95,9 @@ public class RemoteClient {
 											 @Nullable String manufacturer,
 											 @Nullable UserAgent userAgent,
 											 @Nullable String rawUserAgent,
-											 @Nullable String ipAddress) {
+											 @Nullable String ipAddress,
+											 @Nullable UUID referringMessageId,
+											 @Nullable String referringCampaignId) {
 		this.sessionId = sessionId;
 		this.fingerprint = fingerprint;
 		this.appName = appName;
@@ -105,6 +112,8 @@ public class RemoteClient {
 		this.userAgent = userAgent;
 		this.rawUserAgent = rawUserAgent;
 		this.ipAddress = ipAddress;
+		this.referringMessageId = referringMessageId;
+		this.referringCampaignId = referringCampaignId;
 	}
 
 	@Nonnull
@@ -139,6 +148,23 @@ public class RemoteClient {
 		if (sessionIdAsString != null && ValidationUtility.isValidUUID(sessionIdAsString))
 			sessionId = UUID.fromString(sessionIdAsString);
 
+		String referringMessageIdAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Cobalt-Referring-Message-Id").orElse(null);
+		UUID referringMessageId = null;
+
+		if (referringMessageIdAsString != null) {
+			if (ValidationUtility.isValidUUID(referringMessageIdAsString)) {
+				referringMessageId = UUID.fromString(referringMessageIdAsString);
+			} else {
+				try {
+					referringMessageId = FriendlyId.toUuid(referringMessageIdAsString);
+				} catch (Exception ignored) {
+					// If this isn't a UUID or a FriendlyId, then discard silently
+				}
+			}
+		}
+
+		String referringCampaignId = WebUtility.extractValueFromRequest(httpServletRequest, "X-Cobalt-Referring-Campaign-Id").orElse(null);
+
 		return new RemoteClient(
 				sessionId,
 				fingerprint,
@@ -153,7 +179,9 @@ public class RemoteClient {
 				manufacturer,
 				userAgent,
 				rawUserAgent,
-				ipAddress
+				ipAddress,
+				referringMessageId,
+				referringCampaignId
 		);
 	}
 
@@ -261,5 +289,15 @@ public class RemoteClient {
 	@Nonnull
 	public Optional<String> getIpAddress() {
 		return Optional.ofNullable(this.ipAddress);
+	}
+
+	@Nonnull
+	public Optional<UUID> getReferringMessageId() {
+		return Optional.ofNullable(this.referringMessageId);
+	}
+
+	@Nonnull
+	public Optional<String> getReferringCampaignId() {
+		return Optional.ofNullable(this.referringCampaignId);
 	}
 }

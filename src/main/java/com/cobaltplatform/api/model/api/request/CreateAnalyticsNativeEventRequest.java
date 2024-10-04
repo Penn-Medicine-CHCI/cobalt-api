@@ -44,6 +44,10 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private UUID sessionId;
 	@Nullable
+	private UUID referringMessageId;
+	@Nullable
+	private String referringCampaignId;
+	@Nullable
 	private Instant timestamp;
 	@Nullable
 	private String url;
@@ -124,6 +128,24 @@ public class CreateAnalyticsNativeEventRequest {
 
 	public void setSessionId(@Nullable UUID sessionId) {
 		this.sessionId = sessionId;
+	}
+
+	@Nullable
+	public UUID getReferringMessageId() {
+		return this.referringMessageId;
+	}
+
+	public void setReferringMessageId(@Nullable UUID referringMessageId) {
+		this.referringMessageId = referringMessageId;
+	}
+
+	@Nullable
+	public String getReferringCampaignId() {
+		return this.referringCampaignId;
+	}
+
+	public void setReferringCampaignId(@Nullable String referringCampaignId) {
+		this.referringCampaignId = referringCampaignId;
 	}
 
 	@Nullable
