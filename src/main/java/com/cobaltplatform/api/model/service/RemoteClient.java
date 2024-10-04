@@ -46,6 +46,8 @@ public class RemoteClient {
 	private static final UserAgentParser USER_AGENT_PARSER;
 
 	@Nullable
+	private final String currentUrl;
+	@Nullable
 	private final UUID sessionId;
 	@Nullable
 	private final UUID fingerprint;
@@ -82,7 +84,8 @@ public class RemoteClient {
 		USER_AGENT_PARSER = new UserAgentParser();
 	}
 
-	private RemoteClient(@Nullable UUID sessionId,
+	private RemoteClient(@Nullable String currentUrl,
+											 @Nullable UUID sessionId,
 											 @Nullable UUID fingerprint,
 											 @Nullable String appName,
 											 @Nullable String appVersion,
@@ -98,6 +101,7 @@ public class RemoteClient {
 											 @Nullable String ipAddress,
 											 @Nullable UUID referringMessageId,
 											 @Nullable String referringCampaignId) {
+		this.currentUrl = currentUrl;
 		this.sessionId = sessionId;
 		this.fingerprint = fingerprint;
 		this.appName = appName;
@@ -131,6 +135,7 @@ public class RemoteClient {
 		if (fingerprintAsString != null && ValidationUtility.isValidUUID(fingerprintAsString))
 			fingerprint = UUID.fromString(fingerprintAsString);
 
+		String currentUrl = WebUtility.extractValueFromRequest(httpServletRequest, "X-Cobalt-Webapp-Current-Url").orElse(null);
 		String appName = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Name").orElse(null);
 		String appVersion = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Version").orElse(null);
 		String appBuildNumber = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-App-Build-Number").orElse(null);
@@ -166,6 +171,7 @@ public class RemoteClient {
 		String referringCampaignId = WebUtility.extractValueFromRequest(httpServletRequest, "X-Cobalt-Referring-Campaign-Id").orElse(null);
 
 		return new RemoteClient(
+				currentUrl,
 				sessionId,
 				fingerprint,
 				appName,
@@ -219,6 +225,11 @@ public class RemoteClient {
 			clientDeviceTypeIdDescription = "iOS App";
 
 		return format("%s %s %s (App %s on %s)", clientDeviceTypeIdDescription, operatingSystemName, operatingSystemVersion, appVersion, model);
+	}
+
+	@Nonnull
+	public Optional<String> getCurrentUrl() {
+		return Optional.ofNullable(this.currentUrl);
 	}
 
 	@Nonnull

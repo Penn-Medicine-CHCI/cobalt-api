@@ -231,7 +231,7 @@ public class AnalyticsService implements AutoCloseable {
 	public UUID createAnalyticsNativeEvent(@Nonnull CreateAnalyticsNativeEventRequest request) {
 		requireNonNull(request);
 
-		getLogger().debug("TODO: insert {}", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE));
+		getLogger().debug("TODO: insert {}", ToStringBuilder.reflectionToString(request, ToStringStyle.MULTI_LINE_STYLE));
 
 		return UUID.randomUUID();
 	}

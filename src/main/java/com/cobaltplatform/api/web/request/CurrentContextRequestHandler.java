@@ -345,7 +345,7 @@ public class CurrentContextRequestHandler {
 			// This is later cleared out via a finally {} block in AppModule
 			MDC.put(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY, currentContextDescription);
 
-			if (accountIdentifier != null)
+			if (accountIdentifier != null && !analytics)
 				getLogger().debug(format("Authenticated %s for this request.", accountIdentifier));
 
 			getCurrentContextExecutor().execute(currentContext, currentContextOperation);
