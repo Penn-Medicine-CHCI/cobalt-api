@@ -43,7 +43,9 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * errorCode (String, if "errorCode" field is available from API response, e.g. "VALIDATION_FAILED")
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('API_CALL_ERROR', 'API Call Error');
 -- When an account successfully authenticates with the backend.
--- There is no additional data associated with this event type.
+-- Additional data:
+-- * accountId (UUID)
+-- * redirectUrl (String, if the system plans to redirect the user immediately after sign-in)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('ACCOUNT_SIGNED_IN', 'Account Signed In');
 -- When an account explicitly chooses to sign-out via the UI.
 -- Additional data:

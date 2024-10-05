@@ -63,6 +63,8 @@ public class AnalyticsNativeEventType {
 		API_CALL_ERROR,
 		// When an account successfully authenticates with the backend.
 		// There is no additional data associated with this event type.
+		// * accountId (UUID)
+		// * redirectUrl (String, if the system plans to redirect the user immediately after sign-in)
 		ACCOUNT_SIGNED_IN,
 		// When an account explicitly chooses to sign-out via the UI.
 		// Additional data:
