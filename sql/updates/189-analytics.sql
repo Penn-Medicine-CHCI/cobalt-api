@@ -89,6 +89,10 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- Additional data:
 -- * contentId (UUID)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_RESOURCE_LIBRARY_DETAIL', 'Page View (Resource Library Detail)');
+-- When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
+-- Additional data:
+-- * contentId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CONTENT_VIEWED', 'Content Viewed');
 
 -- Cobalt native analytics events
 CREATE TABLE analytics_native_event (

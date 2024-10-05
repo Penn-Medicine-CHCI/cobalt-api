@@ -108,6 +108,10 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * contentId (UUID)
 		PAGE_VIEW_RESOURCE_LIBRARY_DETAIL,
+		// When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
+		// Additional data:
+		// * contentId (UUID)
+		CONTENT_VIEWED,
 	}
 
 	@Override
