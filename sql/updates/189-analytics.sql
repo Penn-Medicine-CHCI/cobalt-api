@@ -42,6 +42,14 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * responseBody (String)
 -- * errorCode (String, if "errorCode" field is available from API response, e.g. "VALIDATION_FAILED")
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('API_CALL_ERROR', 'API Call Error');
+-- When an account successfully authenticates with the backend.
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('ACCOUNT_SIGNED_IN', 'Account Signed In');
+-- When an account explicitly chooses to sign-out via the UI.
+-- Additional data:
+-- * accountId (UUID)
+-- * source (String, indicates in what part of the system the sign-out occurred)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('ACCOUNT_SIGNED_OUT', 'Account Signed Out');
 -- On the web, when the "sign-in" page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_SIGN_IN', 'Page View (Sign In)');
@@ -55,11 +63,30 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- Additional data:
 -- * topicCenterId (UUID)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_TOPIC_CENTER', 'Page View (Topic Center)');
--- When an account explicitly chooses to sign-out via the UI.
+-- On the web, when the toplevel Resource Library page is rendered.
+-- * mode: (String, one of DEFAULT, SEARCH, or RECOMMENDED based on how page is displayed)
+-- * searchQuery: (String, if in SEARCH mode, when the page is filtered by a search query)
+-- * totalCount: (Integer, if in SEARCH or RECOMMENDED mode, how many results exist for the mode. Not all results may be shown)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_RESOURCE_LIBRARY', 'Page View (Resource Library)');
+-- On the web, when a Resource Library Tag Group page is rendered.
 -- Additional data:
--- * accountId (UUID)
--- * source (String, indicates in what part of the system the sign-out occurred)
-INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('ACCOUNT_SIGNED_OUT', 'Account Signed Out');
+-- * tagGroupId (String)
+-- * tagIds: (String[], if the page is filtered by tag IDs)
+-- * contentTypeIds: (String[], if the page is filtered by content type IDs)
+-- * contentDurationIds: (String[], if the page is filtered by content duration IDs),
+-- * searchQuery: (String, if the page is filtered by a search query)
+-- * totalCount: (Integer, how many results exist. Not all results may be shown)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_RESOURCE_LIBRARY_TAG_GROUP', 'Page View (Resource Library Tag Group)');
+-- On the web, when a Resource Library Tag page is rendered.
+-- Additional data:
+-- * tagId (String)
+-- * contentTypeIds: (String[], if the page is filtered by content type IDs)
+-- * contentDurationIds: (String[], if the page is filtered by content duration IDs)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_RESOURCE_LIBRARY_TAG', 'Page View (Resource Library Tag)');
+-- On the web, when a Resource Library Detail page is rendered.
+-- Additional data:
+-- * contentId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_RESOURCE_LIBRARY_DETAIL', 'Page View (Resource Library Detail)');
 
 -- Cobalt native analytics events
 CREATE TABLE analytics_native_event (

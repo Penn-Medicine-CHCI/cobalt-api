@@ -61,6 +61,14 @@ public class AnalyticsNativeEventType {
 		// * responseBody (String)
 		// * errorCode (String, if "errorCode" field is available from API response, e.g. "VALIDATION_FAILED")
 		API_CALL_ERROR,
+		// When an account successfully authenticates with the backend.
+		// There is no additional data associated with this event type.
+		ACCOUNT_SIGNED_IN,
+		// When an account explicitly chooses to sign-out via the UI.
+		// Additional data:
+		// * accountId (UUID)
+		// * source (String, indicates in what part of the system the sign-out occurred)
+		ACCOUNT_SIGNED_OUT,
 		// On the web, when the "sign-in" page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_SIGN_IN,
@@ -74,11 +82,30 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * topicCenterId (UUID)
 		PAGE_VIEW_TOPIC_CENTER,
-		// When an account explicitly chooses to sign-out via the UI.
+		// On the web, when the toplevel Resource Library page is rendered.
+		// * mode: (String, one of DEFAULT, SEARCH, or RECOMMENDED based on how page is displayed)
+		// * searchQuery: (String, if in SEARCH mode, when the page is filtered by a search query)
+		// * totalCount: (Integer, if in SEARCH or RECOMMENDED mode, how many results exist for the mode. Not all results may be shown)
+		PAGE_VIEW_RESOURCE_LIBRARY,
+		// On the web, when a Resource Library Tag Group page is rendered.
 		// Additional data:
-		// * accountId (UUID)
-		// * source (String, indicates in what part of the system the sign-out occurred)
-		ACCOUNT_SIGNED_OUT,
+		// * tagGroupId (String)
+		// * tagIds: (String[], if the page is filtered by tag IDs)
+		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
+		// * contentDurationIds: (String[], if the page is filtered by content duration IDs),
+		// * searchQuery: (String, if the page is filtered by a search query)
+		// * totalCount: (Integer, how many results exist. Not all results may be shown)
+		PAGE_VIEW_RESOURCE_LIBRARY_TAG_GROUP,
+		// On the web, when a Resource Library Tag page is rendered.
+		// Additional data:
+		// * tagId (String)
+		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
+		// * contentDurationIds: (String[], if the page is filtered by content duration IDs)
+		PAGE_VIEW_RESOURCE_LIBRARY_TAG,
+		// On the web, when a Resource Library Detail page is rendered.
+		// Additional data:
+		// * contentId (UUID)
+		PAGE_VIEW_RESOURCE_LIBRARY_DETAIL,
 	}
 
 	@Override
