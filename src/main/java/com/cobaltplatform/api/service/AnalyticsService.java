@@ -305,6 +305,19 @@ public class AnalyticsService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		if (referringMessageId != null) {
+			Boolean referringMessageExists = getDatabase().queryForObject("""
+					SELECT COUNT(*) > 0
+					FROM message_log
+					WHERE message_id=?
+					""", Boolean.class, referringMessageId).get();
+
+			if (!referringMessageExists) {
+				getLogger().warn("Analytics: referring message ID {} does not exist, ignoring...", referringMessageId);
+				referringMessageId = null;
+			}
+		}
+
 		// Ensure we don't have any sensitive data in URLs that are stored off
 		url = replaceSensitiveDataInString(url);
 
