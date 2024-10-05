@@ -73,7 +73,12 @@ public class AnalyticsNativeEventType {
 		// On the web, when a "topic center" page is rendered.
 		// Additional data:
 		// * topicCenterId (UUID)
-		PAGE_VIEW_TOPIC_CENTER
+		PAGE_VIEW_TOPIC_CENTER,
+		// When an account explicitly chooses to sign-out via the UI.
+		// Additional data:
+		// * accountId (UUID)
+		// * source (String, indicates in what part of the system the sign-out occurred)
+		ACCOUNT_SIGNED_OUT,
 	}
 
 	@Override

@@ -55,6 +55,11 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- Additional data:
 -- * topicCenterId (UUID)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_TOPIC_CENTER', 'Page View (Topic Center)');
+-- When an account explicitly chooses to sign-out via the UI.
+-- Additional data:
+-- * accountId (UUID)
+-- * source (String, indicates in what part of the system the sign-out occurred)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('ACCOUNT_SIGNED_OUT', 'Account Signed Out');
 
 -- Cobalt native analytics events
 CREATE TABLE analytics_native_event (
