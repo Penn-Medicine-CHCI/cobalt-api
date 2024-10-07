@@ -92,6 +92,27 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * groupSessionId (UUID)
 		PAGE_VIEW_GROUP_SESSION_DETAIL,
+		// On the web, when a Provider List page is rendered.
+		// Additional data:
+		// * featureId: (String, the selected feature ID for this group of providers)
+		// * supportRoleIds: (String[], the support roles associated with the feature ID)
+		// * startDate: (Date in YYYY-MM-DD format, start of availability filter range)
+		// * endDate: (Date in YYYY-MM-DD format, end of availability filter range)
+		// * appointmentTimeIds: (String[], if the results are filtered by logical time values)
+		// * institutionLocationId (UUID, if user has chosen an institution location)
+		// * patientOrderId (UUID, if user is viewing providers available for a particular order)
+		// * availabilitySections (Object[], the detailed day-by-day provider availability/timeslots shown to the patient)
+		PAGE_VIEW_PROVIDERS,
+		// On the web, when a Provider Appointment Confirmation page is rendered.
+		// Additional data:
+		// * providerId (UUID, the provider ID who will be booked)
+		// * appointmentTypeId (UUID, the appointment type ID that will be booked)
+		// * date (Date in YYYY-MM-DD format, the date of the appointment in the provider's time zone)
+		// * time (Time in HH:MM format (0-23 hours), the time of the appointment in the provider's time zone)
+		// * intakeAssessmentId (UUID, if there was an intake assessment taken prior to booking)
+		// * patientOrderId (UUID, if this appointment is booked for a particular order)
+		// * epicAppointmentFhirId (String, if this appointment is associated with an Epic FHIR slot)
+		PAGE_VIEW_PROVIDER_APPOINTMENT_CONFIRMATION,
 		// On the web, when a "topic center" page is rendered.
 		// Additional data:
 		// * topicCenterId (UUID)
