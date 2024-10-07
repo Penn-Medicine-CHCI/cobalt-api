@@ -94,6 +94,9 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * patientOrderId (UUID, if this appointment is booked for a particular order)
 -- * epicAppointmentFhirId (String, if this appointment is associated with an Epic FHIR slot)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_PROVIDER_APPOINTMENT_CONFIRMATION', 'Page View (Provider Appointment Confirmation)');
+-- On the web, when the special "Medication Prescriber" feature page is rendered.
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MEDICATION_PRESCRIBER', 'Page View (Medication Prescriber)');
 -- On the web, when a "topic center" page is rendered.
 -- Additional data:
 -- * topicCenterId (UUID)
@@ -122,6 +125,11 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- Additional data:
 -- * contentId (UUID)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_RESOURCE_LIBRARY_DETAIL', 'Page View (Resource Library Detail)');
+-- On the web, when the "my events" page is rendered.
+-- Additional data:
+-- * appointmentId (UUID, if this page view is intended to highlight a specific appointment, e.g. post-booking or via email link)
+-- * groupSessionReservationId (UUID, if this page view is intended to highlight a specific group session reservation, e.g. post-booking or via email link)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MY_EVENTS', 'Page View (My Events)');
 -- When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
 -- Additional data:
 -- * contentId (UUID)

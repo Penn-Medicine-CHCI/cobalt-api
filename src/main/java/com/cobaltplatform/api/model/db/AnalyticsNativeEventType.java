@@ -113,6 +113,9 @@ public class AnalyticsNativeEventType {
 		// * patientOrderId (UUID, if this appointment is booked for a particular order)
 		// * epicAppointmentFhirId (String, if this appointment is associated with an Epic FHIR slot)
 		PAGE_VIEW_PROVIDER_APPOINTMENT_CONFIRMATION,
+		// On the web, when the special "Medication Prescriber" feature page is rendered.
+		// There is no additional data associated with this event type.
+		PAGE_VIEW_MEDICATION_PRESCRIBER,
 		// On the web, when a "topic center" page is rendered.
 		// Additional data:
 		// * topicCenterId (UUID)
@@ -141,6 +144,11 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * contentId (UUID)
 		PAGE_VIEW_RESOURCE_LIBRARY_DETAIL,
+		// On the web, when the "my events" page is rendered.
+		// Additional data:
+		// * appointmentId (UUID, if this page view is intended to highlight a specific appointment, e.g. post-booking or via email link)
+		// * groupSessionReservationId (UUID, if this page view is intended to highlight a specific group session reservation, e.g. post-booking or via email link)
+		PAGE_VIEW_MY_EVENTS,
 		// When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
 		// Additional data:
 		// * contentId (UUID)
