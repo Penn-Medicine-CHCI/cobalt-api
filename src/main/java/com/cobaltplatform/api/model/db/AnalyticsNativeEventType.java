@@ -171,10 +171,26 @@ public class AnalyticsNativeEventType {
 		//    TRIAGE_RESULTS: From patient-facing triage results, where triage indicated SI (only for IC currently)
 		//    SCREENING_SESSION: If an answer to a question during a screening session indicated SI (only for IC currently; patient flow triggers PAGE_VIEW_IN_CRISIS instead)
 		OVERLAY_VIEW_IN_CRISIS,
+		// When a click occurs to access a topic center.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * source (String)
+		//    HOME_FEATURE: When clicked through from the homepage in the primary featured area
+		//    HOME_SECONDARY_FEATURE: When clicked through from the homepage in the secondary featured area
+		//    NAV_FEATURE: When clicked through from the navigation featured area
+		//    NAV: When clicked through from the navigation (not in the featured area)
+		CLICKTHROUGH_TOPIC_CENTER,
 		// When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
 		// Additional data:
 		// * contentId (UUID)
-		CONTENT_VIEWED,
+		CLICKTHROUGH_CONTENT,
+		// When a click occurs to access a feature.
+		// Additional data:
+		// * featureId (String)
+		// * source (String)
+		//    HOME: When clicked through from the homepage
+		//    NAV: When clicked through from the navigation
+		CLICKTHROUGH_FEATURE
 	}
 
 	@Override
