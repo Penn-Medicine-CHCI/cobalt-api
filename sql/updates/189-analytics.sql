@@ -69,6 +69,14 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- Additional data:
 -- * topicCenterId (UUID)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_TOPIC_CENTER', 'Page View (Topic Center)');
+-- On the web, when the Group Sessions Overview page is rendered.
+-- Additional data:
+-- * searchQuery: (String, if the page is filtered by a search query)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_GROUP_SESSIONS', 'Page View (Group Sessions)');
+-- On the web, when a Group Session Detail page is rendered.
+-- Additional data:
+-- * groupSessionId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_GROUP_SESSION_DETAIL', 'Page View (Group Session Detail)');
 -- On the web, when the toplevel Resource Library page is rendered.
 -- * mode: (String, one of DEFAULT, SEARCH, or RECOMMENDED based on how page is displayed)
 -- * searchQuery: (String, if in SEARCH mode, when the page is filtered by a search query)

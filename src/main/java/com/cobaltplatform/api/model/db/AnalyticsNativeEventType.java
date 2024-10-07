@@ -84,6 +84,14 @@ public class AnalyticsNativeEventType {
 		// On the web, when the "home" page is rendered (default landing screen after sign-in).
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_HOME,
+		// On the web, when the Group Sessions Overview page is rendered.
+		// Additional data:
+		// * searchQuery: (String, if the page is filtered by a search query)
+		PAGE_VIEW_GROUP_SESSIONS,
+		// On the web, when a Group Session Detail page is rendered.
+		// Additional data:
+		// * groupSessionId (UUID)
+		PAGE_VIEW_GROUP_SESSION_DETAIL,
 		// On the web, when a "topic center" page is rendered.
 		// Additional data:
 		// * topicCenterId (UUID)
