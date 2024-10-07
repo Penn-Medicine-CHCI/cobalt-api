@@ -36,11 +36,15 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * url (String, the URL that was changed to)
 -- * previousUrl (String, the URL that was navigated away from, may be null for initial loads/external referrals)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('URL_CHANGED', 'URL Changed');
--- When an API call returns a status >= 400.
+-- When an API call attempt fails (returns a status >= 400, terminated client-side, etc.)
 -- Additional data:
--- * statusCode (Integer, e.g. 422, 500, ...)
--- * responseBody (String)
--- * errorCode (String, if "errorCode" field is available from API response, e.g. "VALIDATION_FAILED")
+-- * request (Object)
+--    * method (String, e.g. GET, POST)
+--    * URL (String, starts with '/')
+--    * body (JSON data, if present)
+-- * response (Object)
+--    * status (Integer, if present)
+--    * body (JSON data, if present)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('API_CALL_ERROR', 'API Call Error');
 -- When an account successfully authenticates with the backend.
 -- Additional data:

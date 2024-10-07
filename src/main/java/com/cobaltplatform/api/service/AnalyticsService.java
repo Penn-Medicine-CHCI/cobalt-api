@@ -60,6 +60,7 @@ import com.google.analytics.data.v1beta.RunReportResponse;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -334,6 +335,28 @@ public class AnalyticsService implements AutoCloseable {
 				data.put("previousUrl", replaceSensitiveDataInString(dataPreviousUrl));
 		}
 
+		// Elide sensitive data in API call error events if necessary
+		if (analyticsNativeEventTypeId == AnalyticsNativeEventTypeId.API_CALL_ERROR && data != null) {
+			boolean elided = false;
+			String dataAsJson = getGsonForAnalyticsNativeData().toJson(data);
+			AnalyticsNativeEventTypeApiCallErrorData typedData = getGsonForAnalyticsNativeData().fromJson(dataAsJson, AnalyticsNativeEventTypeApiCallErrorData.class);
+
+			if (typedData != null && typedData.getRequest() != null && typedData.getRequest().getBody() != null) {
+				// Special handling for POST /accounts/email-password-access-token to elide passwords
+				if (typedData.getRequest().getUrl().equals("/accounts/email-password-access-token")) {
+					typedData.getRequest().getBody().put("password", "[elided]");
+					elided = true;
+				}
+
+				// If we elided, turn the elided data back into a Map<String, Object> for downstream processing
+				if (elided) {
+					String typedDataAsJson = getGsonForAnalyticsNativeData().toJson(typedData);
+					data = getGsonForAnalyticsNativeData().fromJson(typedDataAsJson, new TypeToken<Map<String, Object>>() {
+					}.getType());
+				}
+			}
+		}
+
 		String dataAsString = getGsonForAnalyticsNativeData().toJson(data);
 
 		UUID analyticsNativeEventId = UUID.randomUUID();
@@ -409,6 +432,96 @@ public class AnalyticsService implements AutoCloseable {
 		);
 
 		return analyticsNativeEventId;
+	}
+
+	// Payload data for AnalyticsNativeEventTypeId.API_CALL_ERROR
+	@NotThreadSafe
+	protected static class AnalyticsNativeEventTypeApiCallErrorData {
+		@Nullable
+		private ApiCallErrorDataRequest request;
+		@Nullable
+		private ApiCallErrorDataResponse response;
+
+		@NotThreadSafe
+		protected static class ApiCallErrorDataRequest {
+			@Nullable
+			private String method;
+			@Nullable
+			private String url;
+			@Nullable
+			private Map<String, Object> body;
+
+			@Nullable
+			public String getMethod() {
+				return this.method;
+			}
+
+			public void setMethod(@Nullable String method) {
+				this.method = method;
+			}
+
+			@Nullable
+			public String getUrl() {
+				return this.url;
+			}
+
+			public void setUrl(@Nullable String url) {
+				this.url = url;
+			}
+
+			@Nullable
+			public Map<String, Object> getBody() {
+				return this.body;
+			}
+
+			public void setBody(@Nullable Map<String, Object> body) {
+				this.body = body;
+			}
+		}
+
+		@NotThreadSafe
+		protected static class ApiCallErrorDataResponse {
+			@Nullable
+			private Integer status;
+			@Nullable
+			private Map<String, Object> body;
+
+			@Nullable
+			public Integer getStatus() {
+				return this.status;
+			}
+
+			public void setStatus(@Nullable Integer status) {
+				this.status = status;
+			}
+
+			@Nullable
+			public Map<String, Object> getBody() {
+				return this.body;
+			}
+
+			public void setBody(@Nullable Map<String, Object> body) {
+				this.body = body;
+			}
+		}
+
+		@Nullable
+		public ApiCallErrorDataRequest getRequest() {
+			return this.request;
+		}
+
+		public void setRequest(@Nullable ApiCallErrorDataRequest request) {
+			this.request = request;
+		}
+
+		@Nullable
+		public ApiCallErrorDataResponse getResponse() {
+			return this.response;
+		}
+
+		public void setResponse(@Nullable ApiCallErrorDataResponse response) {
+			this.response = response;
+		}
 	}
 
 	@Nonnull

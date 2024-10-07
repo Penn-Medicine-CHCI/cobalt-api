@@ -55,11 +55,15 @@ public class AnalyticsNativeEventType {
 		// * url (String, the URL that was changed to)
 		// * responseBody (String, the URL that was navigated away from, may be null for initial loads/external referrals)
 		URL_CHANGED,
-		// When an API call returns a status >= 400.
+		// When an API call attempt fails (returns a status >= 400, terminated client-side, etc.)
 		// Additional data:
-		// * statusCode (Integer, e.g. 422, 500, ...)
-		// * responseBody (String)
-		// * errorCode (String, if "errorCode" field is available from API response, e.g. "VALIDATION_FAILED")
+		// * request (Object)
+		//    * method (String, e.g. GET, POST)
+		//    * URL (String, starts with '/')
+		//    * body (JSON data, if present)
+		// * response (Object)
+		//    * status (Integer, if present)
+		//    * body (JSON data, if present)
 		API_CALL_ERROR,
 		// When an account successfully authenticates with the backend.
 		// There is no additional data associated with this event type.
