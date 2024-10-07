@@ -171,10 +171,10 @@ public class AnalyticsNativeEventType {
 		// On the web, when the Institution Resources overview page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_INSTITUTION_RESOURCES,
-		// On the web, when an Institution Resource detail page is rendered.
+		// On the web, when an Institution Resource Group detail page is rendered.
 		// Additional data:
-		// * institutionResourceId (UUID)
-		PAGE_VIEW_INSTITUTION_RESOURCE_DETAIL,
+		// * institutionResourceGroupId (UUID)
+		PAGE_VIEW_INSTITUTION_RESOURCE_GROUP_DETAIL,
 		// On the web, when the "in crisis" page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_IN_CRISIS,

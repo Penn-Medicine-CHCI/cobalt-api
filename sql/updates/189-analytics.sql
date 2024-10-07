@@ -152,10 +152,10 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- On the web, when the Institution Resources overview page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_INSTITUTION_RESOURCES', 'Page View (Institution Resources)');
--- On the web, when an Institution Resource detail page is rendered.
+-- On the web, when an Institution Resource Group detail page is rendered.
 -- Additional data:
--- * institutionResourceId (UUID)
-INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_INSTITUTION_RESOURCE_DETAIL', 'Page View (Institution Resource Detail)');
+-- * institutionResourceGroupId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_INSTITUTION_RESOURCE_GROUP_DETAIL', 'Page View (Institution Resource Detail)');
 -- On the web, when the "in crisis" page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_IN_CRISIS', 'Page View (In Crisis)');
