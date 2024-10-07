@@ -74,6 +74,12 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * accountId (UUID)
 		// * source (String, indicates in what part of the system the sign-out occurred)
+		//    CONSENT_FORM: When viewing a consent form and revoking consent
+		//    PATIENT_HEADER: In the header navigation of the patient experience
+		//    ADMIN_HEADER: In the header navigation of the admin experience
+		//    MHIC_HEADER: In the header navigation of the MHIC experience
+		//    ACCESS_TOKEN_EXPIRED: If the backend reports that the access token is invalid/expired
+		//    STUDY_ONBOARDING: If necessary as part of the study onboarding process
 		ACCOUNT_SIGNED_OUT,
 		// On the web, when the "sign-in" page is rendered.
 		// There is no additional data associated with this event type.
@@ -149,6 +155,22 @@ public class AnalyticsNativeEventType {
 		// * appointmentId (UUID, if this page view is intended to highlight a specific appointment, e.g. post-booking or via email link)
 		// * groupSessionReservationId (UUID, if this page view is intended to highlight a specific group session reservation, e.g. post-booking or via email link)
 		PAGE_VIEW_MY_EVENTS,
+		// On the web, when the "contact us" page is rendered.
+		// There is no additional data associated with this event type.
+		PAGE_VIEW_CONTACT_US,
+		// On the web, when the "in crisis" page is rendered.
+		// There is no additional data associated with this event type.
+		PAGE_VIEW_IN_CRISIS,
+		// On the web, when the "in crisis" overlay is triggered.
+		// Additional data:
+		// * source (String)
+		//    CONTACT_US: From the "contact us" page.
+		//    CALL_TO_ACTION: From a CTA recommendation for crisis resources
+		//    ERROR_OVERLAY: From an error message popup
+		//    PATIENT_HEADER: From the header navigation
+		//    TRIAGE_RESULTS: From patient-facing triage results, where triage indicated SI (only for IC currently)
+		//    SCREENING_SESSION: If an answer to a question during a screening session indicated SI (only for IC currently; patient flow triggers PAGE_VIEW_IN_CRISIS instead)
+		OVERLAY_VIEW_IN_CRISIS,
 		// When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
 		// Additional data:
 		// * contentId (UUID)
