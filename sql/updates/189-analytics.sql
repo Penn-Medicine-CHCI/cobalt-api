@@ -139,6 +139,23 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- On the web, when the "contact us" page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_CONTACT_US', 'Page View (Contact Us)');
+-- On the web, when the Resource Navigator page is rendered.
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_RESOURCE_NAVIGATOR', 'Page View (Resource Navigator)');
+-- On the web, when the FAQ overview page is rendered.
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_FAQS', 'Page View (FAQs)');
+-- On the web, when a FAQ detail page is rendered.
+-- Additional data:
+-- * faqId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_FAQ_DETAIL', 'Page View (FAQ Detail)');
+-- On the web, when the Institution Resources overview page is rendered.
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_INSTITUTION_RESOURCES', 'Page View (Institution Resources)');
+-- On the web, when an Institution Resource detail page is rendered.
+-- Additional data:
+-- * institutionResourceId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_INSTITUTION_RESOURCE_DETAIL', 'Page View (Institution Resource Detail)');
 -- On the web, when the "in crisis" page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_IN_CRISIS', 'Page View (In Crisis)');
