@@ -319,7 +319,12 @@ public class AnalyticsService implements AutoCloseable {
 			}
 		}
 
-		// Ensure we don't have any sensitive data in URLs that are stored off
+		// Ensure URLs are relative and that we don't have any sensitive data in them (e.g JWTs)
+		url = toRelativeUrl(url).orElse(null);
+
+		if (url == null)
+			throw new IllegalStateException(format("Unable to relative-ize URL %s", url));
+
 		url = replaceSensitiveDataInString(url);
 
 		// Do the same for event types that we know can include sensitive data in payloads
@@ -522,6 +527,35 @@ public class AnalyticsService implements AutoCloseable {
 		public void setResponse(@Nullable ApiCallErrorDataResponse response) {
 			this.response = response;
 		}
+	}
+
+	@Nonnull
+	protected Optional<String> toRelativeUrl(@Nullable String url) {
+		if (url == null || url.trim().length() == 0)
+			return Optional.empty();
+
+		String lowercaseUrl = url.toLowerCase();
+		int protocolLength = -1;
+
+		if (lowercaseUrl.startsWith("https://"))
+			protocolLength = "https://".length();
+		else if (lowercaseUrl.startsWith("http://"))
+			protocolLength = "http://".length();
+
+		if (protocolLength == -1)
+			return Optional.of(url);
+
+		// 1. Remove protocol
+		// 2. Remove everything before the '/'
+		String relativeUrl = url.substring(protocolLength);
+		int firstIndexOfSlash = relativeUrl.indexOf("/");
+
+		if (firstIndexOfSlash == -1)
+			relativeUrl = format("/%s", relativeUrl);
+		else
+			relativeUrl = relativeUrl.substring(firstIndexOfSlash);
+
+		return Optional.of(relativeUrl);
 	}
 
 	@Nonnull
