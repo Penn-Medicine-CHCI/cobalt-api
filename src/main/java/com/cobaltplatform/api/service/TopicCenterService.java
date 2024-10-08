@@ -159,7 +159,8 @@ public class TopicCenterService {
 					itc.navigation_icon_name as icon_name,
 					('/topic-centers/' || tc.url_name) as url,
 					COALESCE(itc.navigation_item_name, tc.name) as name,
-					tc.image_url
+					tc.image_url,
+					tc.topic_center_id
 				FROM institution_topic_center itc, topic_center tc
 				WHERE itc.topic_center_id=tc.topic_center_id
 				AND itc.navigation_item_enabled=TRUE
