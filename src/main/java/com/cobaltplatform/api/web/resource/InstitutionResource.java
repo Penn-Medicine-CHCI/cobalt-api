@@ -69,6 +69,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME;
 import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME;
 import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -241,11 +242,11 @@ public class InstitutionResource {
 
 		if (account != null)
 			claims.put("accountId", account.getAccountId());
-		if (analyticsSessionId.isPresent())
+		if (analyticsSessionId.isPresent() && isValidUUID(analyticsSessionId.get()))
 			claims.put(ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME, analyticsSessionId.get());
-		if (analyticsReferringCampaignId.isPresent())
+		if (analyticsReferringCampaignId.isPresent() && isValidUUID(analyticsReferringCampaignId.get()))
 			claims.put(ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME, analyticsReferringCampaignId.get());
-		if (analyticsReferringMessageId.isPresent())
+		if (analyticsReferringMessageId.isPresent() && isValidUUID(analyticsReferringMessageId.get()))
 			claims.put(ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME, analyticsReferringMessageId.get());
 
 		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId, claims);
