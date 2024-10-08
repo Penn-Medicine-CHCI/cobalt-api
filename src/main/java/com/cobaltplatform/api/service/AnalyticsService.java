@@ -113,6 +113,12 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class AnalyticsService implements AutoCloseable {
 	@Nonnull
+	public static final String ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME = "a.s";
+	@Nonnull
+	public static final String ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME = "a.c";
+	@Nonnull
+	public static final String ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME = "a.m";
+	@Nonnull
 	private static final Long ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS;

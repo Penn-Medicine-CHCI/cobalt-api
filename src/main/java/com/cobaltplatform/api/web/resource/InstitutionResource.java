@@ -66,6 +66,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -225,7 +228,10 @@ public class InstitutionResource {
 
 	@GET("/institutions/{institutionId}/mychart-authentication-url")
 	public Object myChartAuthenticationUrl(@Nonnull @PathParameter InstitutionId institutionId,
-																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
+																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately,
+																				 @Nonnull @QueryParameter(ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsSessionId,
+																				 @Nonnull @QueryParameter(ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsReferringCampaignId,
+																				 @Nonnull @QueryParameter(ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsReferringMessageId) {
 		requireNonNull(institutionId);
 		requireNonNull(redirectImmediately);
 
@@ -235,6 +241,12 @@ public class InstitutionResource {
 
 		if (account != null)
 			claims.put("accountId", account.getAccountId());
+		if (analyticsSessionId.isPresent())
+			claims.put(ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME, analyticsSessionId.get());
+		if (analyticsReferringCampaignId.isPresent())
+			claims.put(ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME, analyticsReferringCampaignId.get());
+		if (analyticsReferringMessageId.isPresent())
+			claims.put(ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME, analyticsReferringMessageId.get());
 
 		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId, claims);
 
