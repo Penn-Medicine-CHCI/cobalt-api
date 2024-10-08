@@ -189,6 +189,10 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 --    HOME: When clicked through from the homepage
 --    NAV: When clicked through from the navigation
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_FEATURE', 'Clickthrough (Feature)');
+-- When a click occurs on an account source to select login mode (e.g. anonymous, email/password, MyChart, ...)
+-- Additional data:
+-- * accountSourceId (String)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_ACCOUNT_SOURCE', 'Clickthrough (Account Source)');
 
 -- Cobalt native analytics events
 CREATE TABLE analytics_native_event (

@@ -207,7 +207,11 @@ public class AnalyticsNativeEventType {
 		// * source (String)
 		//    HOME: When clicked through from the homepage
 		//    NAV: When clicked through from the navigation
-		CLICKTHROUGH_FEATURE
+		CLICKTHROUGH_FEATURE,
+		// When a click occurs on an account source to select login mode (e.g. anonymous, email/password, MyChart, ...)
+		// Additional data:
+		// * accountSourceId (String)
+		CLICKTHROUGH_ACCOUNT_SOURCE
 	}
 
 	@Override
