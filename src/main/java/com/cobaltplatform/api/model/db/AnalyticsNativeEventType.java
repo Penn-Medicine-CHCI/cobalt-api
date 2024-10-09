@@ -81,6 +81,14 @@ public class AnalyticsNativeEventType {
 		//    ACCESS_TOKEN_EXPIRED: If the backend reports that the access token is invalid/expired
 		//    STUDY_ONBOARDING: If necessary as part of the study onboarding process
 		ACCOUNT_SIGNED_OUT,
+		// When a MyChart handshake has succeeded (prior to linking to an account).
+		// There is no additional data associated with this event type.
+		MYCHART_AUTHENTICATION_SUCCEEDED,
+		// When a MyChart handshake has failed (e.g. user declines to link their account to Cobalt on the MyChart side)
+		// Additional data:
+		// * myChartError (String with the MyChart `error` value, e.g. `access_denied`)
+		// * myChartErrorDescription (String, if available, with the MyChart `error_description` value, e.g. `User refused`)
+		MYCHART_AUTHENTICATION_FAILED,
 		// On the web, when the "sign-in" page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_SIGN_IN,

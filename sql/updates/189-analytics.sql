@@ -62,6 +62,14 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 --    ACCESS_TOKEN_EXPIRED: If the backend reports that the access token is invalid/expired
 --    STUDY_ONBOARDING: If necessary as part of the study onboarding process
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('ACCOUNT_SIGNED_OUT', 'Account Signed Out');
+-- When a MyChart handshake has succeeded (prior to linking to an account).
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('MYCHART_AUTHENTICATION_SUCCEEDED', 'MyChart Authentication Succeeded');
+-- When a MyChart handshake has failed (e.g. user declines to link their account to Cobalt on the MyChart side)
+-- Additional data:
+-- * myChartError (String with the MyChart `error` value, e.g. `access_denied`)
+-- * myChartErrorDescription (String, if available, with the MyChart `error_description` value, e.g. `User refused`)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('MYCHART_AUTHENTICATION_FAILED', 'MyChart Authentication Failed');
 -- On the web, when the "sign-in" page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_SIGN_IN', 'Page View (Sign In)');

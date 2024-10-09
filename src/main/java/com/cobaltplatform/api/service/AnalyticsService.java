@@ -113,6 +113,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class AnalyticsService implements AutoCloseable {
 	@Nonnull
+	public static final String ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME = "a.f";
+	@Nonnull
 	public static final String ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME = "a.s";
 	@Nonnull
 	public static final String ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME = "a.c";
