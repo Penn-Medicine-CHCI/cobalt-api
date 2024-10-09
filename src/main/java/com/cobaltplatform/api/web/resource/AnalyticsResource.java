@@ -246,7 +246,7 @@ public class AnalyticsResource {
 		request.setAccountId(account == null ? null : account.getAccountId());
 		request.setClientDeviceId(clientDeviceId);
 		request.setReferringMessageId(remoteClient.getReferringMessageId().orElse(null));
-		request.setReferringCampaignId(remoteClient.getReferringCampaignId().orElse(null));
+		request.setReferringCampaign(remoteClient.getReferringCampaign().orElse(null));
 		request.setUrl(remoteClient.getCurrentUrl().orElse(null));
 
 		// If any fields are not explicitly specified in the body, fill them in using RemoteClient values

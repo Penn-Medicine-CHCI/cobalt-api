@@ -1,6 +1,22 @@
 BEGIN;
 SELECT _v.register_patch('189-analytics', NULL, NULL);
 
+-- Allows us to persist arbitrarily-large sets of claims for the MyChart OAuth flow.
+-- This is necessary because OAuth state values have small size limits -
+-- if we were to bundle up a large JSON object in OAuth state, the flow would error out.
+-- This table enables us to provide a fixed-size state that only includes a myChartAuthenticationClaimsId value,
+-- which points to a record with the serialized "real" claims which can include as much data as we like.
+CREATE TABLE mychart_authentication_claims (
+	mychart_authentication_claims_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	institution_id TEXT NOT NULL REFERENCES institution,
+	claims JSONB NOT NULL DEFAULT '{}'::JSONB,
+	consumed_at TIMESTAMPTZ, -- Set when these claims been "consumed" by an assertion from MyChart
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON mychart_authentication_claims FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- Force fingerprints to UUID for faster access/consistency.
 -- In practice, they are UUID strings currently.
 ALTER TABLE client_device ALTER COLUMN fingerprint TYPE uuid USING fingerprint::uuid;
@@ -227,8 +243,8 @@ CREATE TABLE analytics_native_event (
   -- This value follows the lifecycle rules governing session_id - that is, if set, it should persist for
   -- all events in the session until the session's life has ended.
   -- This can be optionally combined with referring_message_id.
-  -- On the web, a referring campaign means the "a.c=[campaignId]" query parameter was detected
-  referring_campaign_id TEXT,
+  -- On the web, a referring campaign means the "a.c=[campaign]" query parameter was detected
+  referring_campaign TEXT,
   -- The client-specified timestamp for this event.
   -- Postgres does not natively store high precision times, e.g. nanos.  It's possible to receive events for the same millisecond,
   -- so use timestamp_epoch_second and timestamp_epoch_second_nano_offset if full precision is needed

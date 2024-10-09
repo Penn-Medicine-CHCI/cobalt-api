@@ -78,7 +78,7 @@ public class RemoteClient {
 	@Nullable
 	private final UUID referringMessageId;
 	@Nullable
-	private final String referringCampaignId;
+	private final String referringCampaign;
 
 	static {
 		USER_AGENT_PARSER = new UserAgentParser();
@@ -100,7 +100,7 @@ public class RemoteClient {
 											 @Nullable String rawUserAgent,
 											 @Nullable String ipAddress,
 											 @Nullable UUID referringMessageId,
-											 @Nullable String referringCampaignId) {
+											 @Nullable String referringCampaign) {
 		this.currentUrl = currentUrl;
 		this.sessionId = sessionId;
 		this.fingerprint = fingerprint;
@@ -117,7 +117,7 @@ public class RemoteClient {
 		this.rawUserAgent = rawUserAgent;
 		this.ipAddress = ipAddress;
 		this.referringMessageId = referringMessageId;
-		this.referringCampaignId = referringCampaignId;
+		this.referringCampaign = referringCampaign;
 	}
 
 	@Nonnull
@@ -168,7 +168,7 @@ public class RemoteClient {
 			}
 		}
 
-		String referringCampaignId = WebUtility.extractValueFromRequest(httpServletRequest, "X-Cobalt-Referring-Campaign-Id").orElse(null);
+		String referringCampaign = WebUtility.extractValueFromRequest(httpServletRequest, "X-Cobalt-Referring-Campaign").orElse(null);
 
 		return new RemoteClient(
 				currentUrl,
@@ -187,7 +187,7 @@ public class RemoteClient {
 				rawUserAgent,
 				ipAddress,
 				referringMessageId,
-				referringCampaignId
+				referringCampaign
 		);
 	}
 
@@ -308,7 +308,7 @@ public class RemoteClient {
 	}
 
 	@Nonnull
-	public Optional<String> getReferringCampaignId() {
-		return Optional.ofNullable(this.referringCampaignId);
+	public Optional<String> getReferringCampaign() {
+		return Optional.ofNullable(this.referringCampaign);
 	}
 }

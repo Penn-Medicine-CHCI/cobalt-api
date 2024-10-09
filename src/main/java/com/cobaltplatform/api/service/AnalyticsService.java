@@ -117,7 +117,7 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	public static final String ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME = "a.s";
 	@Nonnull
-	public static final String ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME = "a.c";
+	public static final String ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME = "a.c";
 	@Nonnull
 	public static final String ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME = "a.m";
 	@Nonnull
@@ -264,7 +264,7 @@ public class AnalyticsService implements AutoCloseable {
 		UUID clientDeviceId = request.getClientDeviceId();
 		UUID sessionId = request.getSessionId();
 		UUID referringMessageId = request.getReferringMessageId();
-		String referringCampaignId = trimToNull(request.getReferringCampaignId());
+		String referringCampaign = trimToNull(request.getReferringCampaign());
 		Instant timestamp = request.getTimestamp();
 		String url = trimToNull(request.getUrl());
 		Map<String, Object> data = request.getData() == null ? new HashMap<>() : new HashMap<>(request.getData()); // Mutable copy so we can, for example, elide sensitive data before inserting
@@ -383,7 +383,7 @@ public class AnalyticsService implements AutoCloseable {
 							account_id,
 							session_id,
 							referring_message_id,
-							referring_campaign_id,
+							referring_campaign,
 							timestamp,
 							timestamp_epoch_second,
 							timestamp_epoch_second_nano_offset,
@@ -417,7 +417,7 @@ public class AnalyticsService implements AutoCloseable {
 				accountId,
 				sessionId,
 				referringMessageId,
-				referringCampaignId,
+				referringCampaign,
 				java.sql.Timestamp.from(timestamp),
 				timestamp.getEpochSecond(),
 				timestamp.getNano(),

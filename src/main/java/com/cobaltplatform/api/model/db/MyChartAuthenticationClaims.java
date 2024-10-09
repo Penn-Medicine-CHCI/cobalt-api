@@ -19,7 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.PatientOrderEventType.PatientOrderEventTypeId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -37,9 +37,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 /**
  * @author Transmogrify, LLC.
  */
-@Deprecated // Replaced by footprint data
 @NotThreadSafe
-public class PatientOrderEvent {
+public class MyChartAuthenticationClaims {
 	@Nonnull
 	private static final Gson GSON;
 
@@ -51,27 +50,24 @@ public class PatientOrderEvent {
 	}
 
 	@Nullable
-	private UUID patientOrderEventId;
+	@DatabaseColumn("mychart_authentication_claims_id")
+	private UUID myChartAuthenticationClaimsId;
 	@Nullable
-	private PatientOrderEventTypeId patientOrderEventTypeId;
+	private InstitutionId institutionId;
 	@Nullable
-	private UUID patientOrderId;
+	@DatabaseColumn("claims")
+	private String claimsAsString;
 	@Nullable
-	private UUID accountId;
+	private Map<String, Object> claims;
 	@Nullable
-	private String message;
-	@Nullable
-	@DatabaseColumn("metadata")
-	private String metadataAsString;
-	@Nullable
-	private Map<String, Object> metadata;
+	private Instant consumedAt;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
-	public PatientOrderEvent() {
-		this.metadata = Map.of();
+	public MyChartAuthenticationClaims() {
+		this.claims = Map.of();
 	}
 
 	@Nonnull
@@ -80,66 +76,48 @@ public class PatientOrderEvent {
 	}
 
 	@Nullable
-	public String getMetadataAsString() {
-		return this.metadataAsString;
+	public String getClaimsAsString() {
+		return this.claimsAsString;
 	}
 
-	public void setMetadataAsString(@Nullable String metadataAsString) {
-		this.metadataAsString = metadataAsString;
+	public void setClaimsAsString(@Nullable String claimsAsString) {
+		this.claimsAsString = claimsAsString;
 
-		String metadata = trimToNull(metadataAsString);
-		this.metadata = metadata == null ? Map.of() : getGson().fromJson(metadata, new TypeToken<Map<String, Object>>() {
+		String claims = trimToNull(claimsAsString);
+		this.claims = claims == null ? Map.of() : getGson().fromJson(claims, new TypeToken<Map<String, Object>>() {
 		}.getType());
 	}
 
 	@Nonnull
-	public Map<String, Object> getMetadata() {
-		return this.metadata;
+	public Map<String, Object> getClaims() {
+		return this.claims;
 	}
 
 	@Nullable
-	public UUID getPatientOrderEventId() {
-		return this.patientOrderEventId;
+	public UUID getMyChartAuthenticationClaimsId() {
+		return this.myChartAuthenticationClaimsId;
 	}
 
-	public void setPatientOrderEventId(@Nullable UUID patientOrderEventId) {
-		this.patientOrderEventId = patientOrderEventId;
-	}
-
-	@Nullable
-	public PatientOrderEventTypeId getPatientOrderEventTypeId() {
-		return this.patientOrderEventTypeId;
-	}
-
-	public void setPatientOrderEventTypeId(@Nullable PatientOrderEventTypeId patientOrderEventTypeId) {
-		this.patientOrderEventTypeId = patientOrderEventTypeId;
+	public void setMyChartAuthenticationClaimsId(@Nullable UUID myChartAuthenticationClaimsId) {
+		this.myChartAuthenticationClaimsId = myChartAuthenticationClaimsId;
 	}
 
 	@Nullable
-	public UUID getPatientOrderId() {
-		return this.patientOrderId;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
-	}
-
-	@Nullable
-	public UUID getAccountId() {
-		return this.accountId;
-	}
-
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
-	public String getMessage() {
-		return this.message;
+	public Instant getConsumedAt() {
+		return this.consumedAt;
 	}
 
-	public void setMessage(@Nullable String message) {
-		this.message = message;
+	public void setConsumedAt(@Nullable Instant consumedAt) {
+		this.consumedAt = consumedAt;
 	}
 
 	@Nullable

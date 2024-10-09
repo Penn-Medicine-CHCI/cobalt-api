@@ -67,7 +67,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME;
-import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME;
 import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME;
 import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
@@ -233,7 +233,7 @@ public class InstitutionResource {
 																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately,
 																				 @Nonnull @QueryParameter(ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME) Optional<String> analyticsFingerprint,
 																				 @Nonnull @QueryParameter(ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsSessionId,
-																				 @Nonnull @QueryParameter(ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsReferringCampaignId,
+																				 @Nonnull @QueryParameter(ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME) Optional<String> analyticsReferringCampaign,
 																				 @Nonnull @QueryParameter(ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsReferringMessageId) {
 		requireNonNull(institutionId);
 		requireNonNull(redirectImmediately);
@@ -248,8 +248,8 @@ public class InstitutionResource {
 			claims.put(ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME, analyticsFingerprint.get());
 		if (analyticsSessionId.isPresent() && isValidUUID(analyticsSessionId.get()))
 			claims.put(ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME, analyticsSessionId.get());
-		if (analyticsReferringCampaignId.isPresent() && isValidUUID(analyticsReferringCampaignId.get()))
-			claims.put(ANALYTICS_REFERRING_CAMPAIGN_ID_QUERY_PARAMETER_NAME, analyticsReferringCampaignId.get());
+		if (analyticsReferringCampaign.isPresent())
+			claims.put(ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME, analyticsReferringCampaign.get());
 		if (analyticsReferringMessageId.isPresent() && isValidUUID(analyticsReferringMessageId.get()))
 			claims.put(ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME, analyticsReferringMessageId.get());
 
