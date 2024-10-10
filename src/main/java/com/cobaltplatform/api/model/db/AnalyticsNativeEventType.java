@@ -40,6 +40,10 @@ public class AnalyticsNativeEventType {
 		// In a native app, this would be fired when the app is brought to the foreground
 		// There is no additional data associated with this event type.
 		SESSION_STARTED,
+		// Fired if, due to a browser bug regarding session storage, we have to manually "restore" a session as a workaround.
+		// See https://issues.chromium.org/issues/40940701
+		// There is no additional data associated with this event type.
+		SESSION_RESTORED,
 		// When the user brings the browser tab out of focus (minimizes the window, switches to another tab)
 		// See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
 		// In a native app, this would be fired when the app is sent to the background

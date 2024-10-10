@@ -37,6 +37,10 @@ CREATE TABLE analytics_native_event_type (
 -- In a native app, this would be when the app first launches
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('SESSION_STARTED', 'Session Started');
+-- Fired if, due to a browser bug regarding session storage, we have to manually "restore" a session as a workaround.
+-- See https://issues.chromium.org/issues/40940701
+-- There is no additional data associated with this event type.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('SESSION_RESTORED', 'Session Restored');
 -- When the user brings the browser tab into focus (unminimizes the window, switches into it from another tab)
 -- See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
 -- In a native app, this would be fired when the app is brought to the foreground
