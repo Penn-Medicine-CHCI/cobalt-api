@@ -33,8 +33,6 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Alert;
 import com.cobaltplatform.api.model.db.AlertType.AlertTypeId;
-import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
-import com.cobaltplatform.api.model.db.ClientDevice;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -116,7 +114,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -212,48 +209,6 @@ public class AnalyticsResource {
 		this.strings = strings;
 		this.formatter = formatter;
 		this.logger = LoggerFactory.getLogger(getClass());
-	}
-
-	@Nonnull
-	@POST("/analytics-native-events-test")
-	public ApiResponse createAnalyticsNativeEventTest(
-			// In reality, these would come from MyChart claims
-			@Nonnull @QueryParameter InstitutionId institutionId,
-			@Nonnull @QueryParameter UUID fingerprint,
-			@Nonnull @QueryParameter UUID sessionId,
-			@Nonnull @QueryParameter Optional<String> referringCampaign,
-			@Nonnull @QueryParameter Optional<UUID> referringMessageId
-	) {
-		RemoteClient remoteClient = getCurrentContext().getRemoteClient().get();
-		UserAgent userAgent = remoteClient.getUserAgent().orElse(null);
-		ClientDevice clientDevice = getClientDeviceService().findClientDeviceByFingerprint(fingerprint).get();
-
-		// Create the native analytics event with the client device
-		CreateAnalyticsNativeEventRequest request = new CreateAnalyticsNativeEventRequest();
-		request.setAnalyticsNativeEventTypeId(AnalyticsNativeEventTypeId.MYCHART_AUTHENTICATION_SUCCEEDED);
-		request.setTimestamp(Instant.now());
-		request.setInstitutionId(institutionId);
-		request.setAccountId(null);
-		request.setClientDeviceId(clientDevice.getClientDeviceId());
-		request.setSessionId(sessionId);
-		request.setReferringMessageId(referringMessageId.orElse(null));
-		request.setReferringCampaign(referringCampaign.orElse(null));
-
-		request.setAppName(AnalyticsService.ANALYTICS_COBALT_BACKEND_APP_NAME);
-		request.setAppVersion(getConfiguration().getGitCommitHash());
-		request.setUserAgent(remoteClient.getRawUserAgent().orElse(null));
-
-		if (userAgent != null) {
-			request.setUserAgentDeviceFamily(userAgent.getDeviceFamily().orElse(null));
-			request.setUserAgentBrowserFamily(userAgent.getBrowserFamily().orElse(null));
-			request.setUserAgentBrowserVersion(userAgent.getBrowserVersion().orElse(null));
-			request.setUserAgentOperatingSystemName(userAgent.getOperatingSystemName().orElse(null));
-			request.setUserAgentOperatingSystemVersion(userAgent.getOperatingSystemVersion().orElse(null));
-		}
-
-		UUID analyticsNativeEventId = getAnalyticsService().createAnalyticsNativeEvent(request);
-
-		return new ApiResponse(Map.of("analyticsNativeEventId", analyticsNativeEventId));
 	}
 
 	@Nonnull
