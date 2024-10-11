@@ -190,6 +190,15 @@ public class AnalyticsNativeEventType {
 		// On the web, when the "in crisis" page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_IN_CRISIS,
+		// On the web, when an MHIC patient order panel page is rendered.
+		// Additional data:
+		// * patientOrderViewTypeId (PatientOrderViewTypeId)
+		// * patientOrderSortColumnId (PatientOrderSortColumnId, if explicitly specified)
+		// * sortDirectionId (SortDirectionId, if explicitly specified)
+		// * pageNumber (Integer, which page of the results we're on, 0-indexed)
+		// * pageSize (Integer, the maximum number of results visible per page)
+		// * totalCount (Integer, how many results exist. Not all results may be shown)
+		PAGE_VIEW_MHIC_PATIENT_ORDER_PANEL,
 		// On the web, when the "in crisis" overlay is triggered.
 		// Additional data:
 		// * source (String)
