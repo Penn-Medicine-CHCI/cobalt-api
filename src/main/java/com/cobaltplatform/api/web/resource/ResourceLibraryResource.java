@@ -619,18 +619,18 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
-	@GET("/resource-library/tag-filters/{tagId}")
+	@GET("/resource-library/tag-filters/{tagIdentifier}")
 	@AuthenticationRequired
-	public ApiResponse tagFilters(@Nonnull @PathParameter String tagId) {
-		requireNonNull(tagId);
+	public ApiResponse tagFilters(@Nonnull @PathParameter String tagIdentifier) {
+		requireNonNull(tagIdentifier);
 
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
 
 		// Support both tag ID and URL name
 		Tag tag = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
-				.filter(potentialTag -> potentialTag.getTagId().equals(tagId)
-						|| potentialTag.getUrlName().equals(tagId))
+				.filter(potentialTag -> potentialTag.getTagId().equals(tagIdentifier)
+						|| potentialTag.getUrlName().equals(tagIdentifier))
 				.findFirst()
 				.orElse(null);
 
@@ -640,6 +640,7 @@ public class ResourceLibraryResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentDurations", availableContentDurations());
 			put("contentTypes", availableContentTypes());
+			put("tag", getTagApiResponseFactory().create(tag));
 		}});
 	}
 
