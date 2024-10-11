@@ -183,7 +183,7 @@ public class CurrentContextRequestHandler {
 		boolean healthCheck = httpServletRequest.getRequestURI().startsWith("/system/health-check");
 		boolean analytics = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Analytics"), "true");
 
-		if (!healthCheck && !analytics)
+		if (!healthCheck && !analytics && !performingAutoRefresh)
 			getLogger().debug("Received {}", FormatUtils.httpServletRequestDescription(httpServletRequest));
 
 		getErrorReporter().startScope();
@@ -345,7 +345,7 @@ public class CurrentContextRequestHandler {
 			// This is later cleared out via a finally {} block in AppModule
 			MDC.put(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY, currentContextDescription);
 
-			if (accountIdentifier != null && !analytics)
+			if (accountIdentifier != null && !analytics && !performingAutoRefresh)
 				getLogger().debug(format("Authenticated %s for this request.", accountIdentifier));
 
 			getCurrentContextExecutor().execute(currentContext, currentContextOperation);
