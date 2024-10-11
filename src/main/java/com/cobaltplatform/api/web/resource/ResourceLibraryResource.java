@@ -71,6 +71,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -637,10 +638,25 @@ public class ResourceLibraryResource {
 		if (tag == null)
 			throw new NotFoundException();
 
+		// Webapp needs some additional response data to do its work
+		TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tag.getTagGroupId()))
+				.findAny().orElse(null);
+
+		if (tagGroup == null)
+			throw new IllegalStateException(format("Missing tag group for tag ID %s", tag.getTagId()));
+
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+		for (Tag currentTag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
+			tagsByTagId.put(currentTag.getTagId(), getTagApiResponseFactory().create(currentTag));
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentDurations", availableContentDurations());
 			put("contentTypes", availableContentTypes());
 			put("tag", getTagApiResponseFactory().create(tag));
+			put("tagGroup", getTagGroupApiResponseFactory().create(tagGroup));
+			put("tagsByTagId", tagsByTagId);
 		}});
 	}
 
