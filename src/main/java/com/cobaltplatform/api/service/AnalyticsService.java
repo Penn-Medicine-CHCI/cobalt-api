@@ -113,6 +113,10 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @ThreadSafe
 public class AnalyticsService implements AutoCloseable {
 	@Nonnull
+	public static final String ANALYTICS_COBALT_BACKEND_APP_NAME = "Cobalt Backend";
+	@Nonnull
+	public static final String ANALYTICS_COBALT_WEBAPP_APP_NAME = "Cobalt Webapp";
+	@Nonnull
 	public static final String ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME = "a.f";
 	@Nonnull
 	public static final String ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME = "a.s";
@@ -266,7 +270,7 @@ public class AnalyticsService implements AutoCloseable {
 		UUID referringMessageId = request.getReferringMessageId();
 		String referringCampaign = trimToNull(request.getReferringCampaign());
 		Instant timestamp = request.getTimestamp();
-		String url = trimToNull(request.getUrl());
+		String webappUrl = trimToNull(request.getWebappUrl());
 		Map<String, Object> data = request.getData() == null ? new HashMap<>() : new HashMap<>(request.getData()); // Mutable copy so we can, for example, elide sensitive data before inserting
 		String appName = trimToNull(request.getAppName());
 		String appVersion = trimToNull(request.getAppVersion());
@@ -327,13 +331,15 @@ public class AnalyticsService implements AutoCloseable {
 			}
 		}
 
-		// Ensure URLs are relative and that we don't have any sensitive data in them (e.g JWTs)
-		url = toRelativeUrl(url).orElse(null);
+		if (webappUrl != null) {
+			// Ensure URLs are relative and that we don't have any sensitive data in them (e.g JWTs)
+			webappUrl = toRelativeUrl(webappUrl).orElse(null);
 
-		if (url == null)
-			throw new IllegalStateException(format("Unable to relative-ize URL %s", url));
+			if (webappUrl == null)
+				throw new IllegalStateException(format("Unable to relative-ize webapp URL %s", webappUrl));
 
-		url = replaceSensitiveDataInString(url);
+			webappUrl = replaceSensitiveDataInString(webappUrl);
+		}
 
 		// Do the same for event types that we know can include sensitive data in payloads
 		if (analyticsNativeEventTypeId == AnalyticsNativeEventTypeId.URL_CHANGED) {
@@ -387,7 +393,7 @@ public class AnalyticsService implements AutoCloseable {
 							timestamp,
 							timestamp_epoch_second,
 							timestamp_epoch_second_nano_offset,
-							url,
+							webapp_url,
 							data,
 							app_name,
 							app_version,
@@ -421,7 +427,7 @@ public class AnalyticsService implements AutoCloseable {
 				java.sql.Timestamp.from(timestamp),
 				timestamp.getEpochSecond(),
 				timestamp.getNano(),
-				url,
+				webappUrl,
 				dataAsString,
 				appName,
 				appVersion,

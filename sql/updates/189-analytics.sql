@@ -258,11 +258,11 @@ CREATE TABLE analytics_native_event (
   timestamp_epoch_second INTEGER NOT NULL, -- Careful, will wrap in January 2038 when we hit 2147483647 seconds
   -- The client-specified timestamp's nanosecond offset from timestamp_epoch_second
   timestamp_epoch_second_nano_offset INTEGER NOT NULL,
-  -- The value of the browser's URL bar at the time this event was captured (window.location.href)
-  url TEXT,
+  -- For webapps, the value of the browser's URL bar at the time this event was captured (window.location.href)
+  webapp_url TEXT,
   -- Bag of data that corresponds to the event type.
   data JSONB NOT NULL DEFAULT '{}'::JSONB,
-  -- Explicitly specified by client. Example for web: "Cobalt Website". Example for native app: "Cobalt App XYZ"
+  -- Explicitly specified by client. Example for web: "Cobalt Webapp". Example for native app: "Cobalt App XYZ"
   app_name TEXT NOT NULL,
   -- Explicitly specified by client. Example for web: "cbf1b9a1be984a9f61b79a05f23b19f66d533537" (git commit hash). Example for native app: "1.2.3 (4)"
   app_version TEXT NOT NULL,

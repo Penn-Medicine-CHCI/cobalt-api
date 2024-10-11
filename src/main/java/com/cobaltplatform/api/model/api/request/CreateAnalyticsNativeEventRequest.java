@@ -50,7 +50,7 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private Instant timestamp;
 	@Nullable
-	private String url;
+	private String webappUrl;
 	@Nullable
 	private Map<String, Object> data; // Understood to be a JSON object with type-specific data, e.g. {"topicCenterId": "[uuid]"}
 	@Nullable
@@ -169,12 +169,12 @@ public class CreateAnalyticsNativeEventRequest {
 	}
 
 	@Nullable
-	public String getUrl() {
-		return this.url;
+	public String getWebappUrl() {
+		return this.webappUrl;
 	}
 
-	public void setUrl(@Nullable String url) {
-		this.url = url;
+	public void setWebappUrl(@Nullable String webappUrl) {
+		this.webappUrl = webappUrl;
 	}
 
 	@Nullable

@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.TagService;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,6 +106,28 @@ public class TagResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("tags", tags);
+		}});
+	}
+
+	@Nonnull
+	@GET("/tags/{tagIdentifier}")
+	@AuthenticationRequired
+	public ApiResponse tagByIdentifier(@Nonnull String tagIdentifier /* ID or URL name */) {
+		requireNonNull(tagIdentifier);
+
+		Account account = getCurrentContext().getAccount().get();
+		String normalizedTagIdentifier = tagIdentifier.trim();
+
+		TagApiResponse tag = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTag -> potentialTag.getTagId().equals(normalizedTagIdentifier) || potentialTag.getUrlName().equals(normalizedTagIdentifier))
+				.map(matchedTag -> getTagApiResponseFactory().create(matchedTag))
+				.findAny().orElse(null);
+
+		if (tag == null)
+			throw new NotFoundException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("tag", tag);
 		}});
 	}
 
