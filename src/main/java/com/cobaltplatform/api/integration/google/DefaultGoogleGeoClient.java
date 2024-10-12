@@ -199,6 +199,7 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 			String premise = null; // e.g. Building Name
 			String subpremise = null; // e.g. "2nd Fl" or "Suite 3"
 			String locality = null;
+			String administrativeAreaLevel3 = null;
 			String region = null;
 			String regionSubdivision = null;
 			String postalCode = null;
@@ -212,6 +213,10 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 					premise = addressComponent.getLongText(); // e.g. "Chrysler Building"
 				} else if (types.contains("subpremise")) {
 					subpremise = addressComponent.getLongText(); // e.g. "2nd Fl" or "Suite 3"
+
+					// If it's just a number and nothing else, put a "#" in front for consistency
+					if (subpremise != null && subpremise.matches("\\d+"))
+						subpremise = format("# %s", subpremise);
 				} else if (types.contains("street_number")) {
 					streetNumber = addressComponent.getLongText(); // e.g. "123"
 				} else if (types.contains("route")) {
@@ -222,6 +227,8 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 					region = addressComponent.getShortText(); // e.g. "PA"
 				} else if (types.contains("administrative_area_level_2")) {
 					regionSubdivision = addressComponent.getShortText(); // e.g. "Montgomery County"
+				} else if (types.contains("administrative_area_level_3")) {
+					administrativeAreaLevel3 = addressComponent.getLongText(); // Sometimes city (administrative_area_level_1) is missing, this can be used to replace it
 				} else if (types.contains("postal_code")) {
 					postalCode = addressComponent.getLongText(); // e.g. "19119"
 				} else if (types.contains("postal_code_suffix")) {
@@ -230,6 +237,10 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 					countryCode = addressComponent.getShortText(); // e.g. "US"
 				}
 			}
+
+			// Handle edge case where locality (city) can be missing, but it's available via administrative area level 3
+			if(locality == null)
+				locality = administrativeAreaLevel3;
 
 			List<String> streetNumberAndRouteComponents = new ArrayList<>();
 
@@ -272,6 +283,7 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 			normalizedPlace.setPostalCode(postalCode);
 			normalizedPlace.setPostalCodeSuffix(postalCodeSuffix);
 			normalizedPlace.setCountryCode(countryCode);
+			normalizedPlace.setGoogleMapsUrl(place.getGoogleMapsUri());
 
 			normalizedPlaces.add(normalizedPlace);
 		}
@@ -369,13 +381,15 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 			return PlacesClient.create(PlacesSettings.newBuilder()
 					.setCredentialsProvider(FixedCredentialsProvider.create(googleCredentials))
 					// TODO: figure out if we can specify these headers per-call instead of per-client
+					// See https://developers.google.com/maps/documentation/places/web-service/place-details for options
 					.setHeaderProvider(new HeaderProvider() {
 						final String FIELD_MASK_HEADER_VALUE = List.of(
 								"places.id",
 								"places.name",
 								"places.addressComponents",
 								"places.formattedAddress",
-								"places.location"
+								"places.location",
+								"places.googleMapsUri"
 						).stream().collect(Collectors.joining(","));
 
 						@Override

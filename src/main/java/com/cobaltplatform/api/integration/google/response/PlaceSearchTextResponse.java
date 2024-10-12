@@ -49,6 +49,8 @@ public class PlaceSearchTextResponse {
 		@Nullable
 		private String googlePlaceId;
 		@Nullable
+		private String googleMapsUrl;
+		@Nullable
 		private Double latitude;
 		@Nullable
 		private Double longitude;
@@ -89,6 +91,15 @@ public class PlaceSearchTextResponse {
 
 		public void setGooglePlaceId(@Nullable String googlePlaceId) {
 			this.googlePlaceId = googlePlaceId;
+		}
+
+		@Nullable
+		public String getGoogleMapsUrl() {
+			return this.googleMapsUrl;
+		}
+
+		public void setGoogleMapsUrl(@Nullable String googleMapsUrl) {
+			this.googleMapsUrl = googleMapsUrl;
 		}
 
 		@Nullable
