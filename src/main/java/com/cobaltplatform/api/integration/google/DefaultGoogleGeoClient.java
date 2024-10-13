@@ -40,6 +40,8 @@ import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.model.TravelMode;
 import com.google.maps.model.Unit;
+import com.google.maps.places.v1.AutocompletePlacesRequest;
+import com.google.maps.places.v1.AutocompletePlacesResponse;
 import com.google.maps.places.v1.Place;
 import com.google.maps.places.v1.Place.AddressComponent;
 import com.google.maps.places.v1.PlacesClient;
@@ -83,7 +85,9 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	@Nonnull
 	private final GoogleCredentials googleCredentials;
 	@Nonnull
-	private final PlacesClient placesClient;
+	private final PlacesClient placesClientForSearchText; // Multiple PlacesClient instances because X-Goog-FieldMask is different between SearchText and Autocomplete
+	@Nonnull
+	private final PlacesClient placesClientForAutocomplete; // Multiple PlacesClient instances because X-Goog-FieldMask is different between SearchText and Autocomplete
 	@Nonnull
 	private final RoutesClient routesClient;
 
@@ -112,7 +116,8 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 
 			this.projectId = requireNonNull((String) jsonObject.get("project_id"));
 			this.googleCredentials = acquireGoogleCredentials(serviceAccountPrivateKeyJson);
-			this.placesClient = createPlacesClient(this.googleCredentials);
+			this.placesClientForSearchText = createPlacesClientForSearchText(this.googleCredentials);
+			this.placesClientForAutocomplete = createPlacesClientForAutocomplete(this.googleCredentials);
 			this.routesClient = createRoutesClient(this.googleCredentials);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -128,7 +133,13 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 		}
 
 		try {
-			getPlacesClient().close();
+			getPlacesClientForSearchText().close();
+		} catch (Exception ignored) {
+			// Do nothing
+		}
+
+		try {
+			getPlacesClientForAutocomplete().close();
 		} catch (Exception ignored) {
 			// Do nothing
 		}
@@ -145,6 +156,8 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	public void geocode(@Nonnull String address) {
 		requireNonNull(address);
 
+		// TODO: finish up
+
 		GeocodingApiRequest request = GeocodingApi.geocode(getGeoApiContext(), address).region("us");
 		GeocodingResult[] geocodingResults;
 
@@ -159,8 +172,28 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 
 	@Nonnull
 	@Override
+	public void autocompletePlaces(@Nonnull String input) {
+		requireNonNull(input);
+
+		// TODO: finish up
+
+		AutocompletePlacesRequest request = AutocompletePlacesRequest.newBuilder()
+				.setInput(input)
+				.setLanguageCode("en")
+				.setRegionCode("US")
+				.build();
+
+		AutocompletePlacesResponse response = getPlacesClientForAutocomplete().autocompletePlaces(request);
+
+		System.out.println(new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(response));
+	}
+
+	@Nonnull
+	@Override
 	public PlaceSearchTextResponse findPlacesBySearchText(@Nonnull PlaceSearchTextRequest placeSearchTextRequest) {
-		// AutocompletePlacesRequest request = AutocompletePlacesRequest.newBuilder().build();
+		requireNonNull(placeSearchTextRequest);
+
+		// TODO: finish up
 
 		SearchTextRequest searchTextRequest =
 				SearchTextRequest.newBuilder()
@@ -180,7 +213,7 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 						//.setSearchAlongRouteParameters(SearchTextRequest.SearchAlongRouteParameters.newBuilder().build())
 						.build();
 
-		SearchTextResponse searchTextResponse = placesClient.searchText(searchTextRequest);
+		SearchTextResponse searchTextResponse = getPlacesClientForSearchText().searchText(searchTextRequest);
 
 		List<Place> rawPlaces = searchTextResponse.getPlacesList();
 		List<NormalizedPlace> normalizedPlaces = new ArrayList<>(rawPlaces.size());
@@ -304,6 +337,8 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 		requireNonNull(originPlaceId);
 		requireNonNull(destinationPlaceId);
 
+		// TODO: finish up
+
 		if (!originPlaceId.startsWith("place_id:"))
 			originPlaceId = "place_id:" + originPlaceId;
 
@@ -341,7 +376,7 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 		requireNonNull(originPlaceId);
 		requireNonNull(destinationPlaceId);
 
-		// RoutesClient routesClient = RoutesClient.create();
+		// TODO: finish up
 
 //
 //		ComputeRoutesRequest request = ComputeRoutesRequest.newBuilder()
@@ -374,7 +409,7 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	}
 
 	@Nonnull
-	protected PlacesClient createPlacesClient(@Nonnull GoogleCredentials googleCredentials) {
+	protected PlacesClient createPlacesClientForSearchText(@Nonnull GoogleCredentials googleCredentials) {
 		requireNonNull(googleCredentials);
 
 		try {
@@ -404,12 +439,38 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	}
 
 	@Nonnull
+	protected PlacesClient createPlacesClientForAutocomplete(@Nonnull GoogleCredentials googleCredentials) {
+		requireNonNull(googleCredentials);
+
+		try {
+			return PlacesClient.create(PlacesSettings.newBuilder()
+					.setCredentialsProvider(FixedCredentialsProvider.create(googleCredentials))
+					.build());
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Nonnull
 	protected RoutesClient createRoutesClient(@Nonnull GoogleCredentials googleCredentials) {
 		requireNonNull(googleCredentials);
 
 		try {
 			return RoutesClient.create(RoutesSettings.newBuilder()
 					.setCredentialsProvider(FixedCredentialsProvider.create(googleCredentials))
+					// TODO: figure out if we can specify these headers per-call instead of per-client
+					// See https://developers.google.com/maps/documentation/routes/choose_fields for options
+					.setHeaderProvider(new HeaderProvider() {
+						final String FIELD_MASK_HEADER_VALUE = List.of(
+								"routes.distanceMeters",
+								"routes.duration"
+						).stream().collect(Collectors.joining(","));
+
+						@Override
+						public Map<String, String> getHeaders() {
+							return Map.of("X-Goog-FieldMask", FIELD_MASK_HEADER_VALUE);
+						}
+					})
 					.build());
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -437,8 +498,13 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	}
 
 	@Nonnull
-	protected PlacesClient getPlacesClient() {
-		return this.placesClient;
+	protected PlacesClient getPlacesClientForSearchText() {
+		return this.placesClientForSearchText;
+	}
+
+	@Nonnull
+	protected PlacesClient getPlacesClientForAutocomplete() {
+		return this.placesClientForAutocomplete;
 	}
 
 	@Nonnull

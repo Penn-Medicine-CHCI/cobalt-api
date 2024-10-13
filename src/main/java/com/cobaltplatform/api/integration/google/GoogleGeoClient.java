@@ -30,29 +30,30 @@ import javax.annotation.Nonnull;
 public interface GoogleGeoClient extends AutoCloseable {
 	// Maps Geocoding API for basic address geocoding
 	// https://developers.google.com/maps/documentation/geocoding
-
-	// Directions API for legacy directions between 2 places
-	// https://developers.google.com/maps/documentation/directions
-
-	// Routes API for directions between 2 places
-	// https://developers.google.com/maps/documentation/routes
-
-	// Places API (New) Autocomplete (New) for autocompleting place matches for a potentially-partial input string
-	// https://developers.google.com/maps/documentation/places/web-service/place-autocomplete
-
 	@Nonnull
 	void geocode(@Nonnull String address);
 
+	// Directions API for legacy directions between 2 places
+	// https://developers.google.com/maps/documentation/directions
 	@Nonnull
 	void directions(@Nonnull String originPlaceId,
 									@Nonnull String destinationPlaceId);
 
+	// Routes API for directions between 2 places
+	// https://developers.google.com/maps/documentation/routes
 	@Nonnull
 	void route(@Nonnull String originPlaceId,
 						 @Nonnull String destinationPlaceId);
 
+	// Places API (New) Text Search for place matches for a potentially-partial input string
+	// https://developers.google.com/maps/documentation/places/web-service/search-text
 	@Nonnull
 	PlaceSearchTextResponse findPlacesBySearchText(@Nonnull PlaceSearchTextRequest placeSearchTextRequest);
+
+	// Places API (New) Place Autocomplete for "autocomplete" place matches for a potentially-partial input string
+	// https://developers.google.com/maps/documentation/places/web-service/place-autocomplete
+	@Nonnull
+	void autocompletePlaces(@Nonnull String input);
 
 	@Override
 	default void close() throws Exception {

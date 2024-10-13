@@ -21,6 +21,7 @@ package com.cobaltplatform.api.integration.google;
 
 import com.cobaltplatform.api.integration.google.request.PlaceSearchTextRequest;
 import com.cobaltplatform.api.integration.google.response.PlaceSearchTextResponse;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -45,13 +46,20 @@ public class UnsupportedGoogleGeoClient implements GoogleGeoClient {
 
 	@Nonnull
 	@Override
-	public void route(@Nonnull String originPlaceId, @Nonnull String destinationPlaceId) {
+	public void route(@Nonnull String originPlaceId,
+										@Nonnull String destinationPlaceId) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
 	@Override
 	public PlaceSearchTextResponse findPlacesBySearchText(@Nonnull PlaceSearchTextRequest placeSearchTextRequest) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	@Override
+	public void autocompletePlaces(@NotNull String input) {
 		throw new UnsupportedOperationException();
 	}
 }
