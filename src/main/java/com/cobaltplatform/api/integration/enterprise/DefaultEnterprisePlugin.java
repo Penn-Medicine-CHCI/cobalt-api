@@ -74,6 +74,9 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -97,6 +100,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	private final Configuration configuration;
 	@Nonnull
 	private final LoadingCache<ExpensiveClientCacheKey, Object> expensiveClientCache;
+	@Nonnull
+	private final Logger logger;
 
 	public DefaultEnterprisePlugin(@Nonnull InstitutionService institutionService,
 																 @Nonnull AwsSecretManagerClient awsSecretManagerClient,
@@ -109,6 +114,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		this.awsSecretManagerClient = awsSecretManagerClient;
 		this.configuration = configuration;
 		this.expensiveClientCache = createExpensiveClientCache();
+		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
@@ -212,6 +218,15 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 				.maximumSize(25)
 				.expireAfterWrite(Duration.ofMinutes(5))
 				.refreshAfterWrite(Duration.ofMinutes(1))
+				.removalListener((ExpensiveClientCacheKey key, Object value, RemovalCause removalCause) -> {
+					if (value instanceof AutoCloseable) {
+						try {
+							((AutoCloseable) value).close();
+						} catch (Throwable t) {
+							getLogger().warn(format("Unable to auto-close instance of %s removed from the cache", value.getClass()), t);
+						}
+					}
+				})
 				.build(expensiveClientCacheKey -> {
 					requireNonNull(expensiveClientCacheKey);
 
@@ -527,6 +542,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	@Nonnull
 	private LoadingCache<ExpensiveClientCacheKey, Object> getExpensiveClientCache() {
 		return this.expensiveClientCache;
+	}
+
+	@Nonnull
+	protected Logger getLogger() {
+		return this.logger;
 	}
 
 	enum ExpensiveClientCacheKey {
