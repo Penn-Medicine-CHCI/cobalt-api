@@ -19,8 +19,24 @@
 
 package com.cobaltplatform.api.integration.google;
 
-import com.cobaltplatform.api.integration.google.request.PlaceSearchTextRequest;
-import com.cobaltplatform.api.integration.google.response.PlaceSearchTextResponse;
+import com.google.maps.DirectionsApi;
+import com.google.maps.GeocodingApiRequest;
+import com.google.maps.model.DirectionsResult;
+import com.google.maps.model.DirectionsRoute;
+import com.google.maps.model.GeocodedWaypoint;
+import com.google.maps.model.GeocodingResult;
+import com.google.maps.model.TravelMode;
+import com.google.maps.model.Unit;
+import com.google.maps.places.v1.AutocompletePlacesRequest;
+import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.SearchTextRequest;
+import com.google.maps.places.v1.SearchTextResponse;
+import com.google.maps.routing.v2.ComputeRoutesRequest;
+import com.google.maps.routing.v2.ComputeRoutesResponse;
+import com.google.maps.routing.v2.RouteModifiers;
+import com.google.maps.routing.v2.RouteTravelMode;
+import com.google.maps.routing.v2.RoutingPreference;
+import com.google.maps.routing.v2.Waypoint;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -33,6 +49,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 
 import static com.soklet.util.LoggingUtils.initializeLogback;
 import static java.lang.String.format;
@@ -50,22 +68,43 @@ public class GoogleGeoClientTests {
 	@Test
 	public void testGeocode() throws Exception {
 		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
-			// TODO: finish up
-			googleGeoClient.geocode("112 Fayette St 2nd Fl Conshohocken PA 19428");
+			List<GeocodingResult> results = googleGeoClient.geocode((geoApiContext -> {
+				return new GeocodingApiRequest(geoApiContext)
+						.address("112 Fayette St 2nd Fl Conshohocken PA 19428")
+						.region("US");
+			}));
+
+			System.out.println(results);
+
+			Assert.assertTrue("No geocoding results found", results.size() > 0);
 		}
 	}
 
 	@Test
 	public void testFindPlacesBySearchText() throws Exception {
 		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
-			PlaceSearchTextRequest request = new PlaceSearchTextRequest();
-			request.setTextQuery("Transmogrify LLC 112 Fayette St Conshohocken PA 19428");
-			request.setLanguageCode("en");
-			request.setRegionCode("US");
+			SearchTextRequest searchTextRequest =
+					SearchTextRequest.newBuilder()
+							.setTextQuery("Transmogrify LLC 112 Fayette St Conshohocken PA 19428")
+							.setLanguageCode("en")
+							.setRegionCode("US")
+							//.setIncludedType("includedType-45971946")
+							//.setOpenNow(true)
+							//.setMinRating(-543315926)
+							//.setMaxResultCount(-1736124056)
+							//.addAllPriceLevels(new ArrayList<PriceLevel>())
+							//.setStrictTypeFiltering(true)
+							//.setLocationBias(SearchTextRequest.LocationBias.newBuilder().build())
+							//.setLocationRestriction(SearchTextRequest.LocationRestriction.newBuilder().build())
+							//.setEvOptions(SearchTextRequest.EVOptions.newBuilder().build())
+							//.setRoutingParameters(RoutingParameters.newBuilder().build())
+							//.setSearchAlongRouteParameters(SearchTextRequest.SearchAlongRouteParameters.newBuilder().build())
+							.build();
 
-			PlaceSearchTextResponse response = googleGeoClient.findPlacesBySearchText(request);
+			SearchTextResponse response = googleGeoClient.findPlacesBySearchText(searchTextRequest);
+			System.out.println(response);
 
-			Assert.assertTrue("No places found", response.getNormalizedPlaces().size() > 0);
+			Assert.assertTrue("No places found", response.getPlacesList().size() > 0);
 		}
 	}
 
@@ -75,27 +114,67 @@ public class GoogleGeoClientTests {
 			String originPlaceId = "ChIJ97AN5zC-xokRyT9EnG7aPzc";
 			String destinationPlaceId = "ChIJc_ABK2G-xokRVVrQ0ZZOb9c";
 
-			// TODO: finish up
-			googleGeoClient.route(originPlaceId, destinationPlaceId);
+			ComputeRoutesRequest request = ComputeRoutesRequest.newBuilder()
+					.setOrigin(Waypoint.newBuilder().setPlaceId(originPlaceId).build())
+					.setDestination(Waypoint.newBuilder().setPlaceId(destinationPlaceId).build())
+					.setTravelMode(RouteTravelMode.DRIVE)
+					.setRoutingPreference(RoutingPreference.TRAFFIC_AWARE)
+					.setComputeAlternativeRoutes(true)
+					.setRouteModifiers(RouteModifiers.newBuilder()
+							.setAvoidTolls(false)
+							.setAvoidHighways(true)
+							.setAvoidFerries(true)
+					).build();
+
+			ComputeRoutesResponse response = googleGeoClient.computeRoutes(request);
+			System.out.println(response);
+
+			Assert.assertTrue("No routes found", response.getRoutesCount() > 0);
 		}
 	}
 
 	@Test
 	public void testDirections() throws Exception {
 		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
-			String originPlaceId = "ChIJ97AN5zC-xokRyT9EnG7aPzc";
-			String destinationPlaceId = "ChIJc_ABK2G-xokRVVrQ0ZZOb9c";
+			String originPlaceId = "place_id:ChIJ97AN5zC-xokRyT9EnG7aPzc";
+			String destinationPlaceId = "place_id:ChIJc_ABK2G-xokRVVrQ0ZZOb9c";
 
-			// TODO: finish up
-			googleGeoClient.directions(originPlaceId, destinationPlaceId);
+			DirectionsResult result = googleGeoClient.directions((geoApiContext -> {
+				return DirectionsApi.newRequest(geoApiContext)
+						.mode(TravelMode.DRIVING)
+						.avoid(
+								DirectionsApi.RouteRestriction.HIGHWAYS,
+								DirectionsApi.RouteRestriction.TOLLS
+						)
+						.units(Unit.IMPERIAL)
+						.region("US")
+						.language("en")
+						.origin(originPlaceId)
+						.destination(destinationPlaceId);
+			}));
+
+			List<DirectionsRoute> directionsRoutes = result.routes == null ? List.of() : Arrays.stream(result.routes).toList();
+			List<GeocodedWaypoint> geocodedWaypoints = result.geocodedWaypoints == null ? List.of() : Arrays.stream(result.geocodedWaypoints).toList();
+
+			System.out.println(result);
+
+			Assert.assertTrue("No directions found", directionsRoutes.size() > 0);
+			Assert.assertTrue("No geocoded waypoints found", geocodedWaypoints.size() > 0);
 		}
 	}
 
 	@Test
 	public void testAutocomplete() throws Exception {
 		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
-			// TODO: finish up
-			googleGeoClient.autocompletePlaces("Transmogri");
+			AutocompletePlacesResponse response = googleGeoClient.autocompletePlaces(AutocompletePlacesRequest.newBuilder()
+					.setInput("Transmogri")
+					.setLanguageCode("en")
+					.setRegionCode("US")
+					.build());
+
+			System.out.println(response);
+
+			Assert.assertTrue("No autocomplete suggestions found", response.getSuggestionsList().size() > 0);
 		}
 	}
 
