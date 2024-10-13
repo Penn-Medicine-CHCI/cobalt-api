@@ -239,7 +239,7 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 			}
 
 			// Handle edge case where locality (city) can be missing, but it's available via administrative area level 3
-			if(locality == null)
+			if (locality == null)
 				locality = administrativeAreaLevel3;
 
 			List<String> streetNumberAndRouteComponents = new ArrayList<>();
@@ -417,6 +417,11 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	}
 
 	@Nonnull
+	public String getProjectId() {
+		return this.projectId;
+	}
+
+	@Nonnull
 	protected GoogleCredentials getGoogleCredentials() {
 		return this.googleCredentials;
 	}
@@ -429,11 +434,6 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	@Nonnull
 	protected GeoApiContext getGeoApiContext() {
 		return this.geoApiContext;
-	}
-
-	@Nonnull
-	protected String getProjectId() {
-		return this.projectId;
 	}
 
 	@Nonnull
