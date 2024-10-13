@@ -19,12 +19,22 @@
 
 package com.cobaltplatform.api.integration.google;
 
-import com.cobaltplatform.api.integration.google.request.PlaceSearchTextRequest;
-import com.cobaltplatform.api.integration.google.response.PlaceSearchTextResponse;
-import org.jetbrains.annotations.NotNull;
+import com.google.maps.DirectionsApiRequest;
+import com.google.maps.GeoApiContext;
+import com.google.maps.GeocodingApiRequest;
+import com.google.maps.model.DirectionsResult;
+import com.google.maps.model.GeocodingResult;
+import com.google.maps.places.v1.AutocompletePlacesRequest;
+import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.SearchTextRequest;
+import com.google.maps.places.v1.SearchTextResponse;
+import com.google.maps.routing.v2.ComputeRoutesRequest;
+import com.google.maps.routing.v2.ComputeRoutesResponse;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * @author Transmogrify, LLC.
@@ -33,33 +43,31 @@ import javax.annotation.concurrent.ThreadSafe;
 public class UnsupportedGoogleGeoClient implements GoogleGeoClient {
 	@Nonnull
 	@Override
-	public void geocode(@Nonnull String address) {
+	public List<GeocodingResult> geocode(@Nonnull Function<GeoApiContext, GeocodingApiRequest> geocodingApiRequestProvider) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
 	@Override
-	public void directions(@Nonnull String originPlaceId,
-												 @Nonnull String destinationPlaceId) {
+	public DirectionsResult directions(@Nonnull Function<GeoApiContext, DirectionsApiRequest> directionsApiRequestProvider) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
 	@Override
-	public void route(@Nonnull String originPlaceId,
-										@Nonnull String destinationPlaceId) {
+	public ComputeRoutesResponse computeRoutes(@Nonnull ComputeRoutesRequest request) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
 	@Override
-	public PlaceSearchTextResponse findPlacesBySearchText(@Nonnull PlaceSearchTextRequest placeSearchTextRequest) {
+	public SearchTextResponse findPlacesBySearchText(@Nonnull SearchTextRequest searchTextRequest) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
 	@Override
-	public void autocompletePlaces(@NotNull String input) {
+	public AutocompletePlacesResponse autocompletePlaces(@Nonnull AutocompletePlacesRequest request) {
 		throw new UnsupportedOperationException();
 	}
 }

@@ -19,10 +19,21 @@
 
 package com.cobaltplatform.api.integration.google;
 
-import com.cobaltplatform.api.integration.google.request.PlaceSearchTextRequest;
-import com.cobaltplatform.api.integration.google.response.PlaceSearchTextResponse;
+import com.google.maps.DirectionsApiRequest;
+import com.google.maps.GeoApiContext;
+import com.google.maps.GeocodingApiRequest;
+import com.google.maps.model.DirectionsResult;
+import com.google.maps.model.GeocodingResult;
+import com.google.maps.places.v1.AutocompletePlacesRequest;
+import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.SearchTextRequest;
+import com.google.maps.places.v1.SearchTextResponse;
+import com.google.maps.routing.v2.ComputeRoutesRequest;
+import com.google.maps.routing.v2.ComputeRoutesResponse;
 
 import javax.annotation.Nonnull;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * @author Transmogrify, LLC.
@@ -31,29 +42,27 @@ public interface GoogleGeoClient extends AutoCloseable {
 	// Maps Geocoding API for basic address geocoding
 	// https://developers.google.com/maps/documentation/geocoding
 	@Nonnull
-	void geocode(@Nonnull String address);
+	List<GeocodingResult> geocode(@Nonnull Function<GeoApiContext, GeocodingApiRequest> geocodingApiRequestProvider);
 
 	// Directions API for legacy directions between 2 places
 	// https://developers.google.com/maps/documentation/directions
 	@Nonnull
-	void directions(@Nonnull String originPlaceId,
-									@Nonnull String destinationPlaceId);
+	DirectionsResult directions(@Nonnull Function<GeoApiContext, DirectionsApiRequest> directionsApiRequestProvider);
 
 	// Routes API for directions between 2 places
 	// https://developers.google.com/maps/documentation/routes
 	@Nonnull
-	void route(@Nonnull String originPlaceId,
-						 @Nonnull String destinationPlaceId);
+	ComputeRoutesResponse computeRoutes(@Nonnull ComputeRoutesRequest request);
 
 	// Places API (New) Text Search for place matches for a potentially-partial input string
 	// https://developers.google.com/maps/documentation/places/web-service/search-text
 	@Nonnull
-	PlaceSearchTextResponse findPlacesBySearchText(@Nonnull PlaceSearchTextRequest placeSearchTextRequest);
+	SearchTextResponse findPlacesBySearchText(@Nonnull SearchTextRequest searchTextRequest);
 
 	// Places API (New) Place Autocomplete for "autocomplete" place matches for a potentially-partial input string
 	// https://developers.google.com/maps/documentation/places/web-service/place-autocomplete
 	@Nonnull
-	void autocompletePlaces(@Nonnull String input);
+	AutocompletePlacesResponse autocompletePlaces(@Nonnull AutocompletePlacesRequest request);
 
 	@Override
 	default void close() throws Exception {

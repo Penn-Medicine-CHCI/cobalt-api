@@ -19,38 +19,29 @@
 
 package com.cobaltplatform.api.integration.google;
 
-import com.cobaltplatform.api.integration.google.request.PlaceSearchTextRequest;
-import com.cobaltplatform.api.integration.google.response.PlaceSearchTextResponse;
-import com.cobaltplatform.api.integration.google.response.PlaceSearchTextResponse.NormalizedPlace;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import com.google.maps.DirectionsApi;
 import com.google.maps.DirectionsApiRequest;
 import com.google.maps.GeoApiContext;
-import com.google.maps.GeocodingApi;
 import com.google.maps.GeocodingApiRequest;
 import com.google.maps.errors.ApiException;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.GeocodingResult;
-import com.google.maps.model.TravelMode;
-import com.google.maps.model.Unit;
 import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
-import com.google.maps.places.v1.Place;
-import com.google.maps.places.v1.Place.AddressComponent;
 import com.google.maps.places.v1.PlacesClient;
 import com.google.maps.places.v1.PlacesSettings;
 import com.google.maps.places.v1.SearchTextRequest;
 import com.google.maps.places.v1.SearchTextResponse;
+import com.google.maps.routing.v2.ComputeRoutesRequest;
+import com.google.maps.routing.v2.ComputeRoutesResponse;
 import com.google.maps.routing.v2.RoutesClient;
 import com.google.maps.routing.v2.RoutesSettings;
-import com.google.type.LatLng;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -61,11 +52,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -153,248 +143,58 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 
 	@Nonnull
 	@Override
-	public void geocode(@Nonnull String address) {
-		requireNonNull(address);
+	public List<GeocodingResult> geocode(@Nonnull Function<GeoApiContext, GeocodingApiRequest> geocodingApiRequestProvider) {
+		requireNonNull(geocodingApiRequestProvider);
 
-		// TODO: finish up
+		GeocodingApiRequest request = geocodingApiRequestProvider.apply(getGeoApiContext());
 
-		GeocodingApiRequest request = GeocodingApi.geocode(getGeoApiContext(), address).region("us");
-		GeocodingResult[] geocodingResults;
-
-		try {
-			geocodingResults = request.await();
-		} catch (ApiException | InterruptedException | IOException e) {
-			throw new RuntimeException(format("An error occurred while attempting to geocode address '%s'", address), e);
-		}
-
-		System.out.println(new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(geocodingResults));
-	}
-
-	@Nonnull
-	@Override
-	public void autocompletePlaces(@Nonnull String input) {
-		requireNonNull(input);
-
-		// TODO: finish up
-
-		AutocompletePlacesRequest request = AutocompletePlacesRequest.newBuilder()
-				.setInput(input)
-				.setLanguageCode("en")
-				.setRegionCode("US")
-				.build();
-
-		AutocompletePlacesResponse response = getPlacesClientForAutocomplete().autocompletePlaces(request);
-
-		System.out.println(new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(response));
-	}
-
-	@Nonnull
-	@Override
-	public PlaceSearchTextResponse findPlacesBySearchText(@Nonnull PlaceSearchTextRequest placeSearchTextRequest) {
-		requireNonNull(placeSearchTextRequest);
-
-		// TODO: finish up
-
-		SearchTextRequest searchTextRequest =
-				SearchTextRequest.newBuilder()
-						.setTextQuery(placeSearchTextRequest.getTextQuery())
-						.setLanguageCode(placeSearchTextRequest.getLanguageCode())
-						.setRegionCode(placeSearchTextRequest.getRegionCode())
-						//.setIncludedType("includedType-45971946")
-						//.setOpenNow(true)
-						//.setMinRating(-543315926)
-						//.setMaxResultCount(-1736124056)
-						//.addAllPriceLevels(new ArrayList<PriceLevel>())
-						//.setStrictTypeFiltering(true)
-						//.setLocationBias(SearchTextRequest.LocationBias.newBuilder().build())
-						//.setLocationRestriction(SearchTextRequest.LocationRestriction.newBuilder().build())
-						//.setEvOptions(SearchTextRequest.EVOptions.newBuilder().build())
-						//.setRoutingParameters(RoutingParameters.newBuilder().build())
-						//.setSearchAlongRouteParameters(SearchTextRequest.SearchAlongRouteParameters.newBuilder().build())
-						.build();
-
-		SearchTextResponse searchTextResponse = getPlacesClientForSearchText().searchText(searchTextRequest);
-
-		List<Place> rawPlaces = searchTextResponse.getPlacesList();
-		List<NormalizedPlace> normalizedPlaces = new ArrayList<>(rawPlaces.size());
-
-		for (Place place : rawPlaces) {
-			LatLng location = place.getLocation();
-			List<AddressComponent> addressComponents = place.getAddressComponentsList();
-
-			String googlePlaceId = place.getId();
-			String formattedAddress = place.getFormattedAddress();
-			Double latitude = location.getLatitude();
-			Double longitude = location.getLongitude();
-			String streetNumber = null;
-			String route = null;
-			String streetNumberAndRoute = null; // 123 Fake St.
-			String premise = null; // e.g. Building Name
-			String subpremise = null; // e.g. "2nd Fl" or "Suite 3"
-			String locality = null;
-			String administrativeAreaLevel3 = null;
-			String region = null;
-			String regionSubdivision = null;
-			String postalCode = null;
-			String postalCodeSuffix = null;
-			String countryCode = null;
-
-			for (AddressComponent addressComponent : addressComponents) {
-				Set<String> types = new HashSet<>(addressComponent.getTypesList());
-
-				if (types.contains("premise")) {
-					premise = addressComponent.getLongText(); // e.g. "Chrysler Building"
-				} else if (types.contains("subpremise")) {
-					subpremise = addressComponent.getLongText(); // e.g. "2nd Fl" or "Suite 3"
-
-					// If it's just a number and nothing else, put a "#" in front for consistency
-					if (subpremise != null && subpremise.matches("\\d+"))
-						subpremise = format("# %s", subpremise);
-				} else if (types.contains("street_number")) {
-					streetNumber = addressComponent.getLongText(); // e.g. "123"
-				} else if (types.contains("route")) {
-					route = addressComponent.getLongText(); // e.g. "Fake St."
-				} else if (types.contains("locality")) {
-					locality = addressComponent.getLongText(); // e.g. "Philadelphia"
-				} else if (types.contains("administrative_area_level_1")) {
-					region = addressComponent.getShortText(); // e.g. "PA"
-				} else if (types.contains("administrative_area_level_2")) {
-					regionSubdivision = addressComponent.getShortText(); // e.g. "Montgomery County"
-				} else if (types.contains("administrative_area_level_3")) {
-					administrativeAreaLevel3 = addressComponent.getLongText(); // Sometimes city (administrative_area_level_1) is missing, this can be used to replace it
-				} else if (types.contains("postal_code")) {
-					postalCode = addressComponent.getLongText(); // e.g. "19119"
-				} else if (types.contains("postal_code_suffix")) {
-					postalCodeSuffix = addressComponent.getLongText(); // e.g. "1725"
-				} else if (types.contains("country")) {
-					countryCode = addressComponent.getShortText(); // e.g. "US"
-				}
-			}
-
-			// Handle edge case where locality (city) can be missing, but it's available via administrative area level 3
-			if (locality == null)
-				locality = administrativeAreaLevel3;
-
-			List<String> streetNumberAndRouteComponents = new ArrayList<>();
-
-			if (streetNumber != null)
-				streetNumberAndRouteComponents.add(streetNumber);
-			if (route != null)
-				streetNumberAndRouteComponents.add(route);
-
-			streetNumberAndRoute = streetNumberAndRouteComponents.size() == 0 ? null : streetNumberAndRouteComponents.stream().collect(Collectors.joining(" "));
-
-			// Figure out address lines 1, 2, and 3
-			List<String> addressLines = new ArrayList<>();
-
-			if (premise != null)
-				addressLines.add(premise);
-
-			if (streetNumberAndRoute != null)
-				addressLines.add(streetNumberAndRoute);
-
-			if (subpremise != null)
-				addressLines.add(subpremise);
-
-			String streetAddress1 = addressLines.size() > 0 ? addressLines.get(0) : null;
-			String streetAddress2 = addressLines.size() > 1 ? addressLines.get(1) : null;
-			String streetAddress3 = addressLines.size() > 2 ? addressLines.get(2) : null;
-
-			NormalizedPlace normalizedPlace = new NormalizedPlace();
-			normalizedPlace.setGooglePlaceId(googlePlaceId);
-			normalizedPlace.setLatitude(latitude);
-			normalizedPlace.setLongitude(longitude);
-			normalizedPlace.setPremise(premise);
-			normalizedPlace.setSubpremise(subpremise);
-			normalizedPlace.setFormattedAddress(formattedAddress);
-			normalizedPlace.setStreetAddress1(streetAddress1);
-			normalizedPlace.setStreetAddress2(streetAddress2);
-			normalizedPlace.setStreetAddress3(streetAddress3);
-			normalizedPlace.setLocality(locality);
-			normalizedPlace.setRegion(region);
-			normalizedPlace.setRegionSubdivision(regionSubdivision);
-			normalizedPlace.setPostalCode(postalCode);
-			normalizedPlace.setPostalCodeSuffix(postalCodeSuffix);
-			normalizedPlace.setCountryCode(countryCode);
-			normalizedPlace.setGoogleMapsUrl(place.getGoogleMapsUri());
-
-			normalizedPlaces.add(normalizedPlace);
-		}
-
-		//System.out.println(new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(response));
-
-		PlaceSearchTextResponse placeSearchTextResponse = new PlaceSearchTextResponse();
-		placeSearchTextResponse.setNormalizedPlaces(normalizedPlaces);
-		placeSearchTextResponse.setRawPlaces(rawPlaces);
-
-		return placeSearchTextResponse;
-	}
-
-	@Nonnull
-	@Override
-	public void directions(@Nonnull String originPlaceId,
-												 @Nonnull String destinationPlaceId) {
-		requireNonNull(originPlaceId);
-		requireNonNull(destinationPlaceId);
-
-		// TODO: finish up
-
-		if (!originPlaceId.startsWith("place_id:"))
-			originPlaceId = "place_id:" + originPlaceId;
-
-		if (!destinationPlaceId.startsWith("place_id:"))
-			destinationPlaceId = "place_id:" + destinationPlaceId;
-
-		DirectionsApiRequest request = DirectionsApi.newRequest(getGeoApiContext())
-				.mode(TravelMode.DRIVING)
-				.avoid(
-						DirectionsApi.RouteRestriction.HIGHWAYS,
-						DirectionsApi.RouteRestriction.TOLLS,
-						DirectionsApi.RouteRestriction.FERRIES
-				)
-				.units(Unit.IMPERIAL)
-				.region("us")
-				.origin(originPlaceId)
-				.destination(destinationPlaceId);
-
-		DirectionsResult directionsResult;
+		if (request == null)
+			throw new NullPointerException("Geocoding API Request was null");
 
 		try {
-			directionsResult = request.await();
+			GeocodingResult[] geocodingResults = request.await();
+			return Arrays.stream(geocodingResults).toList();
 		} catch (ApiException | InterruptedException | IOException e) {
-			throw new RuntimeException(format("An error occurred while attempting to get directions from " +
-					"origin place ID %s to destination place ID %s", originPlaceId, destinationPlaceId), e);
+			throw new RuntimeException(format("An error occurred while attempting to geocode request '%s'", request), e);
 		}
-
-		System.out.println(new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(directionsResult));
 	}
 
 	@Nonnull
 	@Override
-	public void route(@Nonnull String originPlaceId,
-										@Nonnull String destinationPlaceId) {
-		requireNonNull(originPlaceId);
-		requireNonNull(destinationPlaceId);
+	public AutocompletePlacesResponse autocompletePlaces(@Nonnull AutocompletePlacesRequest request) {
+		requireNonNull(request);
+		return getPlacesClientForAutocomplete().autocompletePlaces(request);
+	}
 
-		// TODO: finish up
+	@Nonnull
+	@Override
+	public SearchTextResponse findPlacesBySearchText(@Nonnull SearchTextRequest searchTextRequest) {
+		requireNonNull(searchTextRequest);
+		return getPlacesClientForSearchText().searchText(searchTextRequest);
+	}
 
-//
-//		ComputeRoutesRequest request = ComputeRoutesRequest.newBuilder()
-//				.setOrigin(createWaypointForLatLng(37.420761, -122.081356))
-//				.setDestination(createWaypointForLatLng(37.420999, -122.086894)).setTravelMode(RouteTravelMode.DRIVE)
-//				.setRoutingPreference(RoutingPreference.TRAFFIC_AWARE).setComputeAlternativeRoutes(true)
-//				.setRouteModifiers(
-//						RouteModifiers.newBuilder().setAvoidTolls(false).setAvoidHighways(true).setAvoidFerries(true))
-//				.setPolylineQuality(PolylineQuality.OVERVIEW).build();
-//		ComputeRoutesResponse response;
-//		try {
-//			logger.info("About to send request: " + request.toString());
-//			response = blockingStub.withDeadlineAfter(2000, TimeUnit.MILLISECONDS).computeRoutes(request);
-//		} catch (StatusRuntimeException e) {
-//			logger.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
-//			return;
-//		}
-//		logger.info("Response: " + response.toString());
+	@Nonnull
+	@Override
+	public DirectionsResult directions(@Nonnull Function<GeoApiContext, DirectionsApiRequest> directionsApiRequestProvider) {
+		requireNonNull(directionsApiRequestProvider);
+
+		DirectionsApiRequest request = directionsApiRequestProvider.apply(getGeoApiContext());
+
+		if (request == null)
+			throw new NullPointerException("Directions API Request was null");
+
+		try {
+			return request.await();
+		} catch (ApiException | InterruptedException | IOException e) {
+			throw new RuntimeException(format("An error occurred while attempting to perform directions request '%s'", request), e);
+		}
+	}
+
+	@Nonnull
+	@Override
+	public ComputeRoutesResponse computeRoutes(@Nonnull ComputeRoutesRequest request) {
+		requireNonNull(request);
+		return getRoutesClient().computeRoutes(request);
 	}
 
 	@Nonnull
