@@ -19,9 +19,11 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify LLC.
@@ -77,15 +79,16 @@ public class AwsSecretManagerClient {
 	}
 
 	@Nonnull
-	public String getSecretString(@Nonnull String name) {
+	public Optional<String> getSecretString(@Nonnull String name) {
 		requireNonNull(name);
 
 		GetSecretValueResponse response = getSecret(name);
-		if (response.secretString() != null) {
-			return response.secretString();
-		} else {
-			throw new ConfigurationException(format("Unable to find string secret for %s", name));
-		}
+		String secretString = trimToNull(response.secretString());
+
+		if (secretString != null)
+			return Optional.of(secretString);
+
+		return Optional.empty();
 	}
 
 	@Nonnull
