@@ -110,7 +110,21 @@
             <dependency>
                 <groupId>com.google.cloud</groupId>
                 <artifactId>libraries-bom</artifactId>
-                <version>26.20.0</version>
+                <version>26.48.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.maps</groupId>
+                <artifactId>google-maps-places-bom</artifactId>
+                <version>0.23.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.maps</groupId>
+                <artifactId>google-maps-routing-bom</artifactId>
+                <version>1.37.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -180,10 +194,26 @@
         <dependency>
             <groupId>com.google.analytics</groupId>
             <artifactId>google-analytics-data</artifactId>
-            <version>0.16.0</version>
+            <version>0.63.0</version>
         </dependency>
 
-          <dependency>
+        <dependency>
+            <groupId>com.google.maps</groupId>
+            <artifactId>google-maps-services</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.maps</groupId>
+            <artifactId>google-maps-routing</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.maps</groupId>
+            <artifactId>google-maps-places</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
         </dependency>
@@ -298,6 +328,13 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
             <version>1.9</version>
+        </dependency>
+
+        <!-- Needed by google-analytics-data, which has a JUL dependency -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>2.0.16</version>
         </dependency>
 
         <dependency>
@@ -448,13 +485,20 @@
         <dependency>
             <groupId>org.graalvm.js</groupId>
             <artifactId>js</artifactId>
-            <version>22.3.2</version>
+            <version>24.1.0</version>
+            <type>pom</type>
         </dependency>
 
         <dependency>
             <groupId>org.graalvm.js</groupId>
             <artifactId>js-scriptengine</artifactId>
-            <version>22.3.2</version>
+            <version>24.1.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>polyglot</artifactId>
+            <version>24.1.0</version>
         </dependency>
 
         <dependency>

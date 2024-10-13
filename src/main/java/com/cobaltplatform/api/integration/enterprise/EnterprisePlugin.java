@@ -24,8 +24,10 @@ import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.GoogleGeoClient;
 import com.cobaltplatform.api.integration.google.MockGoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.MockGoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.UnsupportedGoogleGeoClient;
 import com.cobaltplatform.api.integration.hl7.model.section.Hl7OrderSection;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
@@ -163,6 +165,11 @@ public interface EnterprisePlugin {
 	@Nonnull
 	default GoogleAnalyticsDataClient googleAnalyticsDataClient() {
 		return new MockGoogleAnalyticsDataClient();
+	}
+
+	@Nonnull
+	default GoogleGeoClient googleGeoClient() {
+		return new UnsupportedGoogleGeoClient();
 	}
 
 	@Nonnull
