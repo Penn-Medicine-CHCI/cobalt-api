@@ -192,11 +192,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private BirthSexId patientBirthSexId;
 	@Nullable
-	private PreferredPronounId preferredPronounId;
+	private PreferredPronounId patientPreferredPronounId;
 	@Nullable
-	private ClinicalSexId clinicalSexId;
+	private ClinicalSexId patientClinicalSexId;
 	@Nullable
-	private LegalSexId legalSexId;
+	private LegalSexId patientLegalSexId;
 	@Nullable
 	private LocalDate patientBirthdate;
 	@Nullable
@@ -843,9 +843,9 @@ public class PatientOrderApiResponse {
 		this.patientEthnicityId = patientOrder.getPatientEthnicityId();
 		this.patientRaceId = patientOrder.getPatientRaceId();
 		this.patientGenderIdentityId = patientOrder.getPatientGenderIdentityId();
-		this.preferredPronounId = patientOrder.getPreferredPronounId();
-		this.clinicalSexId = patientOrder.getClinicalSexId();
-		this.legalSexId = patientOrder.getLegalSexId();
+		this.patientPreferredPronounId = patientOrder.getPatientPreferredPronounId();
+		this.patientClinicalSexId = patientOrder.getPatientClinicalSexId();
+		this.patientLegalSexId = patientOrder.getPatientLegalSexId();
 		this.patientLanguageCode = patientOrder.getPatientLanguageCode();
 		this.patientEmailAddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
@@ -1397,18 +1397,18 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
-	public PreferredPronounId getPreferredPronounId() {
-		return this.preferredPronounId;
+	public PreferredPronounId getPatientPreferredPronounId() {
+		return this.patientPreferredPronounId;
 	}
 
 	@Nullable
-	public ClinicalSexId getClinicalSexId() {
-		return this.clinicalSexId;
+	public ClinicalSexId getPatientClinicalSexId() {
+		return this.patientClinicalSexId;
 	}
 
 	@Nullable
-	public LegalSexId getLegalSexId() {
-		return this.legalSexId;
+	public LegalSexId getPatientLegalSexId() {
+		return this.patientLegalSexId;
 	}
 
 	@Nullable

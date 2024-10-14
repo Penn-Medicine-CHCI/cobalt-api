@@ -93,6 +93,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGro
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.Flowsheet;
@@ -100,6 +101,7 @@ import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGro
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference;
@@ -150,6 +152,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageOverrideReason.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -944,7 +947,7 @@ public class PatientOrderService implements AutoCloseable {
 		// CLOSED
 		// We do a separate query here because it's fast
 		patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.CLOSED, findPatientOrderDispositionCountForInstitutionId(institutionId, panelAccountId, PatientOrderDispositionId.CLOSED));
-		
+
 		return patientOrderCountsByPatientOrderViewTypeId;
 	}
 
@@ -6218,6 +6221,10 @@ public class PatientOrderService implements AutoCloseable {
 						EthnicityId ethnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
 						RaceId raceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
 						BirthSexId birthSexId = patientSearchResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
+						GenderIdentityId genderIdentityId = patientSearchResponse.extractGenderIdentityId().orElse(GenderIdentityId.NOT_ASKED);
+						PreferredPronounId preferredPronounId = patientSearchResponse.extractPreferredPronounId().orElse(PreferredPronounId.NOT_ASKED);
+						ClinicalSexId clinicalSexId = patientSearchResponse.extractClinicalSexId().orElse(ClinicalSexId.NOT_ASKED);
+						LegalSexId legalSexId = patientSearchResponse.extractLegalSexId().orElse(LegalSexId.NOT_ASKED);
 
 						getDatabase().execute("""
 										UPDATE patient_order
@@ -6225,10 +6232,15 @@ public class PatientOrderService implements AutoCloseable {
 										patient_ethnicity_id=?,
 										patient_race_id=?,
 										patient_birth_sex_id=?,
+										patient_gender_identity_id=?,
+										patient_preferred_pronoun_id=?,
+										patient_clinical_sex_id=?,
+										patient_legal_sex_id=?,
 										patient_demographics_imported_at=NOW()
 										WHERE patient_order_id=?
 										""", PatientOrderDemographicsImportStatusId.IMPORTED,
-								ethnicityId, raceId, birthSexId, demographicsImportNeededPatientOrder.getPatientOrderId());
+								ethnicityId, raceId, birthSexId, genderIdentityId, preferredPronounId, clinicalSexId, legalSexId,
+								demographicsImportNeededPatientOrder.getPatientOrderId());
 					} catch (Exception e) {
 						getLogger().error(format("Unable to import patient demographics information for patient order ID %s",
 								demographicsImportNeededPatientOrder.getPatientOrderId()), e);

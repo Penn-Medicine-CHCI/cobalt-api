@@ -137,11 +137,11 @@ public class RawPatientOrder {
 	@Nullable
 	private BirthSexId patientBirthSexId;
 	@Nullable
-	private PreferredPronounId preferredPronounId;
+	private PreferredPronounId patientPreferredPronounId;
 	@Nullable
-	private ClinicalSexId clinicalSexId;
+	private ClinicalSexId patientClinicalSexId;
 	@Nullable
-	private LegalSexId legalSexId;
+	private LegalSexId patientLegalSexId;
 	@Nullable
 	private PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId;
 	@Nullable
@@ -603,30 +603,30 @@ public class RawPatientOrder {
 	}
 
 	@Nullable
-	public PreferredPronounId getPreferredPronounId() {
-		return this.preferredPronounId;
+	public PreferredPronounId getPatientPreferredPronounId() {
+		return this.patientPreferredPronounId;
 	}
 
-	public void setPreferredPronounId(@Nullable PreferredPronounId preferredPronounId) {
-		this.preferredPronounId = preferredPronounId;
-	}
-
-	@Nullable
-	public ClinicalSexId getClinicalSexId() {
-		return this.clinicalSexId;
-	}
-
-	public void setClinicalSexId(@Nullable ClinicalSexId clinicalSexId) {
-		this.clinicalSexId = clinicalSexId;
+	public void setPatientPreferredPronounId(@Nullable PreferredPronounId patientPreferredPronounId) {
+		this.patientPreferredPronounId = patientPreferredPronounId;
 	}
 
 	@Nullable
-	public LegalSexId getLegalSexId() {
-		return this.legalSexId;
+	public ClinicalSexId getPatientClinicalSexId() {
+		return this.patientClinicalSexId;
 	}
 
-	public void setLegalSexId(@Nullable LegalSexId legalSexId) {
-		this.legalSexId = legalSexId;
+	public void setPatientClinicalSexId(@Nullable ClinicalSexId patientClinicalSexId) {
+		this.patientClinicalSexId = patientClinicalSexId;
+	}
+
+	@Nullable
+	public LegalSexId getPatientLegalSexId() {
+		return this.patientLegalSexId;
+	}
+
+	public void setPatientLegalSexId(@Nullable LegalSexId patientLegalSexId) {
+		this.patientLegalSexId = patientLegalSexId;
 	}
 
 	@Nullable

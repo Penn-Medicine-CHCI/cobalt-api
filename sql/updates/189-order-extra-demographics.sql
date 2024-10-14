@@ -51,15 +51,15 @@ INSERT INTO legal_sex (legal_sex_id, description, display_order) VALUES ('UNDIFF
 INSERT INTO legal_sex (legal_sex_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 5);
 
 -- Add new columns
-ALTER TABLE patient_order ADD COLUMN preferred_pronoun_id TEXT NOT NULL REFERENCES preferred_pronoun DEFAULT 'NOT_ASKED';
-ALTER TABLE patient_order ADD COLUMN clinical_sex_id TEXT NOT NULL REFERENCES clinical_sex DEFAULT 'NOT_ASKED';
-ALTER TABLE patient_order ADD COLUMN legal_sex_id TEXT NOT NULL REFERENCES legal_sex DEFAULT 'NOT_ASKED';
+ALTER TABLE patient_order ADD COLUMN patient_preferred_pronoun_id TEXT NOT NULL REFERENCES preferred_pronoun (preferred_pronoun_id) DEFAULT 'NOT_ASKED';
+ALTER TABLE patient_order ADD COLUMN patient_clinical_sex_id TEXT NOT NULL REFERENCES clinical_sex (clinical_sex_id) DEFAULT 'NOT_ASKED';
+ALTER TABLE patient_order ADD COLUMN patient_legal_sex_id TEXT NOT NULL REFERENCES legal_sex (legal_sex_id) DEFAULT 'NOT_ASKED';
 
 -- With these new columns, we need to recreate our patient order views.
 drop view v_patient_order;
 drop view v_all_patient_order;
 
--- Adds preferred_pronoun_id, clinical_sex_id, and legal_sex_id.
+-- Adds patient_preferred_pronoun_id, patient_clinical_sex_id, and patient_legal_sex_id.
 -- No actual change to view code here because they are pulled in by "poq.*" in the FROM clause.
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (

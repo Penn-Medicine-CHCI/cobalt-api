@@ -193,6 +193,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/185-foreign-ta
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/186-remote-tracking-for-data-sync.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/187-content-spring-cleaning.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/188-data-sync.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/189-order-extra-demographics.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
