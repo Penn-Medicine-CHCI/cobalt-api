@@ -21,7 +21,6 @@ package com.cobaltplatform.api.service;
 
 
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
-import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceSpecialty;
@@ -29,7 +28,6 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Payor;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
-import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -38,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -46,7 +43,6 @@ import javax.inject.Singleton;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -65,44 +61,20 @@ public class CareResourceService {
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
-	private final Authenticator authenticator;
-	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
-	@Nonnull
-	private final Provider<SystemService> systemServiceProvider;
-	@Nonnull
-	private final Object backgroundTaskLock;
-	@Nonnull
-	private Boolean backgroundTaskStarted;
-	@Nullable
-	private ScheduledExecutorService backgroundTaskExecutorService;
-
-	@Nonnull
-	private final Provider<MessageService> messageServiceProvider;
 
 	@Inject
 	public CareResourceService(@Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Strings strings,
-														 @Nonnull Authenticator authenticator,
-														 @Nonnull Provider<AccountService> accountServiceProvider,
-														 @Nonnull Provider<SystemService> systemServiceProvider,
-														 @Nonnull Provider<MessageService> messageServiceProvider) {
+														 @Nonnull Provider<AccountService> accountServiceProvider) {
 		requireNonNull(databaseProvider);
 		requireNonNull(strings);
-		requireNonNull(authenticator);
 		requireNonNull(accountServiceProvider);
-		requireNonNull(systemServiceProvider);
-		requireNonNull(messageServiceProvider);
 
 		this.databaseProvider = databaseProvider;
 		this.strings = strings;
-		this.authenticator = authenticator;
 		this.accountServiceProvider = accountServiceProvider;
-		this.systemServiceProvider = systemServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
-		this.backgroundTaskLock = new Object();
-		this.backgroundTaskStarted = false;
-		this.messageServiceProvider = messageServiceProvider;
 	}
 
 	public List<Payor> findPayors() {
@@ -259,18 +231,8 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	protected Authenticator getAuthenticator() {
-		return this.authenticator;
-	}
-
-	@Nonnull
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
-	}
-
-	@Nonnull
-	protected SystemService getSystemService() {
-		return this.systemServiceProvider.get();
 	}
 
 	@Nonnull
@@ -278,18 +240,4 @@ public class CareResourceService {
 		return this.logger;
 	}
 
-	@Nonnull
-	protected Object getBackgroundTaskLock() {
-		return this.backgroundTaskLock;
-	}
-
-	@Nonnull
-	protected Optional<ScheduledExecutorService> getBackgroundTaskExecutorService() {
-		return Optional.ofNullable(this.backgroundTaskExecutorService);
-	}
-
-	@Nonnull
-	protected MessageService getMessageService() {
-		return this.messageServiceProvider.get();
-	}
 }
