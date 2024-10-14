@@ -20,15 +20,19 @@
 package com.cobaltplatform.api.integration.epic.response;
 
 import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
+import com.cobaltplatform.api.integration.epic.code.ClinicalSexCode;
 import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
 import com.cobaltplatform.api.integration.epic.code.GenderIdentityCode;
+import com.cobaltplatform.api.integration.epic.code.LegalSexCode;
 import com.cobaltplatform.api.integration.epic.code.PreferredPronounCode;
 import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension.EmbeddedExtension;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
@@ -363,7 +367,7 @@ public class PatientSearchResponse {
 		// Found FHIR extension, let's try to use it.
 		if (matchingExtension != null) {
 			PreferredPronounCode preferredPronounCode = null;
-			
+
 			if (matchingExtension.getValueCodeableConcept() != null)
 				preferredPronounCode = PreferredPronounCode.fromFhirValue(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
 
@@ -403,6 +407,102 @@ public class PatientSearchResponse {
 			return Optional.of(PreferredPronounId.YO_YO_YOS_YOS_YOSELF);
 		if (preferredPronounCode == PreferredPronounCode.VE_VIS_VER_VER_VERSELF)
 			return Optional.of(PreferredPronounId.VE_VIS_VER_VER_VERSELF);
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<ClinicalSexId> extractClinicalSexId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+
+		Extension matchingExtension = entry.getResource().getExtension().stream()
+				.filter(extension -> Objects.equals(ClinicalSexCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		// Found FHIR extension, let's try to use it.
+		if (matchingExtension != null) {
+			ClinicalSexCode clinicalSexCode = null;
+
+			if (matchingExtension.getValueCodeableConcept() != null)
+				clinicalSexCode = ClinicalSexCode.fromFhirValue(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+			if (clinicalSexCode != null) {
+				Optional<ClinicalSexId> clinicalSexId = toClinicalSexId(clinicalSexCode);
+
+				if (clinicalSexId.isPresent())
+					return clinicalSexId;
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	protected Optional<ClinicalSexId> toClinicalSexId(@Nullable ClinicalSexCode clinicalSexCode) {
+		if (clinicalSexCode == null)
+			return Optional.empty();
+
+		if (clinicalSexCode == ClinicalSexCode.MALE)
+			return Optional.of(ClinicalSexId.MALE);
+		if (clinicalSexCode == ClinicalSexCode.FEMALE)
+			return Optional.of(ClinicalSexId.FEMALE);
+		if (clinicalSexCode == ClinicalSexCode.SPECIFIED)
+			return Optional.of(ClinicalSexId.SPECIFIED);
+		if (clinicalSexCode == ClinicalSexCode.UNKNOWN)
+			return Optional.of(ClinicalSexId.UNKNOWN);
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<LegalSexId> extractLegalSexId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+
+		Extension matchingExtension = entry.getResource().getExtension().stream()
+				.filter(extension -> Objects.equals(LegalSexCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		// Found FHIR extension, let's try to use it.
+		if (matchingExtension != null) {
+			LegalSexCode legalSexCode = null;
+
+			if (matchingExtension.getValueCodeableConcept() != null)
+				legalSexCode = LegalSexCode.fromFhirValue(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+			if (legalSexCode != null) {
+				Optional<LegalSexId> legalSexId = toLegalSexId(legalSexCode);
+
+				if (legalSexId.isPresent())
+					return legalSexId;
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	protected Optional<LegalSexId> toLegalSexId(@Nullable LegalSexCode legalSexCode) {
+		if (legalSexCode == null)
+			return Optional.empty();
+
+		if (legalSexCode == LegalSexCode.MALE)
+			return Optional.of(LegalSexId.MALE);
+		if (legalSexCode == LegalSexCode.FEMALE)
+			return Optional.of(LegalSexId.FEMALE);
+		if (legalSexCode == LegalSexCode.UNDIFFERENTIATED)
+			return Optional.of(LegalSexId.UNDIFFERENTIATED);
 
 		return Optional.empty();
 	}
