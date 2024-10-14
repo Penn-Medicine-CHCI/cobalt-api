@@ -2,8 +2,8 @@ BEGIN;
 SELECT _v.register_patch('189-resource-packet', NULL, NULL);
 
 CREATE TABLE population_served (
-	population_served_id VARCHAR PRIMARY KEY,
-	name VARCHAR NOT NULL,
+	population_served_id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -16,24 +16,24 @@ VALUES
 ('ADOLESCENTS', 'Adolescents');
 
 CREATE TABLE accredidation (
-	accredidation_id VARCHAR PRIMARY KEY,
-	name VARCHAR NOT NULL,
+	accredidation_id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON accredidation FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE language (
-	language_id VARCHAR PRIMARY KEY,
-	name VARCHAR NOT NULL,
+	language_id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON language FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE care_resource_group (
-	care_resource_group_id VARCHAR PRIMARY KEY,
-	name VARCHAR NOT NULL,
+	care_resource_group_id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -41,18 +41,18 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_group F
 
 CREATE TABLE care_resource (
 	care_resource_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	name VARCHAR NOT NULL,
-  	notes VARCHAR NULL,
-  	phone_number VARCHAR NULL,
-  	website_url VARCHAR NULL,
+	name TEXT NOT NULL,
+  	notes TEXT NULL,
+  	phone_number TEXT NULL,
+  	website_url TEXT NULL,
   	care_resource_available BOOLEAN NOT NULL,
   	created_by_account_id UUID NOT NULL REFERENCES account,
-  	gender_identity_id VARCHAR NULL REFERENCES gender_identity,
-  	ethnicity_id VARCHAR NULL REFERENCES ethnicity,
+  	gender_identity_id TEXT NULL REFERENCES gender_identity,
+  	ethnicity_id TEXT NULL REFERENCES ethnicity,
   	wheelchair_access BOOLEAN NOT NULL DEFAULT FALSE,
   	accepting_new_patients BOOLEAN NOT NULL DEFAULT TRUE,
-  	care_resource_group_id VARCHAR NOT NULL REFERENCES care_resource_group,
-  	raw_contact_information VARCHAR NULL,
+  	care_resource_group_id TEXT NULL REFERENCES care_resource_group,
+  	raw_contact_information TEXT NULL,
   	import_reference_number INTEGER,
   	deleted BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -63,7 +63,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource FOR EAC
 CREATE TABLE care_resource_population_served (
 	care_resource_population_served_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	population_served_id VARCHAR NOT NULL REFERENCES population_served,
+	population_served_id TEXT NOT NULL REFERENCES population_served,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -72,16 +72,16 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_populat
 CREATE TABLE care_resource_language (
 	care_resource_language_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	language_id VARCHAR NOT NULL REFERENCES language,
+	language_id TEXT NOT NULL REFERENCES language,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_language FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE care_resource_accredidation (
-	care_resource_accredidation_id VARCHAR PRIMARY KEY,
+	care_resource_accredidation_id TEXT PRIMARY KEY,
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	accredidation_id VARCHAR NOT NULL REFERENCES accredidation,
+	accredidation_id TEXT NOT NULL REFERENCES accredidation,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -90,7 +90,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_accredi
 CREATE TABLE care_resource_institution (
 	care_resource_institution_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	institution_id VARCHAR NOT NULL REFERENCES institution,
+	institution_id TEXT NOT NULL REFERENCES institution,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -99,17 +99,17 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_institu
 CREATE TABLE care_resource_location (
 	care_resource_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	address VARCHAR NOT NULL,
-	phone_number VARCHAR NULL,
-	notes VARCHAR NULL,
+	address_id UUID NOT NULL REFERENCES address,
+	phone_number TEXT NULL,
+	notes TEXT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE payor (
-	payor_id VARCHAR PRIMARY KEY,
-	name VARCHAR NOT NULL,
+	payor_id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -118,7 +118,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON payor FOR EACH ROW EX
 CREATE TABLE care_resource_payor (
 	care_resource_payor_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	payor_id VARCHAR NOT NULL REFERENCES payor,
+	payor_id TEXT NOT NULL REFERENCES payor,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );	
@@ -127,7 +127,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_payor F
 CREATE TABLE care_resource_focus_type (
 	care_resource_focus_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	focus_type_id VARCHAR NOT NULL REFERENCES patient_order_focus_type(patient_order_focus_type_id),
+	focus_type_id TEXT NOT NULL REFERENCES patient_order_focus_type(patient_order_focus_type_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -136,51 +136,50 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_focus_t
 CREATE TABLE care_resource_support_role (
 	care_resource_support_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	support_role_id VARCHAR NOT NULL REFERENCES support_role,
+	support_role_id TEXT NOT NULL REFERENCES support_role,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_support_role FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE care_resource_specialty_group (
-	care_resource_specialty_group_id VARCHAR PRIMARY KEY,
-	name VARCHAR NOT NULL,
+	care_resource_specialty_group_id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_specialty_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-
 CREATE TABLE care_resource_specialty (
 	care_resource_specialty_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	name VARCHAR NOT NULL,
-	care_resource_specialty_group_id VARCHAR NOT NULL REFERENCES care_resource_specialty_group,
+	name TEXT NOT NULL,
+	care_resource_specialty_group_id TEXT NOT NULL REFERENCES care_resource_specialty_group,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_specialty FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE care_resource_specialty_resource (
-	care_resource_specialty_resource_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE care_resource_care_resource_specialty (
+	care_resource_care_resource_specialty_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_specialty_id UUID NOT NULL REFERENCES care_resource_specialty,
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_specialty_resource FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_care_resource_specialty FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 
 CREATE TABLE patient_order_resource_packet (
 	patient_order_resource_packet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	patient_order_id UUID NOT NULL REFERENCES patient_order,
 	current_flag BOOLEAN NOT NULL DEFAULT true,
-	payor_id VARCHAR NOT NULL REFERENCES payor,
-	postal_code VARCHAR NOT NULL,
+	payor_id TEXT NOT NULL REFERENCES payor,
+	postal_code TEXT NOT NULL,
 	travel_radius INTEGER NOT NULL,
-	travel_radius_distance_unit_id VARCHAR NOT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE',
-	support_role_id VARCHAR NOT NULL REFERENCES support_role,
-	intro_text VARCHAR NOT NULL,
-	end_text VARCHAR NULL,
+	travel_radius_distance_unit_id TEXT NOT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE',
+	support_role_id TEXT NOT NULL REFERENCES support_role,
+	intro_text TEXT NOT NULL,
+	end_text TEXT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -200,10 +199,16 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_resourc
 -- If a resource packet is send this column will contain a link to the patient_order_resource_packet that was sent
 ALTER TABLE patient_order ADD COLUMN patient_order_resource_packet_id UUID NULL REFERENCES patient_order_resource_packet;
 
---SELECT DISTINCT 'INSERT INTO payor VALUES ('||''''|| UPPER(TRIM(REPLACE(primary_payor_name,' ','_')))||''''||','||'''' ||primary_payor_name||''''||');'
---from patient_order 
---where lower(primary_payor_name) not like 'zzz%'
---and test_patient_order = false;
+ALTER TABLE address 
+ADD COLUMN google_maps_url TEXT NULL,
+ADD COLUMN google_place_id TEXT NULL,
+ADD COLUMN latitude NUMERIC NULL,
+ADD COLUMN longitude NUMERIC NULL,
+ADD COLUMN premise TEXT NULL,
+ADD COLUMN subpremise TEXT NULL,
+ADD COLUMN region_subdivision TEXT NULL,
+ADD COLUMN postal_code_suffix TEXT NULL,
+ADD COLUMN formatted_address TEXT NULL;
 
 INSERT INTO care_resource_specialty_group 
 VALUES
@@ -218,6 +223,11 @@ INSERT INTO care_resource_specialty VALUES ('bc01e110-9d92-4d64-bec4-1d594a9d504
 INSERT INTO care_resource_specialty VALUES ('fa50751d-c8e3-46b2-bc3f-fb27db359266', 'Spanish', 'LANGUAGES');
 INSERT INTO care_resource_specialty VALUES ('38ba3468-7d67-409a-8404-f137781ffb9c', 'French', 'LANGUAGES');
 
+
+--SELECT DISTINCT 'INSERT INTO payor VALUES ('||''''|| UPPER(TRIM(REPLACE(primary_payor_name,' ','_')))||''''||','||'''' ||primary_payor_name||''''||');'
+--from patient_order 
+--where lower(primary_payor_name) not like 'zzz%'
+--and test_patient_order = false;
 INSERT INTO payor VALUES ('ALLSTATE','ALLSTATE');
 INSERT INTO payor VALUES ('AMERIHEALTH','AMERIHEALTH');
 INSERT INTO payor VALUES ('THIRD_PARTY_LIABILITY','THIRD PARTY LIABILITY');

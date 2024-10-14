@@ -30,7 +30,7 @@ import java.util.UUID;
 @NotThreadSafe
 public class CareResourceSpecialty {
 	@Nullable
-	private UUID resourceSpecialtyId;
+	private UUID careResourceSpecialtyId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -39,12 +39,12 @@ public class CareResourceSpecialty {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getResourceSpecialtyId() {
-		return resourceSpecialtyId;
+	public UUID getCareResourceSpecialtyId() {
+		return careResourceSpecialtyId;
 	}
 
-	public void setResourceSpecialtyId(@Nullable UUID resourceSpecialtyId) {
-		this.resourceSpecialtyId = resourceSpecialtyId;
+	public void setCareResourceSpecialtyId(@Nullable UUID careResourceSpecialtyId) {
+		this.careResourceSpecialtyId = careResourceSpecialtyId;
 	}
 
 	@Nullable

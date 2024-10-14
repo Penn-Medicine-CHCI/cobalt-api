@@ -32,7 +32,9 @@ public class CareResourceLocation {
 	@Nullable
 	private UUID careResourceLocationId;
 	@Nullable
-	private String address;
+	private UUID careResourceId;
+	@Nullable
+	private UUID addressId;
 	@Nullable
 	private String phoneNumber;
 	@Nullable
@@ -52,12 +54,12 @@ public class CareResourceLocation {
 	}
 
 	@Nullable
-	public String getAddress() {
-		return address;
+	public UUID getAddressId() {
+		return addressId;
 	}
 
-	public void setAddress(@Nullable String address) {
-		this.address = address;
+	public void setAddressId(@Nullable UUID addressId) {
+		this.addressId = addressId;
 	}
 
 	@Nullable
@@ -94,5 +96,14 @@ public class CareResourceLocation {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public UUID getCareResourceId() {
+		return careResourceId;
+	}
+
+	public void setCareResourceId(@Nullable UUID careResourceId) {
+		this.careResourceId = careResourceId;
 	}
 }

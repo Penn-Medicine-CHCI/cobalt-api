@@ -94,7 +94,6 @@ public class AddressService {
 				WHERE address_id=?""", Address.class, addressId);
 	}
 
-
 	@Nonnull
 	public Optional<Address> findActiveAddressByAccountId(@Nullable UUID accountId) {
 		if (accountId == null)

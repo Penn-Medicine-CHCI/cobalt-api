@@ -127,7 +127,7 @@ public class CareResourceResource {
 		if (careResource == null)
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("content", getCareResourceApiResponseFactory().create(careResource));
+			put("careResource", getCareResourceApiResponseFactory().create(careResource));
 		}});
 	}
 

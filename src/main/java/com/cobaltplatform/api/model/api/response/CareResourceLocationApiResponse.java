@@ -20,8 +20,10 @@
 package com.cobaltplatform.api.model.api.response;
 
 
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
+import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -44,7 +46,7 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private UUID careResourceLocationId;
 	@Nullable
-	private String address;
+	private Address address;
 	@Nullable
 	private String phoneNumber;
 	@Nullable
@@ -61,12 +63,13 @@ public class CareResourceLocationApiResponse {
 
 	@AssistedInject
 	public CareResourceLocationApiResponse(@Assisted @Nonnull CareResourceLocation careResourceLocation,
+																				 @Nonnull AddressService addressService,
 																				 @Nonnull Formatter formatter) {
 		requireNonNull(careResourceLocation);
 		requireNonNull(formatter);
 
 		this.careResourceLocationId = careResourceLocation.getCareResourceLocationId();
-		this.address = careResourceLocation.getAddress();
+		this.address = addressService.findAddressById(careResourceLocation.getAddressId()).orElse(null);
 		this.phoneNumber = careResourceLocation.getPhoneNumber();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
@@ -78,7 +81,7 @@ public class CareResourceLocationApiResponse {
 	}
 
 	@Nullable
-	public String getAddress() {
+	public Address getAddress() {
 		return address;
 	}
 
