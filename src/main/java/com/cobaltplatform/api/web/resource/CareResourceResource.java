@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
+import com.cobaltplatform.api.model.api.response.CareResourceApiResponse;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PayorApiResponse.PayorApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
@@ -153,8 +154,10 @@ public class CareResourceResource {
 			}
 		});
 
+		List<CareResourceApiResponse> careResources = findResult.getResults().stream().map(careResource -> getCareResourceApiResponseFactory()
+				.create(careResource)).collect(Collectors.toList());
 		Map<String, Object> findResultJson = new HashMap<>();
-		findResultJson.put("careResources", findResult);
+		findResultJson.put("careResources", careResources);
 		findResultJson.put("totalCount", findResult.getTotalCount());
 		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 
