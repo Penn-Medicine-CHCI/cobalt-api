@@ -21,15 +21,23 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
+import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PayorApiResponse.PayorApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.Payor;
+import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CareResourceService;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
+import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.NotFoundException;
@@ -44,6 +52,8 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -63,33 +73,49 @@ public class CareResourceResource {
 	@Nonnull
 	private final CareResourceApiResponseFactory careResourceApiResponseFactory;
 	@Nonnull
+	private final SupportRoleApiResponseFactory supportRoleApiResponseFactory;
+	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final CareResourceService careResourceService;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
+	@Nonnull
+	private final Formatter formatter;
 
 
 	@Inject
 	public CareResourceResource(@Nonnull Provider<CurrentContext> currentContextProvider,
 															@Nonnull CareResourceService careResourceService,
 															@Nonnull PayorApiResponseFactory payorApiResponseFactory,
+															@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
-															@Nonnull CareResourceApiResponseFactory careResourceApiResponseFactory) {
+															@Nonnull CareResourceApiResponseFactory careResourceApiResponseFactory,
+															@Nonnull AuthorizationService authorizationService,
+															@Nonnull Formatter formatter) {
 		requireNonNull(currentContextProvider);
+		requireNonNull(careResourceService);
+		requireNonNull(payorApiResponseFactory);
+		requireNonNull(supportRoleApiResponseFactory);
+		requireNonNull(requestBodyParser);
+		requireNonNull(careResourceApiResponseFactory);
+		requireNonNull(authorizationService);
+		requireNonNull(formatter);
 
 		this.currentContextProvider = currentContextProvider;
 		this.careResourceService = careResourceService;
 		this.payorApiResponseFactory = payorApiResponseFactory;
+		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.careResourceApiResponseFactory = careResourceApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
+		this.formatter = formatter;
 	}
 
 	@Nonnull
 	@GET("/payors")
 	@AuthenticationRequired
-	public ApiResponse payors() {
+	public ApiResponse findPayors() {
 		List<Payor> payors = getCareResourceService().findPayors();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("payors", payors.stream()
@@ -99,15 +125,41 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
+	@GET("/support-roles")
+	@AuthenticationRequired
+	public ApiResponse findSupportRoles() {
+		List<SupportRole> supportRoles = getCareResourceService().findCareResourceSupportRoles();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("supportRoles", supportRoles.stream()
+					.map(supportRole -> getSupportRoleApiResponseFactory().create(supportRole))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
 	@GET("/care-resources")
 	@AuthenticationRequired
-	public ApiResponse findAllCareResources() {
-		List<CareResource> careResources = getCareResourceService()
-				.findAllCareResourceByInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
+	public ApiResponse findAllCareResources(@Nonnull @QueryParameter Optional<Integer> pageNumber,
+																					@Nonnull @QueryParameter Optional<Integer> pageSize) {
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+
+		Account account = getCurrentContext().getAccount().get();
+		FindResult<CareResource> findResult = getCareResourceService().findAllCareResourceByInstitutionId(new FindCareResourcesRequest() {
+			{
+				setPageNumber(pageNumber.orElse(0));
+				setPageSize(pageSize.orElse(0));
+				setInstitutionId(account.getInstitutionId());
+			}
+		});
+
+		Map<String, Object> findResultJson = new HashMap<>();
+		findResultJson.put("careResources", findResult);
+		findResultJson.put("totalCount", findResult.getTotalCount());
+		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResources", careResources.stream()
-					.map(careResource -> getCareResourceApiResponseFactory().create(careResource))
-					.collect(Collectors.toList()));
+			put("careResources", findResultJson);
 		}});
 	}
 
@@ -159,5 +211,20 @@ public class CareResourceResource {
 	@Nonnull
 	public RequestBodyParser getRequestBodyParser() {
 		return requestBodyParser;
+	}
+
+	@Nonnull
+	public SupportRoleApiResponseFactory getSupportRoleApiResponseFactory() {
+		return supportRoleApiResponseFactory;
+	}
+
+	@Nonnull
+	public Provider<CurrentContext> getCurrentContextProvider() {
+		return currentContextProvider;
+	}
+
+	@Nonnull
+	public Formatter getFormatter() {
+		return formatter;
 	}
 }

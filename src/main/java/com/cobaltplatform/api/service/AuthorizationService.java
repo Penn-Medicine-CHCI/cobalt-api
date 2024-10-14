@@ -709,6 +709,21 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canViewCareResources(@Nonnull InstitutionId institutionId,
+																			@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		// An admin or MHIC at the same institution is able to view care resource at that institution
+		if (Objects.equals(account.getInstitutionId(), institutionId)
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+
+	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
 	}

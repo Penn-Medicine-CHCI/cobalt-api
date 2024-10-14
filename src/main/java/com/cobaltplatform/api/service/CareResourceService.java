@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
+import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceSpecialty;
@@ -28,6 +29,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Payor;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -40,6 +42,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -80,7 +83,16 @@ public class CareResourceService {
 	public List<Payor> findPayors() {
 		return getDatabase().queryForList("""
 				SELECT * 
-				FROM payor""", Payor.class);
+				FROM payor
+				ORDER BY name""", Payor.class);
+	}
+
+	public List<SupportRole> findCareResourceSupportRoles() {
+		return getDatabase().queryForList("""
+				SELECT sr.*
+				FROM support_role sr
+				ORDER BY display_order
+				""", SupportRole.class);
 	}
 
 	public Optional<CareResource> findCareResourceByInstitutionId(@Nonnull UUID careResourceId,
@@ -97,15 +109,46 @@ public class CareResourceService {
 				""", CareResource.class, careResourceId, institutionId);
 	}
 
-	public List<CareResource> findAllCareResourceByInstitutionId(@Nonnull InstitutionId institutionId) {
-		requireNonNull(institutionId);
+	public FindResult<CareResource> findAllCareResourceByInstitutionId(@Nonnull FindCareResourcesRequest request) {
+		requireNonNull(request);
 
-		return getDatabase().queryForList("""
+		InstitutionId institutionId = request.getInstitutionId();
+		Integer pageNumber = request.getPageNumber();
+		Integer pageSize = request.getPageSize();
+
+		final int DEFAULT_PAGE_SIZE = 25;
+		final int MAXIMUM_PAGE_SIZE = 100;
+
+		if (pageNumber == null || pageNumber < 0)
+			pageNumber = 0;
+
+		if (pageSize == null || pageSize <= 0)
+			pageSize = DEFAULT_PAGE_SIZE;
+		else if (pageSize > MAXIMUM_PAGE_SIZE)
+			pageSize = MAXIMUM_PAGE_SIZE;
+
+		Integer limit = pageSize;
+		Integer offset = pageNumber * pageSize;
+		List<Object> parameters = new ArrayList<>();
+
+		parameters.add(institutionId);
+		parameters.add(limit);
+		parameters.add(offset);
+
+		String query = """
 				SELECT cr.*
 				FROM care_resource cr, care_resource_institution cri
 				WHERE cr.care_resource_id = cri.care_resource_id
 				AND cri.institution_id = ?
-				""", CareResource.class, institutionId);
+				ORDER BY cr.name
+				LIMIT ?
+				OFFSET ?
+				""";
+		List<CareResource> careResources = getDatabase().queryForList(query, CareResource.class, parameters.toArray());
+
+		FindResult<? extends CareResource> findResult = new FindResult<>(careResources, careResources.size());
+
+		return (FindResult<CareResource>) findResult;
 	}
 
 	public List<CareResourceLocation> findCareResourceLocations(@Nonnull UUID careResourceId) {
