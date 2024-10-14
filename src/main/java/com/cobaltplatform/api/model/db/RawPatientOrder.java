@@ -20,10 +20,12 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
@@ -36,6 +38,7 @@ import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nullable;
@@ -133,6 +136,12 @@ public class RawPatientOrder {
 	private GenderIdentityId patientGenderIdentityId;
 	@Nullable
 	private BirthSexId patientBirthSexId;
+	@Nullable
+	private PreferredPronounId preferredPronounId;
+	@Nullable
+	private ClinicalSexId clinicalSexId;
+	@Nullable
+	private LegalSexId legalSexId;
 	@Nullable
 	private PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId;
 	@Nullable
@@ -591,6 +600,33 @@ public class RawPatientOrder {
 
 	public void setPatientBirthSexId(@Nullable BirthSexId patientBirthSexId) {
 		this.patientBirthSexId = patientBirthSexId;
+	}
+
+	@Nullable
+	public PreferredPronounId getPreferredPronounId() {
+		return this.preferredPronounId;
+	}
+
+	public void setPreferredPronounId(@Nullable PreferredPronounId preferredPronounId) {
+		this.preferredPronounId = preferredPronounId;
+	}
+
+	@Nullable
+	public ClinicalSexId getClinicalSexId() {
+		return this.clinicalSexId;
+	}
+
+	public void setClinicalSexId(@Nullable ClinicalSexId clinicalSexId) {
+		this.clinicalSexId = clinicalSexId;
+	}
+
+	@Nullable
+	public LegalSexId getLegalSexId() {
+		return this.legalSexId;
+	}
+
+	public void setLegalSexId(@Nullable LegalSexId legalSexId) {
+		this.legalSexId = legalSexId;
 	}
 
 	@Nullable
