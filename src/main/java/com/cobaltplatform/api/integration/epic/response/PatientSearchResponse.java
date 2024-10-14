@@ -68,23 +68,62 @@ public class PatientSearchResponse {
 				.filter(extension -> Objects.equals(RaceCode.DSTU2_EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
 
-		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+		// Found DSTU2, let's try to use it.
+		if (matchingExtension != null && matchingExtension.getValueCodeableConcept() != null) {
+			RaceCode raceCode = RaceCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+			if (raceCode != null) {
+				Optional<RaceId> raceId = toRaceId(raceCode);
+
+				if (raceId.isPresent())
+					return raceId;
+			}
+		} else {
+			// Didn't find DSTU2, let's try FHIR.
+			matchingExtension = entry.getResource().getExtension().stream()
+					.filter(extension -> Objects.equals(RaceCode.EXTENSION_URL, extension.getUrl()))
+					.findFirst().orElse(null);
+
+			if (matchingExtension != null && matchingExtension.getExtension() != null && matchingExtension.getExtension().size() > 0) {
+				EmbeddedExtension matchingEmbeddedExtension = matchingExtension.getExtension().stream()
+						.filter(extension -> Objects.equals("ombCategory", extension.getUrl()))
+						.findFirst().orElse(null);
+
+				if (matchingEmbeddedExtension != null && matchingEmbeddedExtension.getValueCoding() != null) {
+					String code = matchingEmbeddedExtension.getValueCoding().getCode();
+
+					if (code != null) {
+						RaceCode raceCode = RaceCode.fromDstu2Value(code).orElse(null);
+
+						if (raceCode != null) {
+							Optional<RaceId> raceId = toRaceId(raceCode);
+
+							if (raceId.isPresent())
+								return raceId;
+						}
+					}
+				}
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	protected Optional<RaceId> toRaceId(@Nullable RaceCode raceCode) {
+		if (raceCode == null)
 			return Optional.empty();
 
-		RaceCode raceCode = RaceCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
-
-		if (raceCode != null) {
-			if (raceCode == RaceCode.WHITE)
-				return Optional.of(RaceId.WHITE);
-			if (raceCode == RaceCode.AMERICAN_INDIAN_OR_ALASKA_NATIVE)
-				return Optional.of(RaceId.AMERICAN_INDIAN_OR_ALASKA_NATIVE);
-			if (raceCode == RaceCode.ASIAN)
-				return Optional.of(RaceId.ASIAN);
-			if (raceCode == RaceCode.BLACK_OR_AFRICAN_AMERICAN)
-				return Optional.of(RaceId.BLACK_OR_AFRICAN_AMERICAN);
-			if (raceCode == RaceCode.NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER)
-				return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
-		}
+		if (raceCode == RaceCode.WHITE)
+			return Optional.of(RaceId.WHITE);
+		if (raceCode == RaceCode.AMERICAN_INDIAN_OR_ALASKA_NATIVE)
+			return Optional.of(RaceId.AMERICAN_INDIAN_OR_ALASKA_NATIVE);
+		if (raceCode == RaceCode.ASIAN)
+			return Optional.of(RaceId.ASIAN);
+		if (raceCode == RaceCode.BLACK_OR_AFRICAN_AMERICAN)
+			return Optional.of(RaceId.BLACK_OR_AFRICAN_AMERICAN);
+		if (raceCode == RaceCode.NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER)
+			return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
 
 		return Optional.empty();
 	}
@@ -119,24 +158,6 @@ public class PatientSearchResponse {
 					.filter(extension -> Objects.equals(EthnicityCode.EXTENSION_URL, extension.getUrl()))
 					.findFirst().orElse(null);
 
-			// Example of "embedded" extensions:
-			// {
-			//    "extension": [
-			//        {
-			//            "valueCoding": {
-			//                "system": "urn:oid:2.16.840.1.113883.6.238",
-			//                "code": "2106-3",
-			//                "display": "White"
-			//            },
-			//            "url": "ombCategory"
-			//        },
-			//        {
-			//            "valueString": "White",
-			//            "url": "text"
-			//        }
-			//    ],
-			//    "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race"
-			// }
 			if (matchingExtension != null && matchingExtension.getExtension() != null && matchingExtension.getExtension().size() > 0) {
 				EmbeddedExtension matchingEmbeddedExtension = matchingExtension.getExtension().stream()
 						.filter(extension -> Objects.equals("ombCategory", extension.getUrl()))
@@ -189,25 +210,82 @@ public class PatientSearchResponse {
 				.filter(extension -> Objects.equals(BirthSexCode.DSTU2_EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
 
-		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
-			return Optional.empty();
+		// Found DSTU2, let's try to use it.
+		if (matchingExtension != null) {
+			BirthSexCode birthSexCode = null;
 
-		BirthSexCode birthSexCode = BirthSexCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+			if (matchingExtension.getValueCodeableConcept() != null)
+				birthSexCode = BirthSexCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
 
-		if (birthSexCode != null) {
-			if (birthSexCode == BirthSexCode.FEMALE)
-				return Optional.of(BirthSexId.FEMALE);
-			if (birthSexCode == BirthSexCode.MALE)
-				return Optional.of(BirthSexId.MALE);
-			if (birthSexCode == BirthSexCode.OTHER)
-				return Optional.of(BirthSexId.OTHER);
-			if (birthSexCode == BirthSexCode.UNKNOWN)
-				return Optional.of(BirthSexId.UNKNOWN);
+			if (birthSexCode == null && matchingExtension.getValueCode() != null)
+				birthSexCode = BirthSexCode.fromDstu2Value(matchingExtension.getValueCode()).orElse(null);
+
+			if (birthSexCode != null) {
+				Optional<BirthSexId> birthSexId = toBirthSexId(birthSexCode);
+
+				if (birthSexId.isPresent())
+					return birthSexId;
+			}
+		} else {
+			// Didn't find DSTU2, let's try FHIR.
+			matchingExtension = entry.getResource().getExtension().stream()
+					.filter(extension -> Objects.equals(BirthSexCode.EXTENSION_URL, extension.getUrl()))
+					.findFirst().orElse(null);
+
+			if (matchingExtension != null) {
+				if (matchingExtension.getValueCode() != null) {
+					BirthSexCode birthSexCode = BirthSexCode.fromDstu2Value(matchingExtension.getValueCode()).orElse(null);
+
+					if (birthSexCode != null) {
+						Optional<BirthSexId> birthSexId = toBirthSexId(birthSexCode);
+
+						if (birthSexId.isPresent())
+							return birthSexId;
+					}
+				}
+
+				if (matchingExtension.getExtension() != null && matchingExtension.getExtension().size() > 0) {
+					EmbeddedExtension matchingEmbeddedExtension = matchingExtension.getExtension().stream()
+							.filter(extension -> Objects.equals("ombCategory", extension.getUrl()))
+							.findFirst().orElse(null);
+
+					if (matchingEmbeddedExtension != null && matchingEmbeddedExtension.getValueCoding() != null) {
+						String code = matchingEmbeddedExtension.getValueCoding().getCode();
+
+						if (code != null) {
+							BirthSexCode birthSexCode = BirthSexCode.fromDstu2Value(code).orElse(null);
+
+							if (birthSexCode != null) {
+								Optional<BirthSexId> birthSexId = toBirthSexId(birthSexCode);
+
+								if (birthSexId.isPresent())
+									return birthSexId;
+							}
+						}
+					}
+				}
+			}
 		}
 
 		return Optional.empty();
 	}
 
+	@Nonnull
+	protected Optional<BirthSexId> toBirthSexId(@Nullable BirthSexCode birthSexCode) {
+		if (birthSexCode == null)
+			return Optional.empty();
+
+		if (birthSexCode == BirthSexCode.FEMALE)
+			return Optional.of(BirthSexId.FEMALE);
+		if (birthSexCode == BirthSexCode.MALE)
+			return Optional.of(BirthSexId.MALE);
+		if (birthSexCode == BirthSexCode.OTHER)
+			return Optional.of(BirthSexId.OTHER);
+		if (birthSexCode == BirthSexCode.UNKNOWN)
+			return Optional.of(BirthSexId.UNKNOWN);
+
+		return Optional.empty();
+	}
 
 	@NotThreadSafe
 	public static class Link {
@@ -573,6 +651,8 @@ public class PatientSearchResponse {
 				@Nullable
 				private String url;
 				@Nullable
+				private String valueCode;
+				@Nullable
 				private String valueString;
 				@Nullable
 				private ValueCodeableConcept valueCodeableConcept;
@@ -742,6 +822,15 @@ public class PatientSearchResponse {
 
 				public void setUrl(@Nullable String url) {
 					this.url = url;
+				}
+
+				@Nullable
+				public String getValueCode() {
+					return this.valueCode;
+				}
+
+				public void setValueCode(@Nullable String valueCode) {
+					this.valueCode = valueCode;
 				}
 
 				@Nullable
