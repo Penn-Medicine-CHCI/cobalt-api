@@ -27,8 +27,10 @@ then
     for IC_ORDER_HL7_TEST_FILE in "$IC_ORDER_HL7_TEST_DIR"/*
     do
         IC_ORDER_HL7_TEST_FILENAME=$(basename ${IC_ORDER_HL7_TEST_FILE})
-        echo "Loading Integrated Care HL7 Order file '$IC_ORDER_HL7_TEST_FILENAME' into S3 bucket '${IC_ORDER_HL7_BUCKET}'..."
-        aws --endpoint-url=http://localstack-cobalt:4801 s3api put-object --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --key ${IC_ORDER_HL7_TEST_FILENAME} --body ${IC_ORDER_HL7_TEST_FILE} 1> /dev/null
+        # For now, prefer to generate test import files and manually load those in through the UI.
+        # Loading HL7 files from disk as part of initialization here is legacy and should be removed eventually
+        #echo "Loading Integrated Care HL7 Order file '$IC_ORDER_HL7_TEST_FILENAME' into S3 bucket '${IC_ORDER_HL7_BUCKET}'..."
+        #aws --endpoint-url=http://localstack-cobalt:4801 s3api put-object --bucket ${IC_ORDER_HL7_BUCKET} --region ${REGION} --key ${IC_ORDER_HL7_TEST_FILENAME} --body ${IC_ORDER_HL7_TEST_FILE} 1> /dev/null
     done
 fi
 
@@ -115,6 +117,20 @@ then
     echo "Using Localstack secret value for cobalt-local-tableau-secret-value-COBALT..."
     aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-tableau-secret-value-COBALT"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
     aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-tableau-secret-value-COBALT"  --description "Tableau Secret Value for COBALT institution" --secret-string file:///localstack/secrets/cobalt-local-tableau-secret-value-COBALT --region ${REGION}  1> /dev/null
+fi
+
+if [ -e /localstack/secrets/cobalt-local-google-geo-service-account-private-key-COBALT_IC ]
+then
+    echo "Using Localstack secret value for cobalt-local-google-geo-service-account-private-key-COBALT_IC..."
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-google-geo-service-account-private-key-COBALT_IC"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-google-geo-service-account-private-key-COBALT_IC"  --description "Cobalt Google Geo Service Account Private Key for COBALT_IC institution" --secret-string file:///localstack/secrets/cobalt-local-google-geo-service-account-private-key-COBALT_IC --region ${REGION}  1> /dev/null
+fi
+
+if [ -e /localstack/secrets/cobalt-local-google-maps-api-key-COBALT_IC ]
+then
+    echo "Using Localstack secret value for cobalt-local-google-maps-api-key-COBALT_IC..."
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager delete-secret --secret-id "cobalt-local-google-maps-api-key-COBALT_IC"  --force-delete-without-recovery --region ${REGION} > /dev/null 2>&1
+    aws --endpoint-url=http://localstack-cobalt:4801 secretsmanager create-secret --name "cobalt-local-google-maps-api-key-COBALT_IC"  --description "Cobalt Google Maps API Key for COBALT_IC institution" --secret-string file:///localstack/secrets/cobalt-local-google-maps-api-key-COBALT_IC --region ${REGION}  1> /dev/null
 fi
 
 echo "Localstack initialization complete."

@@ -34,10 +34,13 @@ import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
 import com.cobaltplatform.api.integration.epic.MyChartConfiguration;
 import com.cobaltplatform.api.integration.google.DefaultGoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.DefaultGoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.DefaultGoogleGeoClient;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.GoogleGeoClient;
 import com.cobaltplatform.api.integration.google.MockGoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.MockGoogleBigQueryClient;
+import com.cobaltplatform.api.integration.google.UnsupportedGoogleGeoClient;
 import com.cobaltplatform.api.integration.microsoft.DefaultMicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.DefaultMicrosoftClient;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAccessToken;
@@ -71,6 +74,9 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -94,6 +100,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	private final Configuration configuration;
 	@Nonnull
 	private final LoadingCache<ExpensiveClientCacheKey, Object> expensiveClientCache;
+	@Nonnull
+	private final Logger logger;
 
 	public DefaultEnterprisePlugin(@Nonnull InstitutionService institutionService,
 																 @Nonnull AwsSecretManagerClient awsSecretManagerClient,
@@ -106,6 +114,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		this.awsSecretManagerClient = awsSecretManagerClient;
 		this.configuration = configuration;
 		this.expensiveClientCache = createExpensiveClientCache();
+		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
@@ -118,6 +127,12 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	@Override
 	public GoogleAnalyticsDataClient googleAnalyticsDataClient() {
 		return (GoogleAnalyticsDataClient) getExpensiveClientCache().get(ExpensiveClientCacheKey.GOOGLE_ANALYTICS_DATA);
+	}
+
+	@Nonnull
+	@Override
+	public GoogleGeoClient googleGeoClient() {
+		return (GoogleGeoClient) getExpensiveClientCache().get(ExpensiveClientCacheKey.GOOGLE_GEO);
 	}
 
 	@Nonnull
@@ -203,6 +218,15 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 				.maximumSize(25)
 				.expireAfterWrite(Duration.ofMinutes(5))
 				.refreshAfterWrite(Duration.ofMinutes(1))
+				.removalListener((ExpensiveClientCacheKey key, Object value, RemovalCause removalCause) -> {
+					if (value instanceof AutoCloseable) {
+						try {
+							((AutoCloseable) value).close();
+						} catch (Throwable t) {
+							getLogger().warn(format("Unable to auto-close instance of %s removed from the cache", value.getClass()), t);
+						}
+					}
+				})
 				.build(expensiveClientCacheKey -> {
 					requireNonNull(expensiveClientCacheKey);
 
@@ -210,6 +234,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 						return uncachedGoogleBigQueryClient();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_ANALYTICS_DATA)
 						return uncachedGoogleAnalyticsDataClient();
+					if (expensiveClientCacheKey == ExpensiveClientCacheKey.GOOGLE_GEO)
+						return uncachedGoogleGeoClient();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MIXPANEL)
 						return uncachedMixpanelClient();
 					if (expensiveClientCacheKey == ExpensiveClientCacheKey.MICROSOFT_AUTHENTICATOR)
@@ -260,6 +286,24 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			return new MockGoogleAnalyticsDataClient();
 
 		return new DefaultGoogleAnalyticsDataClient(googleGa4PropertyId, googleReportingServiceAccountPrivateKey);
+	}
+
+	@Nonnull
+	protected GoogleGeoClient uncachedGoogleGeoClient() {
+		// Read secrets from AWS Secrets Manager
+		String googleGeoServiceAccountPrivateKeySecretName = format("%s-google-geo-service-account-private-key-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String googleGeoServiceAccountPrivateKey = getAwsSecretManagerClient().getSecretString(googleGeoServiceAccountPrivateKeySecretName).orElse(null);
+
+		if (googleGeoServiceAccountPrivateKey == null)
+			return new UnsupportedGoogleGeoClient();
+
+		String googleMapsApiKeySecretName = format("%s-google-maps-api-key-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String googleMapsApiKey = getAwsSecretManagerClient().getSecretString(googleMapsApiKeySecretName).orElse(null);
+
+		if (googleMapsApiKey == null)
+			return new UnsupportedGoogleGeoClient();
+
+		return new DefaultGoogleGeoClient(googleMapsApiKey, googleGeoServiceAccountPrivateKey);
 	}
 
 	@Nonnull
@@ -350,8 +394,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			return new ConsolePushMessageSender();
 
 		// Read client secret from AWS Secrets Manager
-		String googleFcmServiceAccountPrivateKey = getAwsSecretManagerClient().getSecretString(format("%s-google-fcm-service-account-private-key-%s",
-				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+		String googleFcmServiceAccountPrivateKeySecretName = format("%s-google-fcm-service-account-private-key-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String googleFcmServiceAccountPrivateKey = getAwsSecretManagerClient().getSecretString(googleFcmServiceAccountPrivateKeySecretName).get();
+
+		if (googleFcmServiceAccountPrivateKey == null)
+			throw new IllegalStateException(format("No SecretsManager value available for %s", googleFcmServiceAccountPrivateKeySecretName));
 
 		return new GoogleFcmPushMessageSender(googleFcmServiceAccountPrivateKey);
 	}
@@ -364,8 +411,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			return new ConsoleSmsMessageSender();
 
 		// Read client secret from AWS Secrets Manager
-		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
-				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+		String twilioAuthTokenSecretName = format("%s-twilio-auth-token-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(twilioAuthTokenSecretName).orElse(null);
+
+		if (twilioAuthToken == null)
+			throw new IllegalStateException(format("No SecretsManager value available for %s", twilioAuthTokenSecretName));
 
 		return new TwilioSmsMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
 				.twilioFromNumber(institution.getTwilioFromNumber())
@@ -381,8 +431,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			return new ConsoleCallMessageSender();
 
 		// Read client secret from AWS Secrets Manager
-		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
-				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+		String twilioAuthTokenSecretName = format("%s-twilio-auth-token-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(twilioAuthTokenSecretName).orElse(null);
+
+		if (twilioAuthToken == null)
+			throw new IllegalStateException(format("No SecretsManager value available for %s", twilioAuthTokenSecretName));
 
 		return new TwilioCallMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
 				.twilioFromNumber(institution.getTwilioFromNumber())
@@ -398,8 +451,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			return new MockTwilioRequestValidator();
 
 		// Read client secret from AWS Secrets Manager
-		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(format("%s-twilio-auth-token-%s",
-				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+		String twilioAuthTokenSecretName = format("%s-twilio-auth-token-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String twilioAuthToken = getAwsSecretManagerClient().getSecretString(twilioAuthTokenSecretName).orElse(null);
+
+		if (twilioAuthToken == null)
+			throw new IllegalStateException(format("No SecretsManager value available for %s", twilioAuthTokenSecretName));
 
 		return new DefaultTwilioRequestValidator(twilioAuthToken);
 	}
@@ -419,8 +475,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			throw new IllegalStateException(format("Microsoft Teams is enabled for %s but required values are missing on institution record", getInstitutionId().name()));
 
 		// Read client secret from AWS Secrets Manager
-		String clientSecret = getAwsSecretManagerClient().getSecretString(format("%s-microsoft-teams-client-secret-%s",
-				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+		String clientSecretSecretName = format("%s-microsoft-teams-client-secret-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String clientSecret = getAwsSecretManagerClient().getSecretString(clientSecretSecretName).orElse(null);
+
+		if (clientSecret == null)
+			throw new IllegalStateException(format("No SecretsManager value available for %s", clientSecretSecretName));
 
 		MicrosoftAuthenticator microsoftAuthenticator = new DefaultMicrosoftAuthenticator(microsoftTeamsTenantId,
 				microsoftTeamsClientId, getConfiguration().getMicrosoftSigningCredentials());
@@ -449,12 +508,19 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			throw new IllegalStateException(format("Tableau is enabled for %s but required values are missing on institution record", getInstitutionId().name()));
 
 		// Read client secret from AWS Secrets Manager
-		String secretId = getAwsSecretManagerClient().getSecretString(format("%s-tableau-secret-id-%s",
-				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
-		String secretValue = getAwsSecretManagerClient().getSecretString(format("%s-tableau-secret-value-%s",
-				getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name()));
+		String tableauSecretIdSecretName = format("%s-tableau-secret-id-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String tableauSecretId = getAwsSecretManagerClient().getSecretString(tableauSecretIdSecretName).orElse(null);
 
-		TableauDirectTrustCredential directTrustCredential = new TableauDirectTrustCredential(clientId, secretId, secretValue);
+		if (tableauSecretId == null)
+			throw new IllegalStateException(format("No SecretsManager value available for %s", tableauSecretIdSecretName));
+
+		String tableauSecretValueSecretName = format("%s-tableau-secret-value-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
+		String tableauSecretValue = getAwsSecretManagerClient().getSecretString(tableauSecretValueSecretName).orElse(null);
+
+		if (tableauSecretValue == null)
+			throw new IllegalStateException(format("No SecretsManager value available for %s", tableauSecretValueSecretName));
+
+		TableauDirectTrustCredential directTrustCredential = new TableauDirectTrustCredential(clientId, tableauSecretId, tableauSecretValue);
 		return Optional.of(new DefaultTableauClient(apiBaseUrl, directTrustCredential));
 	}
 
@@ -478,9 +544,15 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 		return this.expensiveClientCache;
 	}
 
+	@Nonnull
+	protected Logger getLogger() {
+		return this.logger;
+	}
+
 	enum ExpensiveClientCacheKey {
 		GOOGLE_BIG_QUERY,
 		GOOGLE_ANALYTICS_DATA,
+		GOOGLE_GEO,
 		MIXPANEL,
 		MICROSOFT_AUTHENTICATOR,
 		MYCHART_AUTHENTICATOR,

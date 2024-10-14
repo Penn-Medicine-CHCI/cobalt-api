@@ -51,6 +51,7 @@
 	<logger name="amazon-sns-request-validator" level="WARN"/>
 	<logger name="ca.uhn.hl7v2" level="WARN"/>
 	<logger name="java.lang.ProcessBuilder" level="WARN" />
+	<logger name="com.google.api.gax.grpc.ChannelPool" level="WARN" />
 
 	<root level="DEBUG">
 		<appender-ref ref="standard" />
