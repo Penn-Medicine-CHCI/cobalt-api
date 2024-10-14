@@ -6223,8 +6223,8 @@ public class PatientOrderService implements AutoCloseable {
 						BirthSexId birthSexId = patientSearchResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
 						GenderIdentityId genderIdentityId = patientSearchResponse.extractGenderIdentityId().orElse(GenderIdentityId.NOT_ASKED);
 						PreferredPronounId preferredPronounId = patientSearchResponse.extractPreferredPronounId().orElse(PreferredPronounId.NOT_ASKED);
-						ClinicalSexId clinicalSexId = patientSearchResponse.extractClinicalSexId().orElse(ClinicalSexId.NOT_ASKED);
-						LegalSexId legalSexId = patientSearchResponse.extractLegalSexId().orElse(LegalSexId.NOT_ASKED);
+						ClinicalSexId clinicalSexId = null; // patientSearchResponse.extractClinicalSexId().orElse(ClinicalSexId.NOT_ASKED);
+						LegalSexId legalSexId = null; // patientSearchResponse.extractLegalSexId().orElse(LegalSexId.NOT_ASKED);
 
 						getDatabase().execute("""
 										UPDATE patient_order

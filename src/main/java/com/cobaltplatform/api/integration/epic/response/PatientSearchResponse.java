@@ -21,11 +21,15 @@ package com.cobaltplatform.api.integration.epic.response;
 
 import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
 import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
+import com.cobaltplatform.api.integration.epic.code.GenderIdentityCode;
+import com.cobaltplatform.api.integration.epic.code.PreferredPronounCode;
 import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension.EmbeddedExtension;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
+import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nonnull;
@@ -283,6 +287,122 @@ public class PatientSearchResponse {
 			return Optional.of(BirthSexId.OTHER);
 		if (birthSexCode == BirthSexCode.UNKNOWN)
 			return Optional.of(BirthSexId.UNKNOWN);
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<GenderIdentityId> extractGenderIdentityId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+
+		Extension matchingExtension = entry.getResource().getExtension().stream()
+				.filter(extension -> Objects.equals(GenderIdentityCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		// Found FHIR extension, let's try to use it.
+		if (matchingExtension != null) {
+			GenderIdentityCode genderIdentityCode = null;
+
+			if (matchingExtension.getValueCodeableConcept() != null)
+				genderIdentityCode = GenderIdentityCode.fromFhirValue(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+			if (genderIdentityCode != null) {
+				Optional<GenderIdentityId> genderIdentityId = toGenderIdentityId(genderIdentityCode);
+
+				if (genderIdentityId.isPresent())
+					return genderIdentityId;
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	protected Optional<GenderIdentityId> toGenderIdentityId(@Nullable GenderIdentityCode genderIdentityCode) {
+		if (genderIdentityCode == null)
+			return Optional.empty();
+
+		if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_FEMALE)
+			return Optional.of(GenderIdentityId.TRANSGENDER_MTF);
+		if (genderIdentityCode == GenderIdentityCode.TRANSGENDER_MALE)
+			return Optional.of(GenderIdentityId.TRANSGENDER_FTM);
+		if (genderIdentityCode == GenderIdentityCode.NON_BINARY)
+			return Optional.of(GenderIdentityId.NON_BINARY);
+		if (genderIdentityCode == GenderIdentityCode.MALE)
+			return Optional.of(GenderIdentityId.MALE);
+		if (genderIdentityCode == GenderIdentityCode.FEMALE)
+			return Optional.of(GenderIdentityId.FEMALE);
+		if (genderIdentityCode == GenderIdentityCode.OTHER)
+			return Optional.of(GenderIdentityId.OTHER);
+		if (genderIdentityCode == GenderIdentityCode.NON_DISCLOSE)
+			return Optional.of(GenderIdentityId.NOT_DISCLOSED);
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<PreferredPronounId> extractPreferredPronounId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+
+		Extension matchingExtension = entry.getResource().getExtension().stream()
+				.filter(extension -> Objects.equals(PreferredPronounCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		// Found FHIR extension, let's try to use it.
+		if (matchingExtension != null) {
+			PreferredPronounCode preferredPronounCode = null;
+			
+			if (matchingExtension.getValueCodeableConcept() != null)
+				preferredPronounCode = PreferredPronounCode.fromFhirValue(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+			if (preferredPronounCode != null) {
+				Optional<PreferredPronounId> preferredPronounId = toPreferredPronounId(preferredPronounCode);
+
+				if (preferredPronounId.isPresent())
+					return preferredPronounId;
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	protected Optional<PreferredPronounId> toPreferredPronounId(@Nullable PreferredPronounCode preferredPronounCode) {
+		if (preferredPronounCode == null)
+			return Optional.empty();
+
+		if (preferredPronounCode == PreferredPronounCode.HE_HIM_HIS_HIS_HIMSELF)
+			return Optional.of(PreferredPronounId.HE_HIM_HIS_HIS_HIMSELF);
+		if (preferredPronounCode == PreferredPronounCode.SHE_HER_HER_HERS_HERSELF)
+			return Optional.of(PreferredPronounId.SHE_HER_HER_HERS_HERSELF);
+		if (preferredPronounCode == PreferredPronounCode.THEY_THEM_THEIR_THEIRS_THEMSELVES)
+			return Optional.of(PreferredPronounId.THEY_THEM_THEIR_THEIRS_THEMSELVES);
+		if (preferredPronounCode == PreferredPronounCode.ZE_ZIR_ZIR_ZIRS_ZIRSELF)
+			return Optional.of(PreferredPronounId.ZE_ZIR_ZIR_ZIRS_ZIRSELF);
+		if (preferredPronounCode == PreferredPronounCode.XIE_HIR_HERE_HIR_HIRS_HIRSELF)
+			return Optional.of(PreferredPronounId.XIE_HIR_HERE_HIR_HIRS_HIRSELF);
+		if (preferredPronounCode == PreferredPronounCode.CO_CO_COS_COS_COSELF)
+			return Optional.of(PreferredPronounId.CO_CO_COS_COS_COSELF);
+		if (preferredPronounCode == PreferredPronounCode.EN_EN_ENS_ENS_ENSELF)
+			return Optional.of(PreferredPronounId.EN_EN_ENS_ENS_ENSELF);
+		if (preferredPronounCode == PreferredPronounCode.EY_EM_EIR_EIRS_EMSELF)
+			return Optional.of(PreferredPronounId.EY_EM_EIR_EIRS_EMSELF);
+		if (preferredPronounCode == PreferredPronounCode.YO_YO_YOS_YOS_YOSELF)
+			return Optional.of(PreferredPronounId.YO_YO_YOS_YOS_YOSELF);
+		if (preferredPronounCode == PreferredPronounCode.VE_VIS_VER_VER_VERSELF)
+			return Optional.of(PreferredPronounId.VE_VIS_VER_VER_VERSELF);
 
 		return Optional.empty();
 	}
