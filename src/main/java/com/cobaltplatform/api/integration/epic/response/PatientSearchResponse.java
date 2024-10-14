@@ -23,6 +23,7 @@ import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
 import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
 import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension;
+import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension.EmbeddedExtension;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
@@ -102,17 +103,74 @@ public class PatientSearchResponse {
 				.filter(extension -> Objects.equals(EthnicityCode.DSTU2_EXTENSION_URL, extension.getUrl()))
 				.findFirst().orElse(null);
 
-		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+		// Found DSTU2, let's try to use it.
+		if (matchingExtension != null && matchingExtension.getValueCodeableConcept() != null) {
+			EthnicityCode ethnicityCode = EthnicityCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
+
+			if (ethnicityCode != null) {
+				Optional<EthnicityId> ethnicityId = toEthnicityId(ethnicityCode);
+
+				if (ethnicityId.isPresent())
+					return ethnicityId;
+			}
+		} else {
+			// Didn't find DSTU2, let's try FHIR.
+			matchingExtension = entry.getResource().getExtension().stream()
+					.filter(extension -> Objects.equals(EthnicityCode.EXTENSION_URL, extension.getUrl()))
+					.findFirst().orElse(null);
+
+			// Example of "embedded" extensions:
+			// {
+			//    "extension": [
+			//        {
+			//            "valueCoding": {
+			//                "system": "urn:oid:2.16.840.1.113883.6.238",
+			//                "code": "2106-3",
+			//                "display": "White"
+			//            },
+			//            "url": "ombCategory"
+			//        },
+			//        {
+			//            "valueString": "White",
+			//            "url": "text"
+			//        }
+			//    ],
+			//    "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race"
+			// }
+			if (matchingExtension != null && matchingExtension.getExtension() != null && matchingExtension.getExtension().size() > 0) {
+				EmbeddedExtension matchingEmbeddedExtension = matchingExtension.getExtension().stream()
+						.filter(extension -> Objects.equals("ombCategory", extension.getUrl()))
+						.findFirst().orElse(null);
+
+				if (matchingEmbeddedExtension != null && matchingEmbeddedExtension.getValueCoding() != null) {
+					String code = matchingEmbeddedExtension.getValueCoding().getCode();
+
+					if (code != null) {
+						EthnicityCode ethnicityCode = EthnicityCode.fromDstu2Value(code).orElse(null);
+
+						if (ethnicityCode != null) {
+							Optional<EthnicityId> ethnicityId = toEthnicityId(ethnicityCode);
+
+							if (ethnicityId.isPresent())
+								return ethnicityId;
+						}
+					}
+				}
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	protected Optional<EthnicityId> toEthnicityId(@Nullable EthnicityCode ethnicityCode) {
+		if (ethnicityCode == null)
 			return Optional.empty();
 
-		EthnicityCode ethnicityCode = EthnicityCode.fromDstu2Value(matchingExtension.getValueCodeableConcept().getCoding().get(0).getCode()).orElse(null);
-
-		if (ethnicityCode != null) {
-			if (ethnicityCode == EthnicityCode.HISPANIC_OR_LATINO)
-				return Optional.of(EthnicityId.HISPANIC_OR_LATINO);
-			if (ethnicityCode == EthnicityCode.NOT_HISPANIC_OR_LATINO)
-				return Optional.of(EthnicityId.NOT_HISPANIC_OR_LATINO);
-		}
+		if (ethnicityCode == EthnicityCode.HISPANIC_OR_LATINO)
+			return Optional.of(EthnicityId.HISPANIC_OR_LATINO);
+		if (ethnicityCode == EthnicityCode.NOT_HISPANIC_OR_LATINO)
+			return Optional.of(EthnicityId.NOT_HISPANIC_OR_LATINO);
 
 		return Optional.empty();
 	}
@@ -518,6 +576,101 @@ public class PatientSearchResponse {
 				private String valueString;
 				@Nullable
 				private ValueCodeableConcept valueCodeableConcept;
+				@Nullable
+				private List<EmbeddedExtension> extension;
+
+				@NotThreadSafe
+				public static class EmbeddedExtension {
+					// Some extensions can have an array of "mini extensions" like this:
+					// {
+					//    "extension": [
+					//        {
+					//            "valueCoding": {
+					//                "system": "urn:oid:2.16.840.1.113883.6.238",
+					//                "code": "2186-5",
+					//                "display": "Not Hispanic or Latino"
+					//            },
+					//            "url": "ombCategory"
+					//        },
+					//        {
+					//            "valueString": "Not Hispanic or Latino",
+					//            "url": "text"
+					//        }
+					//    ],
+					//    "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity"
+					// }
+
+					@Nullable
+					private String valueString;
+					@Nullable
+					private String url;
+					@Nullable
+					private ValueCoding valueCoding;
+
+					@NotThreadSafe
+					public static class ValueCoding {
+						@Nullable
+						private String system;
+						@Nullable
+						private String code;
+						@Nullable
+						private String display;
+
+						@Nullable
+						public String getSystem() {
+							return this.system;
+						}
+
+						public void setSystem(@Nullable String system) {
+							this.system = system;
+						}
+
+						@Nullable
+						public String getCode() {
+							return this.code;
+						}
+
+						public void setCode(@Nullable String code) {
+							this.code = code;
+						}
+
+						@Nullable
+						public String getDisplay() {
+							return this.display;
+						}
+
+						public void setDisplay(@Nullable String display) {
+							this.display = display;
+						}
+					}
+
+					@Nullable
+					public String getValueString() {
+						return this.valueString;
+					}
+
+					public void setValueString(@Nullable String valueString) {
+						this.valueString = valueString;
+					}
+
+					@Nullable
+					public String getUrl() {
+						return this.url;
+					}
+
+					public void setUrl(@Nullable String url) {
+						this.url = url;
+					}
+
+					@Nullable
+					public ValueCoding getValueCoding() {
+						return this.valueCoding;
+					}
+
+					public void setValueCoding(@Nullable ValueCoding valueCoding) {
+						this.valueCoding = valueCoding;
+					}
+				}
 
 				@NotThreadSafe
 				public static class ValueCodeableConcept {
@@ -607,6 +760,15 @@ public class PatientSearchResponse {
 
 				public void setValueCodeableConcept(@Nullable ValueCodeableConcept valueCodeableConcept) {
 					this.valueCodeableConcept = valueCodeableConcept;
+				}
+
+				@Nullable
+				public List<EmbeddedExtension> getExtension() {
+					return this.extension;
+				}
+
+				public void setExtension(@Nullable List<EmbeddedExtension> extension) {
+					this.extension = extension;
 				}
 			}
 
