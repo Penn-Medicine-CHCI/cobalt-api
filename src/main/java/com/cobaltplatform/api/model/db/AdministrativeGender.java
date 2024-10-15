@@ -26,38 +26,36 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Race {
+public class AdministrativeGender {
 	@Nullable
-	private RaceId raceId;
+	private AdministrativeGenderId administrativeGenderId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum RaceId {
+	// See https://hl7.org/fhir/R4/valueset-administrative-gender.html
+	public enum AdministrativeGenderId {
 		NOT_ASKED,
-		AMERICAN_INDIAN_OR_ALASKA_NATIVE,
-		ASIAN,
-		BLACK_OR_AFRICAN_AMERICAN,
-		HAWAIIAN_OR_PACIFIC_ISLANDER,
+		MALE,
+		FEMALE,
 		OTHER,
-		WHITE,
 		UNKNOWN,
 		NOT_DISCLOSED
 	}
 
 	@Override
 	public String toString() {
-		return String.format("%s{raceId=%s, description=%s}", getClass().getSimpleName(), getRaceId(), getDescription());
+		return String.format("%s{administrativeGenderId=%s, description=%s}", getClass().getSimpleName(), getAdministrativeGenderId(), getDescription());
 	}
 
 	@Nullable
-	public RaceId getRaceId() {
-		return this.raceId;
+	public AdministrativeGenderId getAdministrativeGenderId() {
+		return this.administrativeGenderId;
 	}
 
-	public void setRaceId(@Nullable RaceId raceId) {
-		this.raceId = raceId;
+	public void setAdministrativeGenderId(@Nullable AdministrativeGenderId administrativeGenderId) {
+		this.administrativeGenderId = administrativeGenderId;
 	}
 
 	@Nullable

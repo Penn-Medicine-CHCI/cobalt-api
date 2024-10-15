@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
@@ -142,6 +143,8 @@ public class RawPatientOrder {
 	private ClinicalSexId patientClinicalSexId;
 	@Nullable
 	private LegalSexId patientLegalSexId;
+	@Nullable
+	private AdministrativeGenderId patientAdministrativeGenderId;
 	@Nullable
 	private PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId;
 	@Nullable
@@ -627,6 +630,15 @@ public class RawPatientOrder {
 
 	public void setPatientLegalSexId(@Nullable LegalSexId patientLegalSexId) {
 		this.patientLegalSexId = patientLegalSexId;
+	}
+
+	@Nullable
+	public AdministrativeGenderId getPatientAdministrativeGenderId() {
+		return this.patientAdministrativeGenderId;
+	}
+
+	public void setPatientAdministrativeGenderId(@Nullable AdministrativeGenderId patientAdministrativeGenderId) {
+		this.patientAdministrativeGenderId = patientAdministrativeGenderId;
 	}
 
 	@Nullable

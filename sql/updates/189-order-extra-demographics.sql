@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('189-order-extra-demographics', NULL, NULL);
 
+-- Add missing option for race
+INSERT INTO race (race_id, description, display_order) VALUES ('UNKNOWN', 'Unknown', 9);
+
 -- See https://loinc.org/LL5144-2
 -- See http://open.epic.com/FHIR/StructureDefinition/extension/calculated-pronouns-to-use-for-text
 CREATE TABLE preferred_pronoun (
@@ -21,7 +24,8 @@ INSERT INTO preferred_pronoun (preferred_pronoun_id, description, display_order)
 INSERT INTO preferred_pronoun (preferred_pronoun_id, description, display_order) VALUES ('YO_YO_YOS_YOS_YOSELF', 'yo/yo/yos/yos/yoself', 10);
 INSERT INTO preferred_pronoun (preferred_pronoun_id, description, display_order) VALUES ('VE_VIS_VER_VER_VERSELF', 've/vis/ver/ver/verself', 11);
 INSERT INTO preferred_pronoun (preferred_pronoun_id, description, display_order) VALUES ('OTHER', 'Other', 12);
-INSERT INTO preferred_pronoun (preferred_pronoun_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 13);
+INSERT INTO preferred_pronoun (preferred_pronoun_id, description, display_order) VALUES ('DO_NOT_USE_PRONOUNS', 'Do not use pronouns', 13);
+INSERT INTO preferred_pronoun (preferred_pronoun_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 14);
 
 CREATE TABLE clinical_sex (
 	clinical_sex_id TEXT PRIMARY KEY,
@@ -50,16 +54,31 @@ INSERT INTO legal_sex (legal_sex_id, description, display_order) VALUES ('FEMALE
 INSERT INTO legal_sex (legal_sex_id, description, display_order) VALUES ('UNDIFFERENTIATED', 'Undifferentiated', 4); -- LA18959-9
 INSERT INTO legal_sex (legal_sex_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 5);
 
+CREATE TABLE administrative_gender (
+	administrative_gender_id TEXT PRIMARY KEY,
+	description TEXT NOT NULL,
+	display_order SMALLINT NOT NULL
+);
+
+-- See https://hl7.org/fhir/R4/valueset-administrative-gender.html
+INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('NOT_ASKED', 'Not asked', 1);
+INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('MALE', 'Male', 2);
+INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('FEMALE', 'Female', 3);
+INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('OTHER', 'Other', 4);
+INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('UNKNOWN', 'Unknown', 5);
+INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 6);
+
 -- Add new columns
 ALTER TABLE patient_order ADD COLUMN patient_preferred_pronoun_id TEXT NOT NULL REFERENCES preferred_pronoun (preferred_pronoun_id) DEFAULT 'NOT_ASKED';
 ALTER TABLE patient_order ADD COLUMN patient_clinical_sex_id TEXT NOT NULL REFERENCES clinical_sex (clinical_sex_id) DEFAULT 'NOT_ASKED';
 ALTER TABLE patient_order ADD COLUMN patient_legal_sex_id TEXT NOT NULL REFERENCES legal_sex (legal_sex_id) DEFAULT 'NOT_ASKED';
+ALTER TABLE patient_order ADD COLUMN patient_administrative_gender_id TEXT NOT NULL REFERENCES administrative_gender (administrative_gender_id) DEFAULT 'NOT_ASKED';
 
 -- With these new columns, we need to recreate our patient order views.
 drop view v_patient_order;
 drop view v_all_patient_order;
 
--- Adds patient_preferred_pronoun_id, patient_clinical_sex_id, and patient_legal_sex_id.
+-- Adds patient_preferred_pronoun_id, patient_clinical_sex_id, patient_legal_sex_id, and patient_administrative_gender_id.
 -- No actual change to view code here because they are pulled in by "poq.*" in the FROM clause.
 CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (

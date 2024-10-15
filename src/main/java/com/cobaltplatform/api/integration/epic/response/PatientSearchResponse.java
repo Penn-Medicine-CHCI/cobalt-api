@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.integration.epic.response;
 
+import com.cobaltplatform.api.integration.epic.code.AdministrativeGenderCode;
 import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
 import com.cobaltplatform.api.integration.epic.code.ClinicalSexCode;
 import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
@@ -28,6 +29,7 @@ import com.cobaltplatform.api.integration.epic.code.PreferredPronounCode;
 import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension;
 import com.cobaltplatform.api.integration.epic.response.PatientSearchResponse.Entry.Resource.Extension.EmbeddedExtension;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -133,6 +135,8 @@ public class PatientSearchResponse {
 		if (raceCode == RaceCode.NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER)
 			return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
 		if (raceCode == RaceCode.OTHER_RACE)
+			return Optional.of(RaceId.OTHER);
+		if (raceCode == RaceCode.UNKNOWN)
 			return Optional.of(RaceId.OTHER);
 
 		return Optional.empty();
@@ -409,6 +413,8 @@ public class PatientSearchResponse {
 			return Optional.of(PreferredPronounId.YO_YO_YOS_YOS_YOSELF);
 		if (preferredPronounCode == PreferredPronounCode.VE_VIS_VER_VER_VERSELF)
 			return Optional.of(PreferredPronounId.VE_VIS_VER_VER_VERSELF);
+		if (preferredPronounCode == PreferredPronounCode.DO_NOT_USE_PRONOUNS)
+			return Optional.of(PreferredPronounId.DO_NOT_USE_PRONOUNS);
 
 		return Optional.empty();
 	}
@@ -505,6 +511,33 @@ public class PatientSearchResponse {
 			return Optional.of(LegalSexId.FEMALE);
 		if (legalSexCode == LegalSexCode.UNDIFFERENTIATED)
 			return Optional.of(LegalSexId.UNDIFFERENTIATED);
+
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<AdministrativeGenderId> extractAdministrativeGenderId() {
+		if (getEntry() == null || getEntry().size() == 0)
+			return Optional.empty();
+
+		if (getEntry().size() > 1)
+			throw new IllegalStateException("Multiple patient results; not sure which one to extract data from");
+
+		Entry entry = getEntry().get(0);
+		String gender = entry.getResource().getGender();
+		AdministrativeGenderCode administrativeGenderCode = AdministrativeGenderCode.fromFhirValue(gender).orElse(null);
+
+		if (administrativeGenderCode == null)
+			return Optional.empty();
+
+		if (administrativeGenderCode == AdministrativeGenderCode.MALE)
+			return Optional.of(AdministrativeGenderId.MALE);
+		if (administrativeGenderCode == AdministrativeGenderCode.FEMALE)
+			return Optional.of(AdministrativeGenderId.FEMALE);
+		if (administrativeGenderCode == AdministrativeGenderCode.OTHER)
+			return Optional.of(AdministrativeGenderId.OTHER);
+		if (administrativeGenderCode == AdministrativeGenderCode.UNKNOWN)
+			return Optional.of(AdministrativeGenderId.UNKNOWN);
 
 		return Optional.empty();
 	}

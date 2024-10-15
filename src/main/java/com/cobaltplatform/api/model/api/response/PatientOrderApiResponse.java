@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiRes
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
@@ -197,6 +198,8 @@ public class PatientOrderApiResponse {
 	private ClinicalSexId patientClinicalSexId;
 	@Nullable
 	private LegalSexId patientLegalSexId;
+	@Nullable
+	private AdministrativeGenderId patientAdministrativeGenderId;
 	@Nullable
 	private LocalDate patientBirthdate;
 	@Nullable
@@ -846,6 +849,7 @@ public class PatientOrderApiResponse {
 		this.patientPreferredPronounId = patientOrder.getPatientPreferredPronounId();
 		this.patientClinicalSexId = patientOrder.getPatientClinicalSexId();
 		this.patientLegalSexId = patientOrder.getPatientLegalSexId();
+		this.patientAdministrativeGenderId = patientOrder.getPatientAdministrativeGenderId();
 		this.patientLanguageCode = patientOrder.getPatientLanguageCode();
 		this.patientEmailAddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();

@@ -45,7 +45,8 @@ public enum PreferredPronounCode {
 	EN_EN_ENS_ENS_ENSELF("LA29516-4", "en/en/ens/ens/enself"),
 	EY_EM_EIR_EIRS_EMSELF("LA29517-2", "ey/em/eir/eirs/emself"),
 	YO_YO_YOS_YOS_YOSELF("LA29522-2", "yo/yo/yos/yos/yoself"),
-	VE_VIS_VER_VER_VERSELF("LA29524-8", "ve/vis/ver/ver/verself");
+	VE_VIS_VER_VER_VERSELF("LA29524-8", "ve/vis/ver/ver/verself"),
+	DO_NOT_USE_PRONOUNS("EP-PS-DO-NOT-USE-PRONOUNS", "do not use pronouns");
 
 	@Nonnull
 	public static final String EXTENSION_URL;
