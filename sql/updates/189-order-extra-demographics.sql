@@ -68,7 +68,30 @@ INSERT INTO administrative_gender (administrative_gender_id, description, displa
 INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('UNKNOWN', 'Unknown', 5);
 INSERT INTO administrative_gender (administrative_gender_id, description, display_order) VALUES ('NOT_DISCLOSED', 'Do not wish to disclose', 6);
 
--- Add new columns
+-- Add new columns to account
+ALTER TABLE account ADD COLUMN preferred_pronoun_id TEXT NOT NULL REFERENCES preferred_pronoun (preferred_pronoun_id) DEFAULT 'NOT_ASKED';
+ALTER TABLE account ADD COLUMN clinical_sex_id TEXT NOT NULL REFERENCES clinical_sex (clinical_sex_id) DEFAULT 'NOT_ASKED';
+ALTER TABLE account ADD COLUMN legal_sex_id TEXT NOT NULL REFERENCES legal_sex (legal_sex_id) DEFAULT 'NOT_ASKED';
+ALTER TABLE account ADD COLUMN administrative_gender_id TEXT NOT NULL REFERENCES administrative_gender (administrative_gender_id) DEFAULT 'NOT_ASKED';
+
+-- With these new columns, we need to recreate our account view.
+DROP VIEW v_account;
+
+CREATE VIEW v_account AS
+WITH account_capabilities_query AS (
+	 -- Collect the capability types for each account
+	 SELECT
+			 account_id,
+			 jsonb_agg(account_capability_type_id) as account_capability_type_ids
+	 FROM
+			 account_capability
+  GROUP BY account_id
+)
+SELECT a.*, acq.account_capability_type_ids
+FROM account a LEFT OUTER JOIN account_capabilities_query acq on a.account_id=acq.account_id
+WHERE active=TRUE;
+
+-- Add new columns to patient order
 ALTER TABLE patient_order ADD COLUMN patient_preferred_pronoun_id TEXT NOT NULL REFERENCES preferred_pronoun (preferred_pronoun_id) DEFAULT 'NOT_ASKED';
 ALTER TABLE patient_order ADD COLUMN patient_clinical_sex_id TEXT NOT NULL REFERENCES clinical_sex (clinical_sex_id) DEFAULT 'NOT_ASKED';
 ALTER TABLE patient_order ADD COLUMN patient_legal_sex_id TEXT NOT NULL REFERENCES legal_sex (legal_sex_id) DEFAULT 'NOT_ASKED';
