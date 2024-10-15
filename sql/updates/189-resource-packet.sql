@@ -48,8 +48,7 @@ CREATE TABLE care_resource (
   	care_resource_available BOOLEAN NOT NULL,
   	created_by_account_id UUID NOT NULL REFERENCES account,
   	gender_identity_id TEXT NULL REFERENCES gender_identity,
-  	ethnicity_id TEXT NULL REFERENCES ethnicity,
-  	wheelchair_access BOOLEAN NOT NULL DEFAULT FALSE,
+  	ethnicity_id TEXT NULL REFERENCES ethnicity,  	
   	accepting_new_patients BOOLEAN NOT NULL DEFAULT TRUE,
   	care_resource_group_id TEXT NULL REFERENCES care_resource_group,
   	raw_contact_information TEXT NULL,
@@ -68,15 +67,6 @@ CREATE TABLE care_resource_population_served (
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_population_served FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
-
-CREATE TABLE care_resource_language (
-	care_resource_language_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	language_id TEXT NOT NULL REFERENCES language,
-	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_language FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE care_resource_accredidation (
 	care_resource_accredidation_id TEXT PRIMARY KEY,
@@ -101,11 +91,21 @@ CREATE TABLE care_resource_location (
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
 	address_id UUID NOT NULL REFERENCES address,
 	phone_number TEXT NULL,
+	wheelchair_access BOOLEAN NOT NULL DEFAULT FALSE,
 	notes TEXT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE TABLE care_resource_location_language (
+	care_resource_location_language_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
+	language_id TEXT NOT NULL REFERENCES language,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_location_language FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE payor (
 	payor_id TEXT PRIMARY KEY,
@@ -168,7 +168,6 @@ CREATE TABLE care_resource_care_resource_specialty (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_care_resource_specialty FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-
 CREATE TABLE patient_order_resource_packet (
 	patient_order_resource_packet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	patient_order_id UUID NOT NULL REFERENCES patient_order,
@@ -213,15 +212,12 @@ ADD COLUMN formatted_address TEXT NULL;
 INSERT INTO care_resource_specialty_group 
 VALUES
 ('HOME_LIFE', 'Home Life'),
-('IDENTITY', 'Identity'),
-('LANGUAGES', 'Languages');
+('IDENTITY', 'Identity');
 
 INSERT INTO care_resource_specialty VALUES ('8787ba6e-19ee-4c73-a2b5-91f8807a139e', 'Family', 'HOME_LIFE');
 INSERT INTO care_resource_specialty VALUES ('9fbcd9f0-1f5f-4cb2-b9d6-f751a84fef62', 'Marriage', 'HOME_LIFE');
 INSERT INTO care_resource_specialty VALUES ('30d229c6-796d-4e0b-b80a-9b0fd57b7878', 'LGBTQ', 'IDENTITY');
 INSERT INTO care_resource_specialty VALUES ('bc01e110-9d92-4d64-bec4-1d594a9d5041', 'Transgender', 'IDENTITY');
-INSERT INTO care_resource_specialty VALUES ('fa50751d-c8e3-46b2-bc3f-fb27db359266', 'Spanish', 'LANGUAGES');
-INSERT INTO care_resource_specialty VALUES ('38ba3468-7d67-409a-8404-f137781ffb9c', 'French', 'LANGUAGES');
 
 
 --SELECT DISTINCT 'INSERT INTO payor VALUES ('||''''|| UPPER(TRIM(REPLACE(primary_payor_name,' ','_')))||''''||','||'''' ||primary_payor_name||''''||');'

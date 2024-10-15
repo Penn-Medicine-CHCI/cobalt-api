@@ -23,6 +23,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
+import com.cobaltplatform.api.model.db.Language;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
@@ -53,6 +54,10 @@ public class CareResourceLocationApiResponse {
 	private String formattedPhoneNumber;
 	@Nullable
 	private String notes;
+	@Nullable
+	private Boolean wheelchairAccess;
+
+	@Nullable List<Language> languages;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -62,7 +67,8 @@ public class CareResourceLocationApiResponse {
 	}
 
 	@AssistedInject
-	public CareResourceLocationApiResponse(@Assisted @Nonnull CareResourceLocation careResourceLocation,
+	public CareResourceLocationApiResponse(@Nonnull CareResourceService careResourceService,
+																				 @Assisted @Nonnull CareResourceLocation careResourceLocation,
 																				 @Nonnull AddressService addressService,
 																				 @Nonnull Formatter formatter) {
 		requireNonNull(careResourceLocation);
@@ -73,6 +79,8 @@ public class CareResourceLocationApiResponse {
 		this.phoneNumber = careResourceLocation.getPhoneNumber();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
+		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
+		this.languages = careResourceService.findLanguagesForCareResourceLocation(careResourceLocation.getCareResourceLocationId());
 	}
 
 	@Nullable
@@ -97,5 +105,15 @@ public class CareResourceLocationApiResponse {
 
 	public String getFormattedPhoneNumber() {
 		return formattedPhoneNumber;
+	}
+
+	@Nullable
+	public Boolean getWheelchairAccess() {
+		return wheelchairAccess;
+	}
+
+	@Nullable
+	public List<Language> getLanguages() {
+		return languages;
 	}
 }

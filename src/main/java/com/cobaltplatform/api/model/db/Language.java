@@ -19,75 +19,47 @@
 
 package com.cobaltplatform.api.model.db;
 
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CareResourceLocation {
+public class Language {
 	@Nullable
-	private UUID careResourceLocationId;
+	private String languageId;
 	@Nullable
-	private UUID careResourceId;
-	@Nullable
-	private UUID addressId;
-	@Nullable
-	private String phoneNumber;
-	@Nullable
-	private String notes;
-	@Nullable
-	private Boolean wheelchairAccess;
-	@Nullable
+	private String name;
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getCareResourceLocationId() {
-		return careResourceLocationId;
+	public String getLanguageId() {
+		return languageId;
 	}
 
-	public void setCareResourceLocationId(@Nullable UUID careResourceLocationId) {
-		this.careResourceLocationId = careResourceLocationId;
-	}
-
-	@Nullable
-	public UUID getAddressId() {
-		return addressId;
-	}
-
-	public void setAddressId(@Nullable UUID addressId) {
-		this.addressId = addressId;
+	public void setLanguageId(@Nullable String languageId) {
+		this.languageId = languageId;
 	}
 
 	@Nullable
-	public String getPhoneNumber() {
-		return phoneNumber;
+	public String getName() {
+		return name;
 	}
 
-	public void setPhoneNumber(@Nullable String phoneNumber) {
-		this.phoneNumber = phoneNumber;
+	public void setName(@Nullable String name) {
+		this.name = name;
 	}
 
-	@Nullable
-	public String getNotes() {
-		return notes;
-	}
-
-	public void setNotes(@Nullable String notes) {
-		this.notes = notes;
-	}
-
-	@Nullable
 	public Instant getCreated() {
 		return created;
 	}
 
-	public void setCreated(@Nullable Instant created) {
+	public void setCreated(Instant created) {
 		this.created = created;
 	}
 
@@ -98,23 +70,5 @@ public class CareResourceLocation {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
-	}
-
-	@Nullable
-	public UUID getCareResourceId() {
-		return careResourceId;
-	}
-
-	public void setCareResourceId(@Nullable UUID careResourceId) {
-		this.careResourceId = careResourceId;
-	}
-
-	@Nullable
-	public Boolean getWheelchairAccess() {
-		return wheelchairAccess;
-	}
-
-	public void setWheelchairAccess(@Nullable Boolean wheelchairAccess) {
-		this.wheelchairAccess = wheelchairAccess;
 	}
 }

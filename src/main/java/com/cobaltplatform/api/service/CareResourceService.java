@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceSpecialty;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Language;
 import com.cobaltplatform.api.model.db.Payor;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
@@ -159,6 +160,17 @@ public class CareResourceService {
 				FROM care_resource_location crl
 				WHERE crl.care_resource_id = ?
 				""", CareResourceLocation.class, careResourceId);
+	}
+
+	public List<Language> findLanguagesForCareResourceLocation(@Nonnull UUID careResourceLocationId) {
+		requireNonNull(careResourceLocationId);
+
+		return getDatabase().queryForList("""
+				SELECT l.*
+				FROM language l, care_resource_location_language crl
+				WHERE crl.language_id = l.language_id
+				AND crl.care_resource_location_id = ?
+				""", Language.class, careResourceLocationId);
 	}
 
 	public List<CareResourceSpecialty> findCareResourceSpecialties(@Nonnull UUID careResourceId) {
