@@ -48,7 +48,7 @@ import static java.util.Objects.requireNonNull;
 @Immutable
 public class CareResourceApiResponse {
 	@Nullable
-	private UUID carResourceId;
+	private UUID careResourceId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -90,7 +90,7 @@ public class CareResourceApiResponse {
 		requireNonNull(formatter);
 		requireNonNull(careResourceLocationApiResponseFactory);
 
-		this.carResourceId = careResource.getCareResourceId();
+		this.careResourceId = careResource.getCareResourceId();
 		this.name = careResource.getName();
 		this.notes = careResource.getNotes();
 		this.phoneNumber = careResource.getPhoneNumber();
@@ -107,8 +107,8 @@ public class CareResourceApiResponse {
 
 
 	@Nullable
-	public UUID getCarResourceId() {
-		return carResourceId;
+	public UUID getCareResourceId() {
+		return careResourceId;
 	}
 
 	@Nullable

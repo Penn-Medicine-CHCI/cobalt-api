@@ -167,7 +167,7 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
-	@POST("/care-resource")
+	@POST("/care-resources")
 	@AuthenticationRequired
 	public ApiResponse createCareResource(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
