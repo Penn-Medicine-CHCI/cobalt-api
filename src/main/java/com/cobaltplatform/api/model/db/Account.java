@@ -21,11 +21,15 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
@@ -86,6 +90,14 @@ public class Account {
 	private RaceId raceId;
 	@Nullable
 	private EthnicityId ethnicityId;
+	@Nullable
+	private PreferredPronounId preferredPronounId;
+	@Nullable
+	private ClinicalSexId clinicalSexId;
+	@Nullable
+	private LegalSexId legalSexId;
+	@Nullable
+	private AdministrativeGenderId administrativeGenderId;
 	@Nullable
 	private String emailAddress;
 	@Nullable
@@ -534,6 +546,42 @@ public class Account {
 
 	public void setEthnicityId(@Nullable EthnicityId ethnicityId) {
 		this.ethnicityId = ethnicityId;
+	}
+
+	@Nullable
+	public PreferredPronounId getPreferredPronounId() {
+		return this.preferredPronounId;
+	}
+
+	public void setPreferredPronounId(@Nullable PreferredPronounId preferredPronounId) {
+		this.preferredPronounId = preferredPronounId;
+	}
+
+	@Nullable
+	public ClinicalSexId getClinicalSexId() {
+		return this.clinicalSexId;
+	}
+
+	public void setClinicalSexId(@Nullable ClinicalSexId clinicalSexId) {
+		this.clinicalSexId = clinicalSexId;
+	}
+
+	@Nullable
+	public LegalSexId getLegalSexId() {
+		return this.legalSexId;
+	}
+
+	public void setLegalSexId(@Nullable LegalSexId legalSexId) {
+		this.legalSexId = legalSexId;
+	}
+
+	@Nullable
+	public AdministrativeGenderId getAdministrativeGenderId() {
+		return this.administrativeGenderId;
+	}
+
+	public void setAdministrativeGenderId(@Nullable AdministrativeGenderId administrativeGenderId) {
+		this.administrativeGenderId = administrativeGenderId;
 	}
 
 	@Nullable

@@ -26,38 +26,36 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Race {
+public class ClinicalSex {
 	@Nullable
-	private RaceId raceId;
+	private ClinicalSexId clinicalSexId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum RaceId {
+	// See https://confluence.hl7.org/display/VOC/Sex+For+Clinical+Use
+	public enum ClinicalSexId {
 		NOT_ASKED,
-		AMERICAN_INDIAN_OR_ALASKA_NATIVE,
-		ASIAN,
-		BLACK_OR_AFRICAN_AMERICAN,
-		HAWAIIAN_OR_PACIFIC_ISLANDER,
-		OTHER,
-		WHITE,
-		UNKNOWN,
+		FEMALE, // LA3-6
+		MALE, // LA2-8
+		SPECIFIED, // LA32840-3
+		UNKNOWN, // LA4489-6
 		NOT_DISCLOSED
 	}
 
 	@Override
 	public String toString() {
-		return String.format("%s{raceId=%s, description=%s}", getClass().getSimpleName(), getRaceId(), getDescription());
+		return String.format("%s{clinicalSexId=%s, description=%s}", getClass().getSimpleName(), getClinicalSexId(), getDescription());
 	}
 
 	@Nullable
-	public RaceId getRaceId() {
-		return this.raceId;
+	public ClinicalSexId getClinicalSexId() {
+		return this.clinicalSexId;
 	}
 
-	public void setRaceId(@Nullable RaceId raceId) {
-		this.raceId = raceId;
+	public void setClinicalSexId(@Nullable ClinicalSexId clinicalSexId) {
+		this.clinicalSexId = clinicalSexId;
 	}
 
 	@Nullable

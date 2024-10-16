@@ -33,10 +33,13 @@ import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiRes
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderCareType;
@@ -63,6 +66,7 @@ import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderS
 import com.cobaltplatform.api.model.db.PatientOrderTriage;
 import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -188,6 +192,14 @@ public class PatientOrderApiResponse {
 	private String patientUniqueIdType;
 	@Nullable
 	private BirthSexId patientBirthSexId;
+	@Nullable
+	private PreferredPronounId patientPreferredPronounId;
+	@Nullable
+	private ClinicalSexId patientClinicalSexId;
+	@Nullable
+	private LegalSexId patientLegalSexId;
+	@Nullable
+	private AdministrativeGenderId patientAdministrativeGenderId;
 	@Nullable
 	private LocalDate patientBirthdate;
 	@Nullable
@@ -834,6 +846,10 @@ public class PatientOrderApiResponse {
 		this.patientEthnicityId = patientOrder.getPatientEthnicityId();
 		this.patientRaceId = patientOrder.getPatientRaceId();
 		this.patientGenderIdentityId = patientOrder.getPatientGenderIdentityId();
+		this.patientPreferredPronounId = patientOrder.getPatientPreferredPronounId();
+		this.patientClinicalSexId = patientOrder.getPatientClinicalSexId();
+		this.patientLegalSexId = patientOrder.getPatientLegalSexId();
+		this.patientAdministrativeGenderId = patientOrder.getPatientAdministrativeGenderId();
 		this.patientLanguageCode = patientOrder.getPatientLanguageCode();
 		this.patientEmailAddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
@@ -1382,6 +1398,21 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public GenderIdentityId getPatientGenderIdentityId() {
 		return this.patientGenderIdentityId;
+	}
+
+	@Nullable
+	public PreferredPronounId getPatientPreferredPronounId() {
+		return this.patientPreferredPronounId;
+	}
+
+	@Nullable
+	public ClinicalSexId getPatientClinicalSexId() {
+		return this.patientClinicalSexId;
+	}
+
+	@Nullable
+	public LegalSexId getPatientLegalSexId() {
+		return this.patientLegalSexId;
 	}
 
 	@Nullable

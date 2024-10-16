@@ -24,13 +24,17 @@ import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiRe
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Address;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BetaStatus.BetaStatusId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.LoginDestination.LoginDestinationId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
@@ -117,6 +121,14 @@ public class AccountApiResponse {
 	private final BirthSexId birthSexId;
 	@Nullable
 	private final RaceId raceId;
+	@Nullable
+	private final PreferredPronounId preferredPronounId;
+	@Nullable
+	private final ClinicalSexId clinicalSexId;
+	@Nullable
+	private final LegalSexId legalSexId;
+	@Nullable
+	private final AdministrativeGenderId administrativeGenderId;
 	@Nullable
 	private final LocalDate birthdate;
 	@Nullable
@@ -258,6 +270,10 @@ public class AccountApiResponse {
 			this.ethnicityId = account.getEthnicityId();
 			this.birthSexId = account.getBirthSexId();
 			this.raceId = account.getRaceId();
+			this.preferredPronounId = account.getPreferredPronounId();
+			this.clinicalSexId = account.getClinicalSexId();
+			this.legalSexId = account.getLegalSexId();
+			this.administrativeGenderId = account.getAdministrativeGenderId();
 			this.birthdate = account.getBirthdate();
 			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDate(account.getBirthdate(), FormatStyle.MEDIUM);
 
@@ -295,6 +311,10 @@ public class AccountApiResponse {
 			this.ethnicityId = null;
 			this.birthSexId = null;
 			this.raceId = null;
+			this.preferredPronounId = null;
+			this.clinicalSexId = null;
+			this.legalSexId = null;
+			this.administrativeGenderId = null;
 			this.birthdate = null;
 			this.birthdateDescription = null;
 			this.address = null;
@@ -472,6 +492,26 @@ public class AccountApiResponse {
 	}
 
 	@Nullable
+	public PreferredPronounId getPreferredPronounId() {
+		return this.preferredPronounId;
+	}
+
+	@Nullable
+	public ClinicalSexId getClinicalSexId() {
+		return this.clinicalSexId;
+	}
+
+	@Nullable
+	public LegalSexId getLegalSexId() {
+		return this.legalSexId;
+	}
+
+	@Nullable
+	public AdministrativeGenderId getAdministrativeGenderId() {
+		return this.administrativeGenderId;
+	}
+
+	@Nullable
 	public LocalDate getBirthdate() {
 		return this.birthdate;
 	}
@@ -529,5 +569,15 @@ public class AccountApiResponse {
 	@Nullable
 	public UUID getPasswordResetToken() {
 		return passwordResetToken;
+	}
+
+	@Nonnull
+	public LocalDate getCreatedDate() {
+		return this.createdDate;
+	}
+
+	@Nonnull
+	public String getCreatedDateDescription() {
+		return this.createdDateDescription;
 	}
 }
