@@ -92,6 +92,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGro
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
@@ -6225,6 +6226,7 @@ public class PatientOrderService implements AutoCloseable {
 						PreferredPronounId preferredPronounId = patientSearchResponse.extractPreferredPronounId().orElse(PreferredPronounId.NOT_ASKED);
 						ClinicalSexId clinicalSexId = patientSearchResponse.extractClinicalSexId().orElse(ClinicalSexId.NOT_ASKED);
 						LegalSexId legalSexId = patientSearchResponse.extractLegalSexId().orElse(LegalSexId.NOT_ASKED);
+						AdministrativeGenderId administrativeGenderId = patientSearchResponse.extractAdministrativeGenderId().orElse(AdministrativeGenderId.NOT_ASKED);
 
 						getDatabase().execute("""
 										UPDATE patient_order
@@ -6236,11 +6238,12 @@ public class PatientOrderService implements AutoCloseable {
 										patient_preferred_pronoun_id=?,
 										patient_clinical_sex_id=?,
 										patient_legal_sex_id=?,
+										administrative_gender_id=?,
 										patient_demographics_imported_at=NOW()
 										WHERE patient_order_id=?
 										""", PatientOrderDemographicsImportStatusId.IMPORTED,
 								ethnicityId, raceId, birthSexId, genderIdentityId, preferredPronounId, clinicalSexId, legalSexId,
-								demographicsImportNeededPatientOrder.getPatientOrderId());
+								administrativeGenderId, demographicsImportNeededPatientOrder.getPatientOrderId());
 					} catch (Exception e) {
 						getLogger().error(format("Unable to import patient demographics information for patient order ID %s",
 								demographicsImportNeededPatientOrder.getPatientOrderId()), e);

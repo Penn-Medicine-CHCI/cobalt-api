@@ -50,6 +50,7 @@ import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.BetaFeature.BetaFeatureId;
@@ -60,14 +61,17 @@ import com.cobaltplatform.api.model.db.BirthSex;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClientDevicePushToken;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.Ethnicity;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.PasswordResetRequest;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role;
@@ -468,6 +472,10 @@ public class AccountService {
 		EthnicityId ethnicityId = request.getEthnicityId() == null ? EthnicityId.NOT_ASKED : request.getEthnicityId();
 		BirthSexId birthSexId = request.getBirthSexId() == null ? BirthSexId.NOT_ASKED : request.getBirthSexId();
 		RaceId raceId = request.getRaceId() == null ? RaceId.NOT_ASKED : request.getRaceId();
+		PreferredPronounId preferredPronounId = request.getPreferredPronounId() == null ? PreferredPronounId.NOT_ASKED : request.getPreferredPronounId();
+		ClinicalSexId clinicalSexId = request.getClinicalSexId() == null ? ClinicalSexId.NOT_ASKED : request.getClinicalSexId();
+		LegalSexId legalSexId = request.getLegalSexId() == null ? LegalSexId.NOT_ASKED : request.getLegalSexId();
+		AdministrativeGenderId administrativeGenderId = request.getAdministrativeGenderId() == null ? AdministrativeGenderId.NOT_ASKED : request.getAdministrativeGenderId();
 		LocalDate birthdate = request.getBirthdate();
 		boolean testAccount = request.getTestAccount() != null ? request.getTestAccount() : false;
 		UUID addressId = null;
@@ -579,14 +587,16 @@ public class AccountService {
 						account_id, role_id, institution_id, account_source_id, source_system_id, sso_id,
 						first_name, last_name, display_name, email_address, phone_number, sso_attributes, password,
 						epic_patient_mrn, epic_patient_fhir_id, time_zone, gender_identity_id, ethnicity_id,
-						birth_sex_id, race_id, birthdate, test_account, epic_patient_unique_id, epic_patient_unique_id_type, 
+						birth_sex_id, race_id, preferred_pronoun_id, clinical_sex_id, legal_sex_id, administrative_gender_id,
+						birthdate, test_account, epic_patient_unique_id, epic_patient_unique_id_type,
 						username, password_reset_required
-						) 
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,CAST(? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				accountId, roleId, institutionId, accountSourceId, sourceSystemId, ssoId, firstName, lastName, displayName,
 				emailAddress, phoneNumber, finalSsoAttributesAsJson, password, epicPatientMrn,
-				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId, birthdate, testAccount,
+				epicPatientFhirId, timeZone, genderIdentityId, ethnicityId, birthSexId, raceId,
+				preferredPronounId, clinicalSexId, legalSexId, administrativeGenderId, birthdate, testAccount,
 				epicPatientUniqueId, epicPatientUniqueIdType, username, passwordResetRequired);
 
 		if (addressId != null) {

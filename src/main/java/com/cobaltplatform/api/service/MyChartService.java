@@ -35,11 +35,15 @@ import com.cobaltplatform.api.model.api.request.CreateOrUpdateMyChartAccountRequ
 import com.cobaltplatform.api.model.api.request.ObtainMyChartAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.SigningTokenClaims;
@@ -351,6 +355,10 @@ public class MyChartService {
 		RaceId raceId = patient.extractRaceId().orElse(null);
 		EthnicityId ethnicityId = patient.extractEthnicityId().orElse(null);
 		BirthSexId birthSexId = patient.extractBirthSexId().orElse(null);
+		PreferredPronounId preferredPronounId = patient.extractPreferredPronounId().orElse(null);
+		ClinicalSexId clinicalSexId = patient.extractClinicalSexId().orElse(null);
+		LegalSexId legalSexId = patient.extractLegalSexId().orElse(null);
+		AdministrativeGenderId administrativeGenderId = patient.extractAdministrativeGenderId().orElse(null);
 		LocalDate birthdate = patient.getBirthDate();
 		PatientReadFhirR4Response.Name name = patient.extractFirstMatchingName(NameUseCode.OFFICIAL, NameUseCode.USUAL).orElse(null);
 		PatientReadFhirR4Response.Address address = patient.extractFirstMatchingAddress(AddressUseCode.HOME, AddressUseCode.BILLING, AddressUseCode.TEMP).orElse(null);
@@ -428,6 +436,10 @@ public class MyChartService {
 			setRaceId(raceId);
 			setEthnicityId(ethnicityId);
 			setBirthSexId(birthSexId);
+			setPreferredPronounId(preferredPronounId);
+			setClinicalSexId(clinicalSexId);
+			setLegalSexId(legalSexId);
+			setAdministrativeGenderId(administrativeGenderId);
 			setBirthdate(birthdate);
 			setDisplayName(displayName);
 			setFirstName(firstName);

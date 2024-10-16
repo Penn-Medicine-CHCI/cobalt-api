@@ -28,9 +28,13 @@ import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response.Extension.ExtensionInner;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response.Identifier.Type;
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nonnull;
@@ -267,6 +271,26 @@ public class PatientReadFhirR4Response {
 				return Optional.of(BirthSexId.UNKNOWN);
 		}
 
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<PreferredPronounId> extractPreferredPronounId() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<ClinicalSexId> extractClinicalSexId() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<LegalSexId> extractLegalSexId() {
+		return Optional.empty();
+	}
+
+	@Nonnull
+	public Optional<AdministrativeGenderId> extractAdministrativeGenderId() {
 		return Optional.empty();
 	}
 
