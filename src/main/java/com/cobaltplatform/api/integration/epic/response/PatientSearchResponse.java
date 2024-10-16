@@ -136,8 +136,10 @@ public class PatientSearchResponse {
 			return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
 		if (raceCode == RaceCode.OTHER_RACE)
 			return Optional.of(RaceId.OTHER);
-		if (raceCode == RaceCode.UNKNOWN)
+		if (raceCode == RaceCode.SOME_OTHER_RACE)
 			return Optional.of(RaceId.OTHER);
+		if (raceCode == RaceCode.UNKNOWN)
+			return Optional.of(RaceId.UNKNOWN);
 
 		return Optional.empty();
 	}

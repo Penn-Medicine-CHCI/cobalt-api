@@ -20,10 +20,14 @@
 package com.cobaltplatform.api.integration.epic.response;
 
 import com.cobaltplatform.api.integration.epic.code.AddressUseCode;
+import com.cobaltplatform.api.integration.epic.code.AdministrativeGenderCode;
 import com.cobaltplatform.api.integration.epic.code.BirthSexCode;
+import com.cobaltplatform.api.integration.epic.code.ClinicalSexCode;
 import com.cobaltplatform.api.integration.epic.code.EthnicityCode;
 import com.cobaltplatform.api.integration.epic.code.GenderIdentityCode;
+import com.cobaltplatform.api.integration.epic.code.LegalSexCode;
 import com.cobaltplatform.api.integration.epic.code.NameUseCode;
+import com.cobaltplatform.api.integration.epic.code.PreferredPronounCode;
 import com.cobaltplatform.api.integration.epic.code.RaceCode;
 import com.cobaltplatform.api.integration.epic.code.TelecomUseCode;
 import com.cobaltplatform.api.integration.epic.response.PatientReadFhirR4Response.Extension.ExtensionInner;
@@ -197,6 +201,29 @@ public class PatientReadFhirR4Response {
 			return Optional.empty();
 
 		for (ExtensionInner extensionInner : matchingExtension.getExtension()) {
+			if (extensionInner.getValueCoding() != null && extensionInner.getValueCoding().getCode() != null) {
+				RaceCode raceCode = RaceCode.fromDstu2Value(extensionInner.getValueCoding().getCode()).orElse(null);
+
+				if (raceCode != null) {
+					if (raceCode == RaceCode.WHITE)
+						return Optional.of(RaceId.WHITE);
+					if (raceCode == RaceCode.AMERICAN_INDIAN_OR_ALASKA_NATIVE)
+						return Optional.of(RaceId.AMERICAN_INDIAN_OR_ALASKA_NATIVE);
+					if (raceCode == RaceCode.ASIAN)
+						return Optional.of(RaceId.ASIAN);
+					if (raceCode == RaceCode.BLACK_OR_AFRICAN_AMERICAN)
+						return Optional.of(RaceId.BLACK_OR_AFRICAN_AMERICAN);
+					if (raceCode == RaceCode.NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER)
+						return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
+					if (raceCode == RaceCode.OTHER_RACE)
+						return Optional.of(RaceId.OTHER);
+					if (raceCode == RaceCode.SOME_OTHER_RACE)
+						return Optional.of(RaceId.OTHER);
+					if (raceCode == RaceCode.UNKNOWN)
+						return Optional.of(RaceId.UNKNOWN);
+				}
+			}
+
 			if (extensionInner.getValueString() != null) {
 				RaceCode raceCode = RaceCode.fromFhirValue(extensionInner.getValueString()).orElse(null);
 
@@ -211,6 +238,12 @@ public class PatientReadFhirR4Response {
 						return Optional.of(RaceId.BLACK_OR_AFRICAN_AMERICAN);
 					if (raceCode == RaceCode.NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER)
 						return Optional.of(RaceId.HAWAIIAN_OR_PACIFIC_ISLANDER);
+					if (raceCode == RaceCode.OTHER_RACE)
+						return Optional.of(RaceId.OTHER);
+					if (raceCode == RaceCode.SOME_OTHER_RACE)
+						return Optional.of(RaceId.OTHER);
+					if (raceCode == RaceCode.UNKNOWN)
+						return Optional.of(RaceId.UNKNOWN);
 				}
 			}
 		}
@@ -276,21 +309,135 @@ public class PatientReadFhirR4Response {
 
 	@Nonnull
 	public Optional<PreferredPronounId> extractPreferredPronounId() {
+		if (getExtension() == null)
+			return Optional.empty();
+
+		Extension matchingExtension = getExtension().stream()
+				.filter(extension -> Objects.equals(PreferredPronounCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+			return Optional.empty();
+
+		Extension.ValueCodeableConcept valueCodeableConcept = matchingExtension.getValueCodeableConcept();
+
+		if (valueCodeableConcept.getCoding() != null && matchingExtension.getValueCodeableConcept().getCoding().size() > 0) {
+			for (Coding coding : matchingExtension.getValueCodeableConcept().getCoding()) {
+				PreferredPronounCode preferredPronounCode = PreferredPronounCode.fromFhirValue(coding.getCode()).orElse(null);
+
+				if (preferredPronounCode != null) {
+					if (preferredPronounCode == PreferredPronounCode.HE_HIM_HIS_HIS_HIMSELF)
+						return Optional.of(PreferredPronounId.HE_HIM_HIS_HIS_HIMSELF);
+					if (preferredPronounCode == PreferredPronounCode.SHE_HER_HER_HERS_HERSELF)
+						return Optional.of(PreferredPronounId.SHE_HER_HER_HERS_HERSELF);
+					if (preferredPronounCode == PreferredPronounCode.THEY_THEM_THEIR_THEIRS_THEMSELVES)
+						return Optional.of(PreferredPronounId.THEY_THEM_THEIR_THEIRS_THEMSELVES);
+					if (preferredPronounCode == PreferredPronounCode.ZE_ZIR_ZIR_ZIRS_ZIRSELF)
+						return Optional.of(PreferredPronounId.ZE_ZIR_ZIR_ZIRS_ZIRSELF);
+					if (preferredPronounCode == PreferredPronounCode.XIE_HIR_HERE_HIR_HIRS_HIRSELF)
+						return Optional.of(PreferredPronounId.XIE_HIR_HERE_HIR_HIRS_HIRSELF);
+					if (preferredPronounCode == PreferredPronounCode.CO_CO_COS_COS_COSELF)
+						return Optional.of(PreferredPronounId.CO_CO_COS_COS_COSELF);
+					if (preferredPronounCode == PreferredPronounCode.EN_EN_ENS_ENS_ENSELF)
+						return Optional.of(PreferredPronounId.EN_EN_ENS_ENS_ENSELF);
+					if (preferredPronounCode == PreferredPronounCode.EY_EM_EIR_EIRS_EMSELF)
+						return Optional.of(PreferredPronounId.EY_EM_EIR_EIRS_EMSELF);
+					if (preferredPronounCode == PreferredPronounCode.YO_YO_YOS_YOS_YOSELF)
+						return Optional.of(PreferredPronounId.YO_YO_YOS_YOS_YOSELF);
+					if (preferredPronounCode == PreferredPronounCode.VE_VIS_VER_VER_VERSELF)
+						return Optional.of(PreferredPronounId.VE_VIS_VER_VER_VERSELF);
+					if (preferredPronounCode == PreferredPronounCode.DO_NOT_USE_PRONOUNS)
+						return Optional.of(PreferredPronounId.DO_NOT_USE_PRONOUNS);
+				}
+			}
+		}
+
 		return Optional.empty();
 	}
 
 	@Nonnull
 	public Optional<ClinicalSexId> extractClinicalSexId() {
+		if (getExtension() == null)
+			return Optional.empty();
+
+		Extension matchingExtension = getExtension().stream()
+				.filter(extension -> Objects.equals(ClinicalSexCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+			return Optional.empty();
+
+		Extension.ValueCodeableConcept valueCodeableConcept = matchingExtension.getValueCodeableConcept();
+
+		if (valueCodeableConcept.getCoding() != null && matchingExtension.getValueCodeableConcept().getCoding().size() > 0) {
+			for (Coding coding : matchingExtension.getValueCodeableConcept().getCoding()) {
+				ClinicalSexCode clinicalSexCode = ClinicalSexCode.fromFhirValue(coding.getCode()).orElse(null);
+
+				if (clinicalSexCode != null) {
+					if (clinicalSexCode == ClinicalSexCode.MALE)
+						return Optional.of(ClinicalSexId.MALE);
+					if (clinicalSexCode == ClinicalSexCode.FEMALE)
+						return Optional.of(ClinicalSexId.FEMALE);
+					if (clinicalSexCode == ClinicalSexCode.SPECIFIED)
+						return Optional.of(ClinicalSexId.SPECIFIED);
+					if (clinicalSexCode == ClinicalSexCode.UNKNOWN)
+						return Optional.of(ClinicalSexId.UNKNOWN);
+				}
+			}
+		}
+
 		return Optional.empty();
 	}
 
 	@Nonnull
 	public Optional<LegalSexId> extractLegalSexId() {
+		if (getExtension() == null)
+			return Optional.empty();
+
+		Extension matchingExtension = getExtension().stream()
+				.filter(extension -> Objects.equals(LegalSexCode.EXTENSION_URL, extension.getUrl()))
+				.findFirst().orElse(null);
+
+		if (matchingExtension == null || matchingExtension.getValueCodeableConcept() == null)
+			return Optional.empty();
+
+		Extension.ValueCodeableConcept valueCodeableConcept = matchingExtension.getValueCodeableConcept();
+
+		if (valueCodeableConcept.getCoding() != null && matchingExtension.getValueCodeableConcept().getCoding().size() > 0) {
+			for (Coding coding : matchingExtension.getValueCodeableConcept().getCoding()) {
+				LegalSexCode legalSexCode = LegalSexCode.fromFhirValue(coding.getCode()).orElse(null);
+
+				if (legalSexCode != null) {
+					if (legalSexCode == LegalSexCode.MALE)
+						return Optional.of(LegalSexId.MALE);
+					if (legalSexCode == LegalSexCode.FEMALE)
+						return Optional.of(LegalSexId.FEMALE);
+					if (legalSexCode == LegalSexCode.UNDIFFERENTIATED)
+						return Optional.of(LegalSexId.UNDIFFERENTIATED);
+				}
+			}
+		}
+
 		return Optional.empty();
 	}
 
 	@Nonnull
 	public Optional<AdministrativeGenderId> extractAdministrativeGenderId() {
+		String gender = getGender();
+		AdministrativeGenderCode administrativeGenderCode = AdministrativeGenderCode.fromFhirValue(gender).orElse(null);
+
+		if (administrativeGenderCode == null)
+			return Optional.empty();
+
+		if (administrativeGenderCode == AdministrativeGenderCode.MALE)
+			return Optional.of(AdministrativeGenderId.MALE);
+		if (administrativeGenderCode == AdministrativeGenderCode.FEMALE)
+			return Optional.of(AdministrativeGenderId.FEMALE);
+		if (administrativeGenderCode == AdministrativeGenderCode.OTHER)
+			return Optional.of(AdministrativeGenderId.OTHER);
+		if (administrativeGenderCode == AdministrativeGenderCode.UNKNOWN)
+			return Optional.of(AdministrativeGenderId.UNKNOWN);
+
 		return Optional.empty();
 	}
 
