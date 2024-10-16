@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.Language;
 import com.cobaltplatform.api.model.db.Payor;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -134,7 +135,7 @@ public class CareResourceService {
 		Integer offset = pageNumber * pageSize;
 		List<Object> parameters = new ArrayList<>();
 
-		StringBuilder query = new StringBuilder("SELECT cr.* FROM care_resource cr, care_resource_institution cri ");
+		StringBuilder query = new StringBuilder("SELECT cr.*, COUNT(cr.care_resource_id) OVER() AS total_count FROM care_resource cr, care_resource_institution cri ");
 
 		query.append("WHERE cr.care_resource_id = cri.care_resource_id AND cri.institution_id = ? ");
 		parameters.add(institutionId);
@@ -156,9 +157,9 @@ public class CareResourceService {
 		parameters.add(limit);
 		parameters.add(offset);
 		getLogger().debug(query.toString());
-		List<CareResource> careResources = getDatabase().queryForList(query.toString(), CareResource.class, parameters.toArray());
+		List<CareResourceWithTotalCount> careResources = getDatabase().queryForList(query.toString(), CareResourceWithTotalCount.class, parameters.toArray());
 
-		FindResult<? extends CareResource> findResult = new FindResult<>(careResources, careResources.size());
+		FindResult<? extends CareResource> findResult = new FindResult<>(careResources, careResources.size() == 0 ? 0 : careResources.get(0).getTotalCount());
 
 		return (FindResult<CareResource>) findResult;
 	}
