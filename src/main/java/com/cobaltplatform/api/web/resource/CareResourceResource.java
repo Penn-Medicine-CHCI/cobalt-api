@@ -141,7 +141,8 @@ public class CareResourceResource {
 	@GET("/care-resources")
 	@AuthenticationRequired
 	public ApiResponse findAllCareResources(@Nonnull @QueryParameter Optional<Integer> pageNumber,
-																					@Nonnull @QueryParameter Optional<Integer> pageSize) {
+																					@Nonnull @QueryParameter Optional<Integer> pageSize,
+																					@Nonnull @QueryParameter Optional<String> searchQuery) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -151,6 +152,7 @@ public class CareResourceResource {
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 				setInstitutionId(account.getInstitutionId());
+				setSearch(searchQuery.orElse(null));
 			}
 		});
 

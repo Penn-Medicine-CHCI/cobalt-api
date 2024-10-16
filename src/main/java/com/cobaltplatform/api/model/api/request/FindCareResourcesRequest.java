@@ -43,10 +43,11 @@ public class FindCareResourcesRequest {
 	private Integer pageSize;
 	@Nullable
 	private OrderBy orderBy;
-
+	@Nullable
+	private String search;
 	public enum OrderBy {
-		RESOURCE_NAME_ASCENDING,
-		RESOURCE_NAME_DESCENDING
+		NAME_ASC,
+		NAME_DESC
 	}
 
 	@Nullable
@@ -83,5 +84,14 @@ public class FindCareResourcesRequest {
 
 	public void setOrderBy(@Nullable OrderBy orderBy) {
 		this.orderBy = orderBy;
+	}
+
+	@Nullable
+	public String getSearch() {
+		return search;
+	}
+
+	public void setSearch(@Nullable String search) {
+		this.search = search;
 	}
 }

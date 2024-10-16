@@ -116,6 +116,8 @@ public class CareResourceService {
 		InstitutionId institutionId = request.getInstitutionId();
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
+		String search = trimToNull(request.getSearch());
+		FindCareResourcesRequest.OrderBy orderBy = request.getOrderBy() == null ? FindCareResourcesRequest.OrderBy.NAME_ASC : request.getOrderBy();
 
 		final int DEFAULT_PAGE_SIZE = 25;
 		final int MAXIMUM_PAGE_SIZE = 100;
@@ -132,20 +134,29 @@ public class CareResourceService {
 		Integer offset = pageNumber * pageSize;
 		List<Object> parameters = new ArrayList<>();
 
+		StringBuilder query = new StringBuilder("SELECT cr.* FROM care_resource cr, care_resource_institution cri ");
+
+		query.append("WHERE cr.care_resource_id = cri.care_resource_id AND cri.institution_id = ? ");
 		parameters.add(institutionId);
+
+		if (search != null) {
+			query.append("AND cr.name ILIKE CONCAT('%',?,'%') ");
+			parameters.add(search);
+		}
+
+		query.append("ORDER BY ");
+
+		if (orderBy == FindCareResourcesRequest.OrderBy.NAME_DESC)
+			query.append("cr.name DESC ");
+		else if (orderBy == FindCareResourcesRequest.OrderBy.NAME_ASC)
+			query.append("cr.name ASC ");
+
+		query.append("LIMIT ? OFFSET ? ");
+
 		parameters.add(limit);
 		parameters.add(offset);
-
-		String query = """
-				SELECT cr.*
-				FROM care_resource cr, care_resource_institution cri
-				WHERE cr.care_resource_id = cri.care_resource_id
-				AND cri.institution_id = ?
-				ORDER BY cr.name
-				LIMIT ?
-				OFFSET ?
-				""";
-		List<CareResource> careResources = getDatabase().queryForList(query, CareResource.class, parameters.toArray());
+		getLogger().debug(query.toString());
+		List<CareResource> careResources = getDatabase().queryForList(query.toString(), CareResource.class, parameters.toArray());
 
 		FindResult<? extends CareResource> findResult = new FindResult<>(careResources, careResources.size());
 
@@ -251,11 +262,11 @@ public class CareResourceService {
 
 		for (String payorId : request.getPayorIds()) {
 			if (trimToNull(payorId) != null)
-			getDatabase().execute("""
-					INSERT INTO care_resource_payor
-					(care_resource_id, payor_id)
-					VALUES
-					(?,?)""", careResourceId, payorId);
+				getDatabase().execute("""
+						INSERT INTO care_resource_payor
+						(care_resource_id, payor_id)
+						VALUES
+						(?,?)""", careResourceId, payorId);
 		}
 
 		for (SupportRoleId supportRoleId : request.getSupportRoleIds())
