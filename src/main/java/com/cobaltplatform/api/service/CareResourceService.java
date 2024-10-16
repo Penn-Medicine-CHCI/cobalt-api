@@ -224,9 +224,6 @@ public class CareResourceService {
 		if (phoneNumber == null)
 			validationException.add(new ValidationException.FieldError("phoneNumber", "Phone number is required."));
 
-		if (request.getSpecialtyIds() == null || request.getSpecialtyIds().size() == 0)
-			validationException.add(new ValidationException.FieldError("specialtyIds", "At least one specialty is required."));
-
 		if (request.getSupportRoleIds() == null || request.getSupportRoleIds().size() == 0)
 			validationException.add(new ValidationException.FieldError("supportRoleIds", "At least one therapy type is required."));
 
@@ -252,12 +249,14 @@ public class CareResourceService {
 					VALUES
 					(?,?)""", careResourceId, specialtyId);
 
-		for (String payorId : request.getPayorIds())
+		for (String payorId : request.getPayorIds()) {
+			if (trimToNull(payorId) != null)
 			getDatabase().execute("""
 					INSERT INTO care_resource_payor
 					(care_resource_id, payor_id)
 					VALUES
 					(?,?)""", careResourceId, payorId);
+		}
 
 		for (SupportRoleId supportRoleId : request.getSupportRoleIds())
 			getDatabase().execute("""
