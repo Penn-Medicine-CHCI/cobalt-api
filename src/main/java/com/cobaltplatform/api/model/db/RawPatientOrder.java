@@ -19,11 +19,14 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
+import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
 import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.PatientOrderCarePreference.PatientOrderCarePreferenceId;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
@@ -36,6 +39,7 @@ import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
+import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nullable;
@@ -133,6 +137,14 @@ public class RawPatientOrder {
 	private GenderIdentityId patientGenderIdentityId;
 	@Nullable
 	private BirthSexId patientBirthSexId;
+	@Nullable
+	private PreferredPronounId patientPreferredPronounId;
+	@Nullable
+	private ClinicalSexId patientClinicalSexId;
+	@Nullable
+	private LegalSexId patientLegalSexId;
+	@Nullable
+	private AdministrativeGenderId patientAdministrativeGenderId;
 	@Nullable
 	private PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId;
 	@Nullable
@@ -591,6 +603,42 @@ public class RawPatientOrder {
 
 	public void setPatientBirthSexId(@Nullable BirthSexId patientBirthSexId) {
 		this.patientBirthSexId = patientBirthSexId;
+	}
+
+	@Nullable
+	public PreferredPronounId getPatientPreferredPronounId() {
+		return this.patientPreferredPronounId;
+	}
+
+	public void setPatientPreferredPronounId(@Nullable PreferredPronounId patientPreferredPronounId) {
+		this.patientPreferredPronounId = patientPreferredPronounId;
+	}
+
+	@Nullable
+	public ClinicalSexId getPatientClinicalSexId() {
+		return this.patientClinicalSexId;
+	}
+
+	public void setPatientClinicalSexId(@Nullable ClinicalSexId patientClinicalSexId) {
+		this.patientClinicalSexId = patientClinicalSexId;
+	}
+
+	@Nullable
+	public LegalSexId getPatientLegalSexId() {
+		return this.patientLegalSexId;
+	}
+
+	public void setPatientLegalSexId(@Nullable LegalSexId patientLegalSexId) {
+		this.patientLegalSexId = patientLegalSexId;
+	}
+
+	@Nullable
+	public AdministrativeGenderId getPatientAdministrativeGenderId() {
+		return this.patientAdministrativeGenderId;
+	}
+
+	public void setPatientAdministrativeGenderId(@Nullable AdministrativeGenderId patientAdministrativeGenderId) {
+		this.patientAdministrativeGenderId = patientAdministrativeGenderId;
 	}
 
 	@Nullable

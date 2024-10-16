@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('189-analytics', NULL, NULL);
+SELECT _v.register_patch('190-analytics', NULL, NULL);
 
 -- Allows us to persist arbitrarily-large sets of claims for the MyChart OAuth flow.
 -- This is necessary because OAuth state values have small size limits -

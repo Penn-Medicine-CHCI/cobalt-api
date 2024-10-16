@@ -40,7 +40,10 @@ public enum RaceCode {
 	ASIAN("Asian", "2028-9"),
 	BLACK_OR_AFRICAN_AMERICAN("Black or African American", "2054-5"),
 	NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER("Native Hawaiian or Other Pacific Islander", "2076-8"),
-	WHITE("White", "2106-3");
+	WHITE("White", "2106-3"),
+	OTHER_RACE("Other Race", "2131-1"),
+	SOME_OTHER_RACE("Some Other Race", "2131-1"),
+	UNKNOWN("Unknown", "UNK");
 
 	@Nonnull
 	public static final String EXTENSION_URL;
