@@ -311,6 +311,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Authenticator authenticator;
 	@Nonnull
+	private final ErrorReporter errorReporter;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Gson gson;
@@ -342,6 +344,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Normalizer normalizer,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Authenticator authenticator,
+														 @Nonnull ErrorReporter errorReporter,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings) {
 		requireNonNull(addressServiceProvider);
@@ -359,6 +362,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(normalizer);
 		requireNonNull(formatter);
 		requireNonNull(authenticator);
+		requireNonNull(errorReporter);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 
@@ -377,6 +381,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.normalizer = normalizer;
 		this.formatter = formatter;
 		this.authenticator = authenticator;
+		this.errorReporter = errorReporter;
 		this.configuration = configuration;
 		this.gson = createGson();
 		this.strings = strings;
@@ -5214,7 +5219,7 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			// Apply any institution-specific customizations
-			EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(institutionId);
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
 			enterprisePlugin.applyCustomizationsToCreatePatientOrderRequestForHl7Order(patientOrderRequest, order);
 
 			UUID patientOrderId = createPatientOrder(patientOrderRequest);
@@ -5478,9 +5483,9 @@ public class PatientOrderService implements AutoCloseable {
 				patientBirthSexId = BirthSexId.FEMALE;
 		}
 
-		// Fall back to UNKNOWN if we're not sure
+		// Fall back to NOT_ASKED if we're not sure
 		if (patientBirthSexId == null)
-			patientBirthSexId = BirthSexId.UNKNOWN;
+			patientBirthSexId = BirthSexId.NOT_ASKED;
 
 		try {
 			String postalName = Normalizer.normalizeName(patientFirstName, patientLastName).get();
@@ -5578,6 +5583,59 @@ public class PatientOrderService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId = PatientOrderDemographicsImportStatusId.PENDING;
+		Instant patientDemographicsImportedAt = null;
+		EthnicityId patientEthnicityId = EthnicityId.NOT_ASKED;
+		RaceId patientRaceId = RaceId.NOT_ASKED;
+		GenderIdentityId patientGenderIdentityId = GenderIdentityId.NOT_ASKED;
+		PreferredPronounId patientPreferredPronounId = PreferredPronounId.NOT_ASKED;
+		ClinicalSexId patientClinicalSexId = ClinicalSexId.NOT_ASKED;
+		LegalSexId patientLegalSexId = LegalSexId.NOT_ASKED;
+		AdministrativeGenderId patientAdministrativeGenderId = AdministrativeGenderId.NOT_ASKED;
+
+		// If this is not a test order, then immediately try to pull patient demographic data from Epic to supplement the order.
+		// If the demographic call fails, we continue on, and the background task will try again later.
+		if (!testPatientOrder && patientUniqueId != null && patientUniqueIdType != null) {
+			getLogger().info("Detected that patient order ID {} for patient {} {} needs demographic information, attemping to pull from Epic...", patientOrderId, patientUniqueIdType, patientUniqueId);
+
+			try {
+				EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
+
+				// Per https://fhir.epic.com/Specifications?api=30
+				// identifiers are of the format <OID>|<value>
+				PatientSearchResponse patientSearchResponse = epicClient.patientSearchFhirR4(patientUniqueIdType, patientUniqueId);
+
+				if (patientSearchResponse.getTotal() == null || patientSearchResponse.getTotal().equals(0))
+					throw new IllegalStateException(format("Unable to find %s patient record for patient %s %s",
+							institutionId.name(), patientUniqueIdType, patientUniqueId));
+
+				patientEthnicityId = patientSearchResponse.extractEthnicityId().orElse(EthnicityId.NOT_ASKED);
+				patientRaceId = patientSearchResponse.extractRaceId().orElse(RaceId.NOT_ASKED);
+
+				// This value might have already been specified explicitly on the order.  If so, leave it as-is.
+				if (patientBirthSexId != BirthSexId.NOT_ASKED)
+					patientBirthSexId = patientSearchResponse.extractBirthSexId().orElse(BirthSexId.NOT_ASKED);
+
+				patientGenderIdentityId = patientSearchResponse.extractGenderIdentityId().orElse(GenderIdentityId.NOT_ASKED);
+				patientPreferredPronounId = patientSearchResponse.extractPreferredPronounId().orElse(PreferredPronounId.NOT_ASKED);
+				patientClinicalSexId = patientSearchResponse.extractClinicalSexId().orElse(ClinicalSexId.NOT_ASKED);
+				patientLegalSexId = patientSearchResponse.extractLegalSexId().orElse(LegalSexId.NOT_ASKED);
+				patientAdministrativeGenderId = patientSearchResponse.extractAdministrativeGenderId().orElse(AdministrativeGenderId.NOT_ASKED);
+				patientDemographicsImportedAt = Instant.now();
+				patientOrderDemographicsImportStatusId = PatientOrderDemographicsImportStatusId.IMPORTED;
+			} catch (Exception e) {
+				// Just log/report the error and keep going.  The import should still go through.
+				getLogger().warn(format("Unable to pull patient demographics in %s institution when importing order for patient %s %s",
+						institutionId.name(), patientUniqueIdType, patientUniqueId), e);
+				getErrorReporter().report(e);
+
+				// Keep the status as pending if there was an error.
+				// Reason: the error might be transient, and the background task will try again later to perform the import.
+				patientOrderDemographicsImportStatusId = PatientOrderDemographicsImportStatusId.PENDING;
+			}
+		}
+
 		String hashedTestPatientPassword = testPatientPassword == null ? null : getAuthenticator().hashPassword(testPatientPassword);
 
 		getDatabase().execute("""
@@ -5608,7 +5666,6 @@ public class PatientOrderService implements AutoCloseable {
 						  patient_mrn,
 						  patient_unique_id,
 						  patient_unique_id_type,
-						  patient_birth_sex_id,
 						  patient_birthdate,
 						  patient_address_id,
 						  primary_payor_id,
@@ -5628,19 +5685,31 @@ public class PatientOrderService implements AutoCloseable {
 						  recent_psychotherapeutic_medications,
 						  test_patient_email_address,
 						  test_patient_password,
-						  test_patient_order
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						  test_patient_order,
+							patient_order_demographics_import_status_id,
+							patient_ethnicity_id,
+							patient_race_id,
+							patient_birth_sex_id,
+							patient_gender_identity_id,
+							patient_preferred_pronoun_id,
+							patient_clinical_sex_id,
+							patient_legal_sex_id,
+							patient_administrative_gender_id,
+							patient_demographics_imported_at
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, epicDepartmentId, referringPracticeId,
 				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
 				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
-				patientMrn, patientUniqueId, patientUniqueIdType, patientBirthSexId, patientBirthdate, patientAddressId, primaryPayorId,
+				patientMrn, patientUniqueId, patientUniqueIdType, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications,
-				testPatientEmailAddress, hashedTestPatientPassword, testPatientOrder);
+				testPatientEmailAddress, hashedTestPatientPassword, testPatientOrder,
+				patientOrderDemographicsImportStatusId, patientEthnicityId, patientRaceId, patientBirthSexId, patientGenderIdentityId,
+				patientPreferredPronounId, patientClinicalSexId, patientLegalSexId, patientAdministrativeGenderId, patientDemographicsImportedAt);
 
 		int diagnosisDisplayOrder = 0;
 
@@ -6238,7 +6307,7 @@ public class PatientOrderService implements AutoCloseable {
 										patient_preferred_pronoun_id=?,
 										patient_clinical_sex_id=?,
 										patient_legal_sex_id=?,
-										administrative_gender_id=?,
+										patient_administrative_gender_id=?,
 										patient_demographics_imported_at=NOW()
 										WHERE patient_order_id=?
 										""", PatientOrderDemographicsImportStatusId.IMPORTED,
@@ -6530,6 +6599,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected Authenticator getAuthenticator() {
 		return this.authenticator;
+	}
+
+	@Nonnull
+	protected ErrorReporter getErrorReporter() {
+		return this.errorReporter;
 	}
 
 	@Nonnull
