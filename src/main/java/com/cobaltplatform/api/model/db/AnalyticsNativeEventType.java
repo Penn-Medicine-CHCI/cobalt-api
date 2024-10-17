@@ -193,7 +193,13 @@ public class AnalyticsNativeEventType {
 		// On the web, when the MHIC "Priorities" page is rendered.
 		// If a priority group tab on the page is selected, another event should be fired.
 		// Additional data:
-		// * priorityGroupId (String, which tab is selected, one of OUTREACH_REVIEW, VOICEMAIL_TASK, OUTREACH_FOLLOWUP_NEEDED, SCHEDULED_ASSESSMENT, NEED_RESOURCES, SAFETY_PLANNING)
+		// * priorityGroupId (String, which tab is selected)
+		//    OUTREACH_REVIEW
+		//    VOICEMAIL_TASK
+		//    OUTREACH_FOLLOWUP_NEEDED
+		//    SCHEDULED_ASSESSMENT
+		//    NEED_RESOURCES
+		//    SAFETY_PLANNING
 		// * totalCount (Integer, how many orders are shown in the selected tab)
 		PAGE_VIEW_MHIC_PRIORITIES,
 		// On the web, when the MHIC "Assigned Orders" page is rendered.
@@ -223,7 +229,7 @@ public class AnalyticsNativeEventType {
 		// * pageNumber (Integer, which page of the results we're on, 0-indexed)
 		// * pageSize (Integer, the maximum number of results visible per page)
 		// * totalCount (Integer, how many results exist. Not all results may be shown)
-		PAGE_VIEW_MHIC_PATIENT_ORDER_VIEW,
+		PAGE_VIEW_MHIC_ASSIGNED_ORDERS_VIEW,
 		// On the web, when the "in crisis" overlay is triggered.
 		// Additional data:
 		// * source (String)
