@@ -187,6 +187,12 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- On the web, when the "in crisis" page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_IN_CRISIS', 'Page View (In Crisis)');
+-- On the web, when an MHIC priority page is rendered.
+-- If a priority group tab on the page is selected, another event should be fired.
+-- Additional data:
+-- * priorityGroupId (String, which tab is selected, one of OUTREACH_REVIEW, VOICEMAIL_TASK, OUTREACH_FOLLOWUP_NEEDED, SCHEDULED_ASSESSMENT, NEED_RESOURCES, SAFETY_PLANNING)
+-- * totalCount (Integer, how many orders are shown in the selected tab)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_PRIORITIES', 'Page View (MHIC Priorities)');
 -- On the web, when an MHIC patient order panel page is rendered.
 -- Additional data:
 -- * patientOrderViewTypeId (PatientOrderViewTypeId, which panel we're looking at)
@@ -195,7 +201,7 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * pageNumber (Integer, which page of the results we're on, 0-indexed)
 -- * pageSize (Integer, the maximum number of results visible per page)
 -- * totalCount (Integer, how many results exist. Not all results may be shown)
-INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_PATIENT_ORDER_PANEL', 'Page View (MHIC Patient Order Panel)');
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_PATIENT_ORDER_VIEW', 'Page View (MHIC Patient Order View)');
 -- On the web, when the "in crisis" overlay is rendered.
 -- Additional data:
 -- * source (String)
