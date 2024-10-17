@@ -4389,6 +4389,7 @@ public class PatientOrderService implements AutoCloseable {
 		if (completedScreeningSession == null)
 			throw new ValidationException(getStrings().get("Cannot generate a clinical report; there is no completed screening session for this patient order."));
 
+		boolean selfAdministered = getAccountService().findAccountById(completedScreeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
 		ScreeningSessionResult screeningSessionResult = getScreeningService().findScreeningSessionResult(completedScreeningSession).get();
 
 		List<String> lines = new ArrayList<>();
@@ -4407,7 +4408,7 @@ public class PatientOrderService implements AutoCloseable {
 		lines.add("");
 		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{ageInYears}} year old patient completed the {{platform}} {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
 				Map.of(
-						"platform", (completedScreeningSession.getCreatedByAccountId().equals(completedScreeningSession.getTargetAccountId()) ? getStrings().get("digital") : getStrings().get("phone")),
+						"platform", selfAdministered ? getStrings().get("digital") : getStrings().get("phone"),
 						"ageInYears", patientOrder.getPatientAgeOnOrderDate(),
 						"integratedCareProgramName", institution.getIntegratedCareProgramName(),
 						"assessmentDate", getFormatter().formatTimestamp(completedScreeningSession.getCompletedAt(), FormatStyle.FULL, FormatStyle.SHORT, institution.getTimeZone()),
