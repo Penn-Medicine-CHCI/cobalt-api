@@ -187,13 +187,32 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- On the web, when the "in crisis" page is rendered.
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_IN_CRISIS', 'Page View (In Crisis)');
--- On the web, when an MHIC priority page is rendered.
+-- On the web, when the MHIC "Priorities" page is rendered.
 -- If a priority group tab on the page is selected, another event should be fired.
 -- Additional data:
 -- * priorityGroupId (String, which tab is selected, one of OUTREACH_REVIEW, VOICEMAIL_TASK, OUTREACH_FOLLOWUP_NEEDED, SCHEDULED_ASSESSMENT, NEED_RESOURCES, SAFETY_PLANNING)
 -- * totalCount (Integer, how many orders are shown in the selected tab)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_PRIORITIES', 'Page View (MHIC Priorities)');
--- On the web, when an MHIC patient order panel page is rendered.
+-- On the web, when the MHIC "Assigned Orders" page is rendered.
+-- If a filer or "sort by" option is selected, another event should be fired.
+-- Additional data:
+-- * patientOrderSortColumnId: (PatientOrderSortColumnId, if explicitly selected)
+-- * sortDirectionId: (SortDirectionId, if explicitly selected)
+-- * patientOrderOutreachStatusId: (PatientOrderOutreachStatusId, if explicitly specified)
+-- * patientOrderScreeningStatusId: (PatientOrderScreeningStatusId, if explicitly specified)
+-- * patientOrderScheduledScreeningScheduledDate (Date, e.g. 2024-10-11, if explicitly specified)
+-- * patientOrderResourcingStatusId: (PatientOrderResourcingStatusId, if explicitly specified)
+-- * PatientOrderResourceCheckInResponseStatusId: (PatientOrderResourceCheckInResponseStatusId, if explicitly specified)
+-- * patientOrderAssignmentStatusId: (PatientOrderAssignmentStatusId, if explicitly specified)
+-- * patientOrderDispositionId: (PatientOrderAssignmentStatusId, if explicitly specified)
+-- * referringPracticeIds: (String[], if explicitly specified)
+-- * patientOrderFilterFlagTypeIds: (PatientOrderFilterFlagTypeId[], if explicitly specified)
+-- * pageNumber (Integer, which page of the results we're on, 0-indexed)
+-- * pageSize (Integer, the maximum number of results visible per page)
+-- * totalCount (Integer, how many results exist. Not all results may be shown)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_ASSIGNED_ORDERS', 'Page View (MHIC Assigned Orders)');
+-- On the web, when an MHIC patient order "panel" page is rendered.
+-- If a "sort by" option is selected, another event should be fired.
 -- Additional data:
 -- * patientOrderViewTypeId (PatientOrderViewTypeId, which panel we're looking at)
 -- * patientOrderSortColumnId (PatientOrderSortColumnId, if explicitly specified)
