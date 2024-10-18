@@ -28,9 +28,9 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CareResourceSpecialty {
+public class CareResourceLocationSpecialty {
 	@Nullable
-	private UUID careResourceSpecialtyId;
+	private UUID careResourceLocationSpecialtyId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -39,12 +39,12 @@ public class CareResourceSpecialty {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getCareResourceSpecialtyId() {
-		return careResourceSpecialtyId;
+	public UUID getCareResourceLocationSpecialtyId() {
+		return careResourceLocationSpecialtyId;
 	}
 
-	public void setCareResourceSpecialtyId(@Nullable UUID careResourceSpecialtyId) {
-		this.careResourceSpecialtyId = careResourceSpecialtyId;
+	public void setCareResourceLocationSpecialtyId(@Nullable UUID careResourceLocationSpecialtyId) {
+		this.careResourceLocationSpecialtyId = careResourceLocationSpecialtyId;
 	}
 
 	@Nullable

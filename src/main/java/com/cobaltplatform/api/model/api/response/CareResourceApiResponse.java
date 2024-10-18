@@ -21,8 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 
 import com.cobaltplatform.api.model.db.CareResource;
-import com.cobaltplatform.api.model.db.CareResourceLocation;
-import com.cobaltplatform.api.model.db.CareResourceSpecialty;
+import com.cobaltplatform.api.model.db.CareResourceLocationSpecialty;
 import com.cobaltplatform.api.model.db.Payor;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.service.CareResourceService;
@@ -66,12 +65,6 @@ public class CareResourceApiResponse {
 	@Nullable
 	private List<CareResourceLocationApiResponse> careResourceLocations;
 	@Nullable
-	private List<Payor> payors;
-	@Nullable
-	private List<CareResourceSpecialty> specialties;
-	@Nullable
-	private List<SupportRole> supportRoles;
-	@Nullable
 	private CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -100,9 +93,6 @@ public class CareResourceApiResponse {
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResource.getPhoneNumber());
 		this.careResourceLocations = careResourceService.findCareResourceLocations(careResource.getCareResourceId())
 				.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
-		this.specialties = careResourceService.findCareResourceSpecialties(careResource.getCareResourceId());
-		this.supportRoles = careResourceService.findCareResourceSupportRoles(careResource.getCareResourceId());
-		this.payors = careResourceService.findCareResourcePayors(careResource.getCareResourceId());
 	}
 
 
@@ -149,21 +139,6 @@ public class CareResourceApiResponse {
 	@Nullable
 	public String getFormattedPhoneNumber() {
 		return formattedPhoneNumber;
-	}
-
-	@Nullable
-	public List<Payor> getPayors() {
-		return payors;
-	}
-
-	@Nullable
-	public List<CareResourceSpecialty> getSpecialties() {
-		return specialties;
-	}
-
-	@Nullable
-	public List<SupportRole> getSupportRoles() {
-		return supportRoles;
 	}
 
 	@Nullable

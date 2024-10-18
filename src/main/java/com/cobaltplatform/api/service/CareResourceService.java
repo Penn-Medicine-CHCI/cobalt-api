@@ -24,7 +24,7 @@ import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
-import com.cobaltplatform.api.model.db.CareResourceSpecialty;
+import com.cobaltplatform.api.model.db.CareResourceLocationSpecialty;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Language;
 import com.cobaltplatform.api.model.db.Payor;
@@ -185,36 +185,36 @@ public class CareResourceService {
 				""", Language.class, careResourceLocationId);
 	}
 
-	public List<CareResourceSpecialty> findCareResourceSpecialties(@Nonnull UUID careResourceId) {
+	public List<CareResourceLocationSpecialty> findCareResourceLocationSpecialties(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
 		return getDatabase().queryForList("""
 				SELECT crs.*
-				FROM care_resource_specialty crs, care_resource_care_resource_specialty crc
+				FROM care_resource_specialty crs, care_resource_location_specialty crc
 				WHERE crs.care_resource_specialty_id= crc.care_resource_specialty_id
-				AND crc.care_resource_id = ?
-				""", CareResourceSpecialty.class, careResourceId);
+				AND crc.care_resource_location_id = ?
+				""", CareResourceLocationSpecialty.class, careResourceId);
 	}
 
-	public List<Payor> findCareResourcePayors(@Nonnull UUID careResourceId) {
+	public List<Payor> findCareResourceLocationPayors(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
 		return getDatabase().queryForList("""
 				SELECT p.*
-				FROM payor p, care_resource_payor crp
+				FROM payor p, care_resource_location_payor crp
 				WHERE p.payor_id= crp.payor_id
-				AND crp.care_resource_id = ?
+				AND crp.care_resource_location_id = ?
 				""", Payor.class, careResourceId);
 	}
 
-	public List<SupportRole> findCareResourceSupportRoles(@Nonnull UUID careResourceId) {
+	public List<SupportRole> findCareResourceLocationSupportRoles(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
 		return getDatabase().queryForList("""
 				SELECT sr.*
-				FROM support_role sr, care_resource_support_role crs
+				FROM support_role sr, care_resource_location_support_role crs
 				WHERE sr.support_role_id= crs.support_role_id
-				AND crs.care_resource_id = ?
+				AND crs.care_resource_location_id = ?
 				""", SupportRole.class, careResourceId);
 	}
 

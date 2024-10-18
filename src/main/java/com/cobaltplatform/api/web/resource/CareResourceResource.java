@@ -22,7 +22,6 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
-import com.cobaltplatform.api.model.api.response.CareResourceApiResponse;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PayorApiResponse.PayorApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
@@ -52,6 +51,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -142,9 +142,12 @@ public class CareResourceResource {
 	@AuthenticationRequired
 	public ApiResponse findAllCareResources(@Nonnull @QueryParameter Optional<Integer> pageNumber,
 																					@Nonnull @QueryParameter Optional<Integer> pageSize,
-																					@Nonnull @QueryParameter Optional<String> searchQuery) {
+																					@Nonnull @QueryParameter Optional<String> searchQuery,
+																					@Nonnull @QueryParameter Optional<FindCareResourcesRequest.OrderBy> orderBy) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
+		requireNonNull(searchQuery);
+		requireNonNull(orderBy);
 
 		Account account = getCurrentContext().getAccount().get();
 		FindResult<CareResource> findResult = getCareResourceService().findAllCareResourceByInstitutionId(new FindCareResourcesRequest() {
@@ -153,18 +156,16 @@ public class CareResourceResource {
 				setPageSize(pageSize.orElse(0));
 				setInstitutionId(account.getInstitutionId());
 				setSearch(searchQuery.orElse(null));
+				setOrderBy(orderBy.orElse(null));
 			}
 		});
 
-		List<CareResourceApiResponse> careResources = findResult.getResults().stream().map(careResource -> getCareResourceApiResponseFactory()
-				.create(careResource)).collect(Collectors.toList());
-		Map<String, Object> findResultJson = new HashMap<>();
-		findResultJson.put("careResources", careResources);
-		findResultJson.put("totalCount", findResult.getTotalCount());
-		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResources", findResultJson);
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("totalCount", findResult.getTotalCount());
+			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+			put("careResources", findResult.getResults().stream()
+					.map(careResource -> getCareResourceApiResponseFactory().create(careResource))
+					.collect(Collectors.toList()));
 		}});
 	}
 

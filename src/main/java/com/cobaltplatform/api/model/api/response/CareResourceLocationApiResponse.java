@@ -23,7 +23,10 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
+import com.cobaltplatform.api.model.db.CareResourceLocationSpecialty;
 import com.cobaltplatform.api.model.db.Language;
+import com.cobaltplatform.api.model.db.Payor;
+import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
@@ -56,8 +59,13 @@ public class CareResourceLocationApiResponse {
 	private String notes;
 	@Nullable
 	private Boolean wheelchairAccess;
-
 	@Nullable List<Language> languages;
+	@Nullable
+	private List<CareResourceLocationSpecialty> specialties;
+	@Nullable
+	private List<SupportRole> supportRoles;
+	@Nullable
+	private List<Payor> payors;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -81,6 +89,9 @@ public class CareResourceLocationApiResponse {
 		this.notes = careResourceLocation.getNotes();
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
 		this.languages = careResourceService.findLanguagesForCareResourceLocation(careResourceLocation.getCareResourceLocationId());
+		this.specialties = careResourceService.findCareResourceLocationSpecialties(careResourceLocation.getCareResourceLocationId());
+		this.supportRoles = careResourceService.findCareResourceLocationSupportRoles(careResourceLocation.getCareResourceLocationId());
+		this.payors = careResourceService.findCareResourceLocationPayors(careResourceLocation.getCareResourceLocationId());
 	}
 
 	@Nullable
@@ -115,5 +126,20 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	public List<Language> getLanguages() {
 		return languages;
+	}
+
+	@Nullable
+	public List<CareResourceLocationSpecialty> getSpecialties() {
+		return specialties;
+	}
+
+	@Nullable
+	public List<SupportRole> getSupportRoles() {
+		return supportRoles;
+	}
+
+	@Nullable
+	public List<Payor> getPayors() {
+		return payors;
 	}
 }

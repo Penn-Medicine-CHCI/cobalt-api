@@ -115,14 +115,14 @@ CREATE TABLE payor (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON payor FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE care_resource_payor (
-	care_resource_payor_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	care_resource_id UUID NOT NULL REFERENCES care_resource,
+CREATE TABLE care_resource_location_payor (
+	care_resource_location_payor_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
 	payor_id TEXT NOT NULL REFERENCES payor,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );	
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_payor FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_location_payor FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE care_resource_focus_type (
 	care_resource_focus_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -133,14 +133,14 @@ CREATE TABLE care_resource_focus_type (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_focus_type FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE care_resource_support_role (
-	care_resource_support_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	care_resource_id UUID NOT NULL REFERENCES care_resource,
+CREATE TABLE care_resource_location_support_role (
+	care_resource_location_support_role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
 	support_role_id TEXT NOT NULL REFERENCES support_role,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_support_role FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_location_support_role FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE care_resource_specialty_group (
 	care_resource_specialty_group_id TEXT PRIMARY KEY,
@@ -159,14 +159,14 @@ CREATE TABLE care_resource_specialty (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_specialty FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE care_resource_care_resource_specialty (
-	care_resource_care_resource_specialty_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE care_resource_location_specialty (
+	care_resource_location_specialty_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_specialty_id UUID NOT NULL REFERENCES care_resource_specialty,
-	care_resource_id UUID NOT NULL REFERENCES care_resource,
+	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_care_resource_specialty FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_location_specialty FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE patient_order_resource_packet (
 	patient_order_resource_packet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
