@@ -246,6 +246,20 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * pageSize (Integer, the maximum number of results visible per page)
 -- * totalCount (Integer, how many results exist. Not all results may be shown)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_ALL_ORDERS', 'Page View (MHIC All Orders)');
+-- On the web, when the patient order "shelf" is summoned in any context.
+-- If another section of the page is selected (e.g. Contact History or Comments), another event should be fired.
+-- Additional data:
+-- * patientOrderId: (UUID)
+-- * sectionId: (String)
+--    ORDER_DETAILS
+--    CONTACT_HISTORY
+--    COMMENTS
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_ORDER_DETAIL', 'Page View (MHIC Order Detail)');
+-- When an MHIC attempts to search over orders via autocompleter UI.
+-- Additional data:
+-- * searchQuery (String)
+-- * patientOrderIds (UUID[], the ordered set of autocompleted patient order identifiers, or the empty list if none)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('MHIC_ORDER_AUTOCOMPLETE', 'MHIC Order Autocomplete');
 -- On the web, when the "in crisis" overlay is rendered.
 -- Additional data:
 -- * source (String)

@@ -249,6 +249,20 @@ public class AnalyticsNativeEventType {
 		// * pageSize (Integer, the maximum number of results visible per page)
 		// * totalCount (Integer, how many results exist. Not all results may be shown)
 		PAGE_VIEW_MHIC_ALL_ORDERS,
+		// On the web, when the patient order "shelf" is summoned in any context.
+		// If another section of the page is selected (e.g. Contact History or Comments), another event should be fired.
+		// Additional data:
+		// * patientOrderId: (UUID)
+		// * sectionId: (String)
+		//    ORDER_DETAILS
+		//    CONTACT_HISTORY
+		//    COMMENTS
+		PAGE_VIEW_MHIC_ORDER_DETAIL,
+		// When an MHIC attempts to search over orders via autocompleter UI.
+		// Additional data:
+		// * searchQuery (String)
+		// * patientOrderIds (UUID[], the ordered set of autocompleted patient order identifiers, or the empty list if none)
+		MHIC_ORDER_AUTOCOMPLETE,
 		// On the web, when the "in crisis" overlay is triggered.
 		// Additional data:
 		// * source (String)
