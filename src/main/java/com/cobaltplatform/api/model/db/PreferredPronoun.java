@@ -26,38 +26,43 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Race {
+public class PreferredPronoun {
 	@Nullable
-	private RaceId raceId;
+	private PreferredPronounId preferredPronounId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum RaceId {
+	public enum PreferredPronounId {
 		NOT_ASKED,
-		AMERICAN_INDIAN_OR_ALASKA_NATIVE,
-		ASIAN,
-		BLACK_OR_AFRICAN_AMERICAN,
-		HAWAIIAN_OR_PACIFIC_ISLANDER,
+		HE_HIM_HIS_HIS_HIMSELF, // LA29518-0
+		SHE_HER_HER_HERS_HERSELF, // LA29519-8
+		THEY_THEM_THEIR_THEIRS_THEMSELVES, // LA29520-6
+		ZE_ZIR_ZIR_ZIRS_ZIRSELF, // LA29523-0
+		XIE_HIR_HERE_HIR_HIRS_HIRSELF, // LA29521-4
+		CO_CO_COS_COS_COSELF, // LA29515-6
+		EN_EN_ENS_ENS_ENSELF, // LA29516-4
+		EY_EM_EIR_EIRS_EMSELF, // LA29517-2
+		YO_YO_YOS_YOS_YOSELF, // LA29522-2
+		VE_VIS_VER_VER_VERSELF, // LA29524-8
+		DO_NOT_USE_PRONOUNS, // EP-PS-DO-NOT-USE-PRONOUNS
 		OTHER,
-		WHITE,
-		UNKNOWN,
 		NOT_DISCLOSED
 	}
 
 	@Override
 	public String toString() {
-		return String.format("%s{raceId=%s, description=%s}", getClass().getSimpleName(), getRaceId(), getDescription());
+		return String.format("%s{preferredPronounId=%s, description=%s}", getClass().getSimpleName(), getPreferredPronounId(), getDescription());
 	}
 
 	@Nullable
-	public RaceId getRaceId() {
-		return this.raceId;
+	public PreferredPronounId getPreferredPronounId() {
+		return this.preferredPronounId;
 	}
 
-	public void setRaceId(@Nullable RaceId raceId) {
-		this.raceId = raceId;
+	public void setPreferredPronounId(@Nullable PreferredPronounId preferredPronounId) {
+		this.preferredPronounId = preferredPronounId;
 	}
 
 	@Nullable

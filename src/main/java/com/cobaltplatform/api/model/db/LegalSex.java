@@ -26,38 +26,35 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Race {
+public class LegalSex {
 	@Nullable
-	private RaceId raceId;
+	private LegalSexId legalSexId;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer displayOrder;
 
-	public enum RaceId {
+	// See See https://loinc.org/72143-1
+	public enum LegalSexId {
 		NOT_ASKED,
-		AMERICAN_INDIAN_OR_ALASKA_NATIVE,
-		ASIAN,
-		BLACK_OR_AFRICAN_AMERICAN,
-		HAWAIIAN_OR_PACIFIC_ISLANDER,
-		OTHER,
-		WHITE,
-		UNKNOWN,
+		FEMALE, // LA3-6
+		MALE, // LA2-8
+		UNDIFFERENTIATED, // LA18959-9
 		NOT_DISCLOSED
 	}
 
 	@Override
 	public String toString() {
-		return String.format("%s{raceId=%s, description=%s}", getClass().getSimpleName(), getRaceId(), getDescription());
+		return String.format("%s{legalSexId=%s, description=%s}", getClass().getSimpleName(), getLegalSexId(), getDescription());
 	}
 
 	@Nullable
-	public RaceId getRaceId() {
-		return this.raceId;
+	public LegalSexId getLegalSexId() {
+		return this.legalSexId;
 	}
 
-	public void setRaceId(@Nullable RaceId raceId) {
-		this.raceId = raceId;
+	public void setLegalSexId(@Nullable LegalSexId legalSexId) {
+		this.legalSexId = legalSexId;
 	}
 
 	@Nullable

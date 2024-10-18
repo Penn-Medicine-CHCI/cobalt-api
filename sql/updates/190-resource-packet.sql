@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('189-resource-packet', NULL, NULL);
+SELECT _v.register_patch('190-resource-packet', NULL, NULL);
 
 CREATE TABLE population_served (
 	population_served_id TEXT PRIMARY KEY,
