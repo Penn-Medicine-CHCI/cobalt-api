@@ -262,6 +262,18 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 --    CONTACT_HISTORY
 --    COMMENTS
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_ORDER_DETAIL', 'Page View (MHIC Order Detail)');
+-- On the web, when the MHIC "Assessment Review" page is rendered.
+-- Additional data:
+-- * patientOrderId: (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_ORDER_ASSESSMENT_RESULTS', 'Page View (MHIC Order Assessment Results)');
+-- On the web, when the MHIC "Search Results" page is rendered.
+-- Additional data:
+-- * searchQuery: (String)
+-- * patientMrn: (String, if present)
+-- * pageNumber (Integer, which page of the results we're on, 0-indexed)
+-- * pageSize (Integer, the maximum number of results visible per page)
+-- * totalCount (Integer, how many results exist. Not all results may be shown)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_MHIC_ORDER_SEARCH_RESULTS', 'Page View (MHIC Order Search Results)');
 -- When an MHIC attempts to search over orders via autocompleter UI.
 -- Additional data:
 -- * searchQuery (String)
@@ -301,6 +313,18 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- Additional data:
 -- * accountSourceId (String)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_ACCOUNT_SOURCE', 'Clickthrough (Account Source)');
+-- When an MHIC clicks on the "Retake Assessment" button.
+-- Additional data:
+-- * patientOrderId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_MHIC_RETAKE_ORDER_ASSESSMENT', 'Clickthrough (MHIC Retake Order Assessment)');
+-- When an MHIC clicks on the "Export Results" button on the assessment review page.
+-- Additional data:
+-- * patientOrderId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_MHIC_EXPORT_ORDER_ASSESSMENT_RESULTS', 'Clickthrough (MHIC Export Order Assessment Results)');
+-- When an MHIC clicks on the "Review" button on the order detail page's assessment section.
+-- Additional data:
+-- * patientOrderId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_MHIC_ORDER_ASSESSMENT_RESULTS', 'Clickthrough (MHIC Order Assessment Results)');
 
 -- Cobalt native analytics events
 CREATE TABLE analytics_native_event (
