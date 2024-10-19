@@ -25,6 +25,9 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -66,6 +69,12 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private String clientDeviceOperatingSystemVersion;
 	@Nullable
+	private List<Locale> clientDeviceSupportedLocales; // Client device's supported locales at this moment in time, e.g. ["en-US", "en", "fr-CA"]
+	@Nullable
+	private Locale clientDeviceLocale; // Client device's locale at this moment in time
+	@Nullable
+	private ZoneId clientDeviceTimeZone; // Client device's timezone at this moment in time
+	@Nullable
 	private String userAgent; // The value of window.navigator.userAgent
 	@Nullable
 	private String userAgentDeviceFamily; // Parsed from User-Agent
@@ -93,6 +102,8 @@ public class CreateAnalyticsNativeEventRequest {
 	private Double windowWidth; // Provided by JS window object on web
 	@Nullable
 	private Double windowHeight; // Provided by JS window object on web
+	@Nullable
+	private Integer navigatorMaxTouchPoints; // Provided by navigator.maxTouchPoints on web
 	@Nullable
 	private String documentVisibilityState; // Provided by document.visibilityState on web
 
@@ -223,6 +234,33 @@ public class CreateAnalyticsNativeEventRequest {
 	}
 
 	@Nullable
+	public List<Locale> getClientDeviceSupportedLocales() {
+		return this.clientDeviceSupportedLocales;
+	}
+
+	public void setClientDeviceSupportedLocales(@Nullable List<Locale> clientDeviceSupportedLocales) {
+		this.clientDeviceSupportedLocales = clientDeviceSupportedLocales;
+	}
+
+	@Nullable
+	public Locale getClientDeviceLocale() {
+		return this.clientDeviceLocale;
+	}
+
+	public void setClientDeviceLocale(@Nullable Locale clientDeviceLocale) {
+		this.clientDeviceLocale = clientDeviceLocale;
+	}
+
+	@Nullable
+	public ZoneId getClientDeviceTimeZone() {
+		return this.clientDeviceTimeZone;
+	}
+
+	public void setClientDeviceTimeZone(@Nullable ZoneId clientDeviceTimeZone) {
+		this.clientDeviceTimeZone = clientDeviceTimeZone;
+	}
+
+	@Nullable
 	public String getUserAgent() {
 		return this.userAgent;
 	}
@@ -346,6 +384,15 @@ public class CreateAnalyticsNativeEventRequest {
 
 	public void setWindowHeight(@Nullable Double windowHeight) {
 		this.windowHeight = windowHeight;
+	}
+
+	@Nullable
+	public Integer getNavigatorMaxTouchPoints() {
+		return this.navigatorMaxTouchPoints;
+	}
+
+	public void setNavigatorMaxTouchPoints(@Nullable Integer navigatorMaxTouchPoints) {
+		this.navigatorMaxTouchPoints = navigatorMaxTouchPoints;
 	}
 
 	@Nullable

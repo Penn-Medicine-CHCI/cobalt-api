@@ -25,11 +25,19 @@ import com.cobaltplatform.api.util.UserAgentParser;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
 import com.devskiller.friendly_id.FriendlyId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import org.apache.commons.collections4.list.UnmodifiableList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.servlet.http.HttpServletRequest;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,6 +52,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class RemoteClient {
 	@Nonnull
 	private static final UserAgentParser USER_AGENT_PARSER;
+	@Nonnull
+	private static final Gson GSON;
 
 	@Nullable
 	private final String currentUrl;
@@ -59,6 +69,12 @@ public class RemoteClient {
 	private final String appBuildNumber;
 	@Nullable
 	private final ClientDeviceTypeId typeId;
+	@Nonnull
+	private List<Locale> supportedLocales;
+	@Nullable
+	private Locale locale;
+	@Nullable
+	private ZoneId timeZone;
 	@Nullable
 	private final String operatingSystemName;
 	@Nullable
@@ -82,6 +98,7 @@ public class RemoteClient {
 
 	static {
 		USER_AGENT_PARSER = new UserAgentParser();
+		GSON = new GsonBuilder().disableHtmlEscaping().create();
 	}
 
 	private RemoteClient(@Nullable String currentUrl,
@@ -91,6 +108,9 @@ public class RemoteClient {
 											 @Nullable String appVersion,
 											 @Nullable String appBuildNumber,
 											 @Nullable ClientDeviceTypeId typeId,
+											 @Nullable List<Locale> supportedLocales,
+											 @Nullable Locale locale,
+											 @Nullable ZoneId timeZone,
 											 @Nullable String operatingSystemName,
 											 @Nullable String operatingSystemVersion,
 											 @Nullable String model,
@@ -108,6 +128,9 @@ public class RemoteClient {
 		this.appVersion = appVersion;
 		this.appBuildNumber = appBuildNumber;
 		this.typeId = typeId;
+		this.supportedLocales = supportedLocales == null ? List.of() : new UnmodifiableList<>(supportedLocales);
+		this.locale = locale;
+		this.timeZone = timeZone;
 		this.operatingSystemName = operatingSystemName;
 		this.operatingSystemVersion = operatingSystemVersion;
 		this.model = model;
@@ -147,6 +170,48 @@ public class RemoteClient {
 		String operatingSystemName = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Operating-System-Name").orElse(null);
 		String operatingSystemVersion = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Operating-System-Version").orElse(null);
 
+		String supportedLocalesAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Supported-Locales").orElse(null);
+		List<Locale> supportedLocales = new ArrayList<>();
+
+		if (supportedLocalesAsString != null) {
+			try {
+				List<String> supportedLocalesAsListOfString = GSON.fromJson(supportedLocalesAsString, new TypeToken<List<String>>() {
+				}.getType());
+
+				for (String supportedLocaleAsString : supportedLocalesAsListOfString) {
+					try {
+						supportedLocales.add(Locale.forLanguageTag(supportedLocaleAsString));
+					} catch (Exception ignored) {
+						// Ignore illegal locales
+					}
+				}
+			} catch (Exception ignored) {
+				// Ignore illegal locales list format
+			}
+		}
+
+		String localeAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Locale").orElse(null);
+		Locale locale = null;
+
+		if (localeAsString != null) {
+			try {
+				locale = Locale.forLanguageTag(localeAsString);
+			} catch (Exception ignored) {
+				// Ignore illegal locales
+			}
+		}
+
+		String timeZoneAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Time-Zone").orElse(null);
+		ZoneId timeZone = null;
+
+		if (timeZoneAsString != null) {
+			try {
+				timeZone = ZoneId.of(timeZoneAsString);
+			} catch (Exception ignored) {
+				// Ignore illegal time zones
+			}
+		}
+
 		String sessionIdAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Session-Id").orElse(null);
 		UUID sessionId = null;
 
@@ -178,6 +243,9 @@ public class RemoteClient {
 				appVersion,
 				appBuildNumber,
 				typeId,
+				supportedLocales,
+				locale,
+				timeZone,
 				operatingSystemName,
 				operatingSystemVersion,
 				model,
@@ -260,6 +328,21 @@ public class RemoteClient {
 	@Nonnull
 	public Optional<ClientDeviceTypeId> getTypeId() {
 		return Optional.ofNullable(this.typeId);
+	}
+
+	@Nonnull
+	public List<Locale> getSupportedLocales() {
+		return this.supportedLocales;
+	}
+
+	@Nonnull
+	public Optional<Locale> getLocale() {
+		return Optional.ofNullable(this.locale);
+	}
+
+	@Nonnull
+	public Optional<ZoneId> getTimeZone() {
+		return Optional.ofNullable(this.timeZone);
 	}
 
 	@Nonnull

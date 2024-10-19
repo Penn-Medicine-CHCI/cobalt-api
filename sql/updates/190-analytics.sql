@@ -35,12 +35,19 @@ CREATE TABLE analytics_native_event_type (
 -- When the browser tab is closed, the session ends (there is no corresponding SESSION_ENDED event for this currently).
 -- See https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage for details
 -- In a native app, this would be when the app first launches
--- There is no additional data associated with this event type.
+-- Additional data:
+-- * referringUrl (String, in a webapp this is the value of document.referrer, if available)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('SESSION_STARTED', 'Session Started');
 -- Fired if, due to a browser bug regarding session storage, we have to manually "restore" a session as a workaround.
 -- See https://issues.chromium.org/issues/40940701
 -- There is no additional data associated with this event type.
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('SESSION_RESTORED', 'Session Restored');
+-- Fired periodically when the website/app is in the foreground (that is, being actively used).
+-- For example, in a web browser, if the user switches to a different browser tab or minimizes the browser window, heartbeats
+-- should cease until the application tab is re-focused or the window is unminimized.
+-- Additional data:
+-- * intervalInMilliseconds (Integer, the recurring interval duration in millis, only present if this heartbeat was fired by an automated interval as opposed to an explicit one-off)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('HEARTBEAT', 'Heartbeat');
 -- When the user brings the browser tab into focus (unminimizes the window, switches into it from another tab)
 -- See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
 -- In a native app, this would be fired when the app is brought to the foreground
@@ -345,6 +352,12 @@ CREATE TABLE analytics_native_event (
   -- Client device OS version at this moment in time.  May be different from client_device record - which only shows current device state - if user updates their OS
   -- If explicitly specified by client.  Example for native app: "17.6"
   client_device_operating_system_version TEXT,
+  -- Client device's supported locales at this moment in time, e.g. ["en-US","en","fr-CA"]
+  client_device_supported_locales JSONB NOT NULL DEFAULT '[]'::JSONB,
+  -- Client device's preferred locale at this moment in time, e.g. 'en-US'
+  client_device_locale TEXT,
+  -- Client device's timezone at this moment in time, e.g. 'America/New_York'
+  client_device_time_zone TEXT,
   -- The value of window.navigator.userAgent
   user_agent TEXT,
   -- Parsed from User-Agent
@@ -373,6 +386,8 @@ CREATE TABLE analytics_native_event (
 	window_width NUMERIC(8,2),
 	-- Provided by JS window object on web
 	window_height NUMERIC(8,2),
+	-- Provided by navigator.maxTouchPoints on web
+	navigator_max_touch_points INTEGER,
 	-- Provided by document.visibilityState on web
 	document_visibility_state TEXT,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -380,5 +395,14 @@ CREATE TABLE analytics_native_event (
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON analytics_native_event FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE INDEX analytics_native_event_event_type_id_idx ON analytics_native_event(analytics_native_event_type_id);
+CREATE INDEX analytics_native_event_account_id_idx ON analytics_native_event(account_id);
+CREATE INDEX analytics_native_event_referring_message_id_idx ON analytics_native_event(referring_message_id);
+CREATE INDEX analytics_native_event_referring_campaign_idx ON analytics_native_event(referring_campaign);
+CREATE INDEX analytics_native_event_timestamp_asc_idx ON analytics_native_event(timestamp ASC);
+CREATE INDEX analytics_native_event_timestamp_desc_idx ON analytics_native_event(timestamp DESC);
+CREATE INDEX analytics_native_event_timestamp_epoch_second_asc_idx ON analytics_native_event(timestamp_epoch_second ASC);
+CREATE INDEX analytics_native_event_timestamp_epoch_second_desc_idx ON analytics_native_event(timestamp_epoch_second DESC);
 
 COMMIT;

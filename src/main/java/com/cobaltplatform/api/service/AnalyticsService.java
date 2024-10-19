@@ -78,6 +78,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -85,6 +86,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -276,6 +278,9 @@ public class AnalyticsService implements AutoCloseable {
 		String appVersion = trimToNull(request.getAppVersion());
 		String clientDeviceOperatingSystemName = trimToNull(request.getClientDeviceOperatingSystemName());
 		String clientDeviceOperatingSystemVersion = trimToNull(request.getClientDeviceOperatingSystemVersion());
+		List<Locale> clientDeviceSupportedLocales = request.getClientDeviceSupportedLocales();
+		Locale clientDeviceLocale = request.getClientDeviceLocale();
+		ZoneId clientDeviceTimeZone = request.getClientDeviceTimeZone();
 		String userAgent = trimToNull(request.getUserAgent());
 		String userAgentDeviceFamily = trimToNull(request.getUserAgentDeviceFamily());
 		String userAgentBrowserFamily = trimToNull(request.getUserAgentBrowserFamily());
@@ -290,6 +295,7 @@ public class AnalyticsService implements AutoCloseable {
 		Double windowDevicePixelRatio = request.getWindowDevicePixelRatio();
 		Double windowWidth = request.getWindowWidth();
 		Double windowHeight = request.getWindowHeight();
+		Integer navigatorMaxTouchPoints = request.getNavigatorMaxTouchPoints();
 		String documentVisibilityState = trimToNull(request.getDocumentVisibilityState());
 
 		ValidationException validationException = new ValidationException();
@@ -378,6 +384,15 @@ public class AnalyticsService implements AutoCloseable {
 
 		String dataAsString = getGsonForAnalyticsNativeData().toJson(data);
 
+		// Convert supported locales to a JSON array of language tags before inserting as JSON
+		String clientDeviceSupportedLocalesAsJson = getGsonForAnalyticsNativeData().toJson(List.of());
+
+		if (clientDeviceSupportedLocales != null && clientDeviceSupportedLocales.size() > 0) {
+			clientDeviceSupportedLocalesAsJson = getGsonForAnalyticsNativeData().toJson(clientDeviceSupportedLocales.stream()
+					.map(locale -> locale.toLanguageTag())
+					.collect(Collectors.toList()));
+		}
+
 		UUID analyticsNativeEventId = UUID.randomUUID();
 
 		getDatabase().execute("""
@@ -399,6 +414,9 @@ public class AnalyticsService implements AutoCloseable {
 							app_version,
 							client_device_operating_system_name,
 							client_device_operating_system_version,
+							client_device_supported_locales,
+							client_device_locale,
+							client_device_time_zone,
 							user_agent,
 							user_agent_device_family,
 							user_agent_browser_family,
@@ -413,8 +431,9 @@ public class AnalyticsService implements AutoCloseable {
 							window_device_pixel_ratio,
 							window_width,
 							window_height,
+							navigator_max_touch_points,
 							document_visibility_state
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				analyticsNativeEventId,
 				analyticsNativeEventTypeId,
@@ -433,6 +452,9 @@ public class AnalyticsService implements AutoCloseable {
 				appVersion,
 				clientDeviceOperatingSystemName,
 				clientDeviceOperatingSystemVersion,
+				clientDeviceSupportedLocalesAsJson,
+				clientDeviceLocale,
+				clientDeviceTimeZone,
 				userAgent,
 				userAgentDeviceFamily,
 				userAgentBrowserFamily,
@@ -447,6 +469,7 @@ public class AnalyticsService implements AutoCloseable {
 				windowDevicePixelRatio,
 				windowWidth,
 				windowHeight,
+				navigatorMaxTouchPoints,
 				documentVisibilityState
 		);
 

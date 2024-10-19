@@ -44,6 +44,12 @@ public class AnalyticsNativeEventType {
 		// See https://issues.chromium.org/issues/40940701
 		// There is no additional data associated with this event type.
 		SESSION_RESTORED,
+		// Fired periodically when the website/app is in the foreground (that is, being actively used).
+		// For example, in a web browser, if the user switches to a different browser tab or minimizes the browser window, heartbeats
+		// should cease until the application tab is re-focused or the window is unminimized.
+		// Additional data:
+		// * intervalInMilliseconds (Integer, the recurring interval duration in millis, only present if this heartbeat was fired by an automated interval as opposed to an explicit one-off)
+		HEARTBEAT,
 		// When the user brings the browser tab out of focus (minimizes the window, switches to another tab)
 		// See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
 		// In a native app, this would be fired when the app is sent to the background

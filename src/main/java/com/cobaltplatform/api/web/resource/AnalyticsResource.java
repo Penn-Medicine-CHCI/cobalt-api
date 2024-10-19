@@ -256,6 +256,12 @@ public class AnalyticsResource {
 			request.setAppName(remoteClient.getAppName().orElse(null));
 		if (trimToNull(request.getAppVersion()) == null)
 			request.setAppVersion(remoteClient.getAppVersion().orElse(null));
+		if (request.getClientDeviceSupportedLocales() == null)
+			request.setClientDeviceSupportedLocales(remoteClient.getSupportedLocales());
+		if (request.getClientDeviceLocale() == null)
+			request.setClientDeviceLocale(remoteClient.getLocale().orElse(null));
+		if (request.getClientDeviceTimeZone() == null)
+			request.setClientDeviceTimeZone(remoteClient.getTimeZone().orElse(null));
 		if (trimToNull(request.getClientDeviceOperatingSystemName()) == null)
 			request.setClientDeviceOperatingSystemName(remoteClient.getOperatingSystemName().orElse(null));
 		if (trimToNull(request.getClientDeviceOperatingSystemVersion()) == null)
