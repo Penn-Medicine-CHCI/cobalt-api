@@ -396,6 +396,7 @@ CREATE TABLE analytics_native_event (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON analytics_native_event FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- Add some performance indices
 CREATE INDEX analytics_native_event_event_type_id_idx ON analytics_native_event(analytics_native_event_type_id);
 CREATE INDEX analytics_native_event_account_id_idx ON analytics_native_event(account_id);
 CREATE INDEX analytics_native_event_referring_message_id_idx ON analytics_native_event(referring_message_id);
@@ -404,5 +405,13 @@ CREATE INDEX analytics_native_event_timestamp_asc_idx ON analytics_native_event(
 CREATE INDEX analytics_native_event_timestamp_desc_idx ON analytics_native_event(timestamp DESC);
 CREATE INDEX analytics_native_event_timestamp_epoch_second_asc_idx ON analytics_native_event(timestamp_epoch_second ASC);
 CREATE INDEX analytics_native_event_timestamp_epoch_second_desc_idx ON analytics_native_event(timestamp_epoch_second DESC);
+
+-- Add some performance indices
+CREATE INDEX footprint_event_group_account_idx ON footprint_event_group(account_id);
+CREATE INDEX footprint_event_group_type_idx ON footprint_event_group(footprint_event_group_type_id);
+CREATE INDEX footprint_event_group_created_asc_idx ON footprint_event_group(created ASC);
+CREATE INDEX footprint_event_group_created_desc_idx ON footprint_event_group(created DESC);
+
+CREATE INDEX footprint_event_group_idx ON footprint_event(footprint_event_group_id);
 
 COMMIT;
