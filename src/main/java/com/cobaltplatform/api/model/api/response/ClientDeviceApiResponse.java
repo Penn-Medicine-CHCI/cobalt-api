@@ -53,7 +53,7 @@ public class ClientDeviceApiResponse {
 	@Nonnull
 	private final ClientDeviceTypeId clientDeviceTypeId;
 	@Nonnull
-	private final String fingerprint;
+	private final UUID fingerprint;
 	@Nullable
 	private final String operatingSystemName;
 	@Nullable
@@ -170,7 +170,7 @@ public class ClientDeviceApiResponse {
 	}
 
 	@Nonnull
-	public String getFingerprint() {
+	public UUID getFingerprint() {
 		return this.fingerprint;
 	}
 

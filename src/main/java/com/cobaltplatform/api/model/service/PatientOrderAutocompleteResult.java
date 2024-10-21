@@ -29,6 +29,8 @@ import java.util.UUID;
 @NotThreadSafe
 public class PatientOrderAutocompleteResult {
 	@Nullable
+	private UUID patientOrderId;
+	@Nullable
 	private Integer referenceNumber;
 	@Nullable
 	private String patientMrn;
@@ -46,6 +48,15 @@ public class PatientOrderAutocompleteResult {
 	private String patientPhoneNumber;
 	@Nullable
 	private String patientEmailAddress;
+
+	@Nullable
+	public UUID getPatientOrderId() {
+		return this.patientOrderId;
+	}
+
+	public void setPatientOrderId(@Nullable UUID patientOrderId) {
+		this.patientOrderId = patientOrderId;
+	}
 
 	@Nullable
 	public Integer getReferenceNumber() {

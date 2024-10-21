@@ -28,6 +28,7 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
+@Deprecated // Replaced by footprint data
 public class PatientOrderEventType {
 	@Nullable
 	private PatientOrderEventTypeId patientOrderEventTypeId;

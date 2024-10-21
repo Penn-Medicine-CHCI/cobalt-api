@@ -34,11 +34,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
@@ -81,8 +84,28 @@ public final class GsonUtility {
 
 					JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
 
-					if (jsonPrimitive.isNumber())
-						return Instant.ofEpochMilli(json.getAsLong());
+					if (jsonPrimitive.isNumber()) {
+						// Instants might be pure long values (millis) or include a fractional component too
+						BigDecimal instantAsBigDecimal = BigDecimal.valueOf(json.getAsDouble());
+
+						BigInteger integerPart = instantAsBigDecimal.toBigInteger();
+						BigDecimal fractionalPart = instantAsBigDecimal.subtract(new BigDecimal(integerPart));
+
+						// Start with low resolution (millis)
+						Instant instant = Instant.ofEpochMilli(integerPart.longValue());
+
+						// If there is a fractional part (fractions of a millisecond), add them on for higher precision
+						if (!fractionalPart.equals(BigDecimal.ZERO)) {
+							// Example:
+							// Raw JSON: 1728069834089.0999
+							// Low resolution instant (millisecond precision only): 2024-10-04T19:23:54.089Z
+							// High resolution instant (adds fractional milliseconds as nanoseconds): 2024-10-04T19:23:54.089099900Z
+							BigDecimal fractionalPartAsNanoseconds = fractionalPart.multiply(BigDecimal.valueOf(1_000_000));
+							instant = instant.plus(fractionalPartAsNanoseconds.longValue(), ChronoUnit.NANOS);
+						}
+
+						return instant;
+					}
 
 					if (jsonPrimitive.isString()) {
 						String string = trimToNull(json.getAsString());

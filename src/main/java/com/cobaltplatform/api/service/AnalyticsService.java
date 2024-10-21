@@ -30,9 +30,11 @@ import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryExportRecord;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelClient;
 import com.cobaltplatform.api.integration.mixpanel.MixpanelEvent;
+import com.cobaltplatform.api.model.api.request.CreateAnalyticsNativeEventRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AnalyticsEventDateSync;
 import com.cobaltplatform.api.model.db.AnalyticsGoogleBigQueryEvent;
+import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
 import com.cobaltplatform.api.model.db.AnalyticsSyncStatus.AnalyticsSyncStatusId;
 import com.cobaltplatform.api.model.db.AnalyticsVendor.AnalyticsVendorId;
 import com.cobaltplatform.api.model.db.Feature;
@@ -45,7 +47,9 @@ import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.ScreeningScore;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningWithType;
+import com.cobaltplatform.api.util.GsonUtility;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.analytics.data.v1beta.DateRange;
 import com.google.analytics.data.v1beta.Dimension;
@@ -54,6 +58,9 @@ import com.google.analytics.data.v1beta.Row;
 import com.google.analytics.data.v1beta.RunReportRequest;
 import com.google.analytics.data.v1beta.RunReportResponse;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -71,6 +78,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -78,6 +86,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -89,12 +98,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -103,13 +115,37 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class AnalyticsService implements AutoCloseable {
 	@Nonnull
+	public static final String ANALYTICS_COBALT_BACKEND_APP_NAME = "Cobalt Backend";
+	@Nonnull
+	public static final String ANALYTICS_COBALT_WEBAPP_APP_NAME = "Cobalt Webapp";
+	@Nonnull
+	public static final String ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME = "a.f";
+	@Nonnull
+	public static final String ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME = "a.s";
+	@Nonnull
+	public static final String ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME = "a.c";
+	@Nonnull
+	public static final String ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME = "a.m";
+	@Nonnull
 	private static final Long ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final Pattern JWT_PATTERN;
+	@Nonnull
+	private static final Gson GSON_FOR_ANALYTICS_NATIVE_DATA;
 
 	static {
 		ANALYTICS_SYNC_INTERVAL_IN_SECONDS = 60L * 5L;
 		ANALYTICS_SYNC_INITIAL_DELAY_IN_SECONDS = 10L;
+
+		// Thanks to https://stackoverflow.com/a/65755789
+		JWT_PATTERN = Pattern.compile("(?:[\\w-]*\\.){2}[\\w-]*");
+
+		GsonBuilder gsonBuilder = new GsonBuilder().disableHtmlEscaping();
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+
+		GSON_FOR_ANALYTICS_NATIVE_DATA = gsonBuilder.create();
 	}
 
 	@Nonnull
@@ -222,6 +258,359 @@ public class AnalyticsService implements AutoCloseable {
 
 			return true;
 		}
+	}
+
+	@Nonnull
+	public UUID createAnalyticsNativeEvent(@Nonnull CreateAnalyticsNativeEventRequest request) {
+		requireNonNull(request);
+
+		AnalyticsNativeEventTypeId analyticsNativeEventTypeId = request.getAnalyticsNativeEventTypeId();
+		InstitutionId institutionId = request.getInstitutionId();
+		UUID accountId = request.getAccountId();
+		UUID clientDeviceId = request.getClientDeviceId();
+		UUID sessionId = request.getSessionId();
+		UUID referringMessageId = request.getReferringMessageId();
+		String referringCampaign = trimToNull(request.getReferringCampaign());
+		Instant timestamp = request.getTimestamp();
+		String webappUrl = trimToNull(request.getWebappUrl());
+		Map<String, Object> data = request.getData() == null ? new HashMap<>() : new HashMap<>(request.getData()); // Mutable copy so we can, for example, elide sensitive data before inserting
+		String appName = trimToNull(request.getAppName());
+		String appVersion = trimToNull(request.getAppVersion());
+		String clientDeviceOperatingSystemName = trimToNull(request.getClientDeviceOperatingSystemName());
+		String clientDeviceOperatingSystemVersion = trimToNull(request.getClientDeviceOperatingSystemVersion());
+		List<Locale> clientDeviceSupportedLocales = request.getClientDeviceSupportedLocales();
+		Locale clientDeviceLocale = request.getClientDeviceLocale();
+		ZoneId clientDeviceTimeZone = request.getClientDeviceTimeZone();
+		String userAgent = trimToNull(request.getUserAgent());
+		String userAgentDeviceFamily = trimToNull(request.getUserAgentDeviceFamily());
+		String userAgentBrowserFamily = trimToNull(request.getUserAgentBrowserFamily());
+		String userAgentBrowserVersion = trimToNull(request.getUserAgentBrowserVersion());
+		String userAgentOperatingSystemName = trimToNull(request.getUserAgentOperatingSystemName());
+		String userAgentOperatingSystemVersion = trimToNull(request.getUserAgentOperatingSystemVersion());
+		Integer screenColorDepth = request.getScreenColorDepth();
+		Integer screenPixelDepth = request.getScreenPixelDepth();
+		Double screenWidth = request.getScreenWidth();
+		Double screenHeight = request.getScreenHeight();
+		String screenOrientation = trimToNull(request.getScreenOrientation());
+		Double windowDevicePixelRatio = request.getWindowDevicePixelRatio();
+		Double windowWidth = request.getWindowWidth();
+		Double windowHeight = request.getWindowHeight();
+		Integer navigatorMaxTouchPoints = request.getNavigatorMaxTouchPoints();
+		String documentVisibilityState = trimToNull(request.getDocumentVisibilityState());
+
+		ValidationException validationException = new ValidationException();
+
+		if (analyticsNativeEventTypeId == null)
+			validationException.add(new FieldError("analyticsNativeEventTypeId", getStrings().get("Analytics Native Event Type ID is required.")));
+
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
+		if (institutionId == null)
+			validationException.add(new FieldError("clientDeviceId", getStrings().get("Client Device ID is required.")));
+
+		if (sessionId == null)
+			validationException.add(new FieldError("sessionId", getStrings().get("Session ID is required.")));
+
+		if (timestamp == null)
+			validationException.add(new FieldError("timestamp", getStrings().get("Timestamp is required.")));
+
+		if (appName == null)
+			validationException.add(new FieldError("appName", getStrings().get("App name is required.")));
+
+		if (appVersion == null)
+			validationException.add(new FieldError("appVersion", getStrings().get("App version is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (referringMessageId != null) {
+			Boolean referringMessageExists = getDatabase().queryForObject("""
+					SELECT COUNT(*) > 0
+					FROM message_log
+					WHERE message_id=?
+					""", Boolean.class, referringMessageId).get();
+
+			if (!referringMessageExists) {
+				getLogger().warn("Analytics: referring message ID {} does not exist, ignoring...", referringMessageId);
+				referringMessageId = null;
+			}
+		}
+
+		if (webappUrl != null) {
+			// Ensure URLs are relative and that we don't have any sensitive data in them (e.g JWTs)
+			webappUrl = toRelativeUrl(webappUrl).orElse(null);
+
+			if (webappUrl == null)
+				throw new IllegalStateException(format("Unable to relative-ize webapp URL %s", webappUrl));
+
+			webappUrl = replaceSensitiveDataInString(webappUrl);
+		}
+
+		// Do the same for event types that we know can include sensitive data in payloads
+		if (analyticsNativeEventTypeId == AnalyticsNativeEventTypeId.URL_CHANGED) {
+			String dataUrl = (String) data.get("url");
+
+			if (dataUrl != null)
+				data.put("url", replaceSensitiveDataInString(dataUrl));
+
+			String dataPreviousUrl = (String) data.get("previousUrl");
+
+			if (dataPreviousUrl != null)
+				data.put("previousUrl", replaceSensitiveDataInString(dataPreviousUrl));
+		}
+
+		// Elide sensitive data in API call error events if necessary
+		if (analyticsNativeEventTypeId == AnalyticsNativeEventTypeId.API_CALL_ERROR && data != null) {
+			boolean elided = false;
+			String dataAsJson = getGsonForAnalyticsNativeData().toJson(data);
+			AnalyticsNativeEventTypeApiCallErrorData typedData = getGsonForAnalyticsNativeData().fromJson(dataAsJson, AnalyticsNativeEventTypeApiCallErrorData.class);
+
+			if (typedData != null && typedData.getRequest() != null && typedData.getRequest().getBody() != null) {
+				// Special handling for POST /accounts/email-password-access-token to elide passwords
+				if (typedData.getRequest().getUrl().equals("/accounts/email-password-access-token")) {
+					typedData.getRequest().getBody().put("password", "[elided]");
+					elided = true;
+				}
+
+				// If we elided, turn the elided data back into a Map<String, Object> for downstream processing
+				if (elided) {
+					String typedDataAsJson = getGsonForAnalyticsNativeData().toJson(typedData);
+					data = getGsonForAnalyticsNativeData().fromJson(typedDataAsJson, new TypeToken<Map<String, Object>>() {
+					}.getType());
+				}
+			}
+		}
+
+		String dataAsString = getGsonForAnalyticsNativeData().toJson(data);
+
+		// Convert supported locales to a JSON array of language tags before inserting as JSON
+		String clientDeviceSupportedLocalesAsJson = getGsonForAnalyticsNativeData().toJson(List.of());
+
+		if (clientDeviceSupportedLocales != null && clientDeviceSupportedLocales.size() > 0) {
+			clientDeviceSupportedLocalesAsJson = getGsonForAnalyticsNativeData().toJson(clientDeviceSupportedLocales.stream()
+					.map(locale -> locale.toLanguageTag())
+					.collect(Collectors.toList()));
+		}
+
+		UUID analyticsNativeEventId = UUID.randomUUID();
+
+		getDatabase().execute("""
+						INSERT INTO analytics_native_event (
+							analytics_native_event_id,
+							analytics_native_event_type_id,
+							institution_id,
+							client_device_id,
+							account_id,
+							session_id,
+							referring_message_id,
+							referring_campaign,
+							timestamp,
+							timestamp_epoch_second,
+							timestamp_epoch_second_nano_offset,
+							webapp_url,
+							data,
+							app_name,
+							app_version,
+							client_device_operating_system_name,
+							client_device_operating_system_version,
+							client_device_supported_locales,
+							client_device_locale,
+							client_device_time_zone,
+							user_agent,
+							user_agent_device_family,
+							user_agent_browser_family,
+							user_agent_browser_version,
+							user_agent_operating_system_name,
+							user_agent_operating_system_version,
+							screen_color_depth,
+							screen_pixel_depth,
+							screen_width,
+							screen_height,
+							screen_orientation,
+							window_device_pixel_ratio,
+							window_width,
+							window_height,
+							navigator_max_touch_points,
+							document_visibility_state
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						""",
+				analyticsNativeEventId,
+				analyticsNativeEventTypeId,
+				institutionId,
+				clientDeviceId,
+				accountId,
+				sessionId,
+				referringMessageId,
+				referringCampaign,
+				java.sql.Timestamp.from(timestamp),
+				timestamp.getEpochSecond(),
+				timestamp.getNano(),
+				webappUrl,
+				dataAsString,
+				appName,
+				appVersion,
+				clientDeviceOperatingSystemName,
+				clientDeviceOperatingSystemVersion,
+				clientDeviceSupportedLocalesAsJson,
+				clientDeviceLocale,
+				clientDeviceTimeZone,
+				userAgent,
+				userAgentDeviceFamily,
+				userAgentBrowserFamily,
+				userAgentBrowserVersion,
+				userAgentOperatingSystemName,
+				userAgentOperatingSystemVersion,
+				screenColorDepth,
+				screenPixelDepth,
+				screenWidth,
+				screenHeight,
+				screenOrientation,
+				windowDevicePixelRatio,
+				windowWidth,
+				windowHeight,
+				navigatorMaxTouchPoints,
+				documentVisibilityState
+		);
+
+		return analyticsNativeEventId;
+	}
+
+	// Payload data for AnalyticsNativeEventTypeId.API_CALL_ERROR
+	@NotThreadSafe
+	protected static class AnalyticsNativeEventTypeApiCallErrorData {
+		@Nullable
+		private ApiCallErrorDataRequest request;
+		@Nullable
+		private ApiCallErrorDataResponse response;
+
+		@NotThreadSafe
+		protected static class ApiCallErrorDataRequest {
+			@Nullable
+			private String method;
+			@Nullable
+			private String url;
+			@Nullable
+			private Map<String, Object> body;
+
+			@Nullable
+			public String getMethod() {
+				return this.method;
+			}
+
+			public void setMethod(@Nullable String method) {
+				this.method = method;
+			}
+
+			@Nullable
+			public String getUrl() {
+				return this.url;
+			}
+
+			public void setUrl(@Nullable String url) {
+				this.url = url;
+			}
+
+			@Nullable
+			public Map<String, Object> getBody() {
+				return this.body;
+			}
+
+			public void setBody(@Nullable Map<String, Object> body) {
+				this.body = body;
+			}
+		}
+
+		@NotThreadSafe
+		protected static class ApiCallErrorDataResponse {
+			@Nullable
+			private Integer status;
+			@Nullable
+			private Map<String, Object> body;
+
+			@Nullable
+			public Integer getStatus() {
+				return this.status;
+			}
+
+			public void setStatus(@Nullable Integer status) {
+				this.status = status;
+			}
+
+			@Nullable
+			public Map<String, Object> getBody() {
+				return this.body;
+			}
+
+			public void setBody(@Nullable Map<String, Object> body) {
+				this.body = body;
+			}
+		}
+
+		@Nullable
+		public ApiCallErrorDataRequest getRequest() {
+			return this.request;
+		}
+
+		public void setRequest(@Nullable ApiCallErrorDataRequest request) {
+			this.request = request;
+		}
+
+		@Nullable
+		public ApiCallErrorDataResponse getResponse() {
+			return this.response;
+		}
+
+		public void setResponse(@Nullable ApiCallErrorDataResponse response) {
+			this.response = response;
+		}
+	}
+
+	@Nonnull
+	protected Optional<String> toRelativeUrl(@Nullable String url) {
+		if (url == null || url.trim().length() == 0)
+			return Optional.empty();
+
+		String lowercaseUrl = url.toLowerCase();
+		int protocolLength = -1;
+
+		if (lowercaseUrl.startsWith("https://"))
+			protocolLength = "https://".length();
+		else if (lowercaseUrl.startsWith("http://"))
+			protocolLength = "http://".length();
+
+		if (protocolLength == -1)
+			return Optional.of(url);
+
+		// 1. Remove protocol
+		// 2. Remove everything before the '/'
+		String relativeUrl = url.substring(protocolLength);
+		int firstIndexOfSlash = relativeUrl.indexOf("/");
+
+		if (firstIndexOfSlash == -1)
+			relativeUrl = format("/%s", relativeUrl);
+		else
+			relativeUrl = relativeUrl.substring(firstIndexOfSlash);
+
+		return Optional.of(relativeUrl);
+	}
+
+	@Nonnull
+	protected String replaceSensitiveDataInString(@Nonnull String string) {
+		requireNonNull(string);
+		// Not localized because this is designed for internal use
+		return replaceSensitiveDataInString(string, "[elided]");
+	}
+
+	@Nonnull
+	protected String replaceSensitiveDataInString(@Nonnull String string,
+																								@Nonnull String replacementValue) {
+		requireNonNull(string);
+		requireNonNull(replacementValue);
+
+		// Currently we only replace JWTs
+		Matcher matcher = getJwtPattern().matcher(string);
+		return matcher.replaceAll(replacementValue);
 	}
 
 	/**
@@ -754,7 +1143,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM ts
 				GROUP BY ts.medium
 				ORDER BY user_count DESC
-					""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
+				""", TrafficSourceMediumCount.class, startTimestamp, endTimestamp, institutionId);
 
 		// Nicer names here
 		for (TrafficSourceMediumCount trafficSourceMediumCount : trafficSourceMediumCounts) {
@@ -802,7 +1191,7 @@ public class AnalyticsService implements AutoCloseable {
 					FROM rd
 					GROUP BY referrer
 					ORDER BY user_count DESC
-										""", TrafficSourceReferrerCount.class, webappBaseUrl, startTimestamp, endTimestamp, institutionId);
+					""", TrafficSourceReferrerCount.class, webappBaseUrl, startTimestamp, endTimestamp, institutionId);
 		}
 
 		Long usersFromTrafficSourceMediumTotalCount = trafficSourceMediumCounts.stream()
@@ -853,7 +1242,7 @@ public class AnalyticsService implements AutoCloseable {
 					AND ss.target_account_id=a.account_id
 					AND a.institution_id=?
 					AND ss.created BETWEEN ? AND ?
-										""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
+					""", Long.class, screeningFlowId, institutionId, startTimestamp, endTimestamp).get();
 
 			StringBuilder completedSql = new StringBuilder("""
 					SELECT count(ss.*)
@@ -977,7 +1366,7 @@ public class AnalyticsService implements AutoCloseable {
 				AND a.institution_id=?
 				AND ss.created BETWEEN ? AND ?
 				AND ss.crisis_indicated=TRUE
-								""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
+				""", CrisisTriggerCount.class, institutionId, startTimestamp, endTimestamp));
 
 		crisisTriggerCounts.addAll(getDatabase().queryForList("""		
 				SELECT COUNT(*) AS count, 'HP Chiclet' AS name
@@ -1090,7 +1479,7 @@ public class AnalyticsService implements AutoCloseable {
 				AND p.provider_id=psr.provider_id
 				AND psr.support_role_id=sr.support_role_id
 				ORDER BY p.name, sr.description
-								""", ProviderWithSupportRole.class, institutionId);
+				""", ProviderWithSupportRole.class, institutionId);
 
 		Map<UUID, List<String>> supportRoleDescriptionsByProviderId = new HashMap<>(providerWithSupportRoles.size());
 
@@ -1298,7 +1687,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM tag_group_page_normalized_view tgpnv, tag_group tg
 				WHERE tg.url_name = REVERSE(SUBSTR(REVERSE(tgpnv.url_path), 0, STRPOS(REVERSE(tgpnv.url_path), '/')))
 				ORDER BY tgpnv.page_view_count DESC
-												""", TagGroupPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+				""", TagGroupPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
 		// Tag page views
 		// Chops off query parameters, so /resource-library/tags/anxiety?test=123 is counted as /resource-library/tags/anxiety.
@@ -1325,7 +1714,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM tag_page_normalized_view tpnv, tag t
 				WHERE t.url_name = REVERSE(SUBSTR(REVERSE(tpnv.url_path), 0, STRPOS(REVERSE(tpnv.url_path), '/')))
 				ORDER BY tpnv.page_view_count DESC
-								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
+				""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?");
 
 		// Index by tag ID for easy access
 		Map<String, TagPageView> directTagPageViewsByTagId = directTagPageViews.stream()
@@ -1388,7 +1777,7 @@ public class AnalyticsService implements AutoCloseable {
 				FROM page_views_by_tag pvbt, tag t
 				WHERE pvbt.tag_id=t.tag_id
 				GROUP BY pvbt.tag_id, t.name, t.tag_group_id, t.url_name
-								""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?", institutionId);
+				""", TagPageView.class, urlPathRegex, startTimestamp, endTimestamp, institutionId, urlPathRegex, "?", "?", institutionId);
 
 		// Overlay the query results onto the zeroed-out initial list
 		for (TagPageView activeContentTagPageView : activeContentTagPageViews) {
@@ -1724,7 +2113,7 @@ public class AnalyticsService implements AutoCloseable {
 						ORDER BY
 						    COALESCE(MAX(page_view_count), 0) DESC,
 						    tcr.name
-										""", TopicCenterInteraction.class, urlPathRegex, startTimestamp, endTimestamp, institutionId,
+						""", TopicCenterInteraction.class, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, urlPathRegex, startTimestamp, endTimestamp, institutionId,
 				urlPathRegex, urlPathRegex, urlPathRegex, institutionId, startTimestamp, endTimestamp,
@@ -3221,6 +3610,16 @@ public class AnalyticsService implements AutoCloseable {
 	@Nonnull
 	protected Long getAnalyticsSyncIntervalInSeconds() {
 		return ANALYTICS_SYNC_INTERVAL_IN_SECONDS;
+	}
+
+	@Nonnull
+	protected Pattern getJwtPattern() {
+		return JWT_PATTERN;
+	}
+
+	@Nonnull
+	protected Gson getGsonForAnalyticsNativeData() {
+		return GSON_FOR_ANALYTICS_NATIVE_DATA;
 	}
 
 	@Nonnull

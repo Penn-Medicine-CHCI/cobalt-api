@@ -71,6 +71,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -619,27 +620,43 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
-	@GET("/resource-library/tag-filters/{tagId}")
+	@GET("/resource-library/tag-filters/{tagIdentifier}")
 	@AuthenticationRequired
-	public ApiResponse tagFilters(@Nonnull @PathParameter String tagId) {
-		requireNonNull(tagId);
+	public ApiResponse tagFilters(@Nonnull @PathParameter String tagIdentifier) {
+		requireNonNull(tagIdentifier);
 
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
 
 		// Support both tag ID and URL name
 		Tag tag = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
-				.filter(potentialTag -> potentialTag.getTagId().equals(tagId)
-						|| potentialTag.getUrlName().equals(tagId))
+				.filter(potentialTag -> potentialTag.getTagId().equals(tagIdentifier)
+						|| potentialTag.getUrlName().equals(tagIdentifier))
 				.findFirst()
 				.orElse(null);
 
 		if (tag == null)
 			throw new NotFoundException();
 
+		// Webapp needs some additional response data to do its work
+		TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
+				.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tag.getTagGroupId()))
+				.findAny().orElse(null);
+
+		if (tagGroup == null)
+			throw new IllegalStateException(format("Missing tag group for tag ID %s", tag.getTagId()));
+
+		Map<String, TagApiResponse> tagsByTagId = new HashMap<>();
+
+		for (Tag currentTag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
+			tagsByTagId.put(currentTag.getTagId(), getTagApiResponseFactory().create(currentTag));
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentDurations", availableContentDurations());
 			put("contentTypes", availableContentTypes());
+			put("tag", getTagApiResponseFactory().create(tag));
+			put("tagGroup", getTagGroupApiResponseFactory().create(tagGroup));
+			put("tagsByTagId", tagsByTagId);
 		}});
 	}
 
