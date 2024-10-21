@@ -45,12 +45,6 @@ public class CreateCareResourceRequest {
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
-	private List<String> payorIds;
-	@Nullable
-	private List<UUID> specialtyIds;
-	@Nullable
-	private List<SupportRoleId> supportRoleIds;
-	@Nullable
 	private InstitutionId institutionId;
 
 	@Nullable
@@ -105,33 +99,6 @@ public class CreateCareResourceRequest {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public List<String> getPayorIds() {
-		return payorIds;
-	}
-
-	public void setPayorIds(@Nullable List<String> payorIds) {
-		this.payorIds = payorIds;
-	}
-
-	@Nullable
-	public List<UUID> getSpecialtyIds() {
-		return specialtyIds;
-	}
-
-	public void setSpecialtyIds(@Nullable List<UUID> specialtyIds) {
-		this.specialtyIds = specialtyIds;
-	}
-
-	@Nullable
-	public List<SupportRoleId> getSupportRoleIds() {
-		return supportRoleIds;
-	}
-
-	public void setSupportRoleIds(@Nullable List<SupportRoleId> supportRoleIds) {
-		this.supportRoleIds = supportRoleIds;
 	}
 
 	@Nullable

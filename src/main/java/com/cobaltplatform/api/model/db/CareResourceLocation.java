@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import org.apache.arrow.flatbuf.Bool;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -41,6 +43,8 @@ public class CareResourceLocation {
 	private String notes;
 	@Nullable
 	private Boolean wheelchairAccess;
+	@Nullable
+	private Boolean acceptingNewPatients;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -116,5 +120,14 @@ public class CareResourceLocation {
 
 	public void setWheelchairAccess(@Nullable Boolean wheelchairAccess) {
 		this.wheelchairAccess = wheelchairAccess;
+	}
+
+	@Nullable
+	public Boolean getAcceptingNewPatients() {
+		return acceptingNewPatients;
+	}
+
+	public void setAcceptingNewPatients(@Nullable Boolean acceptingNewPatients) {
+		this.acceptingNewPatients = acceptingNewPatients;
 	}
 }

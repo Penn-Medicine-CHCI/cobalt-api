@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 
+import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.db.CareResource;
@@ -82,6 +83,7 @@ public class CareResourceService {
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
+	@Nonnull
 	public List<Payor> findPayors() {
 		return getDatabase().queryForList("""
 				SELECT * 
@@ -89,6 +91,7 @@ public class CareResourceService {
 				ORDER BY name""", Payor.class);
 	}
 
+	@Nonnull
 	public List<SupportRole> findCareResourceSupportRoles() {
 		return getDatabase().queryForList("""
 				SELECT sr.*
@@ -97,6 +100,7 @@ public class CareResourceService {
 				""", SupportRole.class);
 	}
 
+	@Nonnull
 	public Optional<CareResource> findCareResourceByInstitutionId(@Nonnull UUID careResourceId,
 																																@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
@@ -111,6 +115,7 @@ public class CareResourceService {
 				""", CareResource.class, careResourceId, institutionId);
 	}
 
+	@Nonnull
 	public FindResult<CareResource> findAllCareResourceByInstitutionId(@Nonnull FindCareResourcesRequest request) {
 		requireNonNull(request);
 
@@ -164,6 +169,7 @@ public class CareResourceService {
 		return (FindResult<CareResource>) findResult;
 	}
 
+	@Nonnull
 	public List<CareResourceLocation> findCareResourceLocations(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
@@ -174,6 +180,7 @@ public class CareResourceService {
 				""", CareResourceLocation.class, careResourceId);
 	}
 
+	@Nonnull
 	public List<Language> findLanguagesForCareResourceLocation(@Nonnull UUID careResourceLocationId) {
 		requireNonNull(careResourceLocationId);
 
@@ -185,6 +192,7 @@ public class CareResourceService {
 				""", Language.class, careResourceLocationId);
 	}
 
+	@Nonnull
 	public List<CareResourceLocationSpecialty> findCareResourceLocationSpecialties(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
@@ -196,6 +204,7 @@ public class CareResourceService {
 				""", CareResourceLocationSpecialty.class, careResourceId);
 	}
 
+	@Nonnull
 	public List<Payor> findCareResourceLocationPayors(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
@@ -207,6 +216,7 @@ public class CareResourceService {
 				""", Payor.class, careResourceId);
 	}
 
+	@Nonnull
 	public List<SupportRole> findCareResourceLocationSupportRoles(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
@@ -218,6 +228,57 @@ public class CareResourceService {
 				""", SupportRole.class, careResourceId);
 	}
 
+	@Nonnull
+	public void createLocationForCareResource(CreateCareResourceLocationRequest request){
+		requireNonNull(request);
+
+		String googlePlaceId = trimToNull(request.getGooglePlaceId());
+		String notes = trimToNull(request.getNotes());
+		String phoneNumber = trimToNull(request.getPhoneNumber());
+		Boolean acceptingNewPatients = request.getAcceptingNewPatients();
+		Boolean wheelchairAccessible = request.getWheelchairAccessible();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		UUID careResourceId = request.getCareResourceId();
+		UUID careResourceLocationId = UUID.randomUUID();
+		UUID addressId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+
+
+
+		getDatabase().execute("""
+				INSERT INTO care_resource_location
+				  (care_resource_location_id, care_resource_id, address_id,
+				  phone_number, wheelchair_access, notes, accepting_new_patients)
+				VALUES
+				  (?,?,?,?,?,?,?)
+				  """, careResourceLocationId, careResourceId, addressId,
+				phoneNumber, wheelchairAccessible, notes, acceptingNewPatients);
+
+		for (UUID specialtyId : request.getSpecialtyIds())
+			getDatabase().execute("""
+					INSERT INTO care_resource_location_specialty
+					(care_resource_location_id, care_resource_specialty_id)
+					VALUES
+					(?,?)""", careResourceLocationId, specialtyId);
+
+		for (String payorId : request.getPayorIds()) {
+			if (trimToNull(payorId) != null)
+				getDatabase().execute("""
+						INSERT INTO care_resource_location_payor
+						(care_resource_location_id, payor_id)
+						VALUES
+						(?,?)""", careResourceLocationId, payorId);
+		}
+
+		for (SupportRoleId supportRoleId : request.getSupportRoleIds())
+			getDatabase().execute("""
+					INSERT INTO care_resource_support_role
+					(care_resource_location_id, support_role_id)
+					VALUES
+					(?,?)""", careResourceLocationId, supportRoleId);
+	}
+	@Nonnull
 	public UUID createCareResource(@Nonnull CreateCareResourceRequest request) {
 		requireNonNull(request);
 
@@ -236,12 +297,6 @@ public class CareResourceService {
 		if (phoneNumber == null)
 			validationException.add(new ValidationException.FieldError("phoneNumber", "Phone number is required."));
 
-		if (request.getSupportRoleIds() == null || request.getSupportRoleIds().size() == 0)
-			validationException.add(new ValidationException.FieldError("supportRoleIds", "At least one therapy type is required."));
-
-		if (request.getPayorIds() == null || request.getPayorIds().size() == 0)
-			validationException.add(new ValidationException.FieldError("payorIds", "At least one insurance is required."));
-
 		if (createdByAccountId == null)
 			validationException.add(new ValidationException.FieldError("createdByAccountId", "Created by account ID is required."));
 
@@ -253,29 +308,6 @@ public class CareResourceService {
 				(care_resource_id, name, notes, website_url, phone_number, care_resource_available, created_by_account_id)
 				VALUES
 				(?,?,?,?,?,?,?)""", careResourceId, name, notes, websiteUrl, phoneNumber, resourceAvailable, createdByAccountId);
-
-		for (UUID specialtyId : request.getSpecialtyIds())
-			getDatabase().execute("""
-					INSERT INTO care_resource_care_resource_specialty
-					(care_resource_id, care_resource_specialty_id)
-					VALUES
-					(?,?)""", careResourceId, specialtyId);
-
-		for (String payorId : request.getPayorIds()) {
-			if (trimToNull(payorId) != null)
-				getDatabase().execute("""
-						INSERT INTO care_resource_payor
-						(care_resource_id, payor_id)
-						VALUES
-						(?,?)""", careResourceId, payorId);
-		}
-
-		for (SupportRoleId supportRoleId : request.getSupportRoleIds())
-			getDatabase().execute("""
-					INSERT INTO care_resource_support_role
-					(care_resource_id, support_role_id)
-					VALUES
-					(?,?)""", careResourceId, supportRoleId);
 
 		getDatabase().execute("""
 				INSERT INTO care_resource_institution 
