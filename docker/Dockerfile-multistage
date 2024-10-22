@@ -14,23 +14,23 @@
 #
 # docker stop $(docker ps -q --filter ancestor=cobalt-api)
 
-FROM public.ecr.aws/docker/library/maven:3.8.4-amazoncorretto-17 as dependencies
+FROM public.ecr.aws/docker/library/maven:3.9.5-amazoncorretto-21 as dependencies
 COPY ./pom.xml ./pom.xml
 RUN mvn --no-transfer-progress -DskipTests install
 RUN mvn --no-transfer-progress dependency:go-offline
 
-FROM public.ecr.aws/docker/library/maven:3.8.4-amazoncorretto-17 as build
+FROM public.ecr.aws/docker/library/maven:3.9.5-amazoncorretto-21 as build
 COPY --from=dependencies /root/.m2 /root/.m2
 COPY pom.xml pom.xml
 COPY ./src ./src
 RUN mvn --no-transfer-progress -o  -DskipTests install compile
 RUN mvn --no-transfer-progress -o -DincludeScope=runtime dependency:copy-dependencies
 
-FROM public.ecr.aws/ews-network/amazoncorretto:17 as run
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:21 as run
 ARG GIT_COMMIT_HASH=None
 ARG GIT_BRANCH=None
 # Ensure cache entries for successful DNS lookups expire after 5 seconds
-RUN echo -e "\nnetworkaddress.cache.ttl=5\n" >> /usr/lib/jvm/java-17-amazon-corretto/conf/security/java.security
+RUN echo -e "\nnetworkaddress.cache.ttl=5\n" >> /usr/lib/jvm/java-21-amazon-corretto/conf/security/java.security
 # RUN apk add --no-cache curl
 RUN yum -y install curl
 WORKDIR /opt/app
@@ -47,6 +47,7 @@ RUN printf '%s' ${GIT_BRANCH} | tee git-branch
 RUN chown -R 1000:1000 /opt/app
 USER 1000
 EXPOSE 8080
+RUN mkdir graalvm-cache
 COPY launch.sh .
 CMD ["sh", "launch.sh"]
 #CMD ["java", "-cp", "classes:dependency/*", "com.cobaltplatform.api.App"]
