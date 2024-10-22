@@ -251,7 +251,9 @@ public class MyChartService {
 			throw new IllegalStateException("Unable to extract MyChart state claim record");
 		}
 
-		InstitutionId claimsInstitutionId = InstitutionId.valueOf((String) stateClaims.getClaims().get(getInstitutionIdClaimsName()));
+		// MyChart authentication claims might look like:
+		// {"a.f": "640460b9-3e4f-478e-9b69-a67cf5d10c4d", "a.s": "81ab87ae-bca5-4dd0-86db-37143bce09a5", "environment": "dev", "institutionId": "COBALT"}
+		InstitutionId claimsInstitutionId = InstitutionId.valueOf((String) myChartAuthenticationClaims.getClaims().get(getInstitutionIdClaimsName()));
 
 		// This suggests something is pretty wrong and needs further investigation
 		if (myChartAuthenticationClaims.getInstitutionId() != institutionId)
