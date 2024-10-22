@@ -318,7 +318,7 @@ public class MyChartService {
 			getDatabase().execute("""
 					UPDATE mychart_authentication_claims
 					SET consumed_at=NOW()
-					WHERE mychart_authentication_claims=?
+					WHERE mychart_authentication_claims_id=?
 					""", myChartAuthenticationClaims.getMyChartAuthenticationClaimsId());
 
 			return new MyChartAccessTokenWithClaims(myChartAccessToken, myChartAuthenticationClaims.getClaims());
