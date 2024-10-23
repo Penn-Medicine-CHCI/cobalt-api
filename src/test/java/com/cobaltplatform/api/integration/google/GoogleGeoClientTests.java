@@ -167,7 +167,7 @@ public class GoogleGeoClientTests {
 	public void testAutocomplete() throws Exception {
 		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
 			AutocompletePlacesResponse response = googleGeoClient.autocompletePlaces(AutocompletePlacesRequest.newBuilder()
-					.setInput("133 Heather Road")
+					.setInput("Transmogri")
 					.setLanguageCode("en")
 					.setRegionCode("US")
 					.build());

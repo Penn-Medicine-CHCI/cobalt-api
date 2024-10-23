@@ -17,51 +17,48 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+package com.cobaltplatform.api.model.places;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.List;
-import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreateCareResourceRequest {
+public class PlacePrediction {
 	@Nullable
-	private String name;
+	private String place;
 	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private InstitutionId institutionId;
+	private String placeId;
 
 	@Nullable
-	public String getName() {
-		return name;
-	}
+	private String text;
 
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return createdByAccountId;
+	public String getPlace() {
+		return place;
 	}
 
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
+	public void setPlace(@Nullable String place) {
+		this.place = place;
 	}
 
 	@Nullable
-	public InstitutionId getInstitutionId() {
-		return institutionId;
+	public String getPlaceId() {
+		return placeId;
 	}
 
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
+	public void setPlaceId(@Nullable String placeId) {
+		this.placeId = placeId;
+	}
+
+	@Nullable
+	public String getText() {
+		return text;
+	}
+
+	public void setText(@Nullable String text) {
+		this.text = text;
 	}
 }

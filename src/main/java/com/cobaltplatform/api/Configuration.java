@@ -288,6 +288,12 @@ public class Configuration {
 	@Nonnull
 	private final String dataSyncRemoteDb;
 
+	@Nonnull
+	private final String mapsPlatformApiKeyFilename;
+
+	@Nonnull
+	private final String geoServiceAccountPrivateKeyFilename;
+
 	static {
 		ENV_ENV_VARIABLE_NAME = "COBALT_API_ENV";
 		PORT_ENV_VARIABLE_NAME = "COBALT_API_PORT";
@@ -455,6 +461,8 @@ public class Configuration {
 
 		this.shouldRunDataSync = valueFor("com.cobaltplatform.api.shouldRunDataSync", Boolean.class);
 		this.dataSyncRemoteDb = valueFor("com.cobaltplatform.api.dataSyncRemoteDb", String.class);
+		this.mapsPlatformApiKeyFilename = valueFor("com.cobaltplatform.api.mapsPlatformApiKeyFilename", String.class);
+	  this.geoServiceAccountPrivateKeyFilename = valueFor("com.cobaltplatform.api.geoServiceAccountPrivateKeyFilename", String.class);
 
 		if (getAmazonUseLocalstack()) {
 			// Prime the default credential provider chain
@@ -1504,5 +1512,15 @@ public class Configuration {
 	@Nonnull
 	public String getDataSyncRemoteDb() {
 		return dataSyncRemoteDb;
+	}
+
+	@Nonnull
+	public String getMapsPlatformApiKeyFilename() {
+		return mapsPlatformApiKeyFilename;
+	}
+
+	@Nonnull
+	public String getGeoServiceAccountPrivateKeyFilename() {
+		return geoServiceAccountPrivateKeyFilename;
 	}
 }

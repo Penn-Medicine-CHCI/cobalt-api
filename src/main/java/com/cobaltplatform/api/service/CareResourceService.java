@@ -241,19 +241,19 @@ public class CareResourceService {
 		UUID careResourceId = request.getCareResourceId();
 		UUID careResourceLocationId = UUID.randomUUID();
 		UUID addressId = UUID.randomUUID();
+		String websiteUrl =trimToNull( request.getWebsiteUrl());
 		ValidationException validationException = new ValidationException();
-
-
-
 
 		getDatabase().execute("""
 				INSERT INTO care_resource_location
 				  (care_resource_location_id, care_resource_id, address_id,
-				  phone_number, wheelchair_access, notes, accepting_new_patients)
+				  phone_number, wheelchair_access, notes, accepting_new_patients,
+				  website_url)
 				VALUES
-				  (?,?,?,?,?,?,?)
+				  (?,?,?,?,?,?,?,?,?)
 				  """, careResourceLocationId, careResourceId, addressId,
-				phoneNumber, wheelchairAccessible, notes, acceptingNewPatients);
+				phoneNumber, wheelchairAccessible, notes, acceptingNewPatients,
+				websiteUrl);
 
 		for (UUID specialtyId : request.getSpecialtyIds())
 			getDatabase().execute("""
@@ -283,19 +283,12 @@ public class CareResourceService {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
-		String notes = trimToNull(request.getNotes());
-		String websiteUrl = trimToNull(request.getWebsiteUrl());
-		String phoneNumber = trimToNull(request.getPhoneNumber());
-		Boolean resourceAvailable = request.getResourceAvailable();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID careResourceId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
 
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", "Name is required."));
-
-		if (phoneNumber == null)
-			validationException.add(new ValidationException.FieldError("phoneNumber", "Phone number is required."));
 
 		if (createdByAccountId == null)
 			validationException.add(new ValidationException.FieldError("createdByAccountId", "Created by account ID is required."));
@@ -305,9 +298,9 @@ public class CareResourceService {
 
 		getDatabase().execute("""
 				INSERT INTO care_resource
-				(care_resource_id, name, notes, website_url, phone_number, care_resource_available, created_by_account_id)
+				(care_resource_id, name, created_by_account_id)
 				VALUES
-				(?,?,?,?,?,?,?)""", careResourceId, name, notes, websiteUrl, phoneNumber, resourceAvailable, createdByAccountId);
+				(?,?,?)""", careResourceId, name, createdByAccountId);
 
 		getDatabase().execute("""
 				INSERT INTO care_resource_institution 

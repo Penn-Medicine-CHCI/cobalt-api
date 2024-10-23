@@ -41,6 +41,8 @@ public class CreateCareResourceLocationRequest {
 	@Nullable
 	private String phoneNumber;
 	@Nullable
+	private String websiteUrl;
+	@Nullable
 	private Boolean acceptingNewPatients;
 	@Nullable
 	private UUID createdByAccountId;
@@ -141,5 +143,14 @@ public class CreateCareResourceLocationRequest {
 
 	public void setWheelchairAccessible(@Nullable Boolean wheelchairAccessible) {
 		this.wheelchairAccessible = wheelchairAccessible;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
 	}
 }
