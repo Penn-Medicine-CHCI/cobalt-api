@@ -25,6 +25,8 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.tableau.TableauClient;
 import com.cobaltplatform.api.integration.tableau.TableauException;
 import com.cobaltplatform.api.integration.tableau.request.AccessTokenRequest;
+import com.cobaltplatform.api.model.api.request.CreateAnalyticsNativeEventRequest;
+import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -42,6 +44,7 @@ import com.cobaltplatform.api.model.db.TopicCenterDisplayStyle.TopicCenterDispla
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AnalyticsService.AnalyticsResultNewVersusReturning;
 import com.cobaltplatform.api.service.AnalyticsService.AppointmentClickToCallCount;
@@ -60,16 +63,21 @@ import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceMediumCount;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceReferrerCount;
 import com.cobaltplatform.api.service.AnalyticsService.TrafficSourceSummary;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.ClientDeviceService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.UserAgent;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.QueryParameter;
+import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
@@ -116,6 +124,7 @@ import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -137,6 +146,8 @@ public class AnalyticsResource {
 	@Nonnull
 	private final TagService tagService;
 	@Nonnull
+	private final ClientDeviceService clientDeviceService;
+	@Nonnull
 	private final AlertApiResponseFactory alertApiResponseFactory;
 	@Nonnull
 	private final Configuration configuration;
@@ -144,6 +155,8 @@ public class AnalyticsResource {
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
+	@Nonnull
+	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
@@ -158,10 +171,12 @@ public class AnalyticsResource {
 													 @Nonnull InstitutionService institutionService,
 													 @Nonnull TopicCenterService topicCenterService,
 													 @Nonnull TagService tagService,
+													 @Nonnull ClientDeviceService clientDeviceService,
 													 @Nonnull AlertApiResponseFactory alertApiResponseFactory,
 													 @Nonnull Configuration configuration,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
+													 @Nonnull RequestBodyParser requestBodyParser,
 													 @Nonnull Strings strings,
 													 @Nonnull Formatter formatter) {
 		requireNonNull(analyticsService);
@@ -170,10 +185,12 @@ public class AnalyticsResource {
 		requireNonNull(institutionService);
 		requireNonNull(topicCenterService);
 		requireNonNull(tagService);
+		requireNonNull(clientDeviceService);
 		requireNonNull(alertApiResponseFactory);
 		requireNonNull(configuration);
 		requireNonNull(currentContextProvider);
 		requireNonNull(enterprisePluginProvider);
+		requireNonNull(requestBodyParser);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 
@@ -183,13 +200,86 @@ public class AnalyticsResource {
 		this.institutionService = institutionService;
 		this.topicCenterService = topicCenterService;
 		this.tagService = tagService;
+		this.clientDeviceService = clientDeviceService;
 		this.alertApiResponseFactory = alertApiResponseFactory;
 		this.configuration = configuration;
 		this.currentContextProvider = currentContextProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
+		this.requestBodyParser = requestBodyParser;
 		this.strings = strings;
 		this.formatter = formatter;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	@POST("/analytics-native-events")
+	public ApiResponse createAnalyticsNativeEvent(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().orElse(null);
+		RemoteClient remoteClient = getCurrentContext().getRemoteClient().get();
+		UserAgent userAgent = remoteClient.getUserAgent().orElse(null);
+
+		// Upsert client device
+		UpsertClientDeviceRequest upsertClientDeviceRequest = new UpsertClientDeviceRequest();
+		upsertClientDeviceRequest.setAccountId(account == null ? null : account.getAccountId());
+		upsertClientDeviceRequest.setClientDeviceTypeId(remoteClient.getTypeId().orElse(null));
+		upsertClientDeviceRequest.setBrand(remoteClient.getBrand().orElse(null));
+		upsertClientDeviceRequest.setModel(remoteClient.getModel().orElse(null));
+		upsertClientDeviceRequest.setFingerprint(remoteClient.getFingerprint().orElse(null));
+		upsertClientDeviceRequest.setOperatingSystemName(remoteClient.getOperatingSystemName().orElse(null));
+		upsertClientDeviceRequest.setOperatingSystemVersion(remoteClient.getOperatingSystemVersion().orElse(null));
+
+		if (userAgent != null) {
+			if (upsertClientDeviceRequest.getOperatingSystemName() == null)
+				upsertClientDeviceRequest.setOperatingSystemName(userAgent.getOperatingSystemName().orElse(null));
+			if (upsertClientDeviceRequest.getOperatingSystemVersion() == null)
+				upsertClientDeviceRequest.setOperatingSystemVersion(userAgent.getOperatingSystemVersion().orElse(null));
+		}
+
+		UUID clientDeviceId = getClientDeviceService().upsertClientDevice(upsertClientDeviceRequest);
+
+		// Create the native analytics event with the client device
+		CreateAnalyticsNativeEventRequest request = getRequestBodyParser().parse(requestBody, CreateAnalyticsNativeEventRequest.class);
+		request.setInstitutionId(institutionId);
+		request.setAccountId(account == null ? null : account.getAccountId());
+		request.setClientDeviceId(clientDeviceId);
+		request.setReferringMessageId(remoteClient.getReferringMessageId().orElse(null));
+		request.setReferringCampaign(remoteClient.getReferringCampaign().orElse(null));
+		request.setWebappUrl(remoteClient.getCurrentUrl().orElse(null));
+
+		// If any fields are not explicitly specified in the body, fill them in using RemoteClient values
+		if (request.getSessionId() == null)
+			request.setSessionId(remoteClient.getSessionId().orElse(null));
+		if (trimToNull(request.getAppName()) == null)
+			request.setAppName(remoteClient.getAppName().orElse(null));
+		if (trimToNull(request.getAppVersion()) == null)
+			request.setAppVersion(remoteClient.getAppVersion().orElse(null));
+		if (request.getClientDeviceSupportedLocales() == null)
+			request.setClientDeviceSupportedLocales(remoteClient.getSupportedLocales());
+		if (request.getClientDeviceLocale() == null)
+			request.setClientDeviceLocale(remoteClient.getLocale().orElse(null));
+		if (request.getClientDeviceTimeZone() == null)
+			request.setClientDeviceTimeZone(remoteClient.getTimeZone().orElse(null));
+		if (trimToNull(request.getClientDeviceOperatingSystemName()) == null)
+			request.setClientDeviceOperatingSystemName(remoteClient.getOperatingSystemName().orElse(null));
+		if (trimToNull(request.getClientDeviceOperatingSystemVersion()) == null)
+			request.setClientDeviceOperatingSystemVersion(remoteClient.getOperatingSystemVersion().orElse(null));
+		if (trimToNull(request.getUserAgent()) == null)
+			request.setUserAgent(remoteClient.getRawUserAgent().orElse(null));
+
+		if (userAgent != null) {
+			request.setUserAgentDeviceFamily(userAgent.getDeviceFamily().orElse(null));
+			request.setUserAgentBrowserFamily(userAgent.getBrowserFamily().orElse(null));
+			request.setUserAgentBrowserVersion(userAgent.getBrowserVersion().orElse(null));
+			request.setUserAgentOperatingSystemName(userAgent.getOperatingSystemName().orElse(null));
+			request.setUserAgentOperatingSystemVersion(userAgent.getOperatingSystemVersion().orElse(null));
+		}
+
+		UUID analyticsNativeEventId = getAnalyticsService().createAnalyticsNativeEvent(request);
+
+		return new ApiResponse(Map.of("analyticsNativeEventId", analyticsNativeEventId));
 	}
 
 	@Nonnull
@@ -2362,6 +2452,11 @@ public class AnalyticsResource {
 	}
 
 	@Nonnull
+	protected ClientDeviceService getClientDeviceService() {
+		return this.clientDeviceService;
+	}
+
+	@Nonnull
 	protected AlertApiResponseFactory getAlertApiResponseFactory() {
 		return this.alertApiResponseFactory;
 	}
@@ -2379,6 +2474,11 @@ public class AnalyticsResource {
 	@Nonnull
 	protected EnterprisePluginProvider getEnterprisePluginProvider() {
 		return this.enterprisePluginProvider;
+	}
+
+	@Nonnull
+	protected RequestBodyParser getRequestBodyParser() {
+		return this.requestBodyParser;
 	}
 
 	@Nonnull

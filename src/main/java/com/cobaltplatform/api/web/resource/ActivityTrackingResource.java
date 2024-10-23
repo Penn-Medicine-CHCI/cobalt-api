@@ -91,6 +91,7 @@ public class ActivityTrackingResource {
 		}});
 	}
 
+	@Deprecated // FE no longer calls this, we should remove it
 	@POST("/unauthenticated-activity-tracking")
 	public ApiResponse createUnauthenticatedActivityTracking(@Nonnull @RequestBody String body) {
 		requireNonNull(body);

@@ -191,6 +191,7 @@ import com.soklet.converter.AbstractValueConverter;
 import com.soklet.converter.ValueConversionException;
 import com.soklet.converter.ValueConverterRegistry;
 import com.soklet.jetty.JettyServer;
+import com.soklet.util.FormatUtils;
 import com.soklet.util.InstanceProvider;
 import com.soklet.web.HashedUrlManifest;
 import com.soklet.web.exception.MethodNotAllowedException;
@@ -231,10 +232,12 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -537,6 +540,10 @@ public class AppModule extends AbstractModule {
 
 			@Override
 			protected void logRequestEnd(HttpServletRequest httpServletRequest, long elapsedNanoTime) {
+				// Slow request (10 seconds or longer)?  Log a warning regardless of whether we do our normal logging
+				if (elapsedNanoTime > 10_000_000_000L)
+					getLogger().warn(format("SLOW REQUEST (%.2fms): %s", (float) elapsedNanoTime / 1000000.0F, FormatUtils.httpServletRequestDescription(httpServletRequest)));
+
 				if (shouldLog(httpServletRequest))
 					super.logRequestEnd(httpServletRequest, elapsedNanoTime);
 			}
@@ -547,8 +554,10 @@ public class AppModule extends AbstractModule {
 
 				boolean staticFile = httpServletRequest.getRequestURI().startsWith("/static/");
 				boolean healthCheck = httpServletRequest.getRequestURI().startsWith("/system/health-check");
+				boolean analytics = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Analytics"), "true");
+				boolean performingAutorefresh = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Autorefresh"), "true");
 
-				return !staticFile && !healthCheck;
+				return !staticFile && !healthCheck && !analytics && !performingAutorefresh;
 			}
 		};
 	}

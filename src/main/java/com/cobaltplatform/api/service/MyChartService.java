@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
+import com.cobaltplatform.api.model.db.MyChartAuthenticationClaims;
 import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -70,9 +71,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -91,6 +94,8 @@ public class MyChartService {
 	private static final String ENVIRONMENT_CLAIMS_NAME;
 	@Nonnull
 	private static final String INSTITUTION_ID_CLAIMS_NAME;
+	@Nonnull
+	private static final String MY_CHART_AUTHENTICATION_CLAIMS_ID_NAME;
 
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
@@ -118,6 +123,7 @@ public class MyChartService {
 		SIGNING_TOKEN_EXPIRATION_IN_SECONDS = 30L * 60L;
 		ENVIRONMENT_CLAIMS_NAME = "environment";
 		INSTITUTION_ID_CLAIMS_NAME = "institutionId";
+		MY_CHART_AUTHENTICATION_CLAIMS_ID_NAME = "myChartAuthenticationClaimsId";
 	}
 
 	@Inject
@@ -183,45 +189,90 @@ public class MyChartService {
 		// By default, we add the environment to the signing token JWT's claims so we can key off of it when we get our OAuth
 		// callback.  This is useful for development, e.g. the scenario where we want to use the real MyChart flow
 		// but have it redirect back from a dev environment to a local environment instead
-		Map<String, Object> finalClaims = new HashMap<>(claims.size() + 2);
-		finalClaims.putAll(claims);
-		finalClaims.put(getEnvironmentClaimsName(), getConfiguration().getEnvironment());
-		finalClaims.put(getInstitutionIdClaimsName(), institutionId.name());
+		Map<String, Object> mychartAuthenticationClaims = new HashMap<>(claims.size() + 2);
+		mychartAuthenticationClaims.putAll(claims);
+		mychartAuthenticationClaims.put(getEnvironmentClaimsName(), getConfiguration().getEnvironment());
+		mychartAuthenticationClaims.put(getInstitutionIdClaimsName(), institutionId.name());
 
-		String state = getAuthenticator().generateSigningToken(getSigningTokenName(), getSigningTokenExpirationInSeconds(), finalClaims);
+		// Instead of directly attaching the passed-in claims, we persist them to the database and
+		// provides a set of claims that only includes the database identifier to MyChart.
+		// There are length restrictions for OAuth state data, and this ensures the state/claims
+		// is very small no matter how many claims we want to include.
+		// We "rehydrate" the persisted claims data via #extractAndValidateClaimsFromMyChartState() below.
+		UUID mychartAuthenticationClaimsId = UUID.randomUUID();
+
+		getDatabase().execute("""
+				INSERT INTO mychart_authentication_claims (
+					mychart_authentication_claims_id,
+					institution_id,
+					claims
+				) VALUES (?,?,CAST(? AS JSONB))
+				""", mychartAuthenticationClaimsId, institutionId, mychartAuthenticationClaims);
+
+		String state = getAuthenticator().generateSigningToken(getSigningTokenName(), getSigningTokenExpirationInSeconds(), Map.of(
+				getMyChartAuthenticationClaimsIdName(), mychartAuthenticationClaimsId
+		));
 
 		return myChartAuthenticator.generateAuthenticationRedirectUrl(state);
 	}
 
 	@Nonnull
-	public Map<String, Object> extractAndValidateClaimsFromMyChartState(@Nonnull InstitutionId institutionId,
-																																			@Nonnull String state) {
+	public MyChartAuthenticationClaims extractAndValidateClaimsFromMyChartState(@Nonnull InstitutionId institutionId,
+																																							@Nonnull String state) {
 		requireNonNull(institutionId);
 		requireNonNull(state);
 
 		SigningTokenClaims stateClaims = null;
-		ValidationException validationException = new ValidationException();
 
 		try {
 			stateClaims = getAuthenticator().validateSigningToken(state);
 		} catch (Exception e) {
-			getLogger().warn("Unable to validate MyChart state", e);
-			validationException.add(new FieldError("state", "Unable to validate MyChart state."));
+			getLogger().warn(format("Unable to validate MyChart state value '%s'", state), e);
+			throw new IllegalStateException("Unable to validate MyChart state", e);
 		}
 
-		if (stateClaims != null) {
-			InstitutionId claimsInstitutionId = InstitutionId.valueOf((String) stateClaims.getClaims().get(getInstitutionIdClaimsName()));
-
-			// This suggests something is pretty wrong and needs further investigation
-			if (claimsInstitutionId != institutionId)
-				throw new IllegalStateException(format("Institution ID %s in MyChart state claims doesn't match expected institution %s.",
-						claimsInstitutionId == null ? "[null]" : claimsInstitutionId.name(), institutionId.name()));
+		if (stateClaims == null) {
+			getLogger().error("Missing MyChart state claims for state '{}'", state);
+			throw new IllegalStateException("Unable to extract MyChart state claims");
 		}
 
-		if (validationException.hasErrors())
-			throw validationException;
+		String myChartAuthenticationClaimsIdAsString = trimToNull((String) stateClaims.getClaims().get(getMyChartAuthenticationClaimsIdName()));
 
-		return stateClaims.getClaims();
+		if (myChartAuthenticationClaimsIdAsString == null || !isValidUUID(myChartAuthenticationClaimsIdAsString)) {
+			getLogger().error("Missing or invalid MyChart '{}' claim for state '{}'", getMyChartAuthenticationClaimsIdName(), state);
+			throw new IllegalStateException("Unable to extract MyChart state claim");
+		}
+
+		UUID myChartAuthenticationClaimsId = UUID.fromString(myChartAuthenticationClaimsIdAsString);
+		MyChartAuthenticationClaims myChartAuthenticationClaims = findMyChartAuthenticationClaimsById(myChartAuthenticationClaimsId).orElse(null);
+
+		if (myChartAuthenticationClaims == null) {
+			getLogger().error("Unable to find MyChart Authentication Claims record with ID '{}' claim for state '{}'", myChartAuthenticationClaimsId, state);
+			throw new IllegalStateException("Unable to extract MyChart state claim record");
+		}
+
+		// MyChart authentication claims might look like:
+		// {"a.f": "640460b9-3e4f-478e-9b69-a67cf5d10c4d", "a.s": "81ab87ae-bca5-4dd0-86db-37143bce09a5", "environment": "dev", "institutionId": "COBALT"}
+		InstitutionId claimsInstitutionId = InstitutionId.valueOf((String) myChartAuthenticationClaims.getClaims().get(getInstitutionIdClaimsName()));
+
+		// This suggests something is pretty wrong and needs further investigation
+		if (myChartAuthenticationClaims.getInstitutionId() != institutionId)
+			throw new IllegalStateException(format("Institution ID %s in MyChart state claims doesn't match expected institution %s.",
+					claimsInstitutionId == null ? "[null]" : claimsInstitutionId.name(), institutionId.name()));
+
+		return myChartAuthenticationClaims;
+	}
+
+	@Nonnull
+	protected Optional<MyChartAuthenticationClaims> findMyChartAuthenticationClaimsById(@Nullable UUID myChartAuthenticationClaimsId) {
+		if (myChartAuthenticationClaimsId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM mychart_authentication_claims
+				WHERE mychart_authentication_claims_id=?
+				""", MyChartAuthenticationClaims.class, myChartAuthenticationClaimsId);
 	}
 
 	@Nonnull
@@ -233,7 +284,7 @@ public class MyChartService {
 		InstitutionId institutionId = request.getInstitutionId();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
 		MyChartAuthenticator myChartAuthenticator = enterprisePlugin.myChartAuthenticator().get();
-		Map<String, Object> claims = null;
+		MyChartAuthenticationClaims myChartAuthenticationClaims = null;
 		ValidationException validationException = new ValidationException();
 
 		if (code == null)
@@ -247,7 +298,11 @@ public class MyChartService {
 		} else {
 			// Ensure we have non-spoofed claims for this state
 			try {
-				claims = extractAndValidateClaimsFromMyChartState(institutionId, state);
+				myChartAuthenticationClaims = extractAndValidateClaimsFromMyChartState(institutionId, state);
+
+				// If this authentication flow has already been processed once, don't permit re-use
+				if (myChartAuthenticationClaims.getConsumedAt() != null)
+					validationException.add(new FieldError("consumedAt", "We have detected an error in your session. Please try to sign in again."));
 			} catch (ValidationException e) {
 				validationException.add(e);
 			}
@@ -258,7 +313,15 @@ public class MyChartService {
 
 		try {
 			MyChartAccessToken myChartAccessToken = myChartAuthenticator.obtainAccessTokenFromCode(code, state);
-			return new MyChartAccessTokenWithClaims(myChartAccessToken, claims);
+
+			// Mark the claims as consumed
+			getDatabase().execute("""
+					UPDATE mychart_authentication_claims
+					SET consumed_at=NOW()
+					WHERE mychart_authentication_claims_id=?
+					""", myChartAuthenticationClaims.getMyChartAuthenticationClaimsId());
+
+			return new MyChartAccessTokenWithClaims(myChartAccessToken, myChartAuthenticationClaims.getClaims());
 		} catch (Exception e) {
 			getLogger().warn("Unable to obtain a MyChart access token", e);
 			throw new ValidationException(getStrings().get("Unable to obtain a MyChart access token."));
@@ -468,6 +531,11 @@ public class MyChartService {
 	@Nonnull
 	protected String getInstitutionIdClaimsName() {
 		return INSTITUTION_ID_CLAIMS_NAME;
+	}
+
+	@Nonnull
+	protected String getMyChartAuthenticationClaimsIdName() {
+		return MY_CHART_AUTHENTICATION_CLAIMS_ID_NAME;
 	}
 
 	@Nonnull

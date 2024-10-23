@@ -66,6 +66,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.service.AnalyticsService.ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -225,7 +230,11 @@ public class InstitutionResource {
 
 	@GET("/institutions/{institutionId}/mychart-authentication-url")
 	public Object myChartAuthenticationUrl(@Nonnull @PathParameter InstitutionId institutionId,
-																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
+																				 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately,
+																				 @Nonnull @QueryParameter(ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME) Optional<String> analyticsFingerprint,
+																				 @Nonnull @QueryParameter(ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsSessionId,
+																				 @Nonnull @QueryParameter(ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME) Optional<String> analyticsReferringCampaign,
+																				 @Nonnull @QueryParameter(ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME) Optional<String> analyticsReferringMessageId) {
 		requireNonNull(institutionId);
 		requireNonNull(redirectImmediately);
 
@@ -235,6 +244,14 @@ public class InstitutionResource {
 
 		if (account != null)
 			claims.put("accountId", account.getAccountId());
+		if (analyticsFingerprint.isPresent() && isValidUUID(analyticsFingerprint.get()))
+			claims.put(ANALYTICS_FINGERPRINT_QUERY_PARAMETER_NAME, analyticsFingerprint.get());
+		if (analyticsSessionId.isPresent() && isValidUUID(analyticsSessionId.get()))
+			claims.put(ANALYTICS_SESSION_ID_QUERY_PARAMETER_NAME, analyticsSessionId.get());
+		if (analyticsReferringCampaign.isPresent())
+			claims.put(ANALYTICS_REFERRING_CAMPAIGN_QUERY_PARAMETER_NAME, analyticsReferringCampaign.get());
+		if (analyticsReferringMessageId.isPresent() && isValidUUID(analyticsReferringMessageId.get()))
+			claims.put(ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME, analyticsReferringMessageId.get());
 
 		String authenticationUrl = getMyChartService().generateAuthenticationUrlForInstitutionId(institutionId, claims);
 

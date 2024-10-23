@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.service;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -35,6 +36,8 @@ public class NavigationItem {
 	private String iconName;
 	@Nullable
 	private String imageUrl;
+	@Nullable
+	private UUID topicCenterId;
 
 	@Nullable
 	public String getUrl() {
@@ -70,5 +73,14 @@ public class NavigationItem {
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public UUID getTopicCenterId() {
+		return this.topicCenterId;
+	}
+
+	public void setTopicCenterId(@Nullable UUID topicCenterId) {
+		this.topicCenterId = topicCenterId;
 	}
 }

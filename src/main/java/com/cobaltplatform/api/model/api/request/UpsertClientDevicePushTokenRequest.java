@@ -33,7 +33,7 @@ public class UpsertClientDevicePushTokenRequest {
 	@Nullable
 	private UUID clientDeviceId;
 	@Nullable
-	private String fingerprint;
+	private UUID fingerprint;
 	@Nullable
 	private ClientDevicePushTokenTypeId clientDevicePushTokenTypeId;
 	@Nullable
@@ -49,11 +49,11 @@ public class UpsertClientDevicePushTokenRequest {
 	}
 
 	@Nullable
-	public String getFingerprint() {
+	public UUID getFingerprint() {
 		return this.fingerprint;
 	}
 
-	public void setFingerprint(@Nullable String fingerprint) {
+	public void setFingerprint(@Nullable UUID fingerprint) {
 		this.fingerprint = fingerprint;
 	}
 
