@@ -340,6 +340,9 @@ public class Institution {
 	@Nullable
 	private Integer appointmentFeedbackSurveyDelayInMinutes;
 
+	@Nullable
+	private Boolean googleGeoEnabled;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1603,5 +1606,14 @@ public class Institution {
 
 	public void setAppointmentFeedbackSurveyDurationDescription(@Nullable String appointmentFeedbackSurveyDurationDescription) {
 		this.appointmentFeedbackSurveyDurationDescription = appointmentFeedbackSurveyDurationDescription;
+	}
+
+	@Nullable
+	public Boolean getGoogleGeoEnabled() {
+		return this.googleGeoEnabled;
+	}
+
+	public void setGoogleGeoEnabled(@Nullable Boolean googleGeoEnabled) {
+		this.googleGeoEnabled = googleGeoEnabled;
 	}
 }
