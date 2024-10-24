@@ -28,22 +28,35 @@ import java.time.Instant;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class Language {
+public class CareResourceTag {
 	@Nullable
-	private String languageId;
+	private String careResourceTagId;
 	@Nullable
 	private String name;
+	@Nullable
+	private CareResourceTagGroupId careResourceTagGroupId;
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
-	@Nullable
-	public String getLanguageId() {
-		return languageId;
+	public enum CareResourceTagGroupId {
+		PAYORS,
+		FOCUS_TYPES,
+		SPECIALTIES,
+		THERAPY_TYPES,
+		PATIENT_FOCUSES,
+		GENDERS,
+		ETHNICITIES,
+		LANGUAGES
 	}
 
-	public void setLanguageId(@Nullable String languageId) {
-		this.languageId = languageId;
+	@Nullable
+	public String getCareResourceTagId() {
+		return careResourceTagId;
+	}
+
+	public void setCareResourceTagId(@Nullable String careResourceTagId) {
+		this.careResourceTagId = careResourceTagId;
 	}
 
 	@Nullable
@@ -53,6 +66,15 @@ public class Language {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public CareResourceTagGroupId getCareResourceTagGroupId() {
+		return careResourceTagGroupId;
+	}
+
+	public void setCareResourceTagGroupId(@Nullable CareResourceTagGroupId careResourceTagGroupId) {
+		this.careResourceTagGroupId = careResourceTagGroupId;
 	}
 
 	public Instant getCreated() {

@@ -21,11 +21,10 @@ package com.cobaltplatform.api.model.api.response;
 
 
 import com.cobaltplatform.api.model.db.CareResource;
-import com.cobaltplatform.api.model.db.CareResourceLocationSpecialty;
-import com.cobaltplatform.api.model.db.Payor;
-import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -53,6 +52,8 @@ public class CareResourceApiResponse {
 	@Nullable
 	private String notes;
 	@Nullable
+	private String insuranceNotes;
+	@Nullable
 	private String phoneNumber;
 	@Nullable
 	private String formattedPhoneNumber;
@@ -63,9 +64,15 @@ public class CareResourceApiResponse {
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
+	private List<CareResourceTagApiResponse> specialties;
+	@Nullable
+	private List<CareResourceTagApiResponse> payors;
+	@Nullable
 	private List<CareResourceLocationApiResponse> careResourceLocations;
 	@Nullable
 	private CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory;
+	@Nullable
+	private CareResourceTagApiResponseFactory careResourceTagApiResponseFactory;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -78,10 +85,12 @@ public class CareResourceApiResponse {
 	public CareResourceApiResponse(@Nonnull CareResourceService careResourceService,
 																 @Assisted @Nonnull CareResource careResource,
 																 @Nonnull CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory,
+																 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 																 @Nonnull Formatter formatter) {
 		requireNonNull(careResource);
 		requireNonNull(formatter);
 		requireNonNull(careResourceLocationApiResponseFactory);
+		requireNonNull(careResourceTagApiResponseFactory);
 
 		this.careResourceId = careResource.getCareResourceId();
 		this.name = careResource.getName();
@@ -91,6 +100,13 @@ public class CareResourceApiResponse {
 		this.resourceAvailable = careResource.getResourceAvailable();
 		this.createdByAccountId = careResource.getCreatedByAccountId();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResource.getPhoneNumber());
+		this.insuranceNotes = careResource.getInsuranceNotes();
+		this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.PAYORS).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
 		this.careResourceLocations = careResourceService.findCareResourceLocations(careResource.getCareResourceId())
 				.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
 	}
@@ -144,5 +160,25 @@ public class CareResourceApiResponse {
 	@Nullable
 	public CareResourceLocationApiResponseFactory getCareResourceLocationApiResponseFactory() {
 		return careResourceLocationApiResponseFactory;
+	}
+
+	@Nullable
+	public String getInsuranceNotes() {
+		return insuranceNotes;
+	}
+
+	@Nullable
+	public List<CareResourceTagApiResponse> getSpecialties() {
+		return specialties;
+	}
+
+	@Nullable
+	public List<CareResourceTagApiResponse> getPayors() {
+		return payors;
+	}
+
+	@Nullable
+	public CareResourceTagApiResponseFactory getCareResourceTagApiResponseFactory() {
+		return careResourceTagApiResponseFactory;
 	}
 }

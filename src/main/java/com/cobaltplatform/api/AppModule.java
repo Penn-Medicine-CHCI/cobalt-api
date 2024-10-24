@@ -132,7 +132,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGro
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PayorApiResponse;
+import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
@@ -359,7 +359,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountStudyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeGroupApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(PayorApiResponse.PayorApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CareResourceTagApiResponse.CareResourceTagApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CareResourceApiResponse.CareResourceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory.class)));
 	}

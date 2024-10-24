@@ -36,6 +36,8 @@ public class CareResource {
 	@Nullable
 	private String notes;
 	@Nullable
+	private String insuranceNotes;
+	@Nullable
 	private String phoneNumber;
 	@Nullable
 	private String websiteUrl;
@@ -128,5 +130,14 @@ public class CareResource {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public String getInsuranceNotes() {
+		return insuranceNotes;
+	}
+
+	public void setInsuranceNotes(@Nullable String insuranceNotes) {
+		this.insuranceNotes = insuranceNotes;
 	}
 }

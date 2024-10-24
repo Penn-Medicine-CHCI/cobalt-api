@@ -23,12 +23,12 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PayorApiResponse.PayorApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.CareResource;
-import com.cobaltplatform.api.model.db.Payor;
-import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.db.CareResourceTag;
+import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -53,7 +53,6 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -70,7 +69,7 @@ public class CareResourceResource {
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
-	private final PayorApiResponseFactory payorApiResponseFactory;
+	private final CareResourceTagApiResponseFactory careResourceTagApiResponseFactory;
 	@Nonnull
 	private final CareResourceApiResponseFactory careResourceApiResponseFactory;
 	@Nonnull
@@ -88,7 +87,7 @@ public class CareResourceResource {
 	@Inject
 	public CareResourceResource(@Nonnull Provider<CurrentContext> currentContextProvider,
 															@Nonnull CareResourceService careResourceService,
-															@Nonnull PayorApiResponseFactory payorApiResponseFactory,
+															@Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 															@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull CareResourceApiResponseFactory careResourceApiResponseFactory,
@@ -96,7 +95,7 @@ public class CareResourceResource {
 															@Nonnull Formatter formatter) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(careResourceService);
-		requireNonNull(payorApiResponseFactory);
+		requireNonNull(careResourceTagApiResponseFactory);
 		requireNonNull(supportRoleApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(careResourceApiResponseFactory);
@@ -105,7 +104,7 @@ public class CareResourceResource {
 
 		this.currentContextProvider = currentContextProvider;
 		this.careResourceService = careResourceService;
-		this.payorApiResponseFactory = payorApiResponseFactory;
+		this.careResourceTagApiResponseFactory = careResourceTagApiResponseFactory;
 		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.careResourceApiResponseFactory = careResourceApiResponseFactory;
@@ -114,25 +113,15 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
-	@GET("/payors")
+	@GET("/care-resource-tags")
 	@AuthenticationRequired
-	public ApiResponse findPayors() {
-		List<Payor> payors = getCareResourceService().findPayors();
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("payors", payors.stream()
-					.map(payor -> getPayorApiResponseFactory().create(payor))
-					.collect(Collectors.toList()));
-		}});
-	}
+	public ApiResponse findCareResourceTags(@Nonnull @QueryParameter CareResourceTagGroupId careResourceTagGroupId) {
+		requireNonNull(careResourceTagGroupId);
 
-	@Nonnull
-	@GET("/support-roles")
-	@AuthenticationRequired
-	public ApiResponse findSupportRoles() {
-		List<SupportRole> supportRoles = getCareResourceService().findCareResourceSupportRoles();
+		List<CareResourceTag> careResourceTags = getCareResourceService().findTagsByGroupId(careResourceTagGroupId);
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("supportRoles", supportRoles.stream()
-					.map(supportRole -> getSupportRoleApiResponseFactory().create(supportRole))
+			put("careResourceTags", careResourceTags.stream()
+					.map(careResourceTag -> getCareResourceTagApiResponseFactory().create(careResourceTag))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -179,7 +168,7 @@ public class CareResourceResource {
 		request.setCreatedByAccountId(getCurrentContext().getAccount().get().getAccountId());
 		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
 		UUID careResourceId = getCareResourceService().createCareResource(request);
-		CareResource careResource = getCareResourceService().findCareResourceByInstitutionId
+		CareResource careResource = getCareResourceService().findCareResourceById
 				(careResourceId, getCurrentContext().getInstitutionId()).orElse(null);
 
 		if (careResource == null)
@@ -205,11 +194,6 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
-	public PayorApiResponseFactory getPayorApiResponseFactory() {
-		return payorApiResponseFactory;
-	}
-
-	@Nonnull
 	public CareResourceApiResponseFactory getCareResourceApiResponseFactory() {
 		return careResourceApiResponseFactory;
 	}
@@ -232,5 +216,10 @@ public class CareResourceResource {
 	@Nonnull
 	public Formatter getFormatter() {
 		return formatter;
+	}
+
+	@Nonnull
+	public CareResourceTagApiResponseFactory getCareResourceTagApiResponseFactory() {
+		return careResourceTagApiResponseFactory;
 	}
 }

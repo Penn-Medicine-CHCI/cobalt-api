@@ -20,7 +20,8 @@
 package com.cobaltplatform.api.model.api.response;
 
 
-import com.cobaltplatform.api.model.db.Payor;
+import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
+import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
@@ -28,7 +29,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -36,34 +36,43 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @Immutable
-public class PayorApiResponse {
+public class CareResourceTagApiResponse {
 	@Nullable
-	private String payorId;
+	private String careResourceTagId;
 	@Nullable
 	private String name;
+	@Nullable
+	private CareResourceTagGroupId careResourceTagGroupId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface PayorApiResponseFactory {
+	public interface CareResourceTagApiResponseFactory {
 		@Nonnull
-		PayorApiResponse create(@Nonnull Payor payor);
+		CareResourceTagApiResponse create(@Nonnull CareResourceTag careResourceTag);
 	}
 
 	@AssistedInject
-	public PayorApiResponse(@Assisted @Nonnull Payor payor) {
-		requireNonNull(payor);
+	public CareResourceTagApiResponse(@Assisted @Nonnull CareResourceTag careResourceTag) {
+		requireNonNull(careResourceTag);
 
-		this.payorId = payor.getPayorId();
-		this.name = payor.getName();
+		this.careResourceTagGroupId = careResourceTag.getCareResourceTagGroupId();
+		this.careResourceTagId = careResourceTag.getCareResourceTagId();
+		this.name = careResourceTag.getName();
+
 	}
 
 	@Nullable
-	public String getPayorId() {
-		return payorId;
+	public String getCareResourceTagId() {
+		return careResourceTagId;
 	}
 
 	@Nullable
 	public String getName() {
 		return name;
+	}
+
+	@Nullable
+	public CareResourceTag.CareResourceTagGroupId getCareResourceTagGroupId() {
+		return careResourceTagGroupId;
 	}
 }

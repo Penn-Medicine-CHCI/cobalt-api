@@ -21,12 +21,8 @@ package com.cobaltplatform.api.model.api.response;
 
 
 import com.cobaltplatform.api.model.db.Address;
-import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
-import com.cobaltplatform.api.model.db.CareResourceLocationSpecialty;
-import com.cobaltplatform.api.model.db.Language;
-import com.cobaltplatform.api.model.db.Payor;
-import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
@@ -59,13 +55,13 @@ public class CareResourceLocationApiResponse {
 	private String notes;
 	@Nullable
 	private Boolean wheelchairAccess;
-	@Nullable List<Language> languages;
+	@Nullable List<CareResourceTag> languages;
 	@Nullable
-	private List<CareResourceLocationSpecialty> specialties;
+	private List<CareResourceTag> specialties;
 	@Nullable
-	private List<SupportRole> supportRoles;
+	private List<CareResourceTag> supportRoles;
 	@Nullable
-	private List<Payor> payors;
+	private List<CareResourceTag> payors;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -88,10 +84,10 @@ public class CareResourceLocationApiResponse {
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
-		this.languages = careResourceService.findLanguagesForCareResourceLocation(careResourceLocation.getCareResourceLocationId());
-		this.specialties = careResourceService.findCareResourceLocationSpecialties(careResourceLocation.getCareResourceLocationId());
-		this.supportRoles = careResourceService.findCareResourceLocationSupportRoles(careResourceLocation.getCareResourceLocationId());
-		this.payors = careResourceService.findCareResourceLocationPayors(careResourceLocation.getCareResourceLocationId());
+		this.languages = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.LANGUAGES);
+		this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.SPECIALTIES);
+		this.supportRoles = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.THERAPY_TYPES);
+		this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.PAYORS);
 	}
 
 	@Nullable
@@ -110,12 +106,13 @@ public class CareResourceLocationApiResponse {
 	}
 
 	@Nullable
-	public String getNotes() {
-		return notes;
-	}
-
 	public String getFormattedPhoneNumber() {
 		return formattedPhoneNumber;
+	}
+
+	@Nullable
+	public String getNotes() {
+		return notes;
 	}
 
 	@Nullable
@@ -124,22 +121,22 @@ public class CareResourceLocationApiResponse {
 	}
 
 	@Nullable
-	public List<Language> getLanguages() {
+	public List<CareResourceTag> getLanguages() {
 		return languages;
 	}
 
 	@Nullable
-	public List<CareResourceLocationSpecialty> getSpecialties() {
+	public List<CareResourceTag> getSpecialties() {
 		return specialties;
 	}
 
 	@Nullable
-	public List<SupportRole> getSupportRoles() {
+	public List<CareResourceTag> getSupportRoles() {
 		return supportRoles;
 	}
 
 	@Nullable
-	public List<Payor> getPayors() {
+	public List<CareResourceTag> getPayors() {
 		return payors;
 	}
 }

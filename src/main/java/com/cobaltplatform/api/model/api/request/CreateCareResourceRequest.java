@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,10 +34,23 @@ public class CreateCareResourceRequest {
 	@Nullable
 	private String name;
 	@Nullable
+	private String notes;
+	@Nullable
+	private String insuranceNotes;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private InstitutionId institutionId;
-
+	@Nullable
+	private List<String> specialties;
+	@Nullable
+	private List<String> payors;
+	@Nullable
+	private String phoneNumber;
+	@Nullable
+	private String emailAddress;
+	@Nullable
+	private String websiteUrl;
 	@Nullable
 	public String getName() {
 		return name;
@@ -63,5 +75,68 @@ public class CreateCareResourceRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(@Nullable String notes) {
+		this.notes = notes;
+	}
+
+	@Nullable
+	public String getInsuranceNotes() {
+		return insuranceNotes;
+	}
+
+	public void setInsuranceNotes(@Nullable String insuranceNotes) {
+		this.insuranceNotes = insuranceNotes;
+	}
+
+	@Nullable
+	public List<String> getSpecialties() {
+		return specialties;
+	}
+
+	public void setSpecialties(@Nullable List<String> specialties) {
+		this.specialties = specialties;
+	}
+
+	@Nullable
+	public List<String> getPayors() {
+		return payors;
+	}
+
+	public void setPayors(@Nullable List<String> payors) {
+		this.payors = payors;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(@Nullable String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
 	}
 }

@@ -25,11 +25,9 @@ import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
-import com.cobaltplatform.api.model.db.CareResourceLocationSpecialty;
+import com.cobaltplatform.api.model.db.CareResourceTag;
+import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Language;
-import com.cobaltplatform.api.model.db.Payor;
-import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -84,25 +82,29 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public List<Payor> findPayors() {
+	public List<CareResourceTag> findTagsByGroupId(CareResourceTagGroupId careResourceTagGroupId) {
 		return getDatabase().queryForList("""
 				SELECT * 
-				FROM payor
-				ORDER BY name""", Payor.class);
+				FROM care_resource_tag
+				WHERE care_resource_tag_group_id = ?
+				ORDER BY name""", CareResourceTag.class, careResourceTagGroupId);
 	}
 
 	@Nonnull
-	public List<SupportRole> findCareResourceSupportRoles() {
+	public List<CareResourceTag> findTagsByCareResourceIdAndGroupId(UUID careResourceId,
+																																	CareResourceTagGroupId careResourceTagGroupId) {
 		return getDatabase().queryForList("""
-				SELECT sr.*
-				FROM support_role sr
-				ORDER BY display_order
-				""", SupportRole.class);
+				SELECT * 
+				FROM care_resource_tag crt, care_resource_care_resource_tag crc
+				WHERE crt.care_resource_tag_id = crc.care_resource_tag_id 
+				AND crc.care_resource_id = ?
+				AND crt.care_resource_tag_group_id = ?
+				ORDER BY name""", CareResourceTag.class, careResourceId, careResourceTagGroupId);
 	}
 
 	@Nonnull
-	public Optional<CareResource> findCareResourceByInstitutionId(@Nonnull UUID careResourceId,
-																																@Nonnull InstitutionId institutionId) {
+	public Optional<CareResource> findCareResourceById(@Nonnull UUID careResourceId,
+																										 @Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 		requireNonNull(careResourceId);
 
@@ -181,55 +183,7 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public List<Language> findLanguagesForCareResourceLocation(@Nonnull UUID careResourceLocationId) {
-		requireNonNull(careResourceLocationId);
-
-		return getDatabase().queryForList("""
-				SELECT l.*
-				FROM language l, care_resource_location_language crl
-				WHERE crl.language_id = l.language_id
-				AND crl.care_resource_location_id = ?
-				""", Language.class, careResourceLocationId);
-	}
-
-	@Nonnull
-	public List<CareResourceLocationSpecialty> findCareResourceLocationSpecialties(@Nonnull UUID careResourceId) {
-		requireNonNull(careResourceId);
-
-		return getDatabase().queryForList("""
-				SELECT crs.*
-				FROM care_resource_specialty crs, care_resource_location_specialty crc
-				WHERE crs.care_resource_specialty_id= crc.care_resource_specialty_id
-				AND crc.care_resource_location_id = ?
-				""", CareResourceLocationSpecialty.class, careResourceId);
-	}
-
-	@Nonnull
-	public List<Payor> findCareResourceLocationPayors(@Nonnull UUID careResourceId) {
-		requireNonNull(careResourceId);
-
-		return getDatabase().queryForList("""
-				SELECT p.*
-				FROM payor p, care_resource_location_payor crp
-				WHERE p.payor_id= crp.payor_id
-				AND crp.care_resource_location_id = ?
-				""", Payor.class, careResourceId);
-	}
-
-	@Nonnull
-	public List<SupportRole> findCareResourceLocationSupportRoles(@Nonnull UUID careResourceId) {
-		requireNonNull(careResourceId);
-
-		return getDatabase().queryForList("""
-				SELECT sr.*
-				FROM support_role sr, care_resource_location_support_role crs
-				WHERE sr.support_role_id= crs.support_role_id
-				AND crs.care_resource_location_id = ?
-				""", SupportRole.class, careResourceId);
-	}
-
-	@Nonnull
-	public void createLocationForCareResource(CreateCareResourceLocationRequest request){
+	public void createLocationForCareResource(CreateCareResourceLocationRequest request) {
 		requireNonNull(request);
 
 		String googlePlaceId = trimToNull(request.getGooglePlaceId());
@@ -241,17 +195,17 @@ public class CareResourceService {
 		UUID careResourceId = request.getCareResourceId();
 		UUID careResourceLocationId = UUID.randomUUID();
 		UUID addressId = UUID.randomUUID();
-		String websiteUrl =trimToNull( request.getWebsiteUrl());
+		String websiteUrl = trimToNull(request.getWebsiteUrl());
 		ValidationException validationException = new ValidationException();
 
 		getDatabase().execute("""
-				INSERT INTO care_resource_location
-				  (care_resource_location_id, care_resource_id, address_id,
-				  phone_number, wheelchair_access, notes, accepting_new_patients,
-				  website_url)
-				VALUES
-				  (?,?,?,?,?,?,?,?,?)
-				  """, careResourceLocationId, careResourceId, addressId,
+						INSERT INTO care_resource_location
+						  (care_resource_location_id, care_resource_id, address_id,
+						  phone_number, wheelchair_access, notes, accepting_new_patients,
+						  website_url)
+						VALUES
+						  (?,?,?,?,?,?,?,?,?)
+						  """, careResourceLocationId, careResourceId, addressId,
 				phoneNumber, wheelchairAccessible, notes, acceptingNewPatients,
 				websiteUrl);
 
@@ -278,6 +232,7 @@ public class CareResourceService {
 					VALUES
 					(?,?)""", careResourceLocationId, supportRoleId);
 	}
+
 	@Nonnull
 	public UUID createCareResource(@Nonnull CreateCareResourceRequest request) {
 		requireNonNull(request);
@@ -286,6 +241,11 @@ public class CareResourceService {
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID careResourceId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
+		String notes = trimToNull(request.getNotes());
+		String insuranceNotes = trimToNull(request.getInsuranceNotes());
+		String websiteUrl = trimToNull(request.getWebsiteUrl());
+		String phoneNumber = trimToNull(request.getPhoneNumber());
+		String emailAddress = trimToNull(request.getEmailAddress());
 
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", "Name is required."));
@@ -298,15 +258,31 @@ public class CareResourceService {
 
 		getDatabase().execute("""
 				INSERT INTO care_resource
-				(care_resource_id, name, created_by_account_id)
+				(care_resource_id, name, created_by_account_id, notes, insurance_notes, phone_number, email_address, website_url)
 				VALUES
-				(?,?,?)""", careResourceId, name, createdByAccountId);
+				(?,?,?,?,?,?,?,?)""", careResourceId, name, createdByAccountId, notes, insuranceNotes, phoneNumber, emailAddress, websiteUrl);
 
 		getDatabase().execute("""
 				INSERT INTO care_resource_institution 
 				(care_resource_id, institution_id)
 				VALUES
 				(?,?)""", careResourceId, request.getInstitutionId());
+
+		if (request.getSpecialties() != null)
+			for (String specialtyId : request.getSpecialties())
+				getDatabase().execute("""
+						INSERT INTO care_resource_care_resource_tag
+						(care_resource_id, care_resource_tag_id)
+						VALUES
+						(?,?)""", careResourceId, specialtyId);
+
+		if (request.getPayors() != null)
+			for (String payorId : request.getPayors())
+				getDatabase().execute("""
+						INSERT INTO care_resource_care_resource_tag
+						(care_resource_id, care_resource_tag_id)
+						VALUES
+						(?,?)""", careResourceId, payorId);
 
 		return careResourceId;
 	}
