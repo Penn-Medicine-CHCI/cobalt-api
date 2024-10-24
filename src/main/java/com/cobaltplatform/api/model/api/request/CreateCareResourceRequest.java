@@ -42,9 +42,9 @@ public class CreateCareResourceRequest {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
-	private List<String> specialties;
+	private List<String> specialtyIds;
 	@Nullable
-	private List<String> payors;
+	private List<String> payorIds;
 	@Nullable
 	private String phoneNumber;
 	@Nullable
@@ -96,21 +96,21 @@ public class CreateCareResourceRequest {
 	}
 
 	@Nullable
-	public List<String> getSpecialties() {
-		return specialties;
+	public List<String> getSpecialtyIds() {
+		return specialtyIds;
 	}
 
-	public void setSpecialties(@Nullable List<String> specialties) {
-		this.specialties = specialties;
+	public void setSpecialtyIds(@Nullable List<String> specialtyIds) {
+		this.specialtyIds = specialtyIds;
 	}
 
 	@Nullable
-	public List<String> getPayors() {
-		return payors;
+	public List<String> getPayorIds() {
+		return payorIds;
 	}
 
-	public void setPayors(@Nullable List<String> payors) {
-		this.payors = payors;
+	public void setPayorIds(@Nullable List<String> payorIds) {
+		this.payorIds = payorIds;
 	}
 
 	@Nullable

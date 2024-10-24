@@ -268,16 +268,16 @@ public class CareResourceService {
 				VALUES
 				(?,?)""", careResourceId, request.getInstitutionId());
 
-		if (request.getSpecialties() != null)
-			for (String specialtyId : request.getSpecialties())
+		if (request.getSpecialtyIds() != null)
+			for (String specialtyId : request.getSpecialtyIds())
 				getDatabase().execute("""
 						INSERT INTO care_resource_care_resource_tag
 						(care_resource_id, care_resource_tag_id)
 						VALUES
 						(?,?)""", careResourceId, specialtyId);
 
-		if (request.getPayors() != null)
-			for (String payorId : request.getPayors())
+		if (request.getPayorIds() != null)
+			for (String payorId : request.getPayorIds())
 				getDatabase().execute("""
 						INSERT INTO care_resource_care_resource_tag
 						(care_resource_id, care_resource_tag_id)
