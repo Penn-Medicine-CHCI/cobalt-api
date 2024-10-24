@@ -53,6 +53,24 @@ public class CreateAddressRequest {
 	private String countrySubdivisionCode;
 	@Nullable
 	private String countryCode;
+	@Nullable
+	private String googleMapsUrl;
+	@Nullable
+	private String googlePlaceId;
+	@Nullable
+	private Double latitude;
+	@Nullable
+	private Double longitude;
+	@Nullable
+	private String premise;
+	@Nullable
+	private String subpremise;
+	@Nullable
+	private String regionSubdivision;
+	@Nullable
+	private String postalCodeSuffix;
+	@Nullable
+	private String formattedAddress;
 
 	@Nullable
 	public String getPostalName() {
@@ -169,5 +187,86 @@ public class CreateAddressRequest {
 
 	public void setCountryCode(@Nullable String countryCode) {
 		this.countryCode = countryCode;
+	}
+
+	@Nullable
+	public String getGoogleMapsUrl() {
+		return googleMapsUrl;
+	}
+
+	public void setGoogleMapsUrl(@Nullable String googleMapsUrl) {
+		this.googleMapsUrl = googleMapsUrl;
+	}
+
+	@Nullable
+	public String getGooglePlaceId() {
+		return googlePlaceId;
+	}
+
+	public void setGooglePlaceId(@Nullable String googlePlaceId) {
+		this.googlePlaceId = googlePlaceId;
+	}
+
+	@Nullable
+	public Double getLatitude() {
+		return latitude;
+	}
+
+	public void setLatitude(@Nullable Double latitude) {
+		this.latitude = latitude;
+	}
+
+	@Nullable
+	public Double getLongitude() {
+		return longitude;
+	}
+
+	public void setLongitude(@Nullable Double longitude) {
+		this.longitude = longitude;
+	}
+
+	@Nullable
+	public String getPremise() {
+		return premise;
+	}
+
+	public void setPremise(@Nullable String premise) {
+		this.premise = premise;
+	}
+
+	@Nullable
+	public String getSubpremise() {
+		return subpremise;
+	}
+
+	public void setSubpremise(@Nullable String subpremise) {
+		this.subpremise = subpremise;
+	}
+
+	@Nullable
+	public String getRegionSubdivision() {
+		return regionSubdivision;
+	}
+
+	public void setRegionSubdivision(@Nullable String regionSubdivision) {
+		this.regionSubdivision = regionSubdivision;
+	}
+
+	@Nullable
+	public String getPostalCodeSuffix() {
+		return postalCodeSuffix;
+	}
+
+	public void setPostalCodeSuffix(@Nullable String postalCodeSuffix) {
+		this.postalCodeSuffix = postalCodeSuffix;
+	}
+
+	@Nullable
+	public String getFormattedAddress() {
+		return formattedAddress;
+	}
+
+	public void setFormattedAddress(@Nullable String formattedAddress) {
+		this.formattedAddress = formattedAddress;
 	}
 }

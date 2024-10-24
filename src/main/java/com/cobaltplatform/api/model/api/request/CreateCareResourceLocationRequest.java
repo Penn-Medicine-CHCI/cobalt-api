@@ -37,8 +37,15 @@ public class CreateCareResourceLocationRequest {
 	@Nullable
 	private String googlePlaceId;
 	@Nullable
+	private String name;
+	@Nullable
 	private String notes;
 	@Nullable
+	private String emailAddress;
+	@Nullable
+	private String streetAddress2;
+	@Nullable
+	private String insuranceNotes;
 	private String phoneNumber;
 	@Nullable
 	private String websiteUrl;
@@ -49,11 +56,19 @@ public class CreateCareResourceLocationRequest {
 	@Nullable
 	private List<String> payorIds;
 	@Nullable
-	private List<UUID> specialtyIds;
+	private List<String> specialtyIds;
 	@Nullable
-	private List<SupportRoleId> supportRoleIds;
+	private List<String> therapyTypeIds;
 	@Nullable
-	private Boolean wheelchairAccessible;
+	private List<String> populationServedIds;
+	@Nullable
+	private List<String> genderIds;
+	@Nullable
+	private List<String> ethnicityIds;
+	@Nullable
+	private List<String> languageIds;
+	@Nullable
+	private Boolean wheelchairAccess;
 
 	@Nullable
 	public UUID getCareResourceId() {
@@ -74,6 +89,15 @@ public class CreateCareResourceLocationRequest {
 	}
 
 	@Nullable
+	public String getName() {
+		return name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
 	public String getNotes() {
 		return notes;
 	}
@@ -83,12 +107,47 @@ public class CreateCareResourceLocationRequest {
 	}
 
 	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public String getStreetAddress2() {
+		return streetAddress2;
+	}
+
+	public void setStreetAddress2(@Nullable String streetAddress2) {
+		this.streetAddress2 = streetAddress2;
+	}
+
+	@Nullable
+	public String getInsuranceNotes() {
+		return insuranceNotes;
+	}
+
+	public void setInsuranceNotes(@Nullable String insuranceNotes) {
+		this.insuranceNotes = insuranceNotes;
+	}
+
 	public String getPhoneNumber() {
 		return phoneNumber;
 	}
 
-	public void setPhoneNumber(@Nullable String phoneNumber) {
+	public void setPhoneNumber(String phoneNumber) {
 		this.phoneNumber = phoneNumber;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
 	}
 
 	@Nullable
@@ -119,38 +178,65 @@ public class CreateCareResourceLocationRequest {
 	}
 
 	@Nullable
-	public List<UUID> getSpecialtyIds() {
+	public List<String> getSpecialtyIds() {
 		return specialtyIds;
 	}
 
-	public void setSpecialtyIds(@Nullable List<UUID> specialtyIds) {
+	public void setSpecialtyIds(@Nullable List<String> specialtyIds) {
 		this.specialtyIds = specialtyIds;
 	}
 
 	@Nullable
-	public List<SupportRoleId> getSupportRoleIds() {
-		return supportRoleIds;
+	public List<String> getTherapyTypeIds() {
+		return therapyTypeIds;
 	}
 
-	public void setSupportRoleIds(@Nullable List<SupportRoleId> supportRoleIds) {
-		this.supportRoleIds = supportRoleIds;
-	}
-
-	@Nullable
-	public Boolean getWheelchairAccessible() {
-		return wheelchairAccessible;
-	}
-
-	public void setWheelchairAccessible(@Nullable Boolean wheelchairAccessible) {
-		this.wheelchairAccessible = wheelchairAccessible;
+	public void setTherapyTypeIds(@Nullable List<String> therapyTypeIds) {
+		this.therapyTypeIds = therapyTypeIds;
 	}
 
 	@Nullable
-	public String getWebsiteUrl() {
-		return websiteUrl;
+	public List<String> getPopulationServedIds() {
+		return populationServedIds;
 	}
 
-	public void setWebsiteUrl(@Nullable String websiteUrl) {
-		this.websiteUrl = websiteUrl;
+	public void setPopulationServedIds(@Nullable List<String> populationServedIds) {
+		this.populationServedIds = populationServedIds;
+	}
+
+	@Nullable
+	public List<String> getGenderIds() {
+		return genderIds;
+	}
+
+	public void setGenderIds(@Nullable List<String> genderIds) {
+		this.genderIds = genderIds;
+	}
+
+	@Nullable
+	public List<String> getEthnicityIds() {
+		return ethnicityIds;
+	}
+
+	public void setEthnicityIds(@Nullable List<String> ethnicityIds) {
+		this.ethnicityIds = ethnicityIds;
+	}
+
+	@Nullable
+	public List<String> getLanguageIds() {
+		return languageIds;
+	}
+
+	public void setLanguageIds(@Nullable List<String> languageIds) {
+		this.languageIds = languageIds;
+	}
+
+	@Nullable
+	public Boolean getWheelchairAccess() {
+		return wheelchairAccess;
+	}
+
+	public void setWheelchairAccess(@Nullable Boolean wheelchairAccess) {
+		this.wheelchairAccess = wheelchairAccess;
 	}
 }

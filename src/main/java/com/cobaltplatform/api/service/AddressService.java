@@ -126,6 +126,15 @@ public class AddressService {
 		String postalCode = trimToNull(request.getPostalCode());
 		String countrySubdivisionCode = trimToNull(request.getCountrySubdivisionCode());
 		String countryCode = trimToNull(request.getCountryCode());
+		String googleMapsUrl = trimToNull(request.getGoogleMapsUrl());
+		String googlePlaceId = trimToNull(request.getGooglePlaceId());
+		Double latitude = request.getLatitude();
+		Double longitude = request.getLongitude();
+		String premise = trimToNull(request.getPremise());
+		String subpremise = trimToNull(request.getSubpremise());
+		String regionSubdivision = trimToNull(request.getRegionSubdivision());
+		String postalCodeSuffix = trimToNull(request.getPostalCodeSuffix());
+		String formattedAddress = trimToNull(request.getFormattedAddress());
 		ValidationException validationException = new ValidationException();
 
 		if (postalName == null)
@@ -201,10 +210,21 @@ public class AddressService {
 						region,
 						postal_code,
 						country_subdivision_code,
-						country_code
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						country_code,
+						google_maps_url,
+						google_place_id,
+						latitude,
+						longitude,
+						premise,
+						subpremise,
+						region_subdivision,
+						postal_code_suffix,
+						formatted_address
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""", addressId, postalName, streetAddress1, streetAddress2, streetAddress3, streetAddress4,
-				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode);
+				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode,
+				googleMapsUrl, googlePlaceId, latitude, longitude, premise, subpremise, regionSubdivision, regionSubdivision,
+				postalCodeSuffix, formattedAddress);
 
 		return addressId;
 	}

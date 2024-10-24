@@ -27,22 +27,12 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class PlacePrediction {
-	@Nullable
-	private String place;
+
 	@Nullable
 	private String placeId;
 
 	@Nullable
 	private String text;
-
-	@Nullable
-	public String getPlace() {
-		return place;
-	}
-
-	public void setPlace(@Nullable String place) {
-		this.place = place;
-	}
 
 	@Nullable
 	public String getPlaceId() {

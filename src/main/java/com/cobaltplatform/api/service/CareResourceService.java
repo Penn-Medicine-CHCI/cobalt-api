@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 
+import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
@@ -93,6 +94,8 @@ public class CareResourceService {
 	@Nonnull
 	public List<CareResourceTag> findTagsByCareResourceIdAndGroupId(UUID careResourceId,
 																																	CareResourceTagGroupId careResourceTagGroupId) {
+		requireNonNull(careResourceId);
+
 		return getDatabase().queryForList("""
 				SELECT * 
 				FROM care_resource_tag crt, care_resource_care_resource_tag crc
@@ -100,6 +103,20 @@ public class CareResourceService {
 				AND crc.care_resource_id = ?
 				AND crt.care_resource_tag_group_id = ?
 				ORDER BY name""", CareResourceTag.class, careResourceId, careResourceTagGroupId);
+	}
+
+	@Nonnull
+	public List<CareResourceTag> findTagsByCareResourceLocationIdAndGroupId(UUID careResourceLocationId,
+																																					CareResourceTagGroupId careResourceTagGroupId) {
+		requireNonNull(careResourceLocationId);
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM care_resource_tag crt, care_resource_location_care_resource_tag crl
+				WHERE crt.care_resource_tag_id = crl.care_resource_tag_id 
+				AND crl.care_resource_location_id = ?
+				AND crt.care_resource_tag_group_id = ?
+				ORDER BY name""", CareResourceTag.class, careResourceLocationId, careResourceTagGroupId);
 	}
 
 	@Nonnull
@@ -183,54 +200,75 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public void createLocationForCareResource(CreateCareResourceLocationRequest request) {
+	public Optional<CareResourceLocation> findCareResourceLocationById(@Nonnull UUID careResourceLocationId) {
+		requireNonNull(careResourceLocationId);
+
+		return getDatabase().queryForObject("""
+				SELECT crl.*
+				FROM care_resource_location crl
+				WHERE crl.care_resource_location_id = ?
+				""", CareResourceLocation.class, careResourceLocationId);
+	}
+
+	@Nonnull
+	public UUID createCareResourceLocation(CreateCareResourceLocationRequest request) {
 		requireNonNull(request);
 
 		String googlePlaceId = trimToNull(request.getGooglePlaceId());
 		String notes = trimToNull(request.getNotes());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		Boolean acceptingNewPatients = request.getAcceptingNewPatients();
-		Boolean wheelchairAccessible = request.getWheelchairAccessible();
+		Boolean wheelchairAccessible = request.getWheelchairAccess();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID careResourceId = request.getCareResourceId();
 		UUID careResourceLocationId = UUID.randomUUID();
-		UUID addressId = UUID.randomUUID();
+		UUID addressId = null;
 		String websiteUrl = trimToNull(request.getWebsiteUrl());
 		ValidationException validationException = new ValidationException();
+		String name = trimToNull(request.getName());
+		String insuranceNotes = trimToNull(request.getInsuranceNotes());
+
+		//TODO: validation logic
 
 		getDatabase().execute("""
 						INSERT INTO care_resource_location
 						  (care_resource_location_id, care_resource_id, address_id,
 						  phone_number, wheelchair_access, notes, accepting_new_patients,
-						  website_url)
+						  website_url, name, insurance_notes, created_by_account_id)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?)
+						  (?,?,?,?,?,?,?,?,?,?,?)
 						  """, careResourceLocationId, careResourceId, addressId,
-				phoneNumber, wheelchairAccessible, notes, acceptingNewPatients,
-				websiteUrl);
+				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
+				websiteUrl, name, insuranceNotes, createdByAccountId);
 
-		for (UUID specialtyId : request.getSpecialtyIds())
-			getDatabase().execute("""
-					INSERT INTO care_resource_location_specialty
-					(care_resource_location_id, care_resource_specialty_id)
-					VALUES
-					(?,?)""", careResourceLocationId, specialtyId);
+		//TODO: use google places
+		//CreateAddressRequest createAddressRequest = new CreateAddressRequest();
 
-		for (String payorId : request.getPayorIds()) {
-			if (trimToNull(payorId) != null)
+		List<String> allTags = new ArrayList<>();
+		if (request.getPayorIds() != null)
+			allTags.addAll(request.getPayorIds());
+		if (request.getEthnicityIds() != null)
+			allTags.addAll(request.getEthnicityIds());
+		if (request.getSpecialtyIds() != null)
+			allTags.addAll(request.getSpecialtyIds());
+		if (request.getLanguageIds() != null)
+			allTags.addAll(request.getLanguageIds());
+		if (request.getPopulationServedIds() != null)
+			allTags.addAll(request.getPopulationServedIds());
+		if (request.getTherapyTypeIds() != null)
+			allTags.addAll(request.getTherapyTypeIds());
+		if (request.getGenderIds() != null)
+			allTags.addAll(request.getGenderIds());
+
+		if (allTags != null)
+			for (String tag : allTags)
 				getDatabase().execute("""
-						INSERT INTO care_resource_location_payor
-						(care_resource_location_id, payor_id)
+						INSERT INTO care_resource_location_care_resource_tag
+						(care_resource_location_id, care_resource_tag_id)
 						VALUES
-						(?,?)""", careResourceLocationId, payorId);
-		}
+						(?,?)""", careResourceLocationId, tag);
 
-		for (SupportRoleId supportRoleId : request.getSupportRoleIds())
-			getDatabase().execute("""
-					INSERT INTO care_resource_support_role
-					(care_resource_location_id, support_role_id)
-					VALUES
-					(?,?)""", careResourceLocationId, supportRoleId);
+		return careResourceLocationId;
 	}
 
 	@Nonnull

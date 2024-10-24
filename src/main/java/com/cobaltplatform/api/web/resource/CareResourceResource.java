@@ -20,13 +20,16 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.CareResource;
+import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -73,6 +76,8 @@ public class CareResourceResource {
 	@Nonnull
 	private final CareResourceApiResponseFactory careResourceApiResponseFactory;
 	@Nonnull
+	private final CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory;
+	@Nonnull
 	private final SupportRoleApiResponseFactory supportRoleApiResponseFactory;
 	@Nonnull
 	private final Logger logger;
@@ -88,6 +93,7 @@ public class CareResourceResource {
 	public CareResourceResource(@Nonnull Provider<CurrentContext> currentContextProvider,
 															@Nonnull CareResourceService careResourceService,
 															@Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
+															@Nonnull CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory,
 															@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull CareResourceApiResponseFactory careResourceApiResponseFactory,
@@ -96,6 +102,7 @@ public class CareResourceResource {
 		requireNonNull(currentContextProvider);
 		requireNonNull(careResourceService);
 		requireNonNull(careResourceTagApiResponseFactory);
+		requireNonNull(careResourceLocationApiResponseFactory);
 		requireNonNull(supportRoleApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(careResourceApiResponseFactory);
@@ -105,6 +112,7 @@ public class CareResourceResource {
 		this.currentContextProvider = currentContextProvider;
 		this.careResourceService = careResourceService;
 		this.careResourceTagApiResponseFactory = careResourceTagApiResponseFactory;
+		this.careResourceLocationApiResponseFactory = careResourceLocationApiResponseFactory;
 		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.careResourceApiResponseFactory = careResourceApiResponseFactory;
@@ -179,6 +187,25 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
+	@POST("/care-resource/location")
+	@AuthenticationRequired
+	public ApiResponse createCareResourceLocation(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		CreateCareResourceLocationRequest request = getRequestBodyParser().parse(requestBody, CreateCareResourceLocationRequest.class);
+		request.setCreatedByAccountId(getCurrentContext().getAccount().get().getAccountId());
+
+		UUID careResourceLocationId = getCareResourceService().createCareResourceLocation(request);
+		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId).orElse(null);
+
+		if (careResourceLocation == null)
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
+		}});
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
 	}
@@ -221,5 +248,10 @@ public class CareResourceResource {
 	@Nonnull
 	public CareResourceTagApiResponseFactory getCareResourceTagApiResponseFactory() {
 		return careResourceTagApiResponseFactory;
+	}
+
+	@Nonnull
+	public CareResourceLocationApiResponseFactory getCareResourceLocationApiResponseFactory() {
+		return careResourceLocationApiResponseFactory;
 	}
 }

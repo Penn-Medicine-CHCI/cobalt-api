@@ -17,6 +17,7 @@ CREATE TABLE care_resource_tag(
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_tag FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX idx_care_resource_tag_id_group ON care_resource_tag(care_resource_tag_id, care_resource_tag_group_id);
 
 CREATE TABLE care_resource (
 	care_resource_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -55,11 +56,12 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_institu
 CREATE TABLE care_resource_location (
 	care_resource_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	address_id UUID NOT NULL REFERENCES address,
+	address_id UUID NULL REFERENCES address,
 	name TEXT NOT NULL,	
 	phone_number TEXT NULL,
 	wheelchair_access BOOLEAN NOT NULL DEFAULT FALSE,
 	insurance_notes VARCHAR,
+	website_url VARCHAR,
   	notes VARCHAR,
 	accepting_new_patients BOOLEAN NOT NULL DEFAULT TRUE,
 	created_by_account_id UUID NOT NULL REFERENCES account,
@@ -70,8 +72,8 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_locatio
 
 CREATE TABLE care_resource_location_care_resource_tag(
 	care_resource_location_care_resource_tag_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	care_resource_id UUID NOT NULL REFERENCES care_resource,
 	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
+	care_resource_tag_id VARCHAR NOT NULL REFERENCES care_resource_tag,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -122,13 +124,25 @@ INSERT INTO care_resource_tag_group
   (care_resource_tag_group_id, name)
 VALUES
   ('PAYORS', 'Payors'),
-  ('FOCUS_TYPES', 'Focus Types'),
   ('SPECIALTIES', 'Specialties'),
   ('THERAPY_TYPES', 'Therapy Types'),
-  ('PATIENT_FOCUSES', 'Patient Focuses'),
+  ('POPULATION_SERVED', 'Population Served'),
   ('GENDERS', 'Genders'),
   ('ETHNICITIES', 'Ethnicites'),
   ('LANGUAGES', 'Languages');
+
+INSERT INTO care_resource_tag 
+ (care_resource_tag_id, name, care_resource_tag_group_id)
+VALUES
+('ADULTS', 'Adults','POPULATION_SERVED'),
+('CHILDREN', 'Childern','POPULATION_SERVED'),
+('ADOLESCENTS', 'Adolescents','POPULATION_SERVED');
+
+INSERT INTO care_resource_tag 
+ (care_resource_tag_id, name, care_resource_tag_group_id)
+VALUES
+('WHITE', 'White','ETHNICITIES'),
+('BLACK_OR_AFRICAN_AMERICAN', 'Black or African American','ETHNICITIES');
 
 INSERT INTO care_resource_tag 
  (care_resource_tag_id, name, care_resource_tag_group_id)
@@ -179,6 +193,17 @@ VALUES
 ('ANGER_MANAGEMENT', 'Anger Management','SPECIALTIES'),
 ('BODY_DYSMORPHIA', 'Body Dysmorphia', 'SPECIALTIES');
 
+INSERT INTO care_resource_tag 
+ (care_resource_tag_id, name, care_resource_tag_group_id)
+VALUES
+('PSYCHIATRIST', 'Psychiatrist','THERAPY_TYPES'),
+('PSYCHOLOGIST', 'Psychologist','THERAPY_TYPES');
+
+INSERT INTO care_resource_tag 
+ (care_resource_tag_id, name, care_resource_tag_group_id)
+VALUES
+('ENGLISH', 'English','LANGUAGES'),
+('SPANISH', 'Spanish','LANGUAGES');
 
 
 COMMIT;

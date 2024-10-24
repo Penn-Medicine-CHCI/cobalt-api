@@ -44,24 +44,45 @@ import static java.util.Objects.requireNonNull;
 @Immutable
 public class CareResourceLocationApiResponse {
 	@Nullable
+	private UUID careResourceId;
+	@Nullable
+	private String googlePlaceId;
+	@Nullable
+	private String name;
+	@Nullable
 	private UUID careResourceLocationId;
 	@Nullable
 	private Address address;
 	@Nullable
 	private String phoneNumber;
 	@Nullable
+	private String websiteUrl;
+	@Nullable
+	private String emailAddress;
+	@Nullable
+	private String insuranceNotes;
+	@Nullable
 	private String formattedPhoneNumber;
 	@Nullable
 	private String notes;
 	@Nullable
 	private Boolean wheelchairAccess;
-	@Nullable List<CareResourceTag> languages;
+	@Nullable
+	private Boolean acceptingNewPatients;
+	@Nullable
+	List<CareResourceTag> languages;
 	@Nullable
 	private List<CareResourceTag> specialties;
 	@Nullable
-	private List<CareResourceTag> supportRoles;
-	@Nullable
 	private List<CareResourceTag> payors;
+	@Nullable
+	private List<CareResourceTag> therapyTypes;
+	@Nullable
+	private List<CareResourceTag> populationServed;
+	@Nullable
+	private List<CareResourceTag> genders;
+	@Nullable
+	private List<CareResourceTag> ethnicities;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -78,16 +99,26 @@ public class CareResourceLocationApiResponse {
 		requireNonNull(careResourceLocation);
 		requireNonNull(formatter);
 
+		this.careResourceId = careResourceLocation.getCareResourceId();
+		this.websiteUrl = careResourceLocation.getWebsiteUrl();
+		this.emailAddress = careResourceLocation.getEmailAddress();
+		this.insuranceNotes = careResourceLocation.getInsuranceNotes();
+		this.acceptingNewPatients = careResourceLocation.getAcceptingNewPatients();
+		this.googlePlaceId = careResourceLocation.getGooglePlaceId();
 		this.careResourceLocationId = careResourceLocation.getCareResourceLocationId();
+		this.name = careResourceLocation.getName();
 		this.address = addressService.findAddressById(careResourceLocation.getAddressId()).orElse(null);
 		this.phoneNumber = careResourceLocation.getPhoneNumber();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
-		this.languages = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.LANGUAGES);
-		this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.SPECIALTIES);
-		this.supportRoles = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.THERAPY_TYPES);
-		this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTag.CareResourceTagGroupId.PAYORS);
+		this.languages = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.LANGUAGES);
+		this.specialties = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.SPECIALTIES);
+		this.payors = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.PAYORS);
+		this.therapyTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.THERAPY_TYPES);
+		this.populationServed = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.POPULATION_SERVED);
+		this.genders = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.GENDERS);
+		this.ethnicities = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.ETHNICITIES);
 	}
 
 	@Nullable
@@ -131,12 +162,62 @@ public class CareResourceLocationApiResponse {
 	}
 
 	@Nullable
-	public List<CareResourceTag> getSupportRoles() {
-		return supportRoles;
+	public List<CareResourceTag> getTherapyTypes() {
+		return therapyTypes;
+	}
+
+	@Nullable
+	public List<CareResourceTag> getPopulationServed() {
+		return populationServed;
+	}
+
+	@Nullable
+	public List<CareResourceTag> getGenders() {
+		return genders;
+	}
+
+	@Nullable
+	public List<CareResourceTag> getEthnicities() {
+		return ethnicities;
 	}
 
 	@Nullable
 	public List<CareResourceTag> getPayors() {
 		return payors;
+	}
+
+	@Nullable
+	public UUID getCareResourceId() {
+		return careResourceId;
+	}
+
+	@Nullable
+	public String getGooglePlaceId() {
+		return googlePlaceId;
+	}
+
+	@Nullable
+	public String getName() {
+		return name;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return websiteUrl;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	@Nullable
+	public String getInsuranceNotes() {
+		return insuranceNotes;
+	}
+
+	@Nullable
+	public Boolean getAcceptingNewPatients() {
+		return acceptingNewPatients;
 	}
 }

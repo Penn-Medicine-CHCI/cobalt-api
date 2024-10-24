@@ -25,6 +25,8 @@ import com.cobaltplatform.api.integration.google.DefaultGoogleGeoClient;
 import com.cobaltplatform.api.integration.google.GoogleGeoClient;
 import com.cobaltplatform.api.model.places.PlacePrediction;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.maps.PlacesApi;
+import com.google.maps.model.PlaceDetails;
 import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
 import com.lokalized.Strings;
@@ -119,7 +121,6 @@ public class PlaceService {
 				PlacePrediction placePrediction = new PlacePrediction();
 
 				placePrediction.setPlaceId(suggestion.getPlacePrediction().getPlaceId());
-				placePrediction.setPlace(suggestion.getPlacePrediction().getPlace());
 				placePrediction.setText(suggestion.getPlacePrediction().getText().getText());
 				placePredictions.add(placePrediction);
 			}

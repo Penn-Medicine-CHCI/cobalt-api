@@ -41,13 +41,12 @@ public class CareResourceTag {
 
 	public enum CareResourceTagGroupId {
 		PAYORS,
-		FOCUS_TYPES,
 		SPECIALTIES,
 		THERAPY_TYPES,
-		PATIENT_FOCUSES,
 		GENDERS,
 		ETHNICITIES,
-		LANGUAGES
+		LANGUAGES,
+		POPULATION_SERVED
 	}
 
 	@Nullable

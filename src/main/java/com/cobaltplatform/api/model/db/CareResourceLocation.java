@@ -32,6 +32,8 @@ import java.util.UUID;
 @NotThreadSafe
 public class CareResourceLocation {
 	@Nullable
+	private String name;
+	@Nullable
 	private UUID careResourceLocationId;
 	@Nullable
 	private UUID careResourceId;
@@ -40,11 +42,19 @@ public class CareResourceLocation {
 	@Nullable
 	private String phoneNumber;
 	@Nullable
+	private String googlePlaceId;
+	@Nullable
 	private String notes;
 	@Nullable
 	private Boolean wheelchairAccess;
 	@Nullable
 	private Boolean acceptingNewPatients;
+	@Nullable
+	private String websiteUrl;
+	@Nullable
+	private String emailAddress;
+	@Nullable
+	private String insuranceNotes;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -129,5 +139,50 @@ public class CareResourceLocation {
 
 	public void setAcceptingNewPatients(@Nullable Boolean acceptingNewPatients) {
 		this.acceptingNewPatients = acceptingNewPatients;
+	}
+
+	@Nullable
+	public String getGooglePlaceId() {
+		return googlePlaceId;
+	}
+
+	public void setGooglePlaceId(@Nullable String googlePlaceId) {
+		this.googlePlaceId = googlePlaceId;
+	}
+
+	@Nullable
+	public String getName() {
+		return name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public String getInsuranceNotes() {
+		return insuranceNotes;
+	}
+
+	public void setInsuranceNotes(@Nullable String insuranceNotes) {
+		this.insuranceNotes = insuranceNotes;
 	}
 }
