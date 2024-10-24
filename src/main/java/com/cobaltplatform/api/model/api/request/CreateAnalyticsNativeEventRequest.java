@@ -75,6 +75,8 @@ public class CreateAnalyticsNativeEventRequest {
 	@Nullable
 	private ZoneId clientDeviceTimeZone; // Client device's timezone at this moment in time
 	@Nullable
+	private String ipAddress;
+	@Nullable
 	private String userAgent; // The value of window.navigator.userAgent
 	@Nullable
 	private String userAgentDeviceFamily; // Parsed from User-Agent
@@ -258,6 +260,15 @@ public class CreateAnalyticsNativeEventRequest {
 
 	public void setClientDeviceTimeZone(@Nullable ZoneId clientDeviceTimeZone) {
 		this.clientDeviceTimeZone = clientDeviceTimeZone;
+	}
+
+	@Nullable
+	public String getIpAddress() {
+		return this.ipAddress;
+	}
+
+	public void setIpAddress(@Nullable String ipAddress) {
+		this.ipAddress = ipAddress;
 	}
 
 	@Nullable

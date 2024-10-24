@@ -248,6 +248,7 @@ public class AnalyticsResource {
 		request.setReferringMessageId(remoteClient.getReferringMessageId().orElse(null));
 		request.setReferringCampaign(remoteClient.getReferringCampaign().orElse(null));
 		request.setWebappUrl(remoteClient.getCurrentUrl().orElse(null));
+		request.setIpAddress(remoteClient.getIpAddress().orElse(null));
 
 		// If any fields are not explicitly specified in the body, fill them in using RemoteClient values
 		if (request.getSessionId() == null)
