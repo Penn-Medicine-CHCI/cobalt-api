@@ -149,7 +149,7 @@ public class RemoteClient {
 
 		String rawUserAgent = trimToNull(httpServletRequest.getHeader("User-Agent"));
 		UserAgent userAgent = USER_AGENT_PARSER.parse(rawUserAgent);
-		String ipAddressFromHeader = trimToNull(httpServletRequest.getHeader("X-Real-IP"));
+		String ipAddressFromHeader = trimToNull(httpServletRequest.getHeader("X-Forwarded-For"));
 		String ipAddress = ipAddressFromHeader == null ? httpServletRequest.getRemoteAddr() : ipAddressFromHeader;
 
 		String fingerprintAsString = WebUtility.extractValueFromRequest(httpServletRequest, "X-Client-Device-Fingerprint").orElse(null);
