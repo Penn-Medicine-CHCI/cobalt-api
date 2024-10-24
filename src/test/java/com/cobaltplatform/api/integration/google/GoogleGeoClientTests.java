@@ -29,6 +29,8 @@ import com.google.maps.model.TravelMode;
 import com.google.maps.model.Unit;
 import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.GetPlaceRequest;
+import com.google.maps.places.v1.Place;
 import com.google.maps.places.v1.SearchTextRequest;
 import com.google.maps.places.v1.SearchTextResponse;
 import com.google.maps.routing.v2.ComputeRoutesRequest;
@@ -105,6 +107,23 @@ public class GoogleGeoClientTests {
 			System.out.println(response);
 
 			Assert.assertTrue("No places found", response.getPlacesList().size() > 0);
+		}
+	}
+
+	@Test
+	public void testGetPlace() throws Exception {
+		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
+			String placeId = "places/ChIJ97AN5zC-xokRyT9EnG7aPzc";
+
+			GetPlaceRequest request = GetPlaceRequest.newBuilder()
+					.setName(placeId)
+					.setLanguageCode("en")
+					.setRegionCode("US")
+					.build();
+
+			Place place = googleGeoClient.getPlace(request).orElse(null);
+
+			System.out.println(place);
 		}
 	}
 

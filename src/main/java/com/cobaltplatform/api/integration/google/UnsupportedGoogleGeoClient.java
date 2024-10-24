@@ -26,6 +26,8 @@ import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.GetPlaceRequest;
+import com.google.maps.places.v1.Place;
 import com.google.maps.places.v1.SearchTextRequest;
 import com.google.maps.places.v1.SearchTextResponse;
 import com.google.maps.routing.v2.ComputeRoutesRequest;
@@ -34,6 +36,7 @@ import com.google.maps.routing.v2.ComputeRoutesResponse;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -68,6 +71,12 @@ public class UnsupportedGoogleGeoClient implements GoogleGeoClient {
 	@Nonnull
 	@Override
 	public AutocompletePlacesResponse autocompletePlaces(@Nonnull AutocompletePlacesRequest request) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	@Override
+	public Optional<Place> getPlace(@Nonnull GetPlaceRequest request) {
 		throw new UnsupportedOperationException();
 	}
 }
