@@ -34,6 +34,8 @@ import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.GetPlaceRequest;
+import com.google.maps.places.v1.Place;
 import com.google.maps.places.v1.PlacesClient;
 import com.google.maps.places.v1.PlacesSettings;
 import com.google.maps.places.v1.SearchTextRequest;
@@ -55,6 +57,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -78,6 +81,8 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	private final PlacesClient placesClientForSearchText; // Multiple PlacesClient instances because X-Goog-FieldMask is different between SearchText and Autocomplete
 	@Nonnull
 	private final PlacesClient placesClientForAutocomplete; // Multiple PlacesClient instances because X-Goog-FieldMask is different between SearchText and Autocomplete
+	@Nonnull
+	private final PlacesClient placesClientForGetPlace; // Multiple PlacesClient instances because X-Goog-FieldMask is different between SearchText and Autocomplete
 	@Nonnull
 	private final RoutesClient routesClient;
 
@@ -108,6 +113,7 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 			this.googleCredentials = acquireGoogleCredentials(serviceAccountPrivateKeyJson);
 			this.placesClientForSearchText = createPlacesClientForSearchText(this.googleCredentials);
 			this.placesClientForAutocomplete = createPlacesClientForAutocomplete(this.googleCredentials);
+			this.placesClientForGetPlace = createPlacesClientForGetPlace(this.googleCredentials);
 			this.routesClient = createRoutesClient(this.googleCredentials);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -130,6 +136,12 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 
 		try {
 			getPlacesClientForAutocomplete().close();
+		} catch (Exception ignored) {
+			// Do nothing
+		}
+
+		try {
+			getPlacesClientForGetPlace().close();
 		} catch (Exception ignored) {
 			// Do nothing
 		}
@@ -198,11 +210,49 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	}
 
 	@Nonnull
+	@Override
+	public Optional<Place> getPlace(@Nonnull GetPlaceRequest request) {
+		requireNonNull(request);
+		return Optional.ofNullable(getPlacesClientForGetPlace().getPlace(request));
+	}
+
+	@Nonnull
 	protected GoogleCredentials acquireGoogleCredentials(@Nonnull String serviceAccountPrivateKeyJson) {
 		requireNonNull(serviceAccountPrivateKeyJson);
 
 		try (InputStream inputStream = new ByteArrayInputStream(serviceAccountPrivateKeyJson.getBytes(StandardCharsets.UTF_8))) {
 			return ServiceAccountCredentials.fromStream(inputStream);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Nonnull
+	protected PlacesClient createPlacesClientForGetPlace(@Nonnull GoogleCredentials googleCredentials) {
+		requireNonNull(googleCredentials);
+
+		try {
+			return PlacesClient.create(PlacesSettings.newBuilder()
+					.setCredentialsProvider(FixedCredentialsProvider.create(googleCredentials))
+					// TODO: figure out if we can specify these headers per-call instead of per-client
+					// See https://developers.google.com/maps/documentation/places/web-service/place-details for options
+					.setHeaderProvider(new HeaderProvider() {
+						final String FIELD_MASK_HEADER_VALUE = List.of(
+								"id",
+								"name",
+								"addressComponents",
+								"formattedAddress",
+								"location",
+								"googleMapsUri",
+								"displayName"
+						).stream().collect(Collectors.joining(","));
+
+						@Override
+						public Map<String, String> getHeaders() {
+							return Map.of("X-Goog-FieldMask", FIELD_MASK_HEADER_VALUE);
+						}
+					})
+					.build());
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
@@ -224,7 +274,8 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 								"places.addressComponents",
 								"places.formattedAddress",
 								"places.location",
-								"places.googleMapsUri"
+								"places.googleMapsUri",
+								"places.displayName"
 						).stream().collect(Collectors.joining(","));
 
 						@Override
@@ -305,6 +356,11 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	@Nonnull
 	protected PlacesClient getPlacesClientForAutocomplete() {
 		return this.placesClientForAutocomplete;
+	}
+
+	@Nonnull
+	protected PlacesClient getPlacesClientForGetPlace() {
+		return this.placesClientForGetPlace;
 	}
 
 	@Nonnull

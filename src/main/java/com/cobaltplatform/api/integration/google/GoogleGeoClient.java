@@ -26,6 +26,8 @@ import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.GetPlaceRequest;
+import com.google.maps.places.v1.Place;
 import com.google.maps.places.v1.SearchTextRequest;
 import com.google.maps.places.v1.SearchTextResponse;
 import com.google.maps.routing.v2.ComputeRoutesRequest;
@@ -33,6 +35,7 @@ import com.google.maps.routing.v2.ComputeRoutesResponse;
 
 import javax.annotation.Nonnull;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -63,6 +66,11 @@ public interface GoogleGeoClient extends AutoCloseable {
 	// https://developers.google.com/maps/documentation/places/web-service/place-autocomplete
 	@Nonnull
 	AutocompletePlacesResponse autocompletePlaces(@Nonnull AutocompletePlacesRequest request);
+
+	// Places API (New) for place details
+	// https://developers.google.com/maps/documentation/places/web-service/place-details
+	@Nonnull
+	Optional<Place> getPlace(@Nonnull GetPlaceRequest request);
 
 	@Override
 	default void close() throws Exception {
