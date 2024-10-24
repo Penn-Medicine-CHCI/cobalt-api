@@ -290,6 +290,11 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 
 	@Nonnull
 	protected GoogleGeoClient uncachedGoogleGeoClient() {
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		if (!institution.getGoogleGeoEnabled())
+			return new UnsupportedGoogleGeoClient();
+
 		// Read secrets from AWS Secrets Manager
 		String googleGeoServiceAccountPrivateKeySecretName = format("%s-google-geo-service-account-private-key-%s", getConfiguration().getAmazonAwsSecretsManagerContext().get(), getInstitutionId().name());
 		String googleGeoServiceAccountPrivateKey = getAwsSecretManagerClient().getSecretString(googleGeoServiceAccountPrivateKeySecretName).orElse(null);
