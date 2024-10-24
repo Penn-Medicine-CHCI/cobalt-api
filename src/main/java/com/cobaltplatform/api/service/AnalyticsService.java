@@ -281,6 +281,7 @@ public class AnalyticsService implements AutoCloseable {
 		List<Locale> clientDeviceSupportedLocales = request.getClientDeviceSupportedLocales();
 		Locale clientDeviceLocale = request.getClientDeviceLocale();
 		ZoneId clientDeviceTimeZone = request.getClientDeviceTimeZone();
+		String ipAddress = trimToNull(request.getIpAddress());
 		String userAgent = trimToNull(request.getUserAgent());
 		String userAgentDeviceFamily = trimToNull(request.getUserAgentDeviceFamily());
 		String userAgentBrowserFamily = trimToNull(request.getUserAgentBrowserFamily());
@@ -417,6 +418,7 @@ public class AnalyticsService implements AutoCloseable {
 							client_device_supported_locales,
 							client_device_locale,
 							client_device_time_zone,
+							ip_address,
 							user_agent,
 							user_agent_device_family,
 							user_agent_browser_family,
@@ -433,7 +435,7 @@ public class AnalyticsService implements AutoCloseable {
 							window_height,
 							navigator_max_touch_points,
 							document_visibility_state
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB),?,?,?,?,CAST (? AS JSONB),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				analyticsNativeEventId,
 				analyticsNativeEventTypeId,
@@ -455,6 +457,7 @@ public class AnalyticsService implements AutoCloseable {
 				clientDeviceSupportedLocalesAsJson,
 				clientDeviceLocale,
 				clientDeviceTimeZone,
+				ipAddress,
 				userAgent,
 				userAgentDeviceFamily,
 				userAgentBrowserFamily,
