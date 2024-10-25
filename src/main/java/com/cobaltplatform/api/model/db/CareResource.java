@@ -36,6 +36,8 @@ public class CareResource {
 	@Nullable
 	private String notes;
 	@Nullable
+	private String emailAddress;
+	@Nullable
 	private String insuranceNotes;
 	@Nullable
 	private String phoneNumber;
@@ -139,5 +141,14 @@ public class CareResource {
 
 	public void setInsuranceNotes(@Nullable String insuranceNotes) {
 		this.insuranceNotes = insuranceNotes;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
 	}
 }

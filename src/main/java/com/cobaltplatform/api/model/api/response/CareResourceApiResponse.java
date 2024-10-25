@@ -60,6 +60,8 @@ public class CareResourceApiResponse {
 	@Nullable
 	private String websiteUrl;
 	@Nullable
+	private String emailAddress;
+	@Nullable
 	private Boolean resourceAvailable;
 	@Nullable
 	private UUID createdByAccountId;
@@ -97,6 +99,7 @@ public class CareResourceApiResponse {
 		this.notes = careResource.getNotes();
 		this.phoneNumber = careResource.getPhoneNumber();
 		this.websiteUrl = careResource.getWebsiteUrl();
+		this.emailAddress = careResource.getEmailAddress();
 		this.resourceAvailable = careResource.getResourceAvailable();
 		this.createdByAccountId = careResource.getCreatedByAccountId();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResource.getPhoneNumber());
@@ -180,5 +183,10 @@ public class CareResourceApiResponse {
 	@Nullable
 	public CareResourceTagApiResponseFactory getCareResourceTagApiResponseFactory() {
 		return careResourceTagApiResponseFactory;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
 	}
 }
