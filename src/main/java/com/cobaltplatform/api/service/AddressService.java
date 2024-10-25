@@ -223,7 +223,7 @@ public class AddressService {
 						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""", addressId, postalName, streetAddress1, streetAddress2, streetAddress3, streetAddress4,
 				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode,
-				googleMapsUrl, googlePlaceId, latitude, longitude, premise, subpremise, regionSubdivision, regionSubdivision,
+				googleMapsUrl, googlePlaceId, latitude, longitude, premise, subpremise, regionSubdivision,
 				postalCodeSuffix, formattedAddress);
 
 		return addressId;

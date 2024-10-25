@@ -29,6 +29,8 @@ import com.google.maps.PlacesApi;
 import com.google.maps.model.PlaceDetails;
 import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
+import com.google.maps.places.v1.GetPlaceRequest;
+import com.google.maps.places.v1.Place;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -105,6 +107,8 @@ public class PlaceService {
 
 	@Nonnull
 	public List<PlacePrediction> autocompletePlace(@Nullable String searchTerm) {
+		requireNonNull(searchTerm);
+
 		if (searchTerm == null)
 			return Collections.emptyList();
 
@@ -129,6 +133,28 @@ public class PlaceService {
 		}
 
 		return placePredictions;
+	}
+
+	@Nonnull
+	public Place findPlaceByPlaceId(@Nullable String placeIdRequest) {
+		requireNonNull(placeIdRequest);
+		Place place = null;
+
+		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
+			String placeId = format("places/%s", placeIdRequest);
+
+			GetPlaceRequest request = GetPlaceRequest.newBuilder()
+					.setName(placeId)
+					.setLanguageCode("en")
+					.setRegionCode("US")
+					.build();
+
+			place = googleGeoClient.getPlace(request).orElse(null);
+		} catch (Exception e) {
+			getLogger().warn(format("Unable to find place for place ID %s", placeIdRequest), e);
+		}
+
+		return place;
 	}
 
 	@Nonnull

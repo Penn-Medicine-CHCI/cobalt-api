@@ -24,6 +24,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.places.PlacePrediction;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.PlaceService;
+import com.google.maps.places.v1.Place;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
@@ -83,7 +84,18 @@ public class PlaceResource {
 			put("places", placePredictionsFinal);
 		}});
 	}
+	@Nonnull
+	@GET("/places")
+	@AuthenticationRequired
+	public ApiResponse findPlace(@Nonnull @QueryParameter String googlePlaceId) {
+		requireNonNull(googlePlaceId);
 
+		Place place = placeService.findPlaceByPlaceId(googlePlaceId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("place", place);
+		}});
+	}
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();

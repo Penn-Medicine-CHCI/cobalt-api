@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 
+import com.cobaltplatform.api.integration.google.model.NormalizedPlace;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
@@ -29,11 +30,11 @@ import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.maps.places.v1.Place;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -67,19 +68,29 @@ public class CareResourceService {
 	private final Logger logger;
 	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
+	@Nonnull
+	private final Provider<AddressService> addressServiceProvider;
+	@Nonnull
+	private final PlaceService placeService;
 
 	@Inject
 	public CareResourceService(@Nonnull DatabaseProvider databaseProvider,
 														 @Nonnull Strings strings,
-														 @Nonnull Provider<AccountService> accountServiceProvider) {
+														 @Nonnull Provider<AccountService> accountServiceProvider,
+														 @Nonnull Provider<AddressService> addressServiceProvider,
+														 @Nonnull PlaceService placeService) {
 		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 		requireNonNull(accountServiceProvider);
+		requireNonNull(addressServiceProvider);
+		requireNonNull(placeService);
 
 		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.accountServiceProvider = accountServiceProvider;
+		this.addressServiceProvider = addressServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.placeService = placeService;
 	}
 
 	@Nonnull
@@ -217,18 +228,35 @@ public class CareResourceService {
 		String googlePlaceId = trimToNull(request.getGooglePlaceId());
 		String notes = trimToNull(request.getNotes());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
+		String streetAddress2 = trimToNull(request.getStreetAddress2());
 		Boolean acceptingNewPatients = request.getAcceptingNewPatients();
 		Boolean wheelchairAccessible = request.getWheelchairAccess();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID careResourceId = request.getCareResourceId();
 		UUID careResourceLocationId = UUID.randomUUID();
-		UUID addressId = null;
 		String websiteUrl = trimToNull(request.getWebsiteUrl());
 		ValidationException validationException = new ValidationException();
 		String name = trimToNull(request.getName());
 		String insuranceNotes = trimToNull(request.getInsuranceNotes());
 
 		//TODO: validation logic
+
+		Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+		CreateAddressRequest createAddressRequest = new CreateAddressRequest();
+		NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+
+		createAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
+		createAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
+		createAddressRequest.setLocality(normalizedPlace.getLocality());
+		createAddressRequest.setRegion(normalizedPlace.getRegion());
+		createAddressRequest.setPostalName(name);
+		createAddressRequest.setStreetAddress2(streetAddress2);
+		createAddressRequest.setGooglePlaceId(googlePlaceId);
+		createAddressRequest.setFormattedAddress(place.getFormattedAddress());
+		createAddressRequest.setLatitude(place.getLocation().getLatitude());
+		createAddressRequest.setLongitude(place.getLocation().getLongitude());
+
+		UUID addressId = getAddressService().createAddress(createAddressRequest);
 
 		getDatabase().execute("""
 						INSERT INTO care_resource_location
@@ -345,4 +373,13 @@ public class CareResourceService {
 		return this.logger;
 	}
 
+	@Nonnull
+	public PlaceService getPlaceService() {
+		return placeService;
+	}
+
+	@Nonnull
+	public AddressService getAddressService() {
+		return addressServiceProvider.get();
+	}
 }

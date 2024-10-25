@@ -22,10 +22,11 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
-import com.cobaltplatform.api.model.db.CareResourceTag;
+import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
@@ -35,6 +36,7 @@ import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -70,19 +72,22 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private Boolean acceptingNewPatients;
 	@Nullable
-	List<CareResourceTag> languages;
+	private List<CareResourceTagApiResponse> languages;
 	@Nullable
-	private List<CareResourceTag> specialties;
+	private List<CareResourceTagApiResponse> specialties;
 	@Nullable
-	private List<CareResourceTag> payors;
+	private List<CareResourceTagApiResponse> payors;
 	@Nullable
-	private List<CareResourceTag> therapyTypes;
+	private List<CareResourceTagApiResponse> therapyTypes;
 	@Nullable
-	private List<CareResourceTag> populationServed;
+	private List<CareResourceTagApiResponse> populationServed;
 	@Nullable
-	private List<CareResourceTag> genders;
+	private List<CareResourceTagApiResponse> genders;
 	@Nullable
-	private List<CareResourceTag> ethnicities;
+	private List<CareResourceTagApiResponse> ethnicities;
+	@Nullable
+	private CareResourceTagApiResponseFactory careResourceTagApiResponseFactory;
+
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -95,9 +100,13 @@ public class CareResourceLocationApiResponse {
 	public CareResourceLocationApiResponse(@Nonnull CareResourceService careResourceService,
 																				 @Assisted @Nonnull CareResourceLocation careResourceLocation,
 																				 @Nonnull AddressService addressService,
+																				 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 																				 @Nonnull Formatter formatter) {
+		requireNonNull(careResourceService);
 		requireNonNull(careResourceLocation);
+		requireNonNull(addressService);
 		requireNonNull(formatter);
+		requireNonNull(careResourceTagApiResponseFactory);
 
 		this.careResourceId = careResourceLocation.getCareResourceId();
 		this.websiteUrl = careResourceLocation.getWebsiteUrl();
@@ -112,13 +121,27 @@ public class CareResourceLocationApiResponse {
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
-		this.languages = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.LANGUAGES);
-		this.specialties = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.SPECIALTIES);
-		this.payors = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.PAYORS);
-		this.therapyTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.THERAPY_TYPES);
-		this.populationServed = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.POPULATION_SERVED);
-		this.genders = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.GENDERS);
-		this.ethnicities = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTag.CareResourceTagGroupId.ETHNICITIES);
+		this.languages = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.LANGUAGES).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.specialties = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.SPECIALTIES).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.payors = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.PAYORS).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.therapyTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.THERAPY_TYPES).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.populationServed = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.POPULATION_SERVED).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.genders = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.GENDERS).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.ethnicities = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.ETHNICITIES).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
 	}
 
 	@Nullable
@@ -152,38 +175,46 @@ public class CareResourceLocationApiResponse {
 	}
 
 	@Nullable
-	public List<CareResourceTag> getLanguages() {
+	public List<CareResourceTagApiResponse> getLanguages() {
 		return languages;
 	}
 
+
+
+
 	@Nullable
-	public List<CareResourceTag> getSpecialties() {
+	public CareResourceTagApiResponseFactory getCareResourceTagApiResponseFactory() {
+		return careResourceTagApiResponseFactory;
+	}
+
+	@Nullable
+	public List<CareResourceTagApiResponse> getSpecialties() {
 		return specialties;
 	}
 
 	@Nullable
-	public List<CareResourceTag> getTherapyTypes() {
+	public List<CareResourceTagApiResponse> getPayors() {
+		return payors;
+	}
+
+	@Nullable
+	public List<CareResourceTagApiResponse> getTherapyTypes() {
 		return therapyTypes;
 	}
 
 	@Nullable
-	public List<CareResourceTag> getPopulationServed() {
+	public List<CareResourceTagApiResponse> getPopulationServed() {
 		return populationServed;
 	}
 
 	@Nullable
-	public List<CareResourceTag> getGenders() {
+	public List<CareResourceTagApiResponse> getGenders() {
 		return genders;
 	}
 
 	@Nullable
-	public List<CareResourceTag> getEthnicities() {
+	public List<CareResourceTagApiResponse> getEthnicities() {
 		return ethnicities;
-	}
-
-	@Nullable
-	public List<CareResourceTag> getPayors() {
-		return payors;
 	}
 
 	@Nullable
