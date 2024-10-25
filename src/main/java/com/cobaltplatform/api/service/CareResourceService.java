@@ -146,7 +146,18 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public FindResult<CareResource> findAllCareResourceByInstitutionId(@Nonnull FindCareResourcesRequest request) {
+	public List<CareResource> findAllCareResourcesByInstitutionId(@Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		return getDatabase().queryForList("""
+				SELECT * 
+				FROM v_care_resource_institution vc
+				WHERE vc.institution_id = ?
+				ORDER BY vc.name """, CareResource.class, institutionId);
+	}
+
+	@Nonnull
+	public FindResult<CareResource> findAllCareResourceByInstitutionIdWithFilters(@Nonnull FindCareResourcesRequest request) {
 		requireNonNull(request);
 
 		InstitutionId institutionId = request.getInstitutionId();
@@ -252,6 +263,11 @@ public class CareResourceService {
 		createAddressRequest.setPostalName(name);
 		createAddressRequest.setStreetAddress2(streetAddress2);
 		createAddressRequest.setGooglePlaceId(googlePlaceId);
+		createAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
+		createAddressRequest.setPremise(normalizedPlace.getPremise());
+		createAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
+		createAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
+		createAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
 		createAddressRequest.setFormattedAddress(place.getFormattedAddress());
 		createAddressRequest.setLatitude(place.getLocation().getLatitude());
 		createAddressRequest.setLongitude(place.getLocation().getLongitude());

@@ -119,6 +119,11 @@ ADD COLUMN region_subdivision TEXT NULL,
 ADD COLUMN postal_code_suffix TEXT NULL,
 ADD COLUMN formatted_address TEXT NULL;
 
+CREATE VIEW v_care_resource_institution 
+AS
+SELECT cr.*, cri.institution_id
+FROM care_resource cr, care_resource_institution cri
+WHERE cr.care_resource_id = cri.care_resource_id;
 
 INSERT INTO care_resource_tag_group 
   (care_resource_tag_group_id, name)

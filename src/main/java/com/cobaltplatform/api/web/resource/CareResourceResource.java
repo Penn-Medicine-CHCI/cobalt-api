@@ -150,20 +150,33 @@ public class CareResourceResource {
 		}});
 
 	}
+
+	@Nonnull
+	@GET("/care-resources/association-list")
+	@AuthenticationRequired
+	public ApiResponse findAllCareResources() {
+		Account account = getCurrentContext().getAccount().get();
+		List<CareResource> careResources = getCareResourceService().findAllCareResourcesByInstitutionId(account.getInstitutionId());
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("careResources", careResources.stream()
+					.map(careResource -> getCareResourceApiResponseFactory().create(careResource))
+					.collect(Collectors.toList()));
+		}});
+	}
 	@Nonnull
 	@GET("/care-resources")
 	@AuthenticationRequired
-	public ApiResponse findAllCareResources(@Nonnull @QueryParameter Optional<Integer> pageNumber,
-																					@Nonnull @QueryParameter Optional<Integer> pageSize,
-																					@Nonnull @QueryParameter Optional<String> searchQuery,
-																					@Nonnull @QueryParameter Optional<FindCareResourcesRequest.OrderBy> orderBy) {
+	public ApiResponse findAllCareResourcesWithFilters(@Nonnull @QueryParameter Optional<Integer> pageNumber,
+																										 @Nonnull @QueryParameter Optional<Integer> pageSize,
+																										 @Nonnull @QueryParameter Optional<String> searchQuery,
+																										 @Nonnull @QueryParameter Optional<FindCareResourcesRequest.OrderBy> orderBy) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(searchQuery);
 		requireNonNull(orderBy);
 
 		Account account = getCurrentContext().getAccount().get();
-		FindResult<CareResource> findResult = getCareResourceService().findAllCareResourceByInstitutionId(new FindCareResourcesRequest() {
+		FindResult<CareResource> findResult = getCareResourceService().findAllCareResourceByInstitutionIdWithFilters(new FindCareResourcesRequest() {
 			{
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
