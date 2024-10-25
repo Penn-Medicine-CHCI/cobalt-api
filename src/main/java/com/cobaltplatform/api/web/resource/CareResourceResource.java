@@ -146,7 +146,7 @@ public class CareResourceResource {
 		if (careResource == null)
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResource", getCareResourceApiResponseFactory().create(careResource));
+			put("careResource", getCareResourceApiResponseFactory().create(careResource, true));
 		}});
 
 	}
@@ -159,7 +159,7 @@ public class CareResourceResource {
 		List<CareResource> careResources = getCareResourceService().findAllCareResourcesByInstitutionId(account.getInstitutionId());
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
 			put("careResources", careResources.stream()
-					.map(careResource -> getCareResourceApiResponseFactory().create(careResource))
+					.map(careResource -> getCareResourceApiResponseFactory().create(careResource, false))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -190,7 +190,7 @@ public class CareResourceResource {
 			put("totalCount", findResult.getTotalCount());
 			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 			put("careResources", findResult.getResults().stream()
-					.map(careResource -> getCareResourceApiResponseFactory().create(careResource))
+					.map(careResource -> getCareResourceApiResponseFactory().create(careResource, true))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -211,7 +211,7 @@ public class CareResourceResource {
 		if (careResource == null)
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResource", getCareResourceApiResponseFactory().create(careResource));
+			put("careResource", getCareResourceApiResponseFactory().create(careResource, true));
 		}});
 	}
 

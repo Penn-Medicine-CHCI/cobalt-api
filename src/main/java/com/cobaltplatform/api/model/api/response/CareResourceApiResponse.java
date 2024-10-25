@@ -80,11 +80,13 @@ public class CareResourceApiResponse {
 	@ThreadSafe
 	public interface CareResourceApiResponseFactory {
 		@Nonnull
-		CareResourceApiResponse create(@Nonnull CareResource careResource);
+		CareResourceApiResponse create(@Nonnull CareResource careResource,
+																	 @Nonnull Boolean includeDetails);
 	}
 
 	@AssistedInject
 	public CareResourceApiResponse(@Nonnull CareResourceService careResourceService,
+																 @Assisted @Nonnull Boolean includeDetails,
 																 @Assisted @Nonnull CareResource careResource,
 																 @Nonnull CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory,
 																 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
@@ -96,22 +98,24 @@ public class CareResourceApiResponse {
 
 		this.careResourceId = careResource.getCareResourceId();
 		this.name = careResource.getName();
-		this.notes = careResource.getNotes();
-		this.phoneNumber = careResource.getPhoneNumber();
-		this.websiteUrl = careResource.getWebsiteUrl();
-		this.emailAddress = careResource.getEmailAddress();
-		this.resourceAvailable = careResource.getResourceAvailable();
-		this.createdByAccountId = careResource.getCreatedByAccountId();
-		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResource.getPhoneNumber());
-		this.insuranceNotes = careResource.getInsuranceNotes();
-		this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
-				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
-				.collect(Collectors.toList());
-		this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.PAYORS).stream()
-				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
-				.collect(Collectors.toList());
-		this.careResourceLocations = careResourceService.findCareResourceLocations(careResource.getCareResourceId())
-				.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
+		if (includeDetails) {
+			this.notes = careResource.getNotes();
+			this.phoneNumber = careResource.getPhoneNumber();
+			this.websiteUrl = careResource.getWebsiteUrl();
+			this.emailAddress = careResource.getEmailAddress();
+			this.resourceAvailable = careResource.getResourceAvailable();
+			this.createdByAccountId = careResource.getCreatedByAccountId();
+			this.formattedPhoneNumber = formatter.formatPhoneNumber(careResource.getPhoneNumber());
+			this.insuranceNotes = careResource.getInsuranceNotes();
+			this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
+			this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.PAYORS).stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
+			this.careResourceLocations = careResourceService.findCareResourceLocations(careResource.getCareResourceId())
+					.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
+		}
 	}
 
 
