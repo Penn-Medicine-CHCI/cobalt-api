@@ -40,6 +40,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
+import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
@@ -134,6 +135,21 @@ public class CareResourceResource {
 		}});
 	}
 
+	@Nonnull
+	@GET("/care-resources/{careResourceId}")
+	@AuthenticationRequired
+	public ApiResponse findAllCareResources(@Nonnull @PathParameter UUID careResourceId) {
+		requireNonNull(careResourceId);
+
+		Account account = getCurrentContext().getAccount().get();
+		CareResource careResource = getCareResourceService().findCareResourceById(careResourceId, account.getInstitutionId()).orElse(null);
+		if (careResource == null)
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResource", getCareResourceApiResponseFactory().create(careResource));
+		}});
+
+	}
 	@Nonnull
 	@GET("/care-resources")
 	@AuthenticationRequired
