@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
@@ -40,6 +41,7 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
+import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
@@ -192,6 +194,25 @@ public class CareResourceResource {
 			put("careResources", findResult.getResults().stream()
 					.map(careResource -> getCareResourceApiResponseFactory().create(careResource, true))
 					.collect(Collectors.toList()));
+		}});
+	}
+	@Nonnull
+	@PUT("/care-resources")
+	@AuthenticationRequired
+	public ApiResponse updateCareResource(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		UpdateCareResourceRequest request = getRequestBodyParser().parse(requestBody, UpdateCareResourceRequest.class);
+		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
+
+		UUID careResourceId = getCareResourceService().updateCareResource(request);
+		CareResource careResource = getCareResourceService().findCareResourceById
+				(careResourceId, getCurrentContext().getInstitutionId()).orElse(null);
+
+		if (careResource == null)
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResource", getCareResourceApiResponseFactory().create(careResource, true));
 		}});
 	}
 

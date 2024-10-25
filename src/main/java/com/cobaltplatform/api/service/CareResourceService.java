@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
@@ -325,18 +326,67 @@ public class CareResourceService {
 	}
 
 	@Nonnull
+	public UUID updateCareResource(@Nonnull UpdateCareResourceRequest request) {
+		requireNonNull(request);
+
+		String name = trimToNull(request.getName());
+		UUID careResourceId = request.getCareResourceId();
+		String notes = trimToNull(request.getNotes());
+		String insuranceNotes = trimToNull(request.getInsuranceNotes());
+		String websiteUrl = trimToNull(request.getWebsiteUrl());
+		String phoneNumber = trimToNull(request.getPhoneNumber());
+		String emailAddress = trimToNull(request.getEmailAddress());
+		ValidationException validationException = new ValidationException();
+
+		if (name == null)
+			validationException.add(new ValidationException.FieldError("name", "Name is required."));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE care_resource
+				SET name=?, notes=?, insurance_notes=?, website_url=?, phone_number=?, email_address=?
+				WHERE care_resource_id=?
+				""", name, notes, insuranceNotes, websiteUrl, phoneNumber, emailAddress, careResourceId);
+
+		getDatabase().execute("""
+				DELETE FROM care_resource_care_resource_tag
+				WHERE care_resource_id=? 
+				""", careResourceId);
+
+		List<String> allTags = new ArrayList<>();
+
+		if (request.getSpecialtyIds() != null)
+			allTags.addAll(request.getSpecialtyIds());
+		if (request.getPayorIds() != null)
+			allTags.addAll(request.getPayorIds());
+
+		if (allTags != null)
+			for (String tag : allTags)
+				getDatabase().execute("""
+						INSERT INTO care_resource_care_resource_tag
+						(care_resource_id, care_resource_tag_id)
+						VALUES
+						(?,?)""", careResourceId, tag);
+
+		return careResourceId;
+
+	}
+
+	@Nonnull
 	public UUID createCareResource(@Nonnull CreateCareResourceRequest request) {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		UUID careResourceId = UUID.randomUUID();
-		ValidationException validationException = new ValidationException();
 		String notes = trimToNull(request.getNotes());
 		String insuranceNotes = trimToNull(request.getInsuranceNotes());
 		String websiteUrl = trimToNull(request.getWebsiteUrl());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String emailAddress = trimToNull(request.getEmailAddress());
+		ValidationException validationException = new ValidationException();
 
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", "Name is required."));
@@ -373,7 +423,7 @@ public class CareResourceService {
 						(care_resource_id, care_resource_tag_id)
 						VALUES
 						(?,?)""", careResourceId, tag);
-		
+
 		return careResourceId;
 	}
 
