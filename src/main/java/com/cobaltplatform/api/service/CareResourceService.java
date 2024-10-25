@@ -137,11 +137,10 @@ public class CareResourceService {
 		requireNonNull(careResourceId);
 
 		return getDatabase().queryForObject("""
-				SELECT cr.*
-				FROM care_resource cr, care_resource_institution cri
-				WHERE cr.care_resource_id = cri.care_resource_id
-				AND cr.care_resource_id = ?
-				AND cri.institution_id = ?
+				SELECT vcr.*
+				FROM v_care_resource_institution vcr
+				WHERE vcr.care_resource_id = ?
+				AND vcr.institution_id = ?
 				""", CareResource.class, careResourceId, institutionId);
 	}
 
@@ -181,22 +180,22 @@ public class CareResourceService {
 		Integer offset = pageNumber * pageSize;
 		List<Object> parameters = new ArrayList<>();
 
-		StringBuilder query = new StringBuilder("SELECT cr.*, COUNT(cr.care_resource_id) OVER() AS total_count FROM care_resource cr, care_resource_institution cri ");
+		StringBuilder query = new StringBuilder("SELECT vcr.*, COUNT(vcr.care_resource_id) OVER() AS total_count FROM v_care_resource_institution vcr ");
 
-		query.append("WHERE cr.care_resource_id = cri.care_resource_id AND cri.institution_id = ? ");
+		query.append("WHERE vcr.institution_id = ? ");
 		parameters.add(institutionId);
 
 		if (search != null) {
-			query.append("AND cr.name ILIKE CONCAT('%',?,'%') ");
+			query.append("AND vcr.name ILIKE CONCAT('%',?,'%') ");
 			parameters.add(search);
 		}
 
 		query.append("ORDER BY ");
 
 		if (orderBy == FindCareResourcesRequest.OrderBy.NAME_DESC)
-			query.append("cr.name DESC ");
+			query.append("vcr.name DESC ");
 		else if (orderBy == FindCareResourcesRequest.OrderBy.NAME_ASC)
-			query.append("cr.name ASC ");
+			query.append("vcr.name ASC ");
 
 		query.append("LIMIT ? OFFSET ? ");
 
@@ -249,10 +248,23 @@ public class CareResourceService {
 		ValidationException validationException = new ValidationException();
 		String name = trimToNull(request.getName());
 		String insuranceNotes = trimToNull(request.getInsuranceNotes());
+		InstitutionId institutionId = request.getInstitutionId();
 
-		//TODO: validation logic
+		CareResource careResource = findCareResourceById(careResourceId, institutionId).orElse(null);
+
+		if (careResource == null)
+			validationException.add(new ValidationException.FieldError("careResource", "Could not find Care Resource."));
+		if (googlePlaceId == null)
+			validationException.add(new ValidationException.FieldError("googlePlaceId", "Google Place Id is required."));
 
 		Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+
+		if (place == null)
+			validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
 		CreateAddressRequest createAddressRequest = new CreateAddressRequest();
 		NormalizedPlace normalizedPlace = new NormalizedPlace(place);
 
@@ -284,9 +296,6 @@ public class CareResourceService {
 						  """, careResourceLocationId, careResourceId, addressId,
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
 				websiteUrl, name, insuranceNotes, createdByAccountId);
-
-		//TODO: use google places
-		//CreateAddressRequest createAddressRequest = new CreateAddressRequest();
 
 		List<String> allTags = new ArrayList<>();
 		if (request.getPayorIds() != null)
@@ -350,22 +359,21 @@ public class CareResourceService {
 				VALUES
 				(?,?)""", careResourceId, request.getInstitutionId());
 
+		List<String> allTags = new ArrayList<>();
+
 		if (request.getSpecialtyIds() != null)
-			for (String specialtyId : request.getSpecialtyIds())
-				getDatabase().execute("""
-						INSERT INTO care_resource_care_resource_tag
-						(care_resource_id, care_resource_tag_id)
-						VALUES
-						(?,?)""", careResourceId, specialtyId);
-
+			allTags.addAll(request.getSpecialtyIds());
 		if (request.getPayorIds() != null)
-			for (String payorId : request.getPayorIds())
+			allTags.addAll(request.getPayorIds());
+
+		if (allTags != null)
+			for (String tag : allTags)
 				getDatabase().execute("""
 						INSERT INTO care_resource_care_resource_tag
 						(care_resource_id, care_resource_tag_id)
 						VALUES
-						(?,?)""", careResourceId, payorId);
-
+						(?,?)""", careResourceId, tag);
+		
 		return careResourceId;
 	}
 
