@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
@@ -237,15 +238,35 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
-	@POST("/care-resource/location")
+	@POST("/care-resources/location")
 	@AuthenticationRequired
 	public ApiResponse createCareResourceLocation(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
 		CreateCareResourceLocationRequest request = getRequestBodyParser().parse(requestBody, CreateCareResourceLocationRequest.class);
 		request.setCreatedByAccountId(getCurrentContext().getAccount().get().getAccountId());
+		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
 
 		UUID careResourceLocationId = getCareResourceService().createCareResourceLocation(request);
+		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId).orElse(null);
+
+		if (careResourceLocation == null)
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
+		}});
+	}
+
+	@Nonnull
+	@PUT("/care-resources/location")
+	@AuthenticationRequired
+	public ApiResponse updateCareResourceLocation(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		UpdateCareResourceLocationRequest request = getRequestBodyParser().parse(requestBody, UpdateCareResourceLocationRequest.class);
+		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
+
+		UUID careResourceLocationId = getCareResourceService().updateCareResourceLocation(request);
 		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId).orElse(null);
 
 		if (careResourceLocation == null)

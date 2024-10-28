@@ -25,7 +25,10 @@ import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAddressRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
@@ -51,6 +54,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -230,6 +234,111 @@ public class CareResourceService {
 				FROM care_resource_location crl
 				WHERE crl.care_resource_location_id = ?
 				""", CareResourceLocation.class, careResourceLocationId);
+	}
+
+	@Nonnull
+	public UUID updateCareResourceLocation(UpdateCareResourceLocationRequest request) {
+		requireNonNull(request);
+
+		String googlePlaceId = trimToNull(request.getGooglePlaceId());
+		String notes = trimToNull(request.getNotes());
+		String phoneNumber = trimToNull(request.getPhoneNumber());
+		String streetAddress2 = trimToNull(request.getStreetAddress2());
+		Boolean acceptingNewPatients = request.getAcceptingNewPatients();
+		Boolean wheelchairAccessible = request.getWheelchairAccess();
+		String websiteUrl = trimToNull(request.getWebsiteUrl());
+		ValidationException validationException = new ValidationException();
+		String name = trimToNull(request.getName());
+		String insuranceNotes = trimToNull(request.getInsuranceNotes());
+		InstitutionId institutionId = request.getInstitutionId();
+		UUID careResourceLocationId = request.getCareResourceLocationId();
+		UpdateAddressRequest updateAddressRequest = new UpdateAddressRequest();
+
+		CareResourceLocation currentCareResourceLocation = findCareResourceLocationById(careResourceLocationId).orElse(null);
+		Address currentAddress = getAddressService().findAddressById(currentCareResourceLocation.getAddressId()).orElse(null);
+
+		if (currentCareResourceLocation == null)
+			validationException.add(new ValidationException.FieldError("careResourceLocation", "Could not find Care Resource Location."));
+		if (currentAddress == null)
+			validationException.add(new ValidationException.FieldError("address", "Could not find address for this location."));
+		if (googlePlaceId == null)
+			validationException.add(new ValidationException.FieldError("googlePlaceId", "Google Place Id is required."));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		String currentGooglePlaceId = trimToNull(currentAddress.getGooglePlaceId());
+
+		if (!currentGooglePlaceId.equals(googlePlaceId)) {
+			Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+
+			if (place == null)
+				validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
+
+			if (validationException.hasErrors())
+				throw validationException;
+
+			NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+
+			updateAddressRequest.setGooglePlaceId(googlePlaceId);
+			updateAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
+			updateAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
+			updateAddressRequest.setLocality(normalizedPlace.getLocality());
+			updateAddressRequest.setRegion(normalizedPlace.getRegion());
+			updateAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
+			updateAddressRequest.setPremise(normalizedPlace.getPremise());
+			updateAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
+			updateAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
+			updateAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
+			updateAddressRequest.setFormattedAddress(place.getFormattedAddress());
+			updateAddressRequest.setLatitude(place.getLocation().getLatitude());
+			updateAddressRequest.setLongitude(place.getLocation().getLongitude());
+		}
+
+		updateAddressRequest.setPostalName(name);
+		updateAddressRequest.setStreetAddress2(streetAddress2);
+
+		getAddressService().updateAddress(updateAddressRequest);
+
+		getDatabase().execute("""
+						UPDATE care_resource_location
+						SET phone_number = ?, wheelchair_access=?, notes=?, accepting_new_patients=?,
+						website_url=?, name=?, insurance_notes=?
+						WHERE care_resource_location_id = ?
+						""",
+				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
+				websiteUrl, name, insuranceNotes, careResourceLocationId);
+
+		getDatabase().execute("""
+				DELETE FROM care_resource_location_care_resource_tag
+				WHERE care_resource_location_id=?
+				""", careResourceLocationId);
+
+		List<String> allTags = new ArrayList<>();
+		if (request.getPayorIds() != null)
+			allTags.addAll(request.getPayorIds());
+		if (request.getEthnicityIds() != null)
+			allTags.addAll(request.getEthnicityIds());
+		if (request.getSpecialtyIds() != null)
+			allTags.addAll(request.getSpecialtyIds());
+		if (request.getLanguageIds() != null)
+			allTags.addAll(request.getLanguageIds());
+		if (request.getPopulationServedIds() != null)
+			allTags.addAll(request.getPopulationServedIds());
+		if (request.getTherapyTypeIds() != null)
+			allTags.addAll(request.getTherapyTypeIds());
+		if (request.getGenderIds() != null)
+			allTags.addAll(request.getGenderIds());
+
+		if (allTags != null)
+			for (String tag : allTags)
+				getDatabase().execute("""
+						INSERT INTO care_resource_location_care_resource_tag
+						(care_resource_location_id, care_resource_tag_id)
+						VALUES
+						(?,?)""", careResourceLocationId, tag);
+
+		return careResourceLocationId;
 	}
 
 	@Nonnull

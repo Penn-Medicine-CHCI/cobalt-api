@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAddressRequest;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.service.Region;
 import com.cobaltplatform.api.util.Normalizer;
@@ -225,6 +226,126 @@ public class AddressService {
 				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode,
 				googleMapsUrl, googlePlaceId, latitude, longitude, premise, subpremise, regionSubdivision,
 				postalCodeSuffix, formattedAddress);
+
+		return addressId;
+	}
+
+	@Nonnull
+	public UUID updateAddress(@Nonnull UpdateAddressRequest request) {
+		requireNonNull(request);
+
+		UUID addressId = request.getAddressId();
+		String postalName = trimToNull(request.getPostalName());
+		String streetAddress1 = trimToNull(request.getStreetAddress1());
+		String streetAddress2 = trimToNull(request.getStreetAddress2());
+		String streetAddress3 = trimToNull(request.getStreetAddress3());
+		String streetAddress4 = trimToNull(request.getStreetAddress4());
+		String postOfficeBoxNumber = trimToNull(request.getPostOfficeBoxNumber());
+		String crossStreet = trimToNull(request.getCrossStreet());
+		String suburb = trimToNull(request.getSuburb());
+		String locality = trimToNull(request.getLocality());
+		String region = trimToNull(request.getRegion());
+		String postalCode = trimToNull(request.getPostalCode());
+		String countrySubdivisionCode = trimToNull(request.getCountrySubdivisionCode());
+		String countryCode = trimToNull(request.getCountryCode());
+		String googleMapsUrl = trimToNull(request.getGoogleMapsUrl());
+		String googlePlaceId = trimToNull(request.getGooglePlaceId());
+		Double latitude = request.getLatitude();
+		Double longitude = request.getLongitude();
+		String premise = trimToNull(request.getPremise());
+		String subpremise = trimToNull(request.getSubpremise());
+		String regionSubdivision = trimToNull(request.getRegionSubdivision());
+		String postalCodeSuffix = trimToNull(request.getPostalCodeSuffix());
+		String formattedAddress = trimToNull(request.getFormattedAddress());
+		ValidationException validationException = new ValidationException();
+
+		if (postalName == null)
+			validationException.add(new FieldError("postalName", getStrings().get("Postal name is required.")));
+
+		if (streetAddress1 == null)
+			validationException.add(new FieldError("streetAddress1", getStrings().get("Street address is required.")));
+
+		// TODO: remove this workaround once we determine the source of bad country data for some patients
+
+		if (countryCode == null) {
+			countryCode = "US";
+			getErrorReporter().report(format("Warning: missing country code for address %s", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE)));
+		} else if (!isValidIso3166CountryCode(countryCode)) {
+			countryCode = "US";
+			getErrorReporter().report(format("Warning: invalid country code for address %s", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE)));
+		}
+
+		// *** END WORKAROUND
+
+		// Currently we only support US addresses.
+		// Once we have international rollout, build out more rigorous support for non-US address validation
+		if (countryCode == null) {
+			validationException.add(new FieldError("countryCode", getStrings().get("Country code is required.")));
+		} else if (!isValidIso3166CountryCode(countryCode)) {
+			validationException.add(new FieldError("countryCode", getStrings().get("Country code must be a valid ISO-3166 (2 or 3 letter) value.")));
+		} else {
+			countryCode = getNormalizer().normalizeCountryCodeToIso3166TwoLetter(countryCode).get();
+
+			// US address validation
+			if ("US".equals(countryCode)) {
+				if (locality == null)
+					validationException.add(new FieldError("locality", getStrings().get("City name is required.")));
+
+				// Normalize state abbreviation
+				if (region != null)
+					region = region.toUpperCase(Locale.US);
+
+				// TODO: don't use US-specific wording once we go international
+				if (region == null)
+					validationException.add(new FieldError("region", getStrings().get("State abbreviation is required.")));
+				else if (Region.forAbbreviationAndCountryCode(region, "US").isEmpty())
+					validationException.add(new FieldError("region", getStrings().get("A valid state abbreviation is required.")));
+
+				// TODO: don't use US-specific wording once we go international
+				if (postalCode == null)
+					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is required.")));
+				else if (!isValidUsPostalCode(postalCode))
+					validationException.add(new FieldError("postalCode", getStrings().get("ZIP code is invalid.")));
+			} else {
+				// TODO: remove once we go international
+				validationException.add(new FieldError("countryCode", getStrings().get("Sorry, only US addresses are supported at this time.")));
+			}
+		}
+
+		if (validationException.hasErrors()) {
+			getErrorReporter().report(format("Warning: validation failed for address %s: %s", ToStringBuilder.reflectionToString(request, ToStringStyle.SHORT_PREFIX_STYLE), validationException));
+			throw validationException;
+		}
+
+		getDatabase().execute("""
+						UPDATE address SET					 
+						postal_name = ?, 
+						street_address_1 = ?, 
+						street_address_2 = ?, 
+						street_address_3 = ?, 
+						street_address_4 = ?,
+						post_office_box_number = ?, 
+						cross_street = ?, 
+						suburb = ?,
+						locality = ?,
+						region = ?,
+						postal_code = ?,
+						country_subdivision_code = ?,
+						country_code = ?,
+						google_maps_url = ?,
+						google_place_id = ?,
+						latitude = ?,
+						longitude = ?,
+						premise = ?,
+						subpremise = ?,
+						region_subdivision = ?,
+						postal_code_suffix = ?,
+						formatted_address = ?
+						WHERE address_id = ?						
+						""", postalName, streetAddress1, streetAddress2, streetAddress3, streetAddress4,
+				postOfficeBoxNumber, crossStreet, suburb, locality, region, postalCode, countrySubdivisionCode, countryCode,
+				googleMapsUrl, googlePlaceId, latitude, longitude, premise, subpremise, regionSubdivision,
+				postalCodeSuffix, formattedAddress, addressId);
 
 		return addressId;
 	}

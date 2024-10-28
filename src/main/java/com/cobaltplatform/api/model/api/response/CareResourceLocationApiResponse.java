@@ -113,7 +113,6 @@ public class CareResourceLocationApiResponse {
 		this.emailAddress = careResourceLocation.getEmailAddress();
 		this.insuranceNotes = careResourceLocation.getInsuranceNotes();
 		this.acceptingNewPatients = careResourceLocation.getAcceptingNewPatients();
-		this.googlePlaceId = careResourceLocation.getGooglePlaceId();
 		this.careResourceLocationId = careResourceLocation.getCareResourceLocationId();
 		this.name = careResourceLocation.getName();
 		this.address = addressService.findAddressById(careResourceLocation.getAddressId()).orElse(null);

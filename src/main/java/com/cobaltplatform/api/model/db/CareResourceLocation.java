@@ -42,8 +42,6 @@ public class CareResourceLocation {
 	@Nullable
 	private String phoneNumber;
 	@Nullable
-	private String googlePlaceId;
-	@Nullable
 	private String notes;
 	@Nullable
 	private Boolean wheelchairAccess;
@@ -139,15 +137,6 @@ public class CareResourceLocation {
 
 	public void setAcceptingNewPatients(@Nullable Boolean acceptingNewPatients) {
 		this.acceptingNewPatients = acceptingNewPatients;
-	}
-
-	@Nullable
-	public String getGooglePlaceId() {
-		return googlePlaceId;
-	}
-
-	public void setGooglePlaceId(@Nullable String googlePlaceId) {
-		this.googlePlaceId = googlePlaceId;
 	}
 
 	@Nullable
