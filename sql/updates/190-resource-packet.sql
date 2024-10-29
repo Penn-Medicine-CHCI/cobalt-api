@@ -66,6 +66,7 @@ CREATE TABLE care_resource_location (
   	email_address VARCHAR,
 	accepting_new_patients BOOLEAN NOT NULL DEFAULT TRUE,
 	created_by_account_id UUID NOT NULL REFERENCES account,
+	deleted BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

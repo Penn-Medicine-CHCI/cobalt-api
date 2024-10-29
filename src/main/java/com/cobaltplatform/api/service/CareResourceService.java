@@ -364,18 +364,6 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public void deleteCareResourceLocation(UUID careResourceId) {
-		requireNonNull(careResourceId);
-
-		getDatabase().execute("""
-				UPDATE care_resource
-				SET deleted = TRUE
-				WHERE care_resource_id=?
-				""", careResourceId);
-
-	}
-
-	@Nonnull
 	public UUID createCareResourceLocation(CreateCareResourceLocationRequest request) {
 		requireNonNull(request);
 
@@ -579,6 +567,32 @@ public class CareResourceService {
 						(?,?)""", careResourceId, tag);
 
 		return careResourceId;
+	}
+
+	@Nonnull
+	public boolean deleteCareResource (@Nonnull UUID careResourceId) {
+		requireNonNull(careResourceId);
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE care_resource
+				SET deleted = TRUE
+				WHERE care_resource_id=?
+				""", careResourceId) > 0;
+
+		return deleted;
+	}
+
+	@Nonnull
+	public boolean deleteCareResourceLocation (@Nonnull UUID careResourceLocationId) {
+		requireNonNull(careResourceLocationId);
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE care_resource_location
+				SET deleted = TRUE
+				WHERE care_resource_location_id=?
+				""", careResourceLocationId) > 0;
+
+		return deleted;
 	}
 
 	@Nonnull

@@ -40,6 +40,7 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
@@ -246,6 +247,27 @@ public class CareResourceResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("careResource", getCareResourceApiResponseFactory().create(careResource, true));
 		}});
+	}
+	@Nonnull
+	@DELETE("/care-resources/{careResourceId}")
+	@AuthenticationRequired
+	public ApiResponse deleteCareResource(@Nonnull @PathParameter UUID careResourceId) {
+		requireNonNull(careResourceId);
+
+		getCareResourceService().deleteCareResource(careResourceId);
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
+	@DELETE("/care-resources/location/{careResourceLocationId}")
+	@AuthenticationRequired
+	public ApiResponse deleteCareResourceLocation(@Nonnull @PathParameter UUID careResourceLocationId) {
+		requireNonNull(careResourceLocationId);
+
+		getCareResourceService().deleteCareResourceLocation(careResourceLocationId);
+
+		return new ApiResponse();
 	}
 
 	@Nonnull
