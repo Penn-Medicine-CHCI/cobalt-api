@@ -279,10 +279,12 @@ public class CareResourceService {
 				throw validationException;
 
 			NormalizedPlace normalizedPlace = new NormalizedPlace(place);
-
+			updateAddressRequest.setAddressId(currentAddress.getAddressId());
 			updateAddressRequest.setGooglePlaceId(googlePlaceId);
 			updateAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
+			updateAddressRequest.setStreetAddress2(streetAddress2);
 			updateAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
+			updateAddressRequest.setPostalName(name);
 			updateAddressRequest.setLocality(normalizedPlace.getLocality());
 			updateAddressRequest.setRegion(normalizedPlace.getRegion());
 			updateAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
@@ -293,10 +295,26 @@ public class CareResourceService {
 			updateAddressRequest.setFormattedAddress(place.getFormattedAddress());
 			updateAddressRequest.setLatitude(place.getLocation().getLatitude());
 			updateAddressRequest.setLongitude(place.getLocation().getLongitude());
+			updateAddressRequest.setCountryCode(normalizedPlace.getCountryCode());
+		} else {
+			updateAddressRequest.setAddressId(currentAddress.getAddressId());
+			updateAddressRequest.setGooglePlaceId(googlePlaceId);
+			updateAddressRequest.setStreetAddress1(currentAddress.getStreetAddress1());
+			updateAddressRequest.setStreetAddress2(streetAddress2);
+			updateAddressRequest.setPostalCode(currentAddress.getPostalCode());
+			updateAddressRequest.setPostalName(name);
+			updateAddressRequest.setLocality(currentAddress.getLocality());
+			updateAddressRequest.setRegion(currentAddress.getRegion());
+			updateAddressRequest.setGoogleMapsUrl(currentAddress.getGoogleMapsUrl());
+			updateAddressRequest.setPremise(currentAddress.getPremise());
+			updateAddressRequest.setSubpremise(currentAddress.getSubpremise());
+			updateAddressRequest.setRegionSubdivision(currentAddress.getRegionSubdivision());
+			updateAddressRequest.setPostalCodeSuffix(currentAddress.getPostalCodeSuffix());
+			updateAddressRequest.setFormattedAddress(currentAddress.getFormattedAddress());
+			updateAddressRequest.setLatitude(currentAddress.getLatitude());
+			updateAddressRequest.setLongitude(currentAddress.getLongitude());
+			updateAddressRequest.setCountryCode(currentAddress.getCountryCode());
 		}
-
-		updateAddressRequest.setPostalName(name);
-		updateAddressRequest.setStreetAddress2(streetAddress2);
 
 		getAddressService().updateAddress(updateAddressRequest);
 
@@ -379,11 +397,11 @@ public class CareResourceService {
 		NormalizedPlace normalizedPlace = new NormalizedPlace(place);
 
 		createAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
+		createAddressRequest.setStreetAddress2(streetAddress2);
 		createAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
 		createAddressRequest.setLocality(normalizedPlace.getLocality());
 		createAddressRequest.setRegion(normalizedPlace.getRegion());
 		createAddressRequest.setPostalName(name);
-		createAddressRequest.setStreetAddress2(streetAddress2);
 		createAddressRequest.setGooglePlaceId(googlePlaceId);
 		createAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
 		createAddressRequest.setPremise(normalizedPlace.getPremise());
