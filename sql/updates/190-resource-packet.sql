@@ -127,6 +127,14 @@ FROM care_resource cr, care_resource_institution cri
 WHERE cr.care_resource_id = cri.care_resource_id
 AND cr.deleted = false;
 
+CREATE VIEW v_care_resource_location_institution 
+AS
+SELECT crl.*, cri.institution_id
+FROM care_resource cr, care_resource_location crl, care_resource_institution cri
+WHERE cr.care_resource_id = cri.care_resource_id
+AND cr.care_resource_id = crl.care_resource_id
+AND cr.deleted = false;
+
 INSERT INTO care_resource_tag_group 
   (care_resource_tag_group_id, name)
 VALUES
