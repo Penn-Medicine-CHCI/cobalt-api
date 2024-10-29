@@ -383,7 +383,13 @@ public class CareResourceService {
 		if (careResource == null)
 			validationException.add(new ValidationException.FieldError("careResource", "Could not find Care Resource."));
 		if (googlePlaceId == null)
-			validationException.add(new ValidationException.FieldError("googlePlaceId", "Google Place Id is required."));
+			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required."));
+		if (request.getPayorIds().isEmpty() && findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.PAYORS).isEmpty())
+			validationException.add(new ValidationException.FieldError("payors", "At least one insurance carrier is required."));
+
+
+		if (validationException.hasErrors())
+			throw validationException;
 
 		Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
 
@@ -392,6 +398,10 @@ public class CareResourceService {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		// If there is no name for this location then use the Care Resource name
+		if (name == null)
+			name = careResource.getName();
 
 		CreateAddressRequest createAddressRequest = new CreateAddressRequest();
 		NormalizedPlace normalizedPlace = new NormalizedPlace(place);
