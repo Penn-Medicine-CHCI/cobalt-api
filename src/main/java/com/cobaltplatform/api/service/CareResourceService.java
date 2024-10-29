@@ -226,14 +226,17 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public Optional<CareResourceLocation> findCareResourceLocationById(@Nonnull UUID careResourceLocationId) {
+	public Optional<CareResourceLocation> findCareResourceLocationById(@Nonnull UUID careResourceLocationId,
+																																		 @Nonnull InstitutionId institutionId) {
 		requireNonNull(careResourceLocationId);
+		requireNonNull(institutionId);
 
 		return getDatabase().queryForObject("""
 				SELECT crl.*
-				FROM care_resource_location crl
+				FROM v_care_resource_location_institution crl
 				WHERE crl.care_resource_location_id = ?
-				""", CareResourceLocation.class, careResourceLocationId);
+				AND crl.institution_id = ?
+				""", CareResourceLocation.class, careResourceLocationId, institutionId);
 	}
 
 	@Nonnull
@@ -242,6 +245,7 @@ public class CareResourceService {
 
 		String googlePlaceId = trimToNull(request.getGooglePlaceId());
 		String notes = trimToNull(request.getNotes());
+		String emailAddress = trimToNull(request.getEmailAddress());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String streetAddress2 = trimToNull(request.getStreetAddress2());
 		Boolean acceptingNewPatients = request.getAcceptingNewPatients();
@@ -254,7 +258,7 @@ public class CareResourceService {
 		UUID careResourceLocationId = request.getCareResourceLocationId();
 		UpdateAddressRequest updateAddressRequest = new UpdateAddressRequest();
 
-		CareResourceLocation currentCareResourceLocation = findCareResourceLocationById(careResourceLocationId).orElse(null);
+		CareResourceLocation currentCareResourceLocation = findCareResourceLocationById(careResourceLocationId, institutionId).orElse(null);
 		Address currentAddress = getAddressService().findAddressById(currentCareResourceLocation.getAddressId()).orElse(null);
 
 		if (currentCareResourceLocation == null)
@@ -321,11 +325,11 @@ public class CareResourceService {
 		getDatabase().execute("""
 						UPDATE care_resource_location
 						SET phone_number = ?, wheelchair_access=?, notes=?, accepting_new_patients=?,
-						website_url=?, name=?, insurance_notes=?
+						website_url=?, name=?, insurance_notes=?, email_address =?
 						WHERE care_resource_location_id = ?
 						""",
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, careResourceLocationId);
+				websiteUrl, name, insuranceNotes, emailAddress, careResourceLocationId);
 
 		getDatabase().execute("""
 				DELETE FROM care_resource_location_care_resource_tag
@@ -360,11 +364,24 @@ public class CareResourceService {
 	}
 
 	@Nonnull
+	public void deleteCareResourceLocation(UUID careResourceId) {
+		requireNonNull(careResourceId);
+
+		getDatabase().execute("""
+				UPDATE care_resource
+				SET deleted = TRUE
+				WHERE care_resource_id=?
+				""", careResourceId);
+
+	}
+
+	@Nonnull
 	public UUID createCareResourceLocation(CreateCareResourceLocationRequest request) {
 		requireNonNull(request);
 
 		String googlePlaceId = trimToNull(request.getGooglePlaceId());
 		String notes = trimToNull(request.getNotes());
+		String emailAddress = trimToNull(request.getEmailAddress());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String streetAddress2 = trimToNull(request.getStreetAddress2());
 		Boolean acceptingNewPatients = request.getAcceptingNewPatients();
@@ -384,7 +401,7 @@ public class CareResourceService {
 			validationException.add(new ValidationException.FieldError("careResource", "Could not find Care Resource."));
 		if (googlePlaceId == null)
 			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required."));
-		if (request.getPayorIds().isEmpty() && findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.PAYORS).isEmpty())
+		if (request.getPayorIds() != null && request.getPayorIds().isEmpty() && findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.PAYORS).isEmpty())
 			validationException.add(new ValidationException.FieldError("payors", "At least one insurance carrier is required."));
 
 
@@ -428,12 +445,12 @@ public class CareResourceService {
 						INSERT INTO care_resource_location
 						  (care_resource_location_id, care_resource_id, address_id,
 						  phone_number, wheelchair_access, notes, accepting_new_patients,
-						  website_url, name, insurance_notes, created_by_account_id)
+						  website_url, name, insurance_notes, created_by_account_id, email_address)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?)
+						  (?,?,?,?,?,?,?,?,?,?,?,?)
 						  """, careResourceLocationId, careResourceId, addressId,
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, createdByAccountId);
+				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress);
 
 		List<String> allTags = new ArrayList<>();
 		if (request.getPayorIds() != null)

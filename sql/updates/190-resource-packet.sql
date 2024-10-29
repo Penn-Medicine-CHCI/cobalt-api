@@ -63,6 +63,7 @@ CREATE TABLE care_resource_location (
 	insurance_notes VARCHAR,
 	website_url VARCHAR,
   	notes VARCHAR,
+  	email_address VARCHAR,
 	accepting_new_patients BOOLEAN NOT NULL DEFAULT TRUE,
 	created_by_account_id UUID NOT NULL REFERENCES account,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -123,7 +124,8 @@ CREATE VIEW v_care_resource_institution
 AS
 SELECT cr.*, cri.institution_id
 FROM care_resource cr, care_resource_institution cri
-WHERE cr.care_resource_id = cri.care_resource_id;
+WHERE cr.care_resource_id = cri.care_resource_id
+AND cr.deleted = false;
 
 INSERT INTO care_resource_tag_group 
   (care_resource_tag_group_id, name)

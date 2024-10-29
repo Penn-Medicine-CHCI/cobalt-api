@@ -250,4 +250,6 @@ public class CareResourceLocationApiResponse {
 	public Boolean getAcceptingNewPatients() {
 		return acceptingNewPatients;
 	}
+
+
 }

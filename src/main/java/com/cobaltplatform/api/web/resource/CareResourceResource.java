@@ -217,6 +217,17 @@ public class CareResourceResource {
 		}});
 	}
 
+	/*@Nonnull
+	@DELETE("/care-resources/{careResourceId}")
+	@AuthenticationRequired
+	public ApiResponse createCareResource(@Nonnull @PathParameter String requestBody) {
+		requireNonNull(requestBody);
+
+		return new ApiResponse();
+	}
+	*/
+
+
 	@Nonnull
 	@POST("/care-resources")
 	@AuthenticationRequired
@@ -248,10 +259,24 @@ public class CareResourceResource {
 		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
 
 		UUID careResourceLocationId = getCareResourceService().createCareResourceLocation(request);
-		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId).orElse(null);
+		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId,
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
 
 		if (careResourceLocation == null)
 			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
+		}});
+	}
+
+	@Nonnull
+	@GET("/care-resources/location/{careResourceLocationId}")
+	@AuthenticationRequired
+	public ApiResponse findCareResourceLocation(@Nonnull @PathParameter UUID careResourceLocationId) {
+		requireNonNull(careResourceLocationId);
+
+		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId,
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
 		}});
@@ -267,7 +292,8 @@ public class CareResourceResource {
 		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
 
 		UUID careResourceLocationId = getCareResourceService().updateCareResourceLocation(request);
-		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId).orElse(null);
+		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId,
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
 
 		if (careResourceLocation == null)
 			throw new NotFoundException();
