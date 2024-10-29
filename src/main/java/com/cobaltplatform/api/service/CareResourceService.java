@@ -222,6 +222,7 @@ public class CareResourceService {
 				SELECT crl.*
 				FROM care_resource_location crl
 				WHERE crl.care_resource_id = ?
+				AND crl.deleted=false
 				""", CareResourceLocation.class, careResourceId);
 	}
 
@@ -573,6 +574,11 @@ public class CareResourceService {
 	public boolean deleteCareResource (@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
+		List<CareResourceLocation> careResourceLocations = findCareResourceLocations(careResourceId);
+
+		for (CareResourceLocation careResourceLocation : careResourceLocations)
+			deleteCareResourceLocation((careResourceLocation.getCareResourceLocationId()));
+		
 		boolean deleted = getDatabase().execute("""
 				UPDATE care_resource
 				SET deleted = TRUE
