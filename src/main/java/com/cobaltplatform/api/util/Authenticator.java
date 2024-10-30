@@ -251,7 +251,7 @@ public class Authenticator {
 		} catch (UnsupportedJwtException e) {
 			throw new SigningTokenValidationException(e);
 		} catch (ExpiredJwtException e) {
-			throw new SigningTokenValidationException("Signing token has expired", e);
+			throw new SigningTokenExpiredException("Signing token has expired", e);
 		} catch (Exception e) {
 			throw new SigningTokenValidationException("Unable to process signing token", e);
 		}
@@ -290,6 +290,14 @@ public class Authenticator {
 
 		public SigningTokenValidationException(@Nullable String message,
 																					 @Nullable Exception cause) {
+			super(message, cause);
+		}
+	}
+
+	@NotThreadSafe
+	public static class SigningTokenExpiredException extends SigningTokenValidationException {
+		public SigningTokenExpiredException(@Nullable String message,
+																				@Nullable Exception cause) {
 			super(message, cause);
 		}
 	}
