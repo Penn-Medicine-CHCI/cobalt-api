@@ -119,6 +119,7 @@ public class BeiweActiveDataAnalyzer {
 											row.setUsername(usernameDirectory.getFileName().toString());
 											row.setRecordingType(videoStream != null ? "VIDEO" : "AUDIO");
 											row.setDuration(videoStream != null ? videoStream.getDuration() : audioStream.getDuration());
+											row.setFilename(activeDataFile.getFileName().toString());
 											row.setFilesize(String.valueOf(activeDataFile.toFile().length()));
 											row.setVideoWidth(videoStream != null ? videoStream.getWidth() : null);
 											row.setVideoHeight(videoStream != null ? videoStream.getHeight() : null);
@@ -146,6 +147,7 @@ public class BeiweActiveDataAnalyzer {
 				"Username",
 				"Recording Type",
 				"Duration (Seconds)",
+				"Filename",
 				"Filesize (Bytes)",
 				"Video Width (Pixels)",
 				"Video Height (Pixels)",
@@ -164,6 +166,7 @@ public class BeiweActiveDataAnalyzer {
 				recordElements.add(row.getUsername());
 				recordElements.add(row.getRecordingType());
 				recordElements.add(row.getDuration());
+				recordElements.add(row.getFilename());
 				recordElements.add(row.getFilesize());
 				recordElements.add(row.getVideoWidth());
 				recordElements.add(row.getVideoHeight());
@@ -190,6 +193,8 @@ public class BeiweActiveDataAnalyzer {
 		private String recordingType;
 		@Nullable
 		private String duration;
+		@Nullable
+		private String filename;
 		@Nullable
 		private String filesize;
 		@Nullable
@@ -304,6 +309,15 @@ public class BeiweActiveDataAnalyzer {
 
 		public void setAudioCodecLongName(@Nullable String audioCodecLongName) {
 			this.audioCodecLongName = audioCodecLongName;
+		}
+
+		@Nullable
+		public String getFilename() {
+			return this.filename;
+		}
+
+		public void setFilename(@Nullable String filename) {
+			this.filename = filename;
 		}
 	}
 
