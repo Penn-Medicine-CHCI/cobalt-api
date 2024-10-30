@@ -305,6 +305,20 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
+	@GET("/care-resources/locations/{careResourceId}")
+	@AuthenticationRequired
+	public ApiResponse findCareResourceLocations(@Nonnull @PathParameter UUID careResourceId) {
+		requireNonNull(careResourceId);
+
+		List<CareResourceLocation> careResourceLocations = getCareResourceService().findCareResourceLocations(careResourceId);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResourceLocations", careResourceLocations.stream()
+					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
 	@PUT("/care-resources/location")
 	@AuthenticationRequired
 	public ApiResponse updateCareResourceLocation(@Nonnull @RequestBody String requestBody) {
