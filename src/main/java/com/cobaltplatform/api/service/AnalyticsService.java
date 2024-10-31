@@ -348,6 +348,13 @@ public class AnalyticsService implements AutoCloseable {
 			webappUrl = replaceSensitiveDataInString(webappUrl);
 		}
 
+		// It's possible to have multiple IP addresses specified in X-Forwarded-For header, e.g. "x.x.x.x, y.y.y.y".
+		// If that's the case, take the first one in the list.
+		if (ipAddress != null && ipAddress.contains(",")) {
+			String[] ipAddressComponents = ipAddress.split(",");
+			ipAddress = trimToNull(ipAddressComponents[0]);
+		}
+
 		// Do the same for event types that we know can include sensitive data in payloads
 		if (analyticsNativeEventTypeId == AnalyticsNativeEventTypeId.URL_CHANGED) {
 			String dataUrl = (String) data.get("url");
