@@ -315,6 +315,25 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public Optional<Account> findAccountByEpicPatientUniqueIdAndInstitutionId(@Nullable String epicPatientUniqueId,
+																																						@Nullable String epicPatientUniqueIdType,
+																																						@Nullable InstitutionId institutionId) {
+		epicPatientUniqueId = trimToNull(epicPatientUniqueId);
+		epicPatientUniqueIdType = trimToNull(epicPatientUniqueIdType);
+
+		if (epicPatientUniqueId == null || epicPatientUniqueIdType == null || institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_account
+				WHERE UPPER(?)=UPPER(epic_patient_unique_id)
+				AND UPPER(?)=UPPER(epic_patient_unique_id_type)
+				AND institution_id=?
+				""", Account.class, epicPatientUniqueId, epicPatientUniqueIdType, institutionId);
+	}
+
+	@Nonnull
 	public Optional<AccountInvite> findAccountInviteByCode(UUID accountInviteCode) {
 		return getDatabase().queryForObject("SELECT * FROM account_invite WHERE account_invite_code = ?",
 				AccountInvite.class, accountInviteCode);

@@ -685,6 +685,7 @@ public class PatientOrderResource {
 	@Nonnull
 	@GET("/patient-orders")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderViewTypeId> patientOrderViewTypeId,
 																			 @Nonnull @QueryParameter("patientOrderDispositionId") Optional<List<PatientOrderDispositionId>> patientOrderDispositionIds,
 																			 @Nonnull @QueryParameter Optional<PatientOrderConsentStatusId> patientOrderConsentStatusId,
@@ -1612,10 +1613,24 @@ public class PatientOrderResource {
 
 		// "Follow Up"
 		List<PatientOrderApiResponse> outreachFollowupNeededPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getNextContactScheduledAt() != null
-						&& patientOrder.getNextContactTypeId() != null
-						&& validFollowUpContactTypeIds.contains(patientOrder.getNextContactTypeId())
-						&& patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday))
+				.filter(patientOrder -> {
+					boolean overdueForOutreach = patientOrder.getNextContactScheduledAt() != null
+							&& patientOrder.getNextContactTypeId() != null
+							&& validFollowUpContactTypeIds.contains(patientOrder.getNextContactTypeId())
+							&& patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday);
+
+					if (overdueForOutreach)
+						return true;
+
+					// If screening session has been started but abandoned and no upcoming contact is scheduled, show the order in "follow up"
+					boolean startedButAbandonedScreeningSession = patientOrder.getMostRecentIntakeScreeningSessionAppearsAbandoned()
+							|| patientOrder.getMostRecentScreeningSessionAppearsAbandoned();
+
+					if (startedButAbandonedScreeningSession && patientOrder.getNextContactScheduledAt() == null)
+						return true;
+
+					return false;
+				})
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
 				.collect(Collectors.toList());
 

@@ -552,13 +552,15 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientMrn == null || institutionId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("""
-				SELECT *
-				FROM v_patient_order
-				WHERE UPPER(?)=UPPER(patient_mrn)
-				AND institution_id=?
-				AND patient_order_disposition_id=?
-				""", PatientOrder.class, patientMrn, institutionId, PatientOrderDispositionId.OPEN);
+		// Do a quicker pull of raw orders first before hitting the view
+		List<RawPatientOrder> rawPatientOrders = findRawPatientOrdersByMrnAndInstitutionId(patientMrn, institutionId);
+
+		// Pull the order data from the view by ID
+		for (RawPatientOrder rawPatientOrder : rawPatientOrders)
+			if (rawPatientOrder.getPatientOrderDispositionId() == PatientOrderDispositionId.OPEN)
+				return findPatientOrderById(rawPatientOrder.getPatientOrderId());
+
+		return Optional.empty();
 	}
 
 	@Nonnull
@@ -569,14 +571,14 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientMrn == null || institutionId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("""
-				SELECT *
-				FROM v_patient_order
-				WHERE UPPER(?)=UPPER(patient_mrn)
-				AND institution_id=?
-				ORDER BY order_date DESC
-				LIMIT 1
-				""", PatientOrder.class, patientMrn, institutionId);
+		// Do a quicker pull of raw orders first before hitting the view
+		List<RawPatientOrder> rawPatientOrders = findRawPatientOrdersByMrnAndInstitutionId(patientMrn, institutionId);
+
+		// Pull the order data from the view by ID
+		if (rawPatientOrders.size() > 0)
+			return findPatientOrderById(rawPatientOrders.get(0).getPatientOrderId());
+
+		return Optional.empty();
 	}
 
 	@Nonnull
@@ -5584,6 +5586,17 @@ public class PatientOrderService implements AutoCloseable {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		UUID patientAccountId = null;
+
+		if (patientUniqueId != null && patientUniqueIdType != null) {
+			Account existingPatientAccount = getAccountService().findAccountByEpicPatientUniqueIdAndInstitutionId(patientUniqueId, patientUniqueIdType, institutionId).orElse(null);
+
+			if (existingPatientAccount != null) {
+				getLogger().info("There is already an account with Epic {} {}, associating it with this order...", patientUniqueIdType, patientUniqueId);
+				patientAccountId = existingPatientAccount.getAccountId();
+			}
+		}
+
 		PatientOrderDemographicsImportStatusId patientOrderDemographicsImportStatusId = PatientOrderDemographicsImportStatusId.PENDING;
 		Instant patientDemographicsImportedAt = null;
 		EthnicityId patientEthnicityId = EthnicityId.NOT_ASKED;
@@ -5662,6 +5675,7 @@ public class PatientOrderService implements AutoCloseable {
 						  billing_provider_last_name,
 						  billing_provider_first_name,
 						  billing_provider_middle_name,
+						  patient_account_id,
 						  patient_last_name,
 						  patient_first_name,
 						  patient_mrn,
@@ -5697,13 +5711,13 @@ public class PatientOrderService implements AutoCloseable {
 							patient_legal_sex_id,
 							patient_administrative_gender_id,
 							patient_demographics_imported_at
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, epicDepartmentId, referringPracticeId,
 				referringPracticeIdType, referringPracticeName, orderingProviderId, orderingProviderIdType, orderingProviderLastName,
 				orderingProviderFirstName, orderingProviderMiddleName, billingProviderId, billingProviderIdType,
-				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientLastName, patientFirstName,
+				billingProviderLastName, billingProviderFirstName, billingProviderMiddleName, patientAccountId, patientLastName, patientFirstName,
 				patientMrn, patientUniqueId, patientUniqueIdType, patientBirthdate, patientAddressId, primaryPayorId,
 				primaryPayorName, primaryPlanId, primaryPlanName, orderDate, orderAgeInMinutes, orderId, routing,
 				associatedDiagnosis, patientPhoneNumber, preferredContactHours, comments, ccRecipients,
@@ -5769,7 +5783,7 @@ public class PatientOrderService implements AutoCloseable {
 
 			getDatabase().execute("""
 					INSERT INTO patient_order_medication (
-					patient_order_id, 
+					patient_order_id,
 					medication_id,
 					medication_id_type,
 					medication_name,
