@@ -71,6 +71,7 @@ import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.UserAgent;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.db.RequiresManualTransactionManagement;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
@@ -213,6 +214,7 @@ public class AnalyticsResource {
 
 	@Nonnull
 	@POST("/analytics-native-events")
+	@RequiresManualTransactionManagement
 	public ApiResponse createAnalyticsNativeEvent(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 

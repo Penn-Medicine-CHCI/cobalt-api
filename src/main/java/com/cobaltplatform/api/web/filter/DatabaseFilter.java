@@ -23,8 +23,12 @@ import com.cobaltplatform.api.context.DatabaseContext;
 import com.cobaltplatform.api.context.DatabaseContextExecutor;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.util.db.RequiresManualTransactionManagement;
 import com.pyranid.Database;
 import com.pyranid.StatementLog;
+import com.soklet.web.request.RequestContext;
+import com.soklet.web.routing.Route;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +45,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -101,6 +106,30 @@ public class DatabaseFilter implements Filter {
 		if (staticFile || optionsRequest) {
 			filterChain.doFilter(servletRequest, servletResponse);
 			return;
+		}
+
+		RequestContext requestContext = null;
+
+		try {
+			requestContext = RequestContext.get();
+		} catch (Throwable ignored) {
+			// Nothing to do, continue on
+		}
+
+		// If a Resource Method has either @ReadReplica or @RequiresManualTransactionManagement applied, don't wrap this request in a transaction
+		if (requestContext != null) {
+			Route route = requestContext.route().orElse(null);
+			Method resourceMethod = route != null && route.resourceMethod() != null ? route.resourceMethod() : null;
+
+			if (resourceMethod != null) {
+				boolean readReplica = resourceMethod.getAnnotation(ReadReplica.class) != null;
+				boolean requiresManualTransactionManagement = resourceMethod.getAnnotation(RequiresManualTransactionManagement.class) != null;
+
+				if (readReplica || requiresManualTransactionManagement) {
+					filterChain.doFilter(servletRequest, servletResponse);
+					return;
+				}
+			}
 		}
 
 		DatabaseContext databaseContext = new DatabaseContext();
