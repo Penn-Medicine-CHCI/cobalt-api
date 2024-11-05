@@ -101,9 +101,10 @@ public class DatabaseFilter implements Filter {
 		HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
 		boolean staticFile = httpServletRequest.getRequestURI().startsWith("/static/");
 		boolean optionsRequest = Objects.equals("OPTIONS", httpServletRequest.getMethod());
+		boolean performingAutoRefresh = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Autorefresh"), "true");
 
 		// Don't apply to some requests
-		if (staticFile || optionsRequest) {
+		if (staticFile || optionsRequest || performingAutoRefresh) {
 			filterChain.doFilter(servletRequest, servletResponse);
 			return;
 		}
