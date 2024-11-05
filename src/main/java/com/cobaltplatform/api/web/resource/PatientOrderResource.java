@@ -685,6 +685,7 @@ public class PatientOrderResource {
 	@Nonnull
 	@GET("/patient-orders")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse findPatientOrders(@Nonnull @QueryParameter Optional<PatientOrderViewTypeId> patientOrderViewTypeId,
 																			 @Nonnull @QueryParameter("patientOrderDispositionId") Optional<List<PatientOrderDispositionId>> patientOrderDispositionIds,
 																			 @Nonnull @QueryParameter Optional<PatientOrderConsentStatusId> patientOrderConsentStatusId,
