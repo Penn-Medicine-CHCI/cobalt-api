@@ -396,13 +396,9 @@ public class CurrentContextRequestHandler {
 		request.setOperatingSystemName(operatingSystemName);
 		request.setOperatingSystemVersion(operatingSystemVersion);
 
-		// We are outside of the context of the "request" transaction, so we make one here.
-		// It's necessary because the upsert requires one to recover in the event of a unique constraint violation.
+		// We are not in the "request" transaction yet but that's OK - the upsert spins up its own transaction internally.
 		try {
-			getDatabase().transaction(() -> {
-				getClientDeviceService().upsertClientDevice(request);
-			});
-
+			getClientDeviceService().upsertClientDevice(request);
 			return true;
 		} catch (Exception e) {
 			// Something really unexpected happened when trying to auto-persist the client device,
