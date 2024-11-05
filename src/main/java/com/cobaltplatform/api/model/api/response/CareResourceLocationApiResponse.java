@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 
 import com.cobaltplatform.api.model.db.Address;
+import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.service.AddressService;
@@ -50,6 +51,10 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private String googlePlaceId;
 	@Nullable
+	private String resourceName;
+	@Nullable
+	private String resourceNotes;
+	@Nullable
 	private String name;
 	@Nullable
 	private UUID careResourceLocationId;
@@ -67,6 +72,8 @@ public class CareResourceLocationApiResponse {
 	private String formattedPhoneNumber;
 	@Nullable
 	private String notes;
+	@Nullable
+	private String internalNotes;
 	@Nullable
 	private Boolean wheelchairAccess;
 	@Nullable
@@ -86,6 +93,8 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private List<CareResourceTagApiResponse> ethnicities;
 	@Nullable
+	private List<CareResourceTagApiResponse> facilityTypes;
+	@Nullable
 	private CareResourceTagApiResponseFactory careResourceTagApiResponseFactory;
 
 
@@ -93,12 +102,14 @@ public class CareResourceLocationApiResponse {
 	@ThreadSafe
 	public interface CareResourceLocationApiResponseFactory {
 		@Nonnull
-		CareResourceLocationApiResponse create(@Nonnull CareResourceLocation careResourceLocation);
+		CareResourceLocationApiResponse create(@Nonnull CareResourceLocation careResourceLocation,
+																					 @Nonnull CareResource careResource);
 	}
 
 	@AssistedInject
 	public CareResourceLocationApiResponse(@Nonnull CareResourceService careResourceService,
 																				 @Assisted @Nonnull CareResourceLocation careResourceLocation,
+																				 @Assisted @Nonnull CareResource careResource,
 																				 @Nonnull AddressService addressService,
 																				 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 																				 @Nonnull Formatter formatter) {
@@ -108,6 +119,8 @@ public class CareResourceLocationApiResponse {
 		requireNonNull(formatter);
 		requireNonNull(careResourceTagApiResponseFactory);
 
+		this.resourceName = careResource.getName();
+		this.resourceNotes = careResource.getNotes();
 		this.careResourceId = careResourceLocation.getCareResourceId();
 		this.websiteUrl = careResourceLocation.getWebsiteUrl();
 		this.emailAddress = careResourceLocation.getEmailAddress();
@@ -119,6 +132,7 @@ public class CareResourceLocationApiResponse {
 		this.phoneNumber = careResourceLocation.getPhoneNumber();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
+		this.internalNotes = careResourceLocation.getInternalNotes();
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
 		this.languages = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.LANGUAGES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
@@ -139,6 +153,9 @@ public class CareResourceLocationApiResponse {
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
 		this.ethnicities = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.ETHNICITIES).stream()
+				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+				.collect(Collectors.toList());
+		this.facilityTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.FACILITY_TYPE).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
 	}
@@ -251,5 +268,23 @@ public class CareResourceLocationApiResponse {
 		return acceptingNewPatients;
 	}
 
+	@Nullable
+	public String getInternalNotes() {
+		return internalNotes;
+	}
 
+	@Nullable
+	public String getResourceName() {
+		return resourceName;
+	}
+
+	@Nullable
+	public String getResourceNotes() {
+		return resourceNotes;
+	}
+
+	@Nullable
+	public List<CareResourceTagApiResponse> getFacilityTypes() {
+		return facilityTypes;
+	}
 }

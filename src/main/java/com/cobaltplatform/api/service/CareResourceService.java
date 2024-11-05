@@ -246,6 +246,7 @@ public class CareResourceService {
 
 		String googlePlaceId = trimToNull(request.getGooglePlaceId());
 		String notes = trimToNull(request.getNotes());
+		String internalNotes = trimToNull(request.getInternalNotes());
 		String emailAddress = trimToNull(request.getEmailAddress());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String streetAddress2 = trimToNull(request.getStreetAddress2());
@@ -326,11 +327,11 @@ public class CareResourceService {
 		getDatabase().execute("""
 						UPDATE care_resource_location
 						SET phone_number = ?, wheelchair_access=?, notes=?, accepting_new_patients=?,
-						website_url=?, name=?, insurance_notes=?, email_address =?
+						website_url=?, name=?, insurance_notes=?, email_address =?, internal_notes =?
 						WHERE care_resource_location_id = ?
 						""",
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, emailAddress, careResourceLocationId);
+				websiteUrl, name, insuranceNotes, emailAddress, internalNotes, careResourceLocationId);
 
 		getDatabase().execute("""
 				DELETE FROM care_resource_location_care_resource_tag
@@ -352,6 +353,8 @@ public class CareResourceService {
 			allTags.addAll(request.getTherapyTypeIds());
 		if (request.getGenderIds() != null)
 			allTags.addAll(request.getGenderIds());
+		if (request.getFacilityTypes() != null)
+			allTags.addAll(request.getFacilityTypes());
 
 		if (allTags != null)
 			for (String tag : allTags)
@@ -370,6 +373,7 @@ public class CareResourceService {
 
 		String googlePlaceId = trimToNull(request.getGooglePlaceId());
 		String notes = trimToNull(request.getNotes());
+		String internalNotes = trimToNull(request.getInternalNotes());
 		String emailAddress = trimToNull(request.getEmailAddress());
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String streetAddress2 = trimToNull(request.getStreetAddress2());
@@ -434,12 +438,13 @@ public class CareResourceService {
 						INSERT INTO care_resource_location
 						  (care_resource_location_id, care_resource_id, address_id,
 						  phone_number, wheelchair_access, notes, accepting_new_patients,
-						  website_url, name, insurance_notes, created_by_account_id, email_address)
+						  website_url, name, insurance_notes, created_by_account_id, email_address,
+						  internal_notes)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?,?)
+						  (?,?,?,?,?,?,?,?,?,?,?,?,?)
 						  """, careResourceLocationId, careResourceId, addressId,
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress);
+				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress, internalNotes);
 
 		List<String> allTags = new ArrayList<>();
 		if (request.getPayorIds() != null)
@@ -456,6 +461,8 @@ public class CareResourceService {
 			allTags.addAll(request.getTherapyTypeIds());
 		if (request.getGenderIds() != null)
 			allTags.addAll(request.getGenderIds());
+		if (request.getFacilityTypes() != null)
+			allTags.addAll(request.getFacilityTypes());
 
 		if (allTags != null)
 			for (String tag : allTags)

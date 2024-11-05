@@ -286,8 +286,14 @@ public class CareResourceResource {
 
 		if (careResourceLocation == null)
 			throw new NotFoundException();
+
+		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+
+		if (careResource == null)
+			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
 		}});
 	}
 
@@ -299,8 +305,17 @@ public class CareResourceResource {
 
 		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId,
 				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+
+		if (careResourceLocation == null)
+			throw new NotFoundException();
+
+		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+
+		if (careResource == null)
+			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
 		}});
 	}
 
@@ -311,9 +326,15 @@ public class CareResourceResource {
 		requireNonNull(careResourceId);
 
 		List<CareResourceLocation> careResourceLocations = getCareResourceService().findCareResourceLocations(careResourceId);
+
+		CareResource careResource = getCareResourceService().findCareResourceById(careResourceId,
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+
+		if (careResource == null)
+			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("careResourceLocations", careResourceLocations.stream()
-					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation))
+					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -333,8 +354,15 @@ public class CareResourceResource {
 
 		if (careResourceLocation == null)
 			throw new NotFoundException();
+
+		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+
+		if (careResource == null)
+			throw new NotFoundException();
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
 		}});
 	}
 

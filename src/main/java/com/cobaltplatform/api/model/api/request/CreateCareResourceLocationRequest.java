@@ -38,6 +38,8 @@ public class CreateCareResourceLocationRequest {
 	@Nullable
 	private String name;
 	@Nullable
+	private String internalNotes;
+	@Nullable
 	private String notes;
 	@Nullable
 	private String emailAddress;
@@ -66,6 +68,8 @@ public class CreateCareResourceLocationRequest {
 	private List<String> ethnicityIds;
 	@Nullable
 	private List<String> languageIds;
+	@Nullable
+	private List<String> facilityTypes;
 	@Nullable
 	private Boolean wheelchairAccess;
 	@Nullable
@@ -247,5 +251,23 @@ public class CreateCareResourceLocationRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public String getInternalNotes() {
+		return internalNotes;
+	}
+
+	public void setInternalNotes(@Nullable String internalNotes) {
+		this.internalNotes = internalNotes;
+	}
+
+	@Nullable
+	public List<String> getFacilityTypes() {
+		return facilityTypes;
+	}
+
+	public void setFacilityTypes(@Nullable List<String> facilityTypes) {
+		this.facilityTypes = facilityTypes;
 	}
 }

@@ -44,6 +44,8 @@ public class CareResourceLocation {
 	@Nullable
 	private String notes;
 	@Nullable
+	private String internalNotes;
+	@Nullable
 	private Boolean wheelchairAccess;
 	@Nullable
 	private Boolean acceptingNewPatients;
@@ -173,5 +175,14 @@ public class CareResourceLocation {
 
 	public void setInsuranceNotes(@Nullable String insuranceNotes) {
 		this.insuranceNotes = insuranceNotes;
+	}
+
+	@Nullable
+	public String getInternalNotes() {
+		return internalNotes;
+	}
+
+	public void setInternalNotes(@Nullable String internalNotes) {
+		this.internalNotes = internalNotes;
 	}
 }
