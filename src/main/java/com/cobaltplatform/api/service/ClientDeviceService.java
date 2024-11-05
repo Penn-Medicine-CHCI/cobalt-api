@@ -207,6 +207,7 @@ public class ClientDeviceService {
 				""", Boolean.class, accountId, clientDeviceId).get();
 	}
 
+	// Note: the upsert performs within its own transaction in order to hold a lock for as short as time as possible
 	@Nonnull
 	public UUID upsertClientDevice(@Nonnull UpsertClientDeviceRequest request) {
 		requireNonNull(request);
@@ -230,45 +231,47 @@ public class ClientDeviceService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		UUID clientDeviceId = getDatabase().executeReturning("""					
-				INSERT INTO client_device (
-				  client_device_type_id,
-				  fingerprint,
-				  model,
-				  brand,
-				  operating_system_name,
-				  operating_system_version
-				)
-				VALUES (?,?,?,?,?,?)
-				ON CONFLICT ON CONSTRAINT client_device_unique_idx
-				DO UPDATE SET
-				  operating_system_name=EXCLUDED.operating_system_name,
-				  operating_system_version=EXCLUDED.operating_system_version
-				RETURNING client_device_id
-				""", UUID.class, clientDeviceTypeId, fingerprint, model, brand, operatingSystemName, operatingSystemVersion).get();
+		return getDatabase().transaction(() -> {
+			UUID clientDeviceId = getDatabase().executeReturning("""					
+					INSERT INTO client_device (
+					  client_device_type_id,
+					  fingerprint,
+					  model,
+					  brand,
+					  operating_system_name,
+					  operating_system_version
+					)
+					VALUES (?,?,?,?,?,?)
+					ON CONFLICT ON CONSTRAINT client_device_unique_idx
+					DO UPDATE SET
+					  operating_system_name=EXCLUDED.operating_system_name,
+					  operating_system_version=EXCLUDED.operating_system_version
+					RETURNING client_device_id
+					""", UUID.class, clientDeviceTypeId, fingerprint, model, brand, operatingSystemName, operatingSystemVersion).get();
 
-		if (accountId != null) {
-			Transaction transaction = getDatabase().currentTransaction().get();
-			Savepoint savepoint = transaction.createSavepoint();
+			if (accountId != null) {
+				Transaction transaction = getDatabase().currentTransaction().get();
+				Savepoint savepoint = transaction.createSavepoint();
 
-			try {
-				getDatabase().execute("""
-						    INSERT INTO account_client_device (
-						      client_device_id,
-						      account_id
-						    ) VALUES (?,?)
-						""", clientDeviceId, accountId);
-			} catch (DatabaseException e) {
-				if ("account_client_device_unique_idx".equals(e.constraint().orElse(null))) {
-					getLogger().trace("Client device already associated with account, don't need to re-associate.");
-					transaction.rollback(savepoint);
-				} else {
-					throw e;
+				try {
+					getDatabase().execute("""
+							    INSERT INTO account_client_device (
+							      client_device_id,
+							      account_id
+							    ) VALUES (?,?)
+							""", clientDeviceId, accountId);
+				} catch (DatabaseException e) {
+					if ("account_client_device_unique_idx".equals(e.constraint().orElse(null))) {
+						getLogger().trace("Client device already associated with account, don't need to re-associate.");
+						transaction.rollback(savepoint);
+					} else {
+						throw e;
+					}
 				}
 			}
-		}
 
-		return clientDeviceId;
+			return clientDeviceId;
+		});
 	}
 
 	@Nonnull
