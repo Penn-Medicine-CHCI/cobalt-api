@@ -40,8 +40,6 @@ public class UpdateCareResourceLocationRequest {
 	@Nullable
 	private String notes;
 	@Nullable
-	private String internalNotes;
-	@Nullable
 	private String emailAddress;
 	@Nullable
 	private String streetAddress2;
@@ -241,15 +239,6 @@ public class UpdateCareResourceLocationRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
-	}
-
-	@Nullable
-	public String getInternalNotes() {
-		return internalNotes;
-	}
-
-	public void setInternalNotes(@Nullable String internalNotes) {
-		this.internalNotes = internalNotes;
 	}
 
 	@Nullable

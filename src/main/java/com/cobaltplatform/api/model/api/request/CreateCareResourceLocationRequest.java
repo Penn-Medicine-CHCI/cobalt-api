@@ -38,8 +38,6 @@ public class CreateCareResourceLocationRequest {
 	@Nullable
 	private String name;
 	@Nullable
-	private String internalNotes;
-	@Nullable
 	private String notes;
 	@Nullable
 	private String emailAddress;
@@ -251,15 +249,6 @@ public class CreateCareResourceLocationRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
-	}
-
-	@Nullable
-	public String getInternalNotes() {
-		return internalNotes;
-	}
-
-	public void setInternalNotes(@Nullable String internalNotes) {
-		this.internalNotes = internalNotes;
 	}
 
 	@Nullable

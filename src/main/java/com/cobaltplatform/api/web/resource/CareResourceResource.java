@@ -23,6 +23,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
@@ -339,6 +340,33 @@ public class CareResourceResource {
 		}});
 	}
 
+	@Nonnull
+	@PUT("/care-resources/location/internal-notes")
+	@AuthenticationRequired
+	public ApiResponse updateCareResourceLocationNote(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		UpdateCareResourceLocationNoteRequest request = getRequestBodyParser().parse(requestBody, UpdateCareResourceLocationNoteRequest.class);
+
+		UUID careResourceLocationId = getCareResourceService().updateCareResourceLocationNote(request);
+
+		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId,
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+getLogger().debug("1");
+getLogger().debug(careResourceLocationId.toString());
+		if (careResourceLocation == null)
+			throw new NotFoundException();
+
+		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
+				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+		getLogger().debug("2");
+		if (careResource == null)
+			throw new NotFoundException();
+		getLogger().debug("3");
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
+		}});
+	}
 	@Nonnull
 	@PUT("/care-resources/location")
 	@AuthenticationRequired
