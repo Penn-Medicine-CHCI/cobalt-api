@@ -146,7 +146,8 @@ VALUES
   ('POPULATION_SERVED', 'Population Served'),
   ('GENDERS', 'Genders'),
   ('ETHNICITIES', 'Ethnicites'),
-  ('LANGUAGES', 'Languages');
+  ('LANGUAGES', 'Languages'),
+  ('FACILITY_TYPES', 'Facility Type');
 
 INSERT INTO care_resource_tag 
  (care_resource_tag_id, name, care_resource_tag_group_id)

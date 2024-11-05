@@ -47,7 +47,7 @@ public class CareResourceTag {
 		ETHNICITIES,
 		LANGUAGES,
 		POPULATION_SERVED,
-		FACILITY_TYPE
+		FACILITY_TYPES
 	}
 
 	@Nullable

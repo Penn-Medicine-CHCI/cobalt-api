@@ -155,7 +155,7 @@ public class CareResourceLocationApiResponse {
 		this.ethnicities = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.ETHNICITIES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
-		this.facilityTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.FACILITY_TYPE).stream()
+		this.facilityTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.FACILITY_TYPES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
 	}
