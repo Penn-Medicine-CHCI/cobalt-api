@@ -1758,7 +1758,7 @@ public class PatientOrderService implements AutoCloseable {
 				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
 				.trim();
 
-		List<Object> finalParameters = new ArrayList<>(parameters.size() + rawPatientOrderParameters.size());
+		List<Object> finalParameters = new ArrayList<>(parameters.size() + rawPatientOrderParameters.size() + limitOffsetParameters.size());
 		finalParameters.addAll(parameters);
 		finalParameters.addAll(rawPatientOrderParameters);
 		finalParameters.addAll(limitOffsetParameters);
