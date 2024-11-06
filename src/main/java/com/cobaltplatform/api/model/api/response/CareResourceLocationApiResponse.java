@@ -40,6 +40,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -119,12 +120,14 @@ public class CareResourceLocationApiResponse {
 		requireNonNull(formatter);
 		requireNonNull(careResourceTagApiResponseFactory);
 
+		String insuranceNotes = trimToNull(careResourceLocation.getInsuranceNotes());
+
 		this.resourceName = careResource.getName();
 		this.resourceNotes = careResource.getNotes();
 		this.careResourceId = careResourceLocation.getCareResourceId();
 		this.websiteUrl = careResourceLocation.getWebsiteUrl();
 		this.emailAddress = careResourceLocation.getEmailAddress();
-		this.insuranceNotes = careResourceLocation.getInsuranceNotes();
+		this.insuranceNotes = insuranceNotes == null ? careResource.getInsuranceNotes() : insuranceNotes;
 		this.acceptingNewPatients = careResourceLocation.getAcceptingNewPatients();
 		this.careResourceLocationId = careResourceLocation.getCareResourceLocationId();
 		this.name = careResourceLocation.getName();
