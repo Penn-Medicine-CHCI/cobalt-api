@@ -288,6 +288,14 @@ public class CareResourceService {
 			validationException.add(new ValidationException.FieldError("address", "Could not find address for this location."));
 		if (googlePlaceId == null)
 			validationException.add(new ValidationException.FieldError("googlePlaceId", "Google Place Id is required."));
+		if (overridePayors && request.getPayorIds().size() == 0)
+			validationException.add(new ValidationException.FieldError("payorIds", "At least on insurance carrier is required to override."));
+		if (!overridePayors) {
+			List<CareResourceTag> resourcePayors = findTagsByCareResourceIdAndGroupId(currentCareResourceLocation.getCareResourceId(), CareResourceTagGroupId.PAYORS);
+
+			if (resourcePayors.size() == 0)
+				validationException.add(new ValidationException.FieldError("payorIds", "At least on insurance carrier is required."));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -415,9 +423,14 @@ public class CareResourceService {
 			validationException.add(new ValidationException.FieldError("careResource", "Could not find Care Resource."));
 		if (googlePlaceId == null)
 			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required."));
-		if (request.getPayorIds() != null && request.getPayorIds().isEmpty() && findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.PAYORS).isEmpty())
-			validationException.add(new ValidationException.FieldError("payors", "At least one insurance carrier is required."));
+		if (overridePayors && request.getPayorIds().size() == 0)
+			validationException.add(new ValidationException.FieldError("payorIds", "At least on insurance carrier is required."));
+		if (!overridePayors) {
+			List<CareResourceTag> resourcePayors = findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.PAYORS);
 
+			if (resourcePayors.size() == 0)
+				validationException.add(new ValidationException.FieldError("payorIds", "At least on insurance carrier is required."));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -510,6 +523,18 @@ public class CareResourceService {
 
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", "Name is required."));
+
+		if (request.getPayorIds().size() == 0) {
+			Boolean locationsWithNoPayors = getDatabase().queryForObject("""
+					SELECT COUNT(*) > 0
+					FROM care_resource_location 
+					WHERE care_resource_id = ? 
+					AND override_payors = false
+					""", Boolean.class, careResourceId).get();
+
+			if (locationsWithNoPayors)
+				validationException.add(new ValidationException.FieldError("payorIds", "Cannot remove all insurance carriers because one or more locations do not have any defined."));
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
