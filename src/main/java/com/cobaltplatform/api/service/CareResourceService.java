@@ -271,10 +271,13 @@ public class CareResourceService {
 		String websiteUrl = trimToNull(request.getWebsiteUrl());
 		ValidationException validationException = new ValidationException();
 		String name = trimToNull(request.getName());
-		String insuranceNotes = trimToNull(request.getInsuranceNotes());
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID careResourceLocationId = request.getCareResourceLocationId();
 		UpdateAddressRequest updateAddressRequest = new UpdateAddressRequest();
+		Boolean overridePayors = request.getOverridePayors();
+		Boolean overrideSpecialties = request.getOverrideSpecialties();
+		// Only use the location level insurance notes if the resource level is being overridden
+		String insuranceNotes = overridePayors ? trimToNull(request.getInsuranceNotes()) : null;
 
 		CareResourceLocation currentCareResourceLocation = findCareResourceLocationById(careResourceLocationId, institutionId).orElse(null);
 		Address currentAddress = getAddressService().findAddressById(currentCareResourceLocation.getAddressId()).orElse(null);
@@ -343,11 +346,11 @@ public class CareResourceService {
 		getDatabase().execute("""
 						UPDATE care_resource_location
 						SET phone_number = ?, wheelchair_access=?, notes=?, accepting_new_patients=?,
-						website_url=?, name=?, insurance_notes=?, email_address =?
+						website_url=?, name=?, insurance_notes=?, email_address =?, override_payors =?, override_specialties =?
 						WHERE care_resource_location_id = ?
 						""",
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, emailAddress, careResourceLocationId);
+				websiteUrl, name, insuranceNotes, emailAddress, overridePayors, overrideSpecialties, careResourceLocationId);
 
 		getDatabase().execute("""
 				DELETE FROM care_resource_location_care_resource_tag
@@ -355,11 +358,11 @@ public class CareResourceService {
 				""", careResourceLocationId);
 
 		List<String> allTags = new ArrayList<>();
-		if (request.getPayorIds() != null)
+		if (request.getPayorIds() != null && overridePayors)
 			allTags.addAll(request.getPayorIds());
 		if (request.getEthnicityIds() != null)
 			allTags.addAll(request.getEthnicityIds());
-		if (request.getSpecialtyIds() != null)
+		if (request.getSpecialtyIds() != null && overrideSpecialties)
 			allTags.addAll(request.getSpecialtyIds());
 		if (request.getLanguageIds() != null)
 			allTags.addAll(request.getLanguageIds());
@@ -400,8 +403,11 @@ public class CareResourceService {
 		String websiteUrl = trimToNull(request.getWebsiteUrl());
 		ValidationException validationException = new ValidationException();
 		String name = trimToNull(request.getName());
-		String insuranceNotes = trimToNull(request.getInsuranceNotes());
 		InstitutionId institutionId = request.getInstitutionId();
+		Boolean overridePayors = request.getOverridePayors();
+		Boolean overrideSpecialties = request.getOverrideSpecialties();
+		// Only use the location level insurance notes if the resource level is being overridden
+		String insuranceNotes = overridePayors ? trimToNull(request.getInsuranceNotes()) : null;
 
 		CareResource careResource = findCareResourceById(careResourceId, institutionId).orElse(null);
 
@@ -453,19 +459,19 @@ public class CareResourceService {
 						INSERT INTO care_resource_location
 						  (care_resource_location_id, care_resource_id, address_id,
 						  phone_number, wheelchair_access, notes, accepting_new_patients,
-						  website_url, name, insurance_notes, created_by_account_id, email_address)
+						  website_url, name, insurance_notes, created_by_account_id, email_address, override_payors, override_specialties)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?,?)
+						  (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						  """, careResourceLocationId, careResourceId, addressId,
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress);
+				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress, overridePayors, overrideSpecialties);
 
 		List<String> allTags = new ArrayList<>();
-		if (request.getPayorIds() != null)
+		if (request.getPayorIds() != null && overridePayors)
 			allTags.addAll(request.getPayorIds());
 		if (request.getEthnicityIds() != null)
 			allTags.addAll(request.getEthnicityIds());
-		if (request.getSpecialtyIds() != null)
+		if (request.getSpecialtyIds() != null && overrideSpecialties)
 			allTags.addAll(request.getSpecialtyIds());
 		if (request.getLanguageIds() != null)
 			allTags.addAll(request.getLanguageIds());

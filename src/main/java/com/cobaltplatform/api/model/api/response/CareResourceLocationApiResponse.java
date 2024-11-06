@@ -80,6 +80,10 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private Boolean acceptingNewPatients;
 	@Nullable
+	private Boolean overridePayors;
+	@Nullable
+	private Boolean overrideSpecialties;
+	@Nullable
 	private List<CareResourceTagApiResponse> languages;
 	@Nullable
 	private List<CareResourceTagApiResponse> specialties;
@@ -120,14 +124,11 @@ public class CareResourceLocationApiResponse {
 		requireNonNull(formatter);
 		requireNonNull(careResourceTagApiResponseFactory);
 
-		String insuranceNotes = trimToNull(careResourceLocation.getInsuranceNotes());
-
 		this.resourceName = careResource.getName();
 		this.resourceNotes = careResource.getNotes();
 		this.careResourceId = careResourceLocation.getCareResourceId();
 		this.websiteUrl = careResourceLocation.getWebsiteUrl();
 		this.emailAddress = careResourceLocation.getEmailAddress();
-		this.insuranceNotes = insuranceNotes == null ? careResource.getInsuranceNotes() : insuranceNotes;
 		this.acceptingNewPatients = careResourceLocation.getAcceptingNewPatients();
 		this.careResourceLocationId = careResourceLocation.getCareResourceLocationId();
 		this.name = careResourceLocation.getName();
@@ -137,15 +138,32 @@ public class CareResourceLocationApiResponse {
 		this.notes = careResourceLocation.getNotes();
 		this.internalNotes = careResourceLocation.getInternalNotes();
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
+		this.overridePayors = careResourceLocation.getOverridePayors();
+		this.overrideSpecialties = careResourceLocation.getOverrideSpecialties();
 		this.languages = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.LANGUAGES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
-		this.specialties = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.SPECIALTIES).stream()
+
+		if (this.overrideSpecialties)
+			this.specialties = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.SPECIALTIES).stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
+		else
+		this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
-		this.payors = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.PAYORS).stream()
-				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
-				.collect(Collectors.toList());
+
+		if (this.overridePayors) {
+			this.payors = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.PAYORS).stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
+			this.insuranceNotes = careResourceLocation.getInsuranceNotes();
+		} else {
+			this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.PAYORS).stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
+			this.insuranceNotes = careResource.getInsuranceNotes();
+		}
 		this.therapyTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.THERAPY_TYPES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
@@ -197,8 +215,6 @@ public class CareResourceLocationApiResponse {
 	public List<CareResourceTagApiResponse> getLanguages() {
 		return languages;
 	}
-
-
 
 
 	@Nullable
@@ -289,5 +305,15 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	public List<CareResourceTagApiResponse> getFacilityTypes() {
 		return facilityTypes;
+	}
+
+	@Nullable
+	public Boolean getOverridePayors() {
+		return overridePayors;
+	}
+
+	@Nullable
+	public Boolean getOverrideSpecialties() {
+		return overrideSpecialties;
 	}
 }

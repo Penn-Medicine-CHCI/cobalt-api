@@ -73,6 +73,10 @@ public class CreateCareResourceLocationRequest {
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
+	private Boolean overridePayors;
+	@Nullable
+	private Boolean overrideSpecialties;
+	@Nullable
 	public UUID getCareResourceId() {
 		return careResourceId;
 	}
@@ -258,5 +262,23 @@ public class CreateCareResourceLocationRequest {
 
 	public void setFacilityTypes(@Nullable List<String> facilityTypes) {
 		this.facilityTypes = facilityTypes;
+	}
+
+	@Nullable
+	public Boolean getOverridePayors() {
+		return overridePayors;
+	}
+
+	public void setOverridePayors(@Nullable Boolean overridePayors) {
+		this.overridePayors = overridePayors;
+	}
+
+	@Nullable
+	public Boolean getOverrideSpecialties() {
+		return overrideSpecialties;
+	}
+
+	public void setOverrideSpecialties(@Nullable Boolean overrideSpecialties) {
+		this.overrideSpecialties = overrideSpecialties;
 	}
 }

@@ -70,6 +70,10 @@ public class UpdateCareResourceLocationRequest {
 	private Boolean wheelchairAccess;
 	@Nullable
 	private InstitutionId institutionId;
+	@Nullable
+	private Boolean overridePayors;
+	@Nullable
+	private Boolean overrideSpecialties;
 
 	@Nullable
 	public UUID getCareResourceLocationId() {
@@ -248,5 +252,23 @@ public class UpdateCareResourceLocationRequest {
 
 	public void setFacilityTypes(@Nullable List<String> facilityTypes) {
 		this.facilityTypes = facilityTypes;
+	}
+
+	@Nullable
+	public Boolean getOverridePayors() {
+		return overridePayors;
+	}
+
+	public void setOverridePayors(@Nullable Boolean overridePayors) {
+		this.overridePayors = overridePayors;
+	}
+
+	@Nullable
+	public Boolean getOverrideSpecialties() {
+		return overrideSpecialties;
+	}
+
+	public void setOverrideSpecialties(@Nullable Boolean overrideSpecialties) {
+		this.overrideSpecialties = overrideSpecialties;
 	}
 }
