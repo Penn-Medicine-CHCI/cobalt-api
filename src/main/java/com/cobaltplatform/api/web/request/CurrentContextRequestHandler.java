@@ -68,6 +68,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.util.WebUtility.extractValueFromRequest;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -177,8 +178,12 @@ public class CurrentContextRequestHandler {
 
 		String currentContextDescription = currentContextComponents.stream().collect(Collectors.joining(", "));
 
+		// Header for device capabilities
+		String clientDeviceCapabilities = trimToNull(httpServletRequest.getHeader("X-Client-Device-Capabilities"));
+
 		// This is later cleared out via a finally {} block in AppModule
 		MDC.put(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY, currentContextDescription);
+		MDC.put(LoggingUtility.CAPABILITIES_LOGGING_KEY, clientDeviceCapabilities);
 
 		boolean healthCheck = httpServletRequest.getRequestURI().startsWith("/system/health-check");
 		boolean analytics = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Analytics"), "true");

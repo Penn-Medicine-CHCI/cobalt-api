@@ -511,6 +511,7 @@ public class AppModule extends AbstractModule {
 				try {
 					super.doFilter(servletRequest, servletResponse, filterChain);
 				} finally {
+					MDC.remove(LoggingUtility.CAPABILITIES_LOGGING_KEY);
 					MDC.remove(LoggingUtility.CURRENT_CONTEXT_LOGGING_KEY);
 				}
 			}
