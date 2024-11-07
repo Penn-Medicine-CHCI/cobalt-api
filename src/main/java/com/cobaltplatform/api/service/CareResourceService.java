@@ -24,6 +24,7 @@ import com.cobaltplatform.api.integration.google.model.NormalizedPlace;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
+import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationNoteRequest;
@@ -35,6 +36,7 @@ import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
@@ -42,6 +44,7 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.maps.places.v1.Place;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.checkerframework.checker.units.qual.N;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,10 +54,14 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -207,12 +214,124 @@ public class CareResourceService {
 
 		parameters.add(limit);
 		parameters.add(offset);
-		getLogger().debug(query.toString());
+
 		List<CareResourceWithTotalCount> careResources = getDatabase().queryForList(query.toString(), CareResourceWithTotalCount.class, parameters.toArray());
 
 		FindResult<? extends CareResource> findResult = new FindResult<>(careResources, careResources.size() == 0 ? 0 : careResources.get(0).getTotalCount());
 
 		return (FindResult<CareResource>) findResult;
+	}
+
+	@Nonnull
+	private void appendTagWhereClause(@Nonnull StringBuilder query, Set<String> tags) {
+		query.append(format("""
+					AND EXISTS 
+					(SELECT 'X'
+					FROM care_resource_location_care_resource_tag crlc
+					WHERE crlc.care_resource_location_id = vcr.care_resource_location_id
+					AND crlc.care_resource_tag_id IN %s) """, sqlInListPlaceholders(tags)));
+	}
+
+	@Nonnull
+	public FindResult<CareResourceLocation> findAllCareResourceLocationsByInstitutionIdWithFilters(@Nonnull FindCareResourceLocationsRequest request) {
+		requireNonNull(request);
+
+		InstitutionId institutionId = request.getInstitutionId();
+		Integer pageNumber = request.getPageNumber();
+		Integer pageSize = request.getPageSize();
+		String search = trimToNull(request.getSearch());
+		Boolean wheelchairAccess = request.getWheelchairAccess() == null ? null : request.getWheelchairAccess();
+		Set<String> payorIds = request.getPayorIds() == null ? Set.of() : request.getPayorIds();
+		Set<String> specialtyIds = request.getSpecialtyIds() == null ? Set.of() : request.getSpecialtyIds();
+		Set<String> therapyTypeIds = request.getTherapyTypeIds() == null ? Set.of() : request.getTherapyTypeIds();
+		Set<String> populationServedIds = request.getPopulationServedIds() == null ? Set.of() : request.getPopulationServedIds();
+		Set<String> genderIds = request.getGenderIds() == null ? Set.of() : request.getGenderIds();
+		Set<String> ethnicityIds = request.getEthnicityIds() == null ? Set.of() : request.getEthnicityIds();
+		Set<String> languageIds = request.getLanguageIds() == null ? Set.of() : request.getLanguageIds();
+		Set<String> facilityTypes = request.getFacilityTypes() == null ? Set.of() : request.getFacilityTypes();
+
+		FindCareResourceLocationsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindCareResourceLocationsRequest.OrderBy.NAME_ASC : request.getOrderBy();
+
+		final int DEFAULT_PAGE_SIZE = 25;
+		final int MAXIMUM_PAGE_SIZE = 100;
+
+		if (pageNumber == null || pageNumber < 0)
+			pageNumber = 0;
+
+		if (pageSize == null || pageSize <= 0)
+			pageSize = DEFAULT_PAGE_SIZE;
+		else if (pageSize > MAXIMUM_PAGE_SIZE)
+			pageSize = MAXIMUM_PAGE_SIZE;
+
+		Integer limit = pageSize;
+		Integer offset = pageNumber * pageSize;
+		List<Object> parameters = new ArrayList<>();
+
+		StringBuilder query = new StringBuilder("SELECT vcr.*, COUNT(vcr.care_resource_location_id) OVER() AS total_count FROM v_care_resource_location_institution vcr ");
+
+		query.append("WHERE vcr.institution_id = ? ");
+		parameters.add(institutionId);
+
+		if (search != null) {
+			query.append("AND vcr.name ILIKE CONCAT('%',?,'%') ");
+			parameters.add(search);
+		}
+		if (payorIds.size() > 0) {
+			appendTagWhereClause(query, request.getPayorIds());
+			parameters.addAll(request.getPayorIds());
+		}
+		if (specialtyIds.size() > 0) {
+			appendTagWhereClause(query, request.getSpecialtyIds());
+			parameters.addAll(request.getSpecialtyIds());
+		}
+		if (therapyTypeIds.size() > 0) {
+			appendTagWhereClause(query, request.getTherapyTypeIds());
+			parameters.addAll(request.getTherapyTypeIds());
+		}
+		if (populationServedIds.size() > 0) {
+			appendTagWhereClause(query, request.getPopulationServedIds());
+			parameters.addAll(request.getPopulationServedIds());
+		}
+		if (genderIds.size() > 0) {
+			appendTagWhereClause(query, request.getGenderIds());
+			parameters.addAll(request.getGenderIds());
+		}
+		if (ethnicityIds.size() > 0) {
+			appendTagWhereClause(query, request.getEthnicityIds());
+			parameters.addAll(request.getEthnicityIds());
+		}
+		if (languageIds.size() > 0) {
+			appendTagWhereClause(query, request.getLanguageIds());
+			parameters.addAll(request.getLanguageIds());
+		}
+		if (facilityTypes.size() > 0) {
+			appendTagWhereClause(query, request.getFacilityTypes());
+			parameters.addAll(request.getFacilityTypes());
+		}
+
+		if (wheelchairAccess != null) {
+			query.append("AND wheelchair_access = ? ");
+			parameters.add(wheelchairAccess);
+		}
+
+		query.append(" ORDER BY ");
+
+		if (orderBy == FindCareResourceLocationsRequest.OrderBy.NAME_DESC)
+			query.append("vcr.name DESC ");
+		else if (orderBy == FindCareResourceLocationsRequest.OrderBy.NAME_ASC)
+			query.append("vcr.name ASC ");
+
+		query.append("LIMIT ? OFFSET ? ");
+
+		parameters.add(limit);
+		parameters.add(offset);
+
+		getLogger().debug(format("SQL = %s", query.toString() ));
+		List<CareResourceLocationWithTotalCount> careResources = getDatabase().queryForList(query.toString(), CareResourceLocationWithTotalCount.class, parameters.toArray());
+
+		FindResult<? extends CareResourceLocation> findResult = new FindResult<>(careResources, careResources.size() == 0 ? 0 : careResources.get(0).getTotalCount());
+
+		return (FindResult<CareResourceLocation>) findResult;
 	}
 
 	@Nonnull
@@ -368,10 +487,16 @@ public class CareResourceService {
 		List<String> allTags = new ArrayList<>();
 		if (request.getPayorIds() != null && overridePayors)
 			allTags.addAll(request.getPayorIds());
+		else
+			allTags.addAll(findTagsByCareResourceIdAndGroupId(currentCareResourceLocation.getCareResourceId(), CareResourceTagGroupId.PAYORS)
+					.stream().map(tag -> tag.getCareResourceTagId()).collect(Collectors.toList()));
 		if (request.getEthnicityIds() != null)
 			allTags.addAll(request.getEthnicityIds());
 		if (request.getSpecialtyIds() != null && overrideSpecialties)
 			allTags.addAll(request.getSpecialtyIds());
+		else
+			allTags.addAll(findTagsByCareResourceIdAndGroupId(currentCareResourceLocation.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES)
+					.stream().map(tag -> tag.getCareResourceTagId()).collect(Collectors.toList()));
 		if (request.getLanguageIds() != null)
 			allTags.addAll(request.getLanguageIds());
 		if (request.getPopulationServedIds() != null)
@@ -482,10 +607,16 @@ public class CareResourceService {
 		List<String> allTags = new ArrayList<>();
 		if (request.getPayorIds() != null && overridePayors)
 			allTags.addAll(request.getPayorIds());
+		else
+			allTags.addAll(findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.PAYORS)
+					.stream().map(tag -> tag.getCareResourceTagId()).collect(Collectors.toList()));
 		if (request.getEthnicityIds() != null)
 			allTags.addAll(request.getEthnicityIds());
 		if (request.getSpecialtyIds() != null && overrideSpecialties)
 			allTags.addAll(request.getSpecialtyIds());
+		else
+			allTags.addAll(findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.SPECIALTIES)
+					.stream().map(tag -> tag.getCareResourceTagId()).collect(Collectors.toList()));
 		if (request.getLanguageIds() != null)
 			allTags.addAll(request.getLanguageIds());
 		if (request.getPopulationServedIds() != null)

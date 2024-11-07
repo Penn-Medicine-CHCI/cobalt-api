@@ -87,13 +87,9 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_locatio
 CREATE TABLE patient_order_resource_packet (
 	patient_order_resource_packet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	patient_order_id UUID NOT NULL REFERENCES patient_order,
-	current_flag BOOLEAN NOT NULL DEFAULT true,	
-	postal_code TEXT NOT NULL,
+	address_id UUID NULL REFERENCES address,
 	travel_radius INTEGER NOT NULL,
 	travel_radius_distance_unit_id TEXT NOT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE',
-	support_role_id TEXT NOT NULL REFERENCES support_role,
-	intro_text TEXT NOT NULL,
-	end_text TEXT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -103,7 +99,6 @@ CREATE TABLE patient_order_resource_packet_resource (
 	patient_order_resource_packet_resource_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	patient_order_resource_packet_id UUID REFERENCES patient_order_resource_packet,
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
-	included BOOLEAN NOT NULL DEFAULT false,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()

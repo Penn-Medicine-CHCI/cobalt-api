@@ -20,10 +20,13 @@
 package com.cobaltplatform.api.model.api.response;
 
 
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
+import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
@@ -117,12 +120,20 @@ public class CareResourceLocationApiResponse {
 																				 @Assisted @Nonnull CareResource careResource,
 																				 @Nonnull AddressService addressService,
 																				 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
+																				 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 																				 @Nonnull Formatter formatter) {
 		requireNonNull(careResourceService);
 		requireNonNull(careResourceLocation);
 		requireNonNull(addressService);
 		requireNonNull(formatter);
 		requireNonNull(careResourceTagApiResponseFactory);
+		requireNonNull(currentContextProvider);
+
+		CurrentContext currentContext = currentContextProvider.get();
+		Account account = currentContext.getAccount().get();
+
+		if (account.getRoleId() == Role.RoleId.MHIC)
+			this.internalNotes = careResourceLocation.getInternalNotes();
 
 		this.resourceName = careResource.getName();
 		this.resourceNotes = careResource.getNotes();
@@ -136,7 +147,6 @@ public class CareResourceLocationApiResponse {
 		this.phoneNumber = careResourceLocation.getPhoneNumber();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
-		this.internalNotes = careResourceLocation.getInternalNotes();
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
 		this.overridePayors = careResourceLocation.getOverridePayors();
 		this.overrideSpecialties = careResourceLocation.getOverrideSpecialties();

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
+import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationRequest;
@@ -60,6 +61,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
@@ -168,6 +170,7 @@ public class CareResourceResource {
 					.collect(Collectors.toList()));
 		}});
 	}
+
 	@Nonnull
 	@GET("/care-resources")
 	@AuthenticationRequired
@@ -199,6 +202,68 @@ public class CareResourceResource {
 					.collect(Collectors.toList()));
 		}});
 	}
+
+	@Nonnull
+	@GET("/care-resources/locations")
+	@AuthenticationRequired
+	public ApiResponse findAllCareResourcesLocationsWithFilters(@Nonnull @QueryParameter Optional<Integer> pageNumber,
+																															@Nonnull @QueryParameter Optional<Integer> pageSize,
+																															@Nonnull @QueryParameter Optional<String> searchQuery,
+																															@Nonnull @QueryParameter Optional<FindCareResourceLocationsRequest.OrderBy> orderBy,
+																															@Nonnull @QueryParameter Optional<Boolean> wheelchairAccess,
+																															@Nonnull @QueryParameter Optional<List<String>> payorIds,
+																															@Nonnull @QueryParameter Optional<List<String>> specialtyIds,
+																															@Nonnull @QueryParameter Optional<List<String>> therapyTypeIds,
+																															@Nonnull @QueryParameter Optional<List<String>> populationServedIds,
+																															@Nonnull @QueryParameter Optional<List<String>> genderIds,
+																															@Nonnull @QueryParameter Optional<List<String>> ethnicityIds,
+																															@Nonnull @QueryParameter Optional<List<String>> languageIds,
+																															@Nonnull @QueryParameter Optional<List<String>> facilityTypes) {
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+		requireNonNull(searchQuery);
+		requireNonNull(orderBy);
+		requireNonNull(payorIds);
+		requireNonNull(specialtyIds);
+		requireNonNull(therapyTypeIds);
+		requireNonNull(populationServedIds);
+		requireNonNull(genderIds);
+		requireNonNull(ethnicityIds);
+		requireNonNull(languageIds);
+		requireNonNull(facilityTypes);
+		requireNonNull(wheelchairAccess);
+
+		Account account = getCurrentContext().getAccount().get();
+		FindResult<CareResourceLocation> findResult = getCareResourceService().findAllCareResourceLocationsByInstitutionIdWithFilters(new FindCareResourceLocationsRequest() {
+			{
+				setPageNumber(pageNumber.orElse(0));
+				setPageSize(pageSize.orElse(0));
+				setInstitutionId(account.getInstitutionId());
+				setSearch(searchQuery.orElse(null));
+				setOrderBy(orderBy.orElse(null));
+				setPayorIds(new HashSet<>(payorIds.orElse(List.of())));
+				setSpecialtyIds(new HashSet<>(specialtyIds.orElse(List.of())));
+				setTherapyTypeIds(new HashSet<>(therapyTypeIds.orElse(List.of())));
+				setPopulationServedIds(new HashSet<>(populationServedIds.orElse(List.of())));
+				setGenderIds(new HashSet<>(genderIds.orElse(List.of())));
+				setEthnicityIds(new HashSet<>(ethnicityIds.orElse(List.of())));
+				setLanguageIds(new HashSet<>(languageIds.orElse(List.of())));
+				setFacilityTypes(new HashSet<>(facilityTypes.orElse(List.of())));
+				setWheelchairAccess(wheelchairAccess.orElse(null));
+			}
+		});
+
+		//TODO: more performant way to pass careResource
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("totalCount", findResult.getTotalCount());
+			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+			put("careResourceLocations", findResult.getResults().stream()
+					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation, getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
+									getCurrentContext().getAccount().get().getInstitutionId()).orElse(null)))
+					.collect(Collectors.toList()));
+		}});
+	}
+
 	@Nonnull
 	@PUT("/care-resources")
 	@AuthenticationRequired
@@ -219,17 +284,6 @@ public class CareResourceResource {
 		}});
 	}
 
-	/*@Nonnull
-	@DELETE("/care-resources/{careResourceId}")
-	@AuthenticationRequired
-	public ApiResponse createCareResource(@Nonnull @PathParameter String requestBody) {
-		requireNonNull(requestBody);
-
-		return new ApiResponse();
-	}
-	*/
-
-
 	@Nonnull
 	@POST("/care-resources")
 	@AuthenticationRequired
@@ -249,6 +303,7 @@ public class CareResourceResource {
 			put("careResource", getCareResourceApiResponseFactory().create(careResource, true));
 		}});
 	}
+
 	@Nonnull
 	@DELETE("/care-resources/{careResourceId}")
 	@AuthenticationRequired
@@ -352,8 +407,8 @@ public class CareResourceResource {
 
 		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId,
 				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
-getLogger().debug("1");
-getLogger().debug(careResourceLocationId.toString());
+		getLogger().debug("1");
+		getLogger().debug(careResourceLocationId.toString());
 		if (careResourceLocation == null)
 			throw new NotFoundException();
 
@@ -367,6 +422,7 @@ getLogger().debug(careResourceLocationId.toString());
 			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
 		}});
 	}
+
 	@Nonnull
 	@PUT("/care-resources/location")
 	@AuthenticationRequired
