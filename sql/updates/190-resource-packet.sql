@@ -69,6 +69,8 @@ CREATE TABLE care_resource_location (
 	created_by_account_id UUID NOT NULL REFERENCES account,
 	override_payors BOOLEAN NOT NULL DEFAULT FALSE,
   override_specialties BOOLEAN NOT NULL DEFAULT FALSE,
+	appointment_type_in_person BOOLEAN NOT NULL DEFAULT FALSE,
+	appointment_type_online BOOLEAN NOT NULL DEFAULT FALSE,
 	deleted BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()

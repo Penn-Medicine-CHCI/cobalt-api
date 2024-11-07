@@ -77,6 +77,10 @@ public class CreateCareResourceLocationRequest {
 	@Nullable
 	private Boolean overrideSpecialties;
 	@Nullable
+	private Boolean appointmentTypeInPerson;
+	@Nullable
+	private Boolean appointmentTypeOnline;
+	@Nullable
 	public UUID getCareResourceId() {
 		return careResourceId;
 	}
@@ -280,5 +284,23 @@ public class CreateCareResourceLocationRequest {
 
 	public void setOverrideSpecialties(@Nullable Boolean overrideSpecialties) {
 		this.overrideSpecialties = overrideSpecialties;
+	}
+
+	@Nullable
+	public Boolean getAppointmentTypeInPerson() {
+		return appointmentTypeInPerson;
+	}
+
+	public void setAppointmentTypeInPerson(@Nullable Boolean appointmentTypeInPerson) {
+		this.appointmentTypeInPerson = appointmentTypeInPerson;
+	}
+
+	@Nullable
+	public Boolean getAppointmentTypeOnline() {
+		return appointmentTypeOnline;
+	}
+
+	public void setAppointmentTypeOnline(@Nullable Boolean appointmentTypeOnline) {
+		this.appointmentTypeOnline = appointmentTypeOnline;
 	}
 }

@@ -103,6 +103,10 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private List<CareResourceTagApiResponse> facilityTypes;
 	@Nullable
+	private Boolean appointmentTypeInPerson;
+	@Nullable
+	private Boolean appointmentTypeOnline;
+	@Nullable
 	private CareResourceTagApiResponseFactory careResourceTagApiResponseFactory;
 
 
@@ -150,6 +154,8 @@ public class CareResourceLocationApiResponse {
 		this.wheelchairAccess = careResourceLocation.getWheelchairAccess();
 		this.overridePayors = careResourceLocation.getOverridePayors();
 		this.overrideSpecialties = careResourceLocation.getOverrideSpecialties();
+		this.appointmentTypeInPerson = careResourceLocation.getAppointmentTypeInPerson();
+		this.appointmentTypeOnline = careResourceLocation.getAppointmentTypeOnline();
 		this.languages = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.LANGUAGES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
@@ -325,5 +331,15 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	public Boolean getOverrideSpecialties() {
 		return overrideSpecialties;
+	}
+
+	@Nullable
+	public Boolean getAppointmentTypeInPerson() {
+		return appointmentTypeInPerson;
+	}
+
+	@Nullable
+	public Boolean getAppointmentTypeOnline() {
+		return appointmentTypeOnline;
 	}
 }

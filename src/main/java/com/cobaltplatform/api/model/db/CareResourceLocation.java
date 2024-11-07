@@ -60,6 +60,10 @@ public class CareResourceLocation {
 	@Nullable
 	private Boolean overrideSpecialties;
 	@Nullable
+	private Boolean appointmentTypeInPerson;
+	@Nullable
+	private Boolean appointmentTypeOnline;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -206,5 +210,23 @@ public class CareResourceLocation {
 
 	public void setOverrideSpecialties(@Nullable Boolean overrideSpecialties) {
 		this.overrideSpecialties = overrideSpecialties;
+	}
+
+	@Nullable
+	public Boolean getAppointmentTypeInPerson() {
+		return appointmentTypeInPerson;
+	}
+
+	public void setAppointmentTypeInPerson(@Nullable Boolean appointmentTypeInPerson) {
+		this.appointmentTypeInPerson = appointmentTypeInPerson;
+	}
+
+	@Nullable
+	public Boolean getAppointmentTypeOnline() {
+		return appointmentTypeOnline;
+	}
+
+	public void setAppointmentTypeOnline(@Nullable Boolean appointmentTypeOnline) {
+		this.appointmentTypeOnline = appointmentTypeOnline;
 	}
 }

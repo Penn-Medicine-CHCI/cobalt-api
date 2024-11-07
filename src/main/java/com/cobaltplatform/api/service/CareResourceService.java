@@ -395,6 +395,8 @@ public class CareResourceService {
 		UpdateAddressRequest updateAddressRequest = new UpdateAddressRequest();
 		Boolean overridePayors = request.getOverridePayors();
 		Boolean overrideSpecialties = request.getOverrideSpecialties();
+		Boolean appointmentTypeInPerson = request.getAppointmentTypeInPerson();
+		Boolean appointmentTypeOnline = request.getAppointmentTypeOnline();
 		// Only use the location level insurance notes if the resource level is being overridden
 		String insuranceNotes = overridePayors ? trimToNull(request.getInsuranceNotes()) : null;
 
@@ -473,11 +475,13 @@ public class CareResourceService {
 		getDatabase().execute("""
 						UPDATE care_resource_location
 						SET phone_number = ?, wheelchair_access=?, notes=?, accepting_new_patients=?,
-						website_url=?, name=?, insurance_notes=?, email_address =?, override_payors =?, override_specialties =?
+						website_url=?, name=?, insurance_notes=?, email_address =?, override_payors =?, override_specialties =?,
+						appointment_type_in_person =?, appointment_type_online=?
 						WHERE care_resource_location_id = ?
 						""",
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, emailAddress, overridePayors, overrideSpecialties, careResourceLocationId);
+				websiteUrl, name, insuranceNotes, emailAddress, overridePayors, overrideSpecialties, appointmentTypeInPerson, appointmentTypeOnline,
+				careResourceLocationId);
 
 		getDatabase().execute("""
 				DELETE FROM care_resource_location_care_resource_tag
@@ -539,17 +543,27 @@ public class CareResourceService {
 		InstitutionId institutionId = request.getInstitutionId();
 		Boolean overridePayors = request.getOverridePayors();
 		Boolean overrideSpecialties = request.getOverrideSpecialties();
+		Boolean appointmentTypeInPerson = request.getAppointmentTypeInPerson();
+		Boolean appointmentTypeOnline = request.getAppointmentTypeOnline();
 		// Only use the location level insurance notes if the resource level is being overridden
 		String insuranceNotes = overridePayors ? trimToNull(request.getInsuranceNotes()) : null;
+		Place place = null;
 
 		CareResource careResource = findCareResourceById(careResourceId, institutionId).orElse(null);
 
 		if (careResource == null)
 			validationException.add(new ValidationException.FieldError("careResource", "Could not find Care Resource."));
-		if (googlePlaceId == null)
-			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required."));
+		if (appointmentTypeInPerson && googlePlaceId == null)
+			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required for in person locations."));
+		else if (appointmentTypeInPerson && googlePlaceId != null) {
+			place =  getPlaceService().findPlaceByPlaceId(googlePlaceId);
+
+			if (place == null)
+				validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
+		}
 		if (overridePayors && request.getPayorIds().size() == 0)
 			validationException.add(new ValidationException.FieldError("payorIds", "At least on insurance carrier is required."));
+
 		if (!overridePayors) {
 			List<CareResourceTag> resourcePayors = findTagsByCareResourceIdAndGroupId(careResourceId, CareResourceTagGroupId.PAYORS);
 
@@ -560,49 +574,47 @@ public class CareResourceService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
-
-		if (place == null)
-			validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
-
-		if (validationException.hasErrors())
-			throw validationException;
-
 		// If there is no name for this location then use the Care Resource name
 		if (name == null)
 			name = careResource.getName();
 
-		CreateAddressRequest createAddressRequest = new CreateAddressRequest();
-		NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+		UUID addressId = null;
 
-		createAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
-		createAddressRequest.setStreetAddress2(streetAddress2);
-		createAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
-		createAddressRequest.setLocality(normalizedPlace.getLocality());
-		createAddressRequest.setRegion(normalizedPlace.getRegion());
-		createAddressRequest.setPostalName(name);
-		createAddressRequest.setGooglePlaceId(googlePlaceId);
-		createAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
-		createAddressRequest.setPremise(normalizedPlace.getPremise());
-		createAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
-		createAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
-		createAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
-		createAddressRequest.setFormattedAddress(place.getFormattedAddress());
-		createAddressRequest.setLatitude(place.getLocation().getLatitude());
-		createAddressRequest.setLongitude(place.getLocation().getLongitude());
+		if (appointmentTypeInPerson) {
+			CreateAddressRequest createAddressRequest = new CreateAddressRequest();
+			NormalizedPlace normalizedPlace = new NormalizedPlace(place);
 
-		UUID addressId = getAddressService().createAddress(createAddressRequest);
+			createAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
+			createAddressRequest.setStreetAddress2(streetAddress2);
+			createAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
+			createAddressRequest.setLocality(normalizedPlace.getLocality());
+			createAddressRequest.setRegion(normalizedPlace.getRegion());
+			createAddressRequest.setPostalName(name);
+			createAddressRequest.setGooglePlaceId(googlePlaceId);
+			createAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
+			createAddressRequest.setPremise(normalizedPlace.getPremise());
+			createAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
+			createAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
+			createAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
+			createAddressRequest.setFormattedAddress(place.getFormattedAddress());
+			createAddressRequest.setLatitude(place.getLocation().getLatitude());
+			createAddressRequest.setLongitude(place.getLocation().getLongitude());
+
+			addressId = getAddressService().createAddress(createAddressRequest);
+		}
 
 		getDatabase().execute("""
 						INSERT INTO care_resource_location
 						  (care_resource_location_id, care_resource_id, address_id,
 						  phone_number, wheelchair_access, notes, accepting_new_patients,
-						  website_url, name, insurance_notes, created_by_account_id, email_address, override_payors, override_specialties)
+						  website_url, name, insurance_notes, created_by_account_id, email_address, override_payors, override_specialties,
+						  appointment_type_in_person, appointment_type_online)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+						  (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						  """, careResourceLocationId, careResourceId, addressId,
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
-				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress, overridePayors, overrideSpecialties);
+				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress, overridePayors, overrideSpecialties,
+				appointmentTypeInPerson, appointmentTypeOnline);
 
 		List<String> allTags = new ArrayList<>();
 		if (request.getPayorIds() != null && overridePayors)
