@@ -44,6 +44,8 @@ public class FindCareResourceLocationsRequest {
 	@Nullable
 	private Boolean wheelchairAccess;
 	@Nullable
+	private Integer searchRadiusMiles;
+	@Nullable
 	private Set<String> payorIds;
 	@Nullable
 	private Set<String> specialtyIds;
@@ -189,5 +191,14 @@ public class FindCareResourceLocationsRequest {
 
 	public void setFacilityTypes(@Nullable Set<String> facilityTypes) {
 		this.facilityTypes = facilityTypes;
+	}
+
+	@Nullable
+	public Integer getSearchRadiusMiles() {
+		return searchRadiusMiles;
+	}
+
+	public void setSearchRadiusMiles(@Nullable Integer searchRadiusMiles) {
+		this.searchRadiusMiles = searchRadiusMiles;
 	}
 }

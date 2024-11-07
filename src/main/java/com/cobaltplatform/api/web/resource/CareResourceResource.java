@@ -211,6 +211,7 @@ public class CareResourceResource {
 																															@Nonnull @QueryParameter Optional<String> searchQuery,
 																															@Nonnull @QueryParameter Optional<FindCareResourceLocationsRequest.OrderBy> orderBy,
 																															@Nonnull @QueryParameter Optional<Boolean> wheelchairAccess,
+																															@Nonnull @QueryParameter Optional<Integer> searchRadiusMiles,
 																															@Nonnull @QueryParameter Optional<List<String>> payorIds,
 																															@Nonnull @QueryParameter Optional<List<String>> specialtyIds,
 																															@Nonnull @QueryParameter Optional<List<String>> therapyTypeIds,
@@ -232,6 +233,7 @@ public class CareResourceResource {
 		requireNonNull(languageIds);
 		requireNonNull(facilityTypes);
 		requireNonNull(wheelchairAccess);
+		requireNonNull(searchRadiusMiles);
 
 		Account account = getCurrentContext().getAccount().get();
 		FindResult<CareResourceLocation> findResult = getCareResourceService().findAllCareResourceLocationsByInstitutionIdWithFilters(new FindCareResourceLocationsRequest() {
