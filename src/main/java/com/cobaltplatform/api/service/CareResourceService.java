@@ -401,14 +401,15 @@ public class CareResourceService {
 		String insuranceNotes = overridePayors ? trimToNull(request.getInsuranceNotes()) : null;
 
 		CareResourceLocation currentCareResourceLocation = findCareResourceLocationById(careResourceLocationId, institutionId).orElse(null);
-		Address currentAddress = getAddressService().findAddressById(currentCareResourceLocation.getAddressId()).orElse(null);
 
+		if (appointmentTypeInPerson && googlePlaceId == null)
+			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required for an in person location."));
 		if (currentCareResourceLocation == null)
 			validationException.add(new ValidationException.FieldError("careResourceLocation", "Could not find Care Resource Location."));
-		if (currentAddress == null)
-			validationException.add(new ValidationException.FieldError("address", "Could not find address for this location."));
-		if (googlePlaceId == null)
-			validationException.add(new ValidationException.FieldError("googlePlaceId", "Google Place Id is required."));
+		if (appointmentTypeInPerson == null)
+			validationException.add(new ValidationException.FieldError("appointmentTypeInPerson", "Must specify if in person appointments are allowed."));
+		if (appointmentTypeOnline == null)
+			validationException.add(new ValidationException.FieldError("appointmentTypeOnline", "Must specify if in online appointments are allowed."));
 		if (overridePayors && request.getPayorIds().size() == 0)
 			validationException.add(new ValidationException.FieldError("payorIds", "At least on insurance carrier is required to override."));
 		if (!overridePayors) {
@@ -421,9 +422,62 @@ public class CareResourceService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		String currentGooglePlaceId = trimToNull(currentAddress.getGooglePlaceId());
+		UUID addressId = currentCareResourceLocation.getAddressId();
 
-		if (!currentGooglePlaceId.equals(googlePlaceId)) {
+		if (appointmentTypeInPerson && addressId != null) {
+			Address currentAddress = getAddressService().findAddressById(currentCareResourceLocation.getAddressId()).orElse(null);
+			String currentGooglePlaceId = trimToNull(currentAddress.getGooglePlaceId());
+
+			if (!currentGooglePlaceId.equals(googlePlaceId)) {
+				// Place has changed so get the new place from Google
+				Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+
+				if (place == null)
+					validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
+
+				if (validationException.hasErrors())
+					throw validationException;
+
+				NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+				updateAddressRequest.setAddressId(currentAddress.getAddressId());
+				updateAddressRequest.setGooglePlaceId(googlePlaceId);
+				updateAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
+				updateAddressRequest.setStreetAddress2(streetAddress2);
+				updateAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
+				updateAddressRequest.setPostalName(name);
+				updateAddressRequest.setLocality(normalizedPlace.getLocality());
+				updateAddressRequest.setRegion(normalizedPlace.getRegion());
+				updateAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
+				updateAddressRequest.setPremise(normalizedPlace.getPremise());
+				updateAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
+				updateAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
+				updateAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
+				updateAddressRequest.setFormattedAddress(place.getFormattedAddress());
+				updateAddressRequest.setLatitude(place.getLocation().getLatitude());
+				updateAddressRequest.setLongitude(place.getLocation().getLongitude());
+				updateAddressRequest.setCountryCode(normalizedPlace.getCountryCode());
+			} else {
+				updateAddressRequest.setAddressId(currentAddress.getAddressId());
+				updateAddressRequest.setGooglePlaceId(googlePlaceId);
+				updateAddressRequest.setStreetAddress1(currentAddress.getStreetAddress1());
+				updateAddressRequest.setStreetAddress2(streetAddress2);
+				updateAddressRequest.setPostalCode(currentAddress.getPostalCode());
+				updateAddressRequest.setPostalName(name);
+				updateAddressRequest.setLocality(currentAddress.getLocality());
+				updateAddressRequest.setRegion(currentAddress.getRegion());
+				updateAddressRequest.setGoogleMapsUrl(currentAddress.getGoogleMapsUrl());
+				updateAddressRequest.setPremise(currentAddress.getPremise());
+				updateAddressRequest.setSubpremise(currentAddress.getSubpremise());
+				updateAddressRequest.setRegionSubdivision(currentAddress.getRegionSubdivision());
+				updateAddressRequest.setPostalCodeSuffix(currentAddress.getPostalCodeSuffix());
+				updateAddressRequest.setFormattedAddress(currentAddress.getFormattedAddress());
+				updateAddressRequest.setLatitude(currentAddress.getLatitude());
+				updateAddressRequest.setLongitude(currentAddress.getLongitude());
+				updateAddressRequest.setCountryCode(currentAddress.getCountryCode());
+			}
+			getAddressService().updateAddress(updateAddressRequest);
+		} else if (appointmentTypeInPerson && addressId == null) {
+			//We're creating an address for the location
 			Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
 
 			if (place == null)
@@ -432,56 +486,39 @@ public class CareResourceService {
 			if (validationException.hasErrors())
 				throw validationException;
 
+			CreateAddressRequest createAddressRequest = new CreateAddressRequest();
 			NormalizedPlace normalizedPlace = new NormalizedPlace(place);
-			updateAddressRequest.setAddressId(currentAddress.getAddressId());
-			updateAddressRequest.setGooglePlaceId(googlePlaceId);
-			updateAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
-			updateAddressRequest.setStreetAddress2(streetAddress2);
-			updateAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
-			updateAddressRequest.setPostalName(name);
-			updateAddressRequest.setLocality(normalizedPlace.getLocality());
-			updateAddressRequest.setRegion(normalizedPlace.getRegion());
-			updateAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
-			updateAddressRequest.setPremise(normalizedPlace.getPremise());
-			updateAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
-			updateAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
-			updateAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
-			updateAddressRequest.setFormattedAddress(place.getFormattedAddress());
-			updateAddressRequest.setLatitude(place.getLocation().getLatitude());
-			updateAddressRequest.setLongitude(place.getLocation().getLongitude());
-			updateAddressRequest.setCountryCode(normalizedPlace.getCountryCode());
-		} else {
-			updateAddressRequest.setAddressId(currentAddress.getAddressId());
-			updateAddressRequest.setGooglePlaceId(googlePlaceId);
-			updateAddressRequest.setStreetAddress1(currentAddress.getStreetAddress1());
-			updateAddressRequest.setStreetAddress2(streetAddress2);
-			updateAddressRequest.setPostalCode(currentAddress.getPostalCode());
-			updateAddressRequest.setPostalName(name);
-			updateAddressRequest.setLocality(currentAddress.getLocality());
-			updateAddressRequest.setRegion(currentAddress.getRegion());
-			updateAddressRequest.setGoogleMapsUrl(currentAddress.getGoogleMapsUrl());
-			updateAddressRequest.setPremise(currentAddress.getPremise());
-			updateAddressRequest.setSubpremise(currentAddress.getSubpremise());
-			updateAddressRequest.setRegionSubdivision(currentAddress.getRegionSubdivision());
-			updateAddressRequest.setPostalCodeSuffix(currentAddress.getPostalCodeSuffix());
-			updateAddressRequest.setFormattedAddress(currentAddress.getFormattedAddress());
-			updateAddressRequest.setLatitude(currentAddress.getLatitude());
-			updateAddressRequest.setLongitude(currentAddress.getLongitude());
-			updateAddressRequest.setCountryCode(currentAddress.getCountryCode());
-		}
 
-		getAddressService().updateAddress(updateAddressRequest);
+			createAddressRequest.setStreetAddress1(normalizedPlace.getStreetAddress1());
+			createAddressRequest.setStreetAddress2(streetAddress2);
+			createAddressRequest.setPostalCode(normalizedPlace.getPostalCode());
+			createAddressRequest.setLocality(normalizedPlace.getLocality());
+			createAddressRequest.setRegion(normalizedPlace.getRegion());
+			createAddressRequest.setPostalName(name);
+			createAddressRequest.setGooglePlaceId(googlePlaceId);
+			createAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
+			createAddressRequest.setPremise(normalizedPlace.getPremise());
+			createAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
+			createAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
+			createAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
+			createAddressRequest.setFormattedAddress(place.getFormattedAddress());
+			createAddressRequest.setLatitude(place.getLocation().getLatitude());
+			createAddressRequest.setLongitude(place.getLocation().getLongitude());
+
+			addressId = getAddressService().createAddress(createAddressRequest);
+		} else if (!appointmentTypeInPerson)
+			addressId = null;
 
 		getDatabase().execute("""
 						UPDATE care_resource_location
 						SET phone_number = ?, wheelchair_access=?, notes=?, accepting_new_patients=?,
 						website_url=?, name=?, insurance_notes=?, email_address =?, override_payors =?, override_specialties =?,
-						appointment_type_in_person =?, appointment_type_online=?
+						appointment_type_in_person =?, appointment_type_online=?, address_id =?
 						WHERE care_resource_location_id = ?
 						""",
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
 				websiteUrl, name, insuranceNotes, emailAddress, overridePayors, overrideSpecialties, appointmentTypeInPerson, appointmentTypeOnline,
-				careResourceLocationId);
+				addressId, careResourceLocationId);
 
 		getDatabase().execute("""
 				DELETE FROM care_resource_location_care_resource_tag
@@ -554,7 +591,7 @@ public class CareResourceService {
 		if (careResource == null)
 			validationException.add(new ValidationException.FieldError("careResource", "Could not find Care Resource."));
 		if (appointmentTypeInPerson && googlePlaceId == null)
-			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required for in person locations."));
+			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required for in an person location."));
 		else if (appointmentTypeInPerson && googlePlaceId != null) {
 			place =  getPlaceService().findPlaceByPlaceId(googlePlaceId);
 

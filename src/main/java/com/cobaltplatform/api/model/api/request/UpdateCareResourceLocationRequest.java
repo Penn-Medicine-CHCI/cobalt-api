@@ -45,6 +45,7 @@ public class UpdateCareResourceLocationRequest {
 	private String streetAddress2;
 	@Nullable
 	private String insuranceNotes;
+	@Nullable
 	private String phoneNumber;
 	@Nullable
 	private String websiteUrl;
