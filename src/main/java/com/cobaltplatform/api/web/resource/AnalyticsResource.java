@@ -71,8 +71,8 @@ import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.UserAgent;
 import com.cobaltplatform.api.util.ValidationException;
-import com.cobaltplatform.api.util.db.RequiresManualTransactionManagement;
 import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.util.db.RequiresManualTransactionManagement;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
@@ -283,6 +283,19 @@ public class AnalyticsResource {
 		UUID analyticsNativeEventId = getAnalyticsService().createAnalyticsNativeEvent(request);
 
 		return new ApiResponse(Map.of("analyticsNativeEventId", analyticsNativeEventId));
+	}
+
+	/**
+	 * Invoked by FE if it cannot persist a non-HEARTBEAT event - we just log out whatever the FE sends.
+	 * <p>
+	 * Helps to debug client-side issues on FE, where the event never makes it to the backend.
+	 */
+	@Nonnull
+	@POST("/analytics-native-event-errors")
+	@RequiresManualTransactionManagement
+	public void logAnalyticsNativeEventError(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+		getLogger().warn("Native analytics event persistence error: {}", requestBody);
 	}
 
 	@Nonnull
