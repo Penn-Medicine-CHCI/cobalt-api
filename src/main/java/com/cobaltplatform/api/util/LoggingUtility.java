@@ -29,7 +29,6 @@ import javax.annotation.concurrent.Immutable;
 public final class LoggingUtility {
 	@Nonnull
 	public static final String CURRENT_CONTEXT_LOGGING_KEY = "CURRENT_CONTEXT";
-	public static final String CAPABILITIES_LOGGING_KEY = "CAPABILITIES";
 
 	private LoggingUtility() {
 		// Prevent instantiation
