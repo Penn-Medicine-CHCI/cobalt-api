@@ -1583,44 +1583,43 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
 				List<String> filterFlagWhereClauseLines = new ArrayList<>();
-				List<String> rawPatientOrderFilterFlagWhereClauseLines = new ArrayList<>();
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_NEVER_CONTACTED))
 					filterFlagWhereClauseLines.add("po.last_contacted_at IS NULL");
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NO_INTEREST)) {
-					rawPatientOrderFilterFlagWhereClauseLines.add("raw_po.patient_order_intake_wants_services_status_id=?");
-					rawPatientOrderParameters.add(PatientOrderIntakeWantsServicesStatusId.NO);
+					filterFlagWhereClauseLines.add("po.patient_order_intake_wants_services_status_id=?");
+					parameters.add(PatientOrderIntakeWantsServicesStatusId.NO);
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.LOCATION_INVALID)) {
-					rawPatientOrderFilterFlagWhereClauseLines.add("raw_po.patient_order_intake_location_status_id=?");
-					rawPatientOrderParameters.add(PatientOrderIntakeLocationStatusId.INVALID);
+					filterFlagWhereClauseLines.add("po.patient_order_intake_location_status_id=?");
+					parameters.add(PatientOrderIntakeLocationStatusId.INVALID);
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_CHANGED_RECENTLY)) {
-					rawPatientOrderFilterFlagWhereClauseLines.add("raw_po.patient_order_intake_insurance_status_id=?");
-					rawPatientOrderParameters.add(PatientOrderIntakeInsuranceStatusId.CHANGED_RECENTLY);
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.CHANGED_RECENTLY);
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_INVALID)) {
-					rawPatientOrderFilterFlagWhereClauseLines.add("raw_po.patient_order_intake_insurance_status_id=?");
-					rawPatientOrderParameters.add(PatientOrderIntakeInsuranceStatusId.INVALID);
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.INVALID);
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.CONSENT_REJECTED)) {
-					rawPatientOrderFilterFlagWhereClauseLines.add("raw_po.patient_order_consent_status_id=?");
-					rawPatientOrderParameters.add(PatientOrderConsentStatusId.REJECTED);
+					filterFlagWhereClauseLines.add("po.patient_order_consent_status_id=?");
+					parameters.add(PatientOrderConsentStatusId.REJECTED);
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_SAFETY_PLANNING)) {
-					rawPatientOrderFilterFlagWhereClauseLines.add("raw_po.patient_order_safety_planning_status_id=?");
-					rawPatientOrderParameters.add(PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING);
+					filterFlagWhereClauseLines.add("po.patient_order_safety_planning_status_id=?");
+					parameters.add(PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING);
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_RESOURCES)) {
-					rawPatientOrderFilterFlagWhereClauseLines.add("raw_po.patient_order_resourcing_status_id=?");
-					rawPatientOrderParameters.add(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+					filterFlagWhereClauseLines.add("po.patient_order_resourcing_status_id=?");
+					parameters.add(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
 				}
 
 				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.SESSION_ABANDONED)) {
@@ -1642,9 +1641,6 @@ public class PatientOrderService implements AutoCloseable {
 
 				if (filterFlagWhereClauseLines.size() > 0)
 					whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
-
-				if (rawPatientOrderFilterFlagWhereClauseLines.size() > 0)
-					rawPatientOrderWhereClauseLines.add(format("AND (%s)", rawPatientOrderFilterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
 			}
 
 			if (referringPracticeIds.size() > 0) {
