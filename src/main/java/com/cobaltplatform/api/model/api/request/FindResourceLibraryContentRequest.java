@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.ContentDurationId;
@@ -49,6 +50,8 @@ public class FindResourceLibraryContentRequest {
 	private Set<ContentTypeId> contentTypeIds;
 	@Nullable
 	private Set<ContentDurationId> contentDurationIds;
+	@Nullable
+	private Set<ContentAudienceTypeId> contentAudienceTypeIds;
 	@Nullable
 	private UUID prioritizeUnviewedForAccountId;
 
@@ -122,6 +125,15 @@ public class FindResourceLibraryContentRequest {
 
 	public void setContentDurationIds(@Nullable Set<ContentDurationId> contentDurationIds) {
 		this.contentDurationIds = contentDurationIds;
+	}
+
+	@Nullable
+	public Set<ContentAudienceTypeId> getContentAudienceTypeIds() {
+		return this.contentAudienceTypeIds;
+	}
+
+	public void setContentAudienceTypeIds(@Nullable Set<ContentAudienceTypeId> contentAudienceTypeIds) {
+		this.contentAudienceTypeIds = contentAudienceTypeIds;
 	}
 
 	@Nullable

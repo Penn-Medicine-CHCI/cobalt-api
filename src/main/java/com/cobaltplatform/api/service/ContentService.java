@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentAudienceType;
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentAudienceTypeGroup;
 import com.cobaltplatform.api.model.db.ContentFeedback;
 import com.cobaltplatform.api.model.db.ContentFeedbackType.ContentFeedbackTypeId;
@@ -219,6 +220,7 @@ public class ContentService implements AutoCloseable {
 		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
 		Set<ContentTypeId> contentTypeIds = request.getContentTypeIds() == null ? Set.of() : request.getContentTypeIds();
 		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
+		Set<ContentAudienceTypeId> contentAudienceTypeIds = request.getContentAudienceTypeIds() == null ? Set.of() : request.getContentAudienceTypeIds();
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
@@ -273,6 +275,14 @@ public class ContentService implements AutoCloseable {
 
 			parameters.add(institutionId);
 			parameters.addAll(tagIds);
+		}
+
+		if (contentAudienceTypeIds.size() > 0) {
+			fromClauseComponents.add("content_audience ca");
+
+			whereClauseComponents.add("AND ca.content_id=c.content_id");
+			whereClauseComponents.add(format("AND ca.content_audience_type_id IN %s", sqlInListPlaceholders(contentAudienceTypeIds)));
+			parameters.addAll(contentAudienceTypeIds);
 		}
 
 		// TODO: search over tag names (?)
@@ -361,7 +371,7 @@ public class ContentService implements AutoCloseable {
 				    bq.institution_created_date DESC
 				LIMIT ?
 				OFFSET ?
-								"""
+				"""
 				.replace("{{fromClause}}", fromClauseComponents.size() == 0 ? "" : ",\n" + fromClauseComponents.stream().collect(Collectors.joining(",\n")))
 				.replace("{{whereClause}}", whereClauseComponents.size() == 0 ? "" : "\n" + whereClauseComponents.stream().collect(Collectors.joining("\n")))
 				.replace("{{contentViewedQuery}}", contentViewedQuery == null ? "" : contentViewedQuery)
@@ -453,7 +463,7 @@ public class ContentService implements AutoCloseable {
 						AND ic.institution_id=?
 						AND c.content_status_id = ?
 						ORDER BY cvq.last_viewed_at ASC NULLS FIRST, ic.created DESC
-										""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
+						""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
 				account.getInstitutionId(), ContentStatusId.LIVE);
 
 		applyTagsToContents(contents, account.getInstitutionId());

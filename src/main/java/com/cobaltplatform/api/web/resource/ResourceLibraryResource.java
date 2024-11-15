@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApi
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
@@ -236,11 +237,13 @@ public class ResourceLibraryResource {
 	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter Optional<String> searchQuery,
 																					 @Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
 																					 @Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
+																					 @Nonnull @QueryParameter("contentAudienceTypeId") Optional<List<ContentAudienceTypeId>> contentAudienceTypeIds,
 																					 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																					 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(searchQuery);
 		requireNonNull(contentTypeIds);
 		requireNonNull(contentDurationIds);
+		requireNonNull(contentAudienceTypeIds);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -253,6 +256,7 @@ public class ResourceLibraryResource {
 				setSearchQuery(searchQuery.orElse(null));
 				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
+				setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of(ContentAudienceTypeId.ADULT_CHILD))));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 			}
