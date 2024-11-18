@@ -215,12 +215,12 @@ public class ResourceLibraryResource {
 			}
 		}
 
-		// It's possible some of the tag groups don't have any content.  If so,
-		// discard them from the list of tag groups
+		// It's possible some of the tag groups don't have any content.  If so, discard them from the list of tag groups.
+		// Also, discard any deprecated tag groups.
 		List<TagGroupApiResponse> populatedTagGroups = tagGroups.stream()
 				.filter(tagGroup -> {
 					List<ContentApiResponse> tagGroupContents = contentsByTagGroupId.get(tagGroup.getTagGroupId());
-					return tagGroupContents != null && tagGroupContents.size() > 0;
+					return tagGroupContents != null && tagGroupContents.size() > 0 && !tagGroup.getDeprecated();
 				})
 				.collect(Collectors.toList());
 
