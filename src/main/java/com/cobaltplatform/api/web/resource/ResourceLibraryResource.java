@@ -256,7 +256,7 @@ public class ResourceLibraryResource {
 				setSearchQuery(searchQuery.orElse(null));
 				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
-				setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of(ContentAudienceTypeId.ADULT_CHILD))));
+				setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 			}
