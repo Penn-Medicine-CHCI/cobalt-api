@@ -54,6 +54,7 @@ import javax.inject.Singleton;
 import java.sql.Savepoint;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -231,6 +232,45 @@ public class ClientDeviceService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		// Sort of a double-checked locking approach: to avoid potentially costly UPSERT, see if we have the device on file already.
+		// If so, update it _if necessary_ and relate it to the given account _if necessary_.
+		// If we don't have one on file, then add it.
+		ClientDevice existingClientDevice = findClientDeviceByFingerprint(fingerprint).orElse(null);
+
+		if (existingClientDevice != null) {
+			boolean differentOperatingSystemName = !Objects.equals(operatingSystemName, existingClientDevice.getOperatingSystemName());
+			boolean differentOperatingSystemVersion = !Objects.equals(operatingSystemVersion, existingClientDevice.getOperatingSystemVersion());
+
+			if (differentOperatingSystemName || differentOperatingSystemVersion) {
+				getDatabase().execute("""
+						UPDATE client_device
+						SET operating_system_name=?, operating_system_version=?
+						WHERE client_device_id=?
+						""", operatingSystemName, operatingSystemVersion, existingClientDevice.getClientDeviceId());
+			}
+
+			// If an account is specified...
+			if (accountId != null) {
+				// ...check to see if it's already associated with this client device.
+				boolean hasExistingAccountClientDevice = getDatabase().queryForObject("""
+						SELECT COUNT(*) > 0
+						FROM account_client_device
+						WHERE account_id=?
+						AND client_device_id=?
+						""", Boolean.class, accountId, existingClientDevice.getClientDeviceId()).get();
+
+				// If not associated, safely create the association.
+				if (!hasExistingAccountClientDevice) {
+					getDatabase().transaction(() -> {
+						upsertAccountClientDevice(accountId, existingClientDevice.getClientDeviceId());
+					});
+				}
+			}
+
+			return existingClientDevice.getClientDeviceId();
+		}
+
+		// No client device on file - UPSERT a new one.
 		return getDatabase().transaction(() -> {
 			UUID clientDeviceId = getDatabase().executeReturning("""					
 					INSERT INTO client_device (
@@ -249,29 +289,37 @@ public class ClientDeviceService {
 					RETURNING client_device_id
 					""", UUID.class, clientDeviceTypeId, fingerprint, model, brand, operatingSystemName, operatingSystemVersion).get();
 
-			if (accountId != null) {
-				Transaction transaction = getDatabase().currentTransaction().get();
-				Savepoint savepoint = transaction.createSavepoint();
-
-				try {
-					getDatabase().execute("""
-							    INSERT INTO account_client_device (
-							      client_device_id,
-							      account_id
-							    ) VALUES (?,?)
-							""", clientDeviceId, accountId);
-				} catch (DatabaseException e) {
-					if ("account_client_device_unique_idx".equals(e.constraint().orElse(null))) {
-						getLogger().trace("Client device already associated with account, don't need to re-associate.");
-						transaction.rollback(savepoint);
-					} else {
-						throw e;
-					}
-				}
-			}
+			// Associate the client device with the account, if specified
+			if (accountId != null)
+				upsertAccountClientDevice(accountId, clientDeviceId);
 
 			return clientDeviceId;
 		});
+	}
+
+	protected void upsertAccountClientDevice(@Nonnull UUID accountId,
+																					 @Nonnull UUID clientDeviceId) {
+		requireNonNull(accountId);
+		requireNonNull(clientDeviceId);
+
+		Transaction transaction = getDatabase().currentTransaction().get();
+		Savepoint savepoint = transaction.createSavepoint();
+
+		try {
+			getDatabase().execute("""
+					    INSERT INTO account_client_device (
+					      client_device_id,
+					      account_id
+					    ) VALUES (?,?)
+					""", clientDeviceId, accountId);
+		} catch (DatabaseException e) {
+			if ("account_client_device_unique_idx".equals(e.constraint().orElse(null))) {
+				getLogger().trace("Client device already associated with account, don't need to re-associate.");
+				transaction.rollback(savepoint);
+			} else {
+				throw e;
+			}
+		}
 	}
 
 	@Nonnull
