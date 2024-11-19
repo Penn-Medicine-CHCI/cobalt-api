@@ -251,6 +251,7 @@ public class ResourceLibraryResource {
 	@GET("/resource-library/search")
 	@AuthenticationRequired
 	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter Optional<String> searchQuery,
+																					 @Nonnull @QueryParameter("tagId") Optional<List<String>> tagIds,
 																					 @Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
 																					 @Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
 																					 @Nonnull @QueryParameter("contentAudienceTypeId") Optional<List<ContentAudienceTypeId>> contentAudienceTypeIds,
@@ -258,6 +259,7 @@ public class ResourceLibraryResource {
 																					 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																					 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(searchQuery);
+		requireNonNull(tagIds);
 		requireNonNull(contentTypeIds);
 		requireNonNull(contentDurationIds);
 		requireNonNull(contentAudienceTypeIds);
@@ -272,6 +274,7 @@ public class ResourceLibraryResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setSearchQuery(searchQuery.orElse(null));
+				setTagIds(new HashSet<>(tagIds.orElse(List.of())));
 				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of())));
