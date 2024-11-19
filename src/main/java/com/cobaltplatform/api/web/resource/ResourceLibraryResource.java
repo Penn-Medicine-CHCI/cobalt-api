@@ -712,7 +712,7 @@ public class ResourceLibraryResource {
 
 		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
 				.filter(tagGroup -> !tagGroup.getDeprecated())
-				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
+				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup, false))
 				.collect(Collectors.toList());
 
 		List<ContentAudienceTypeApiResponse> contentAudienceTypes = getContentService().findContentAudienceTypes().stream()
