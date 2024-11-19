@@ -621,7 +621,6 @@ public class ResourceLibraryResource {
 				put("tags", tags);
 			}});
 		} else {
-
 			// Support both tag group ID and URL name
 			TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
 					.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
@@ -633,7 +632,7 @@ public class ResourceLibraryResource {
 				throw new NotFoundException();
 
 			List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
-					.filter(tag -> tag.getTagGroupId().equals(tagGroup.getTagGroupId()))
+					.filter(tag -> !tag.getDeprecated() && tag.getTagGroupId().equals(tagGroup.getTagGroupId()))
 					.map(tag -> getTagApiResponseFactory().create(tag))
 					.collect(Collectors.toList());
 
