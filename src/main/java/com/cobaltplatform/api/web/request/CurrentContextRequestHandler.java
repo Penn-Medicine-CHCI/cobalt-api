@@ -68,6 +68,7 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.util.WebUtility.extractValueFromRequest;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
