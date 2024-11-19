@@ -45,6 +45,7 @@ import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.ResourceLibrarySortColumnId;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
@@ -221,6 +222,7 @@ public class ContentService implements AutoCloseable {
 		Set<ContentTypeId> contentTypeIds = request.getContentTypeIds() == null ? Set.of() : request.getContentTypeIds();
 		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
 		Set<ContentAudienceTypeId> contentAudienceTypeIds = request.getContentAudienceTypeIds() == null ? Set.of() : request.getContentAudienceTypeIds();
+		ResourceLibrarySortColumnId resourceLibrarySortColumnId = request.getResourceLibrarySortColumnId();
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
@@ -334,6 +336,11 @@ public class ContentService implements AutoCloseable {
 			contentViewedJoin = "LEFT OUTER JOIN content_viewed_query as cvq ON bq.content_id=cvq.content_id";
 			contentViewedSelect = ", cvq.last_viewed_at";
 			contentViewedOrderBy = "cvq.last_viewed_at ASC NULLS FIRST,";
+		}
+
+		// TODO: implement sorting
+		if (resourceLibrarySortColumnId != null) {
+
 		}
 
 		parameters.add(limit);

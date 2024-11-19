@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.ContentDurationId;
+import com.cobaltplatform.api.model.service.ResourceLibrarySortColumnId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -52,6 +53,8 @@ public class FindResourceLibraryContentRequest {
 	private Set<ContentDurationId> contentDurationIds;
 	@Nullable
 	private Set<ContentAudienceTypeId> contentAudienceTypeIds;
+	@Nullable
+	private ResourceLibrarySortColumnId resourceLibrarySortColumnId;
 	@Nullable
 	private UUID prioritizeUnviewedForAccountId;
 
@@ -143,5 +146,14 @@ public class FindResourceLibraryContentRequest {
 
 	public void setPrioritizeUnviewedForAccountId(@Nullable UUID prioritizeUnviewedForAccountId) {
 		this.prioritizeUnviewedForAccountId = prioritizeUnviewedForAccountId;
+	}
+
+	@Nullable
+	public ResourceLibrarySortColumnId getResourceLibrarySortColumnId() {
+		return this.resourceLibrarySortColumnId;
+	}
+
+	public void setResourceLibrarySortColumnId(@Nullable ResourceLibrarySortColumnId resourceLibrarySortColumnId) {
+		this.resourceLibrarySortColumnId = resourceLibrarySortColumnId;
 	}
 }
