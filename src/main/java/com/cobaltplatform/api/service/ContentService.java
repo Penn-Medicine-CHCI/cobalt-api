@@ -222,7 +222,7 @@ public class ContentService implements AutoCloseable {
 		Set<ContentTypeId> contentTypeIds = request.getContentTypeIds() == null ? Set.of() : request.getContentTypeIds();
 		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
 		Set<ContentAudienceTypeId> contentAudienceTypeIds = request.getContentAudienceTypeIds() == null ? Set.of() : request.getContentAudienceTypeIds();
-		ResourceLibrarySortColumnId resourceLibrarySortColumnId = request.getResourceLibrarySortColumnId();
+		ResourceLibrarySortColumnId resourceLibrarySortColumnId = request.getResourceLibrarySortColumnId() == null ? ResourceLibrarySortColumnId.MOST_RECENT : ResourceLibrarySortColumnId.MOST_VIEWED;
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
@@ -246,6 +246,7 @@ public class ContentService implements AutoCloseable {
 		String contentViewedSelect = null;
 		String contentViewedJoin = null;
 		String contentViewedOrderBy = null;
+		String orderBy = null;
 		List<Object> parameters = new ArrayList<>();
 
 		if (tagGroupId != null) {
@@ -319,14 +320,14 @@ public class ContentService implements AutoCloseable {
 
 		if (prioritizeUnviewedForAccountId != null) {
 			contentViewedQuery = """
-					                         , content_viewed_query AS (
-					                         SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
-					                         FROM activity_tracking
-					                         WHERE activity_action_id=? 
-					                         AND activity_type_id=?
-					                         AND account_id=?
-					                         GROUP BY content_id
-					                       )
+					 , content_viewed_query AS (
+					 SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
+					 FROM activity_tracking
+					 WHERE activity_action_id=? 
+					 AND activity_type_id=?
+					 AND account_id=?
+					 GROUP BY content_id
+					)
 					""";
 
 			parameters.add(ActivityActionId.VIEW);
@@ -338,9 +339,12 @@ public class ContentService implements AutoCloseable {
 			contentViewedOrderBy = "cvq.last_viewed_at ASC NULLS FIRST,";
 		}
 
-		// TODO: implement sorting
-		if (resourceLibrarySortColumnId != null) {
-
+		if (resourceLibrarySortColumnId == ResourceLibrarySortColumnId.MOST_VIEWED) {
+			// TODO: implement sorting for "most viewed" (currently no UI for this)
+			orderBy = "bq.institution_created_date DESC";
+		} else {
+			// ResourceLibrarySortColumnId.MOST_RECENT or anything else we don't recognize
+			orderBy = "bq.institution_created_date DESC";
 		}
 
 		parameters.add(limit);
@@ -375,7 +379,7 @@ public class ContentService implements AutoCloseable {
 				    {{contentViewedJoin}}
 				ORDER BY
 						{{contentViewedOrderBy}}
-				    bq.institution_created_date DESC
+				    {{orderBy}}
 				LIMIT ?
 				OFFSET ?
 				"""
@@ -384,7 +388,8 @@ public class ContentService implements AutoCloseable {
 				.replace("{{contentViewedQuery}}", contentViewedQuery == null ? "" : contentViewedQuery)
 				.replace("{{contentViewedSelect}}", contentViewedSelect == null ? "" : contentViewedSelect)
 				.replace("{{contentViewedJoin}}", contentViewedJoin == null ? "" : contentViewedJoin)
-				.replace("{{contentViewedOrderBy}}", contentViewedOrderBy == null ? "" : contentViewedOrderBy);
+				.replace("{{contentViewedOrderBy}}", contentViewedOrderBy == null ? "" : contentViewedOrderBy)
+				.replace("{{orderBy}}", orderBy == null ? "" : orderBy);
 
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
