@@ -24,6 +24,7 @@ import com.cobaltplatform.api.integration.google.model.NormalizedPlace;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderResourcePacketRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAddressRequest;
@@ -36,6 +37,7 @@ import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderResourcePacket;
 import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -831,6 +833,26 @@ public class CareResourceService {
 				""", careResourceLocationId) > 0;
 
 		return deleted;
+	}
+
+	@Nonnull
+	public UUID createPatientOrderResourcePacket (@Nonnull CreatePatientOrderResourcePacketRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderResourcePacketId = UUID.randomUUID();
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID addressId = request.getAddressId();
+		Integer travelRadius = request.getTravelRadius();
+		String travelRadiusDistanceUnitId = request.getTravelRadiusDistanceUnitId();
+
+		getDatabase().execute("""
+				INSERT INTO patient_order_resource_packet
+				  (patient_order_resource_packet_id, patient_order_id, address_id, travel_radius, travel_radius_distance_unit_id)
+				VALUES
+				  (?,?,?,?,?)
+				  """, patientOrderResourcePacketId, patientOrderId, addressId, travelRadius, travelRadiusDistanceUnitId);
+
+		return patientOrderResourcePacketId;
 	}
 
 	@Nonnull

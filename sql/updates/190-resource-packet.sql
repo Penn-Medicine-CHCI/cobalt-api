@@ -97,7 +97,7 @@ CREATE TABLE patient_order_resource_packet (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_resource_packet FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE patient_order_resource_packet_resource (
+CREATE TABLE patient_order_resource_packet_care_resource (
 	patient_order_resource_packet_resource_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	patient_order_resource_packet_id UUID REFERENCES patient_order_resource_packet,
 	care_resource_id UUID NOT NULL REFERENCES care_resource,
