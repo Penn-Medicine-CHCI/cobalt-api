@@ -532,12 +532,14 @@ public class ResourceLibraryResource {
 																				@Nonnull @QueryParameter Optional<String> searchQuery,
 																				@Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
 																				@Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
+																				@Nonnull @QueryParameter("contentAudienceTypeId") Optional<List<ContentAudienceTypeId>> contentAudienceTypeIds,
 																				@Nonnull @QueryParameter Optional<Integer> pageNumber,
 																				@Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(tagId);
 		requireNonNull(searchQuery);
 		requireNonNull(contentTypeIds);
 		requireNonNull(contentDurationIds);
+		requireNonNull(contentAudienceTypeIds);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -566,6 +568,7 @@ public class ResourceLibraryResource {
 				setTagIds(Set.of(tag.getTagId()));
 				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
+				setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of())));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 				setPrioritizeUnviewedForAccountId(account.getAccountId());
