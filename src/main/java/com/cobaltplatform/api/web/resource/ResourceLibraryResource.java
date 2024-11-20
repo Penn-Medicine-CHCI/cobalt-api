@@ -25,6 +25,10 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.api.request.FindResourceLibraryContentRequest;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse.ContentAudienceTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeGroupApiResponse;
+import com.cobaltplatform.api.model.api.response.ContentAudienceTypeGroupApiResponse.ContentAudienceTypeGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
@@ -32,12 +36,15 @@ import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApi
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.ResourceLibrarySortColumnId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
@@ -102,6 +109,10 @@ public class ResourceLibraryResource {
 	@Nonnull
 	private final TagGroupApiResponseFactory tagGroupApiResponseFactory;
 	@Nonnull
+	private final ContentAudienceTypeApiResponseFactory contentAudienceTypeApiResponseFactory;
+	@Nonnull
+	private final ContentAudienceTypeGroupApiResponseFactory contentAudienceTypeGroupApiResponseFactory;
+	@Nonnull
 	private final Logger logger;
 
 	@Inject
@@ -114,7 +125,9 @@ public class ResourceLibraryResource {
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
 																 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 																 @Nonnull TagApiResponseFactory tagApiResponseFactory,
-																 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory) {
+																 @Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
+																 @Nonnull ContentAudienceTypeApiResponseFactory contentAudienceTypeApiResponseFactory,
+																 @Nonnull ContentAudienceTypeGroupApiResponseFactory contentAudienceTypeGroupApiResponseFactory) {
 		requireNonNull(contentService);
 		requireNonNull(tagService);
 		requireNonNull(authorizationService);
@@ -125,6 +138,8 @@ public class ResourceLibraryResource {
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(tagApiResponseFactory);
 		requireNonNull(tagGroupApiResponseFactory);
+		requireNonNull(contentAudienceTypeApiResponseFactory);
+		requireNonNull(contentAudienceTypeGroupApiResponseFactory);
 
 		this.contentService = contentService;
 		this.tagService = tagService;
@@ -136,6 +151,8 @@ public class ResourceLibraryResource {
 		this.contentApiResponseFactory = contentApiResponseFactory;
 		this.tagApiResponseFactory = tagApiResponseFactory;
 		this.tagGroupApiResponseFactory = tagGroupApiResponseFactory;
+		this.contentAudienceTypeApiResponseFactory = contentAudienceTypeApiResponseFactory;
+		this.contentAudienceTypeGroupApiResponseFactory = contentAudienceTypeGroupApiResponseFactory;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -214,12 +231,12 @@ public class ResourceLibraryResource {
 			}
 		}
 
-		// It's possible some of the tag groups don't have any content.  If so,
-		// discard them from the list of tag groups
+		// It's possible some of the tag groups don't have any content.  If so, discard them from the list of tag groups.
+		// Also, discard any deprecated tag groups.
 		List<TagGroupApiResponse> populatedTagGroups = tagGroups.stream()
 				.filter(tagGroup -> {
 					List<ContentApiResponse> tagGroupContents = contentsByTagGroupId.get(tagGroup.getTagGroupId());
-					return tagGroupContents != null && tagGroupContents.size() > 0;
+					return tagGroupContents != null && tagGroupContents.size() > 0 && !tagGroup.getDeprecated();
 				})
 				.collect(Collectors.toList());
 
@@ -234,13 +251,19 @@ public class ResourceLibraryResource {
 	@GET("/resource-library/search")
 	@AuthenticationRequired
 	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter Optional<String> searchQuery,
+																					 @Nonnull @QueryParameter("tagId") Optional<List<String>> tagIds,
 																					 @Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
 																					 @Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
+																					 @Nonnull @QueryParameter("contentAudienceTypeId") Optional<List<ContentAudienceTypeId>> contentAudienceTypeIds,
+																					 @Nonnull @QueryParameter Optional<ResourceLibrarySortColumnId> resourceLibrarySortColumnId,
 																					 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																					 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(searchQuery);
+		requireNonNull(tagIds);
 		requireNonNull(contentTypeIds);
 		requireNonNull(contentDurationIds);
+		requireNonNull(contentAudienceTypeIds);
+		requireNonNull(resourceLibrarySortColumnId);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -251,8 +274,11 @@ public class ResourceLibraryResource {
 			{
 				setInstitutionId(account.getInstitutionId());
 				setSearchQuery(searchQuery.orElse(null));
+				setTagIds(new HashSet<>(tagIds.orElse(List.of())));
 				setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
+				setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of())));
+				setResourceLibrarySortColumnId(resourceLibrarySortColumnId.orElse(null));
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 			}
@@ -395,6 +421,7 @@ public class ResourceLibraryResource {
 																						 @Nonnull @QueryParameter("tagId") Optional<List<String>> tagIds,
 																						 @Nonnull @QueryParameter("contentTypeId") Optional<List<ContentTypeId>> contentTypeIds,
 																						 @Nonnull @QueryParameter("contentDurationId") Optional<List<ContentDurationId>> contentDurationIds,
+																						 @Nonnull @QueryParameter("contentAudienceTypeId") Optional<List<ContentAudienceTypeId>> contentAudienceTypeIds,
 																						 @Nonnull @QueryParameter Optional<Integer> pageNumber,
 																						 @Nonnull @QueryParameter Optional<Integer> pageSize) {
 		requireNonNull(tagGroupId);
@@ -402,6 +429,7 @@ public class ResourceLibraryResource {
 		requireNonNull(tagIds);
 		requireNonNull(contentTypeIds);
 		requireNonNull(contentDurationIds);
+		requireNonNull(contentAudienceTypeIds);
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 
@@ -467,6 +495,7 @@ public class ResourceLibraryResource {
 					setTagIds(new HashSet<>(tagIds.orElse(List.of())));
 					setContentTypeIds(new HashSet<>(contentTypeIds.orElse(List.of())));
 					setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
+					setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of())));
 					setPageNumber(pageNumber.orElse(0));
 					setPageSize(pageSize.orElse(0));
 					setTagGroupId(tagGroup.getTagGroupId());
@@ -595,7 +624,6 @@ public class ResourceLibraryResource {
 				put("tags", tags);
 			}});
 		} else {
-
 			// Support both tag group ID and URL name
 			TagGroup tagGroup = getTagService().findTagGroupsByInstitutionId(account.getInstitutionId()).stream()
 					.filter(potentialTagGroup -> potentialTagGroup.getTagGroupId().equals(tagGroupId)
@@ -607,13 +635,23 @@ public class ResourceLibraryResource {
 				throw new NotFoundException();
 
 			List<TagApiResponse> tags = getTagService().findTagsByInstitutionId(account.getInstitutionId()).stream()
-					.filter(tag -> tag.getTagGroupId().equals(tagGroup.getTagGroupId()))
+					.filter(tag -> !tag.getDeprecated() && tag.getTagGroupId().equals(tagGroup.getTagGroupId()))
 					.map(tag -> getTagApiResponseFactory().create(tag))
+					.collect(Collectors.toList());
+
+			List<ContentAudienceTypeApiResponse> contentAudienceTypes = getContentService().findContentAudienceTypes().stream()
+					.map(contentAudienceType -> getContentAudienceTypeApiResponseFactory().create(contentAudienceType))
+					.collect(Collectors.toList());
+
+			List<ContentAudienceTypeGroupApiResponse> contentAudienceTypeGroups = getContentService().findContentAudienceTypeGroups().stream()
+					.map(contentAudienceTypeGroup -> getContentAudienceTypeGroupApiResponseFactory().create(contentAudienceTypeGroup))
 					.collect(Collectors.toList());
 
 			return new ApiResponse(new HashMap<String, Object>() {{
 				put("contentDurations", availableContentDurations());
 				put("contentTypes", availableContentTypes());
+				put("contentAudienceTypes", contentAudienceTypes);
+				put("contentAudienceTypeGroups", contentAudienceTypeGroups);
 				put("tags", tags);
 			}});
 		}
@@ -651,12 +689,22 @@ public class ResourceLibraryResource {
 		for (Tag currentTag : getTagService().findTagsByInstitutionId(account.getInstitutionId()))
 			tagsByTagId.put(currentTag.getTagId(), getTagApiResponseFactory().create(currentTag));
 
+		List<ContentAudienceTypeApiResponse> contentAudienceTypes = getContentService().findContentAudienceTypes().stream()
+				.map(contentAudienceType -> getContentAudienceTypeApiResponseFactory().create(contentAudienceType))
+				.collect(Collectors.toList());
+
+		List<ContentAudienceTypeGroupApiResponse> contentAudienceTypeGroups = getContentService().findContentAudienceTypeGroups().stream()
+				.map(contentAudienceTypeGroup -> getContentAudienceTypeGroupApiResponseFactory().create(contentAudienceTypeGroup))
+				.collect(Collectors.toList());
+
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentDurations", availableContentDurations());
 			put("contentTypes", availableContentTypes());
 			put("tag", getTagApiResponseFactory().create(tag));
 			put("tagGroup", getTagGroupApiResponseFactory().create(tagGroup));
 			put("tagsByTagId", tagsByTagId);
+			put("contentAudienceTypes", contentAudienceTypes);
+			put("contentAudienceTypeGroups", contentAudienceTypeGroups);
 		}});
 	}
 
@@ -667,6 +715,58 @@ public class ResourceLibraryResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentTypes", availableContentTypes());
 		}});
+	}
+
+	@Nonnull
+	@GET("/resource-library/content-durations")
+	@AuthenticationRequired
+	public ApiResponse contentDurations() {
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("contentDurations", availableContentDurations());
+		}});
+	}
+
+	@Nonnull
+	@GET("/resource-library/filters")
+	@AuthenticationRequired
+	public ApiResponse filters() {
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(institutionId).stream()
+				.filter(tagGroup -> !tagGroup.getDeprecated())
+				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup, false))
+				.collect(Collectors.toList());
+
+		List<ContentAudienceTypeApiResponse> contentAudienceTypes = getContentService().findContentAudienceTypes().stream()
+				.map(contentAudienceType -> getContentAudienceTypeApiResponseFactory().create(contentAudienceType))
+				.collect(Collectors.toList());
+
+		List<ContentAudienceTypeGroupApiResponse> contentAudienceTypeGroups = getContentService().findContentAudienceTypeGroups().stream()
+				.map(contentAudienceTypeGroup -> getContentAudienceTypeGroupApiResponseFactory().create(contentAudienceTypeGroup))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(Map.of(
+				"tagGroups", tagGroups,
+				"contentAudienceTypes", contentAudienceTypes,
+				"contentAudienceTypeGroups", contentAudienceTypeGroups,
+				"contentTypes", availableContentTypes(),
+				"contentDurations", availableContentDurations(),
+				"resourceLibrarySortColumnIds", availableResourceLibrarySortColumnIds()
+		));
+	}
+
+	@Nonnull
+	protected List<Map<String, Object>> availableResourceLibrarySortColumnIds() {
+		return List.of(
+				Map.of(
+						"resourceLibrarySortColumnId", ResourceLibrarySortColumnId.MOST_RECENT,
+						"description", getStrings().get("Most Recent")
+				),
+				Map.of(
+						"resourceLibrarySortColumnId", ResourceLibrarySortColumnId.MOST_VIEWED,
+						"description", getStrings().get("Most Viewed")
+				)
+		);
 	}
 
 	@Nonnull
@@ -733,6 +833,16 @@ public class ResourceLibraryResource {
 	@Nonnull
 	protected TagGroupApiResponseFactory getTagGroupApiResponseFactory() {
 		return this.tagGroupApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ContentAudienceTypeApiResponseFactory getContentAudienceTypeApiResponseFactory() {
+		return this.contentAudienceTypeApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ContentAudienceTypeGroupApiResponseFactory getContentAudienceTypeGroupApiResponseFactory() {
+		return this.contentAudienceTypeGroupApiResponseFactory;
 	}
 
 	@Nonnull

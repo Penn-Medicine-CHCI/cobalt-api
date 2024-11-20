@@ -145,9 +145,13 @@ public class AnalyticsNativeEventType {
 		// * topicCenterId (UUID)
 		PAGE_VIEW_TOPIC_CENTER,
 		// On the web, when the toplevel Resource Library page is rendered.
-		// * mode: (String, one of DEFAULT, SEARCH, or RECOMMENDED based on how page is displayed)
-		// * searchQuery: (String, if in SEARCH mode, when the page is filtered by a search query)
-		// * totalCount: (Integer, if in SEARCH or RECOMMENDED mode, how many results exist for the mode. Not all results may be shown)
+		// * mode: (String, one of DEFAULT, FILTERED, or RECOMMENDED based on how page is displayed)
+		// * searchQuery: (String, if in FILTERED mode, when the page is filtered by a search query)
+		// * tagIds: (String[], if in FILTERED mode and the page is filtered by tag IDs)
+		// * contentTypeIds: (String[], if in FILTERED mode and the page is filtered by content type IDs)
+		// * contentDurationIds: (String[], if in FILTERED mode and the page is filtered by content duration IDs),
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
+		// * totalCount: (Integer, if in FILTERED or RECOMMENDED mode, how many results exist for the mode. Not all results may be shown)
 		PAGE_VIEW_RESOURCE_LIBRARY,
 		// On the web, when a Resource Library Tag Group page is rendered.
 		// Additional data:
@@ -155,6 +159,7 @@ public class AnalyticsNativeEventType {
 		// * tagIds: (String[], if the page is filtered by tag IDs)
 		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
 		// * contentDurationIds: (String[], if the page is filtered by content duration IDs),
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
 		// * searchQuery: (String, if the page is filtered by a search query)
 		// * totalCount: (Integer, how many results exist. Not all results may be shown)
 		PAGE_VIEW_RESOURCE_LIBRARY_TAG_GROUP,
@@ -163,6 +168,7 @@ public class AnalyticsNativeEventType {
 		// * tagId (String)
 		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
 		// * contentDurationIds: (String[], if the page is filtered by content duration IDs)
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
 		PAGE_VIEW_RESOURCE_LIBRARY_TAG,
 		// On the web, when a Resource Library Detail page is rendered.
 		// Additional data:

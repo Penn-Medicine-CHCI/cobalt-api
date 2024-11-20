@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentAudienceType;
+import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentAudienceTypeGroup;
 import com.cobaltplatform.api.model.db.ContentFeedback;
 import com.cobaltplatform.api.model.db.ContentFeedbackType.ContentFeedbackTypeId;
@@ -44,6 +45,7 @@ import com.cobaltplatform.api.model.db.TagContent;
 import com.cobaltplatform.api.model.service.AdminContent;
 import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.ResourceLibrarySortColumnId;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
@@ -219,6 +221,8 @@ public class ContentService implements AutoCloseable {
 		Set<String> tagIds = request.getTagIds() == null ? Set.of() : request.getTagIds();
 		Set<ContentTypeId> contentTypeIds = request.getContentTypeIds() == null ? Set.of() : request.getContentTypeIds();
 		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
+		Set<ContentAudienceTypeId> contentAudienceTypeIds = request.getContentAudienceTypeIds() == null ? Set.of() : request.getContentAudienceTypeIds();
+		ResourceLibrarySortColumnId resourceLibrarySortColumnId = request.getResourceLibrarySortColumnId() == null ? ResourceLibrarySortColumnId.MOST_RECENT : ResourceLibrarySortColumnId.MOST_VIEWED;
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
@@ -242,6 +246,7 @@ public class ContentService implements AutoCloseable {
 		String contentViewedSelect = null;
 		String contentViewedJoin = null;
 		String contentViewedOrderBy = null;
+		String orderBy = null;
 		List<Object> parameters = new ArrayList<>();
 
 		if (tagGroupId != null) {
@@ -273,6 +278,14 @@ public class ContentService implements AutoCloseable {
 
 			parameters.add(institutionId);
 			parameters.addAll(tagIds);
+		}
+
+		if (contentAudienceTypeIds.size() > 0) {
+			fromClauseComponents.add("content_audience ca");
+
+			whereClauseComponents.add("AND ca.content_id=c.content_id");
+			whereClauseComponents.add(format("AND ca.content_audience_type_id IN %s", sqlInListPlaceholders(contentAudienceTypeIds)));
+			parameters.addAll(contentAudienceTypeIds);
 		}
 
 		// TODO: search over tag names (?)
@@ -307,14 +320,14 @@ public class ContentService implements AutoCloseable {
 
 		if (prioritizeUnviewedForAccountId != null) {
 			contentViewedQuery = """
-					                         , content_viewed_query AS (
-					                         SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
-					                         FROM activity_tracking
-					                         WHERE activity_action_id=? 
-					                         AND activity_type_id=?
-					                         AND account_id=?
-					                         GROUP BY content_id
-					                       )
+					 , content_viewed_query AS (
+					 SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
+					 FROM activity_tracking
+					 WHERE activity_action_id=? 
+					 AND activity_type_id=?
+					 AND account_id=?
+					 GROUP BY content_id
+					)
 					""";
 
 			parameters.add(ActivityActionId.VIEW);
@@ -324,6 +337,14 @@ public class ContentService implements AutoCloseable {
 			contentViewedJoin = "LEFT OUTER JOIN content_viewed_query as cvq ON bq.content_id=cvq.content_id";
 			contentViewedSelect = ", cvq.last_viewed_at";
 			contentViewedOrderBy = "cvq.last_viewed_at ASC NULLS FIRST,";
+		}
+
+		if (resourceLibrarySortColumnId == ResourceLibrarySortColumnId.MOST_VIEWED) {
+			// TODO: implement sorting for "most viewed" (currently no UI for this)
+			orderBy = "bq.institution_created_date DESC";
+		} else {
+			// ResourceLibrarySortColumnId.MOST_RECENT or anything else we don't recognize
+			orderBy = "bq.institution_created_date DESC";
 		}
 
 		parameters.add(limit);
@@ -358,16 +379,17 @@ public class ContentService implements AutoCloseable {
 				    {{contentViewedJoin}}
 				ORDER BY
 						{{contentViewedOrderBy}}
-				    bq.institution_created_date DESC
+				    {{orderBy}}
 				LIMIT ?
 				OFFSET ?
-								"""
+				"""
 				.replace("{{fromClause}}", fromClauseComponents.size() == 0 ? "" : ",\n" + fromClauseComponents.stream().collect(Collectors.joining(",\n")))
 				.replace("{{whereClause}}", whereClauseComponents.size() == 0 ? "" : "\n" + whereClauseComponents.stream().collect(Collectors.joining("\n")))
 				.replace("{{contentViewedQuery}}", contentViewedQuery == null ? "" : contentViewedQuery)
 				.replace("{{contentViewedSelect}}", contentViewedSelect == null ? "" : contentViewedSelect)
 				.replace("{{contentViewedJoin}}", contentViewedJoin == null ? "" : contentViewedJoin)
-				.replace("{{contentViewedOrderBy}}", contentViewedOrderBy == null ? "" : contentViewedOrderBy);
+				.replace("{{contentViewedOrderBy}}", contentViewedOrderBy == null ? "" : contentViewedOrderBy)
+				.replace("{{orderBy}}", orderBy == null ? "" : orderBy);
 
 		List<ContentWithTotalCount> contents = getDatabase().queryForList(sql, ContentWithTotalCount.class, sqlVaragsParameters(parameters));
 
@@ -453,7 +475,7 @@ public class ContentService implements AutoCloseable {
 						AND ic.institution_id=?
 						AND c.content_status_id = ?
 						ORDER BY cvq.last_viewed_at ASC NULLS FIRST, ic.created DESC
-										""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
+						""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
 				account.getInstitutionId(), ContentStatusId.LIVE);
 
 		applyTagsToContents(contents, account.getInstitutionId());
