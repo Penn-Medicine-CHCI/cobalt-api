@@ -159,6 +159,7 @@ public class AnalyticsNativeEventType {
 		// * tagIds: (String[], if the page is filtered by tag IDs)
 		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
 		// * contentDurationIds: (String[], if the page is filtered by content duration IDs),
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
 		// * searchQuery: (String, if the page is filtered by a search query)
 		// * totalCount: (Integer, how many results exist. Not all results may be shown)
 		PAGE_VIEW_RESOURCE_LIBRARY_TAG_GROUP,
@@ -167,6 +168,7 @@ public class AnalyticsNativeEventType {
 		// * tagId (String)
 		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
 		// * contentDurationIds: (String[], if the page is filtered by content duration IDs)
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
 		PAGE_VIEW_RESOURCE_LIBRARY_TAG,
 		// On the web, when a Resource Library Detail page is rendered.
 		// Additional data:
