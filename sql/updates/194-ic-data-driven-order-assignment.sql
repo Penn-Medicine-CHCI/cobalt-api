@@ -15,21 +15,13 @@ INSERT INTO patient_order_crisis_handler_type (patient_order_crisis_handler_type
 
 ALTER TABLE patient_order_crisis_handler ADD COLUMN patient_order_crisis_handler_type_id NOT NULL REFERENCES patient_order_crisis_handler_type DEFAULT 'ALL_ORDERS';
 
--- Normal set of crisis handlers that are notified.
--- However, some crisis handlers are for a specific department only.
--- We also want to auto-assign to a random provider
-
--- Lets us associate a crisis handler with a specific account in the system (optional; some crisis handlers might not have accounts at all)
---ALTER TABLE patient_order_crisis_handler ADD COLUMN account_id REFERENCES account;
-
 -- Associate crisis handlers with specific Epic departments
 CREATE TABLE patient_order_crisis_handler_epic_department (
-	patient_order_crisis_handler_id UUID NOT NULL REFERENCES patient_order_crisis_handler,
-	epic_department_id UUID NOT NULL REFERENCES epic_department,
-	-- automatically_assign_for_safety_planning BOOLEAN NOT NULL DEFAULT FALSE,
-	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
-	PRIMARY KEY (patient_order_crisis_handler_id, epic_department_id)
+  patient_order_crisis_handler_id UUID NOT NULL REFERENCES patient_order_crisis_handler,
+  epic_department_id UUID NOT NULL REFERENCES epic_department,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  PRIMARY KEY (patient_order_crisis_handler_id, epic_department_id)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_crisis_handler_epic_department FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
@@ -38,10 +30,10 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_crisis_
 -- If there are multiple safety planning managers for the same department, application code should pick one according to whatever heuristics it likes.
 CREATE TABLE epic_department_safety_planning_manager (
   epic_department_id UUID NOT NULL REFERENCES epic_department,
-	safety_planning_manager_account_id UUID NOT NULL REFERENCES account(account_id),
-	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
-	PRIMARY KEY (epic_department_id, safety_planning_manager_account_id)
+  safety_planning_manager_account_id UUID NOT NULL REFERENCES account(account_id),
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  PRIMARY KEY (epic_department_id, safety_planning_manager_account_id)
 );
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON epic_department_safety_planning_manager FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
