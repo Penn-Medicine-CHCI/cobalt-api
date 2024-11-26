@@ -42,8 +42,6 @@ public class CreatePatientOrderImportRequest {
 	@Nullable
 	private String hl7GeneralOrderTriggerEventMessage;
 	@Nullable
-	private Boolean automaticallyAssignToPanelAccounts;
-	@Nullable
 	private String filename;
 
 	@Nullable
@@ -89,15 +87,6 @@ public class CreatePatientOrderImportRequest {
 
 	public void setHl7GeneralOrderTriggerEventMessage(@Nullable String hl7GeneralOrderTriggerEventMessage) {
 		this.hl7GeneralOrderTriggerEventMessage = hl7GeneralOrderTriggerEventMessage;
-	}
-
-	@Nullable
-	public Boolean getAutomaticallyAssignToPanelAccounts() {
-		return this.automaticallyAssignToPanelAccounts;
-	}
-
-	public void setAutomaticallyAssignToPanelAccounts(@Nullable Boolean automaticallyAssignToPanelAccounts) {
-		this.automaticallyAssignToPanelAccounts = automaticallyAssignToPanelAccounts;
 	}
 
 	@Nullable
