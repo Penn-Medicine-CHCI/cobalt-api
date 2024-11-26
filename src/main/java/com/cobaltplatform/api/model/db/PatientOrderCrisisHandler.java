@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderCrisisHandlerType.PatientOrderCrisisHandlerTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -33,6 +34,8 @@ import java.util.UUID;
 public class PatientOrderCrisisHandler {
 	@Nullable
 	private UUID patientOrderCrisisHandlerId;
+	@Nullable
+	private PatientOrderCrisisHandlerTypeId patientOrderCrisisHandlerTypeId;
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
@@ -53,6 +56,15 @@ public class PatientOrderCrisisHandler {
 
 	public void setPatientOrderCrisisHandlerId(@Nullable UUID patientOrderCrisisHandlerId) {
 		this.patientOrderCrisisHandlerId = patientOrderCrisisHandlerId;
+	}
+
+	@Nullable
+	public PatientOrderCrisisHandlerTypeId getPatientOrderCrisisHandlerTypeId() {
+		return this.patientOrderCrisisHandlerTypeId;
+	}
+
+	public void setPatientOrderCrisisHandlerTypeId(@Nullable PatientOrderCrisisHandlerTypeId patientOrderCrisisHandlerTypeId) {
+		this.patientOrderCrisisHandlerTypeId = patientOrderCrisisHandlerTypeId;
 	}
 
 	@Nullable

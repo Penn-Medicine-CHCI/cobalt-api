@@ -113,6 +113,7 @@ import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason.PatientOrderClosureReasonId;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderCrisisHandler;
+import com.cobaltplatform.api.model.db.PatientOrderCrisisHandlerType.PatientOrderCrisisHandlerTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderDemographicsImportStatus.PatientOrderDemographicsImportStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDiagnosis;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition;
@@ -4359,7 +4360,7 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
-	public List<PatientOrderCrisisHandler> findPatientOrderCrisisHandlersByInstitutionId(@Nullable InstitutionId institutionId) {
+	public List<PatientOrderCrisisHandler> findPatientOrderCrisisHandlersForAllOrdersByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
 
@@ -4368,8 +4369,39 @@ public class PatientOrderService implements AutoCloseable {
 				FROM patient_order_crisis_handler
 				WHERE institution_id=?
 				AND enabled=TRUE
+				AND patient_order_crisis_handler_type_id=?
 				ORDER BY name, phone_number
-				""", PatientOrderCrisisHandler.class, institutionId);
+				""", PatientOrderCrisisHandler.class, institutionId, PatientOrderCrisisHandlerTypeId.ALL_ORDERS);
+	}
+
+	@Nonnull
+	public List<PatientOrderCrisisHandler> findPatientOrderCrisisHandlersSpecificallyForEpicDepartmentId(@Nullable UUID epicDepartmentId) {
+		if (epicDepartmentId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT poch.*
+				FROM patient_order_crisis_handler poch, patient_order_crisis_handler_epic_department poched 
+				WHERE poch.patient_order_crisis_handler_id = poched.patient_order_crisis_handler_id
+				AND poch.enabled=TRUE
+				AND poch.patient_order_crisis_handler_type_id=?
+				AND poched.epic_department_id=?
+				ORDER BY poch.name, poch.phone_number
+				""", PatientOrderCrisisHandler.class, PatientOrderCrisisHandlerTypeId.SPECIFIC_DEPARTMENTS_ONLY, epicDepartmentId);
+	}
+
+	@Nonnull
+	public List<Account> findEpicDepartmentSafetyPlanningManagerAccountsByEpicDepartmentId(@Nullable UUID epicDepartmentId) {
+		if (epicDepartmentId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT a.*
+				FROM v_account a, epic_department_safety_planning_manager edspm
+				WHERE a.account_id=edspm.safety_planning_manager_account_id
+				AND edspm.epic_department_id=?
+				ORDER BY a.account_id
+				""", Account.class, epicDepartmentId);
 	}
 
 	@Nonnull
