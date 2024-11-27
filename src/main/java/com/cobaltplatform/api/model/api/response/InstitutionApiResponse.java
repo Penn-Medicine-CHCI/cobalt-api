@@ -163,6 +163,8 @@ public class InstitutionApiResponse {
 	private final Boolean tableauEnabled;
 	@Nonnull
 	private final List<AlertApiResponse> alerts;
+	@Nonnull
+	private final Boolean contentAudiencesEnabled;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -268,6 +270,8 @@ public class InstitutionApiResponse {
 
 		this.tinymceApiKey = configuration.getTinymceApiKey();
 		this.tableauEnabled = institution.getTableauEnabled();
+
+		this.contentAudiencesEnabled = institution.getContentAudiencesEnabled();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -553,5 +557,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getTableauEnabled() {
 		return this.tableauEnabled;
+	}
+
+	@Nonnull
+	public Boolean getContentAudiencesEnabled() {
+		return this.contentAudiencesEnabled;
 	}
 }
