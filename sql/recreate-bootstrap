@@ -198,6 +198,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/190-anal
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/191-analytics.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/192-geo-enabled-flag.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/193-analytics.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/194-ic-data-driven-order-assignment.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
