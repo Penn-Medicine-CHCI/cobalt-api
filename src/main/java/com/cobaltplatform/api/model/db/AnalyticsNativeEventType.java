@@ -63,7 +63,7 @@ public class AnalyticsNativeEventType {
 		// When the browser's URL changes, either from initial page load or SPA client-side routing
 		// Additional data:
 		// * url (String, the URL that was changed to)
-		// * responseBody (String, the URL that was navigated away from, may be null for initial loads/external referrals)
+		// * previousUrl (String, the URL that was navigated away from, may be null for initial loads/external referrals)
 		URL_CHANGED,
 		// When an API call attempt fails (returns a status >= 400, terminated client-side, etc.)
 		// Additional data:
@@ -332,7 +332,34 @@ public class AnalyticsNativeEventType {
 		// When an MHIC clicks on the "Review" button on the order detail page's assessment section.
 		// Additional data:
 		// * patientOrderId (UUID)
-		CLICKTHROUGH_MHIC_ORDER_ASSESSMENT_RESULTS
+		CLICKTHROUGH_MHIC_ORDER_ASSESSMENT_RESULTS,
+		// When a Topic Center page viewer clicks through on a group session to view its detail page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * groupSessionId (UUID)
+		CLICKTHROUGH_TOPIC_CENTER_GROUP_SESSION,
+		// When a Topic Center page viewer clicks through on a piece of content to view its detail page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * contentId (UUID)
+		CLICKTHROUGH_TOPIC_CENTER_CONTENT,
+		// When a Topic Center page viewer clicks through on a tag group to view its Resource Library page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * tagGroupId (String)
+		CLICKTHROUGH_TOPIC_CENTER_TAG_GROUP,
+		// When a Topic Center page viewer clicks through on a tag to view its Resource Library page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * tagId (String)
+		CLICKTHROUGH_TOPIC_CENTER_TAG,
+		// When a Topic Center page viewer clicks through on a link contained within a "pinboard note" component.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * pinboardNoteId (UUID)
+		// * linkUrl (String, the URL linked in the anchor tag)
+		// * linkText (String, the text component of the anchor tag)
+		CLICKTHROUGH_TOPIC_CENTER_PINBOARD_NOTE_LINK,
 	}
 
 	@Override
