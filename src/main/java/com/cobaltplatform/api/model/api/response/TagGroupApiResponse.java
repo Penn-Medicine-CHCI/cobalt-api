@@ -29,6 +29,7 @@ import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
@@ -61,6 +62,10 @@ public class TagGroupApiResponse {
 	public interface TagGroupApiResponseFactory {
 		@Nonnull
 		TagGroupApiResponse create(@Nonnull TagGroup tagGroup);
+
+		@Nonnull
+		TagGroupApiResponse create(@Nonnull TagGroup tagGroup,
+															 @Nonnull Boolean includeDeprecatedTags);
 	}
 
 	@AssistedInject
@@ -68,10 +73,20 @@ public class TagGroupApiResponse {
 														 @Nonnull TagApiResponseFactory tagApiResponseFactory,
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Assisted @Nonnull TagGroup tagGroup) {
+		this(tagService, tagApiResponseFactory, currentContextProvider, tagGroup, true);
+	}
+
+	@AssistedInject
+	public TagGroupApiResponse(@Nonnull TagService tagService,
+														 @Nonnull TagApiResponseFactory tagApiResponseFactory,
+														 @Nonnull Provider<CurrentContext> currentContextProvider,
+														 @Assisted @Nonnull TagGroup tagGroup,
+														 @Assisted @Nonnull Boolean includeDeprecatedTags) {
 		requireNonNull(tagService);
 		requireNonNull(tagApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(tagGroup);
+		requireNonNull(includeDeprecatedTags);
 
 		this.tagGroupId = tagGroup.getTagGroupId();
 		this.colorId = tagGroup.getColorId();
@@ -80,6 +95,7 @@ public class TagGroupApiResponse {
 		this.description = tagGroup.getDescription();
 		this.deprecated = tagGroup.getDeprecated();
 		this.tags = tagService.findTagsByTagGroupId(tagGroup.getTagGroupId()).stream()
+				.filter(tag -> includeDeprecatedTags ? true : !tag.getDeprecated())
 				.map(tag -> tagApiResponseFactory.create(tag))
 				.collect(Collectors.toList());
 	}

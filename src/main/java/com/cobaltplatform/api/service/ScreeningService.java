@@ -1625,11 +1625,20 @@ public class ScreeningService {
 
 					// Notify any "crisis handlers" for this institution if a patient is self-screening and indicated crisis
 					if (selfAdministered) {
-						List<PatientOrderCrisisHandler> patientOrderCrisisHandlers = getPatientOrderService().findPatientOrderCrisisHandlersByInstitutionId(patientOrder.getInstitutionId());
+						// First, get crisis handlers who are always notified for all orders
+						List<PatientOrderCrisisHandler> allOrdersPatientOrderCrisisHandlers = getPatientOrderService().findPatientOrderCrisisHandlersForAllOrdersByInstitutionId(patientOrder.getInstitutionId());
 
-						getLogger().info("Notifying {} IC crisis handlers for institution ID {}...", patientOrderCrisisHandlers.size(), institution.getInstitutionId());
+						// Then, pick out any crisis handlers specifically assigned to this order's department
+						List<PatientOrderCrisisHandler> epicDepartmentSpecificPatientOrderCrisisHandlers = getPatientOrderService().findPatientOrderCrisisHandlersSpecificallyForEpicDepartmentId(patientOrder.getEpicDepartmentId());
 
-						for (PatientOrderCrisisHandler patientOrderCrisisHandler : patientOrderCrisisHandlers) {
+						// Combine them into a final list of crisis handlers to notify
+						List<PatientOrderCrisisHandler> notifiablePatientOrderCrisisHandlers = new ArrayList<>(allOrdersPatientOrderCrisisHandlers.size() + epicDepartmentSpecificPatientOrderCrisisHandlers.size());
+						notifiablePatientOrderCrisisHandlers.addAll(allOrdersPatientOrderCrisisHandlers);
+						notifiablePatientOrderCrisisHandlers.addAll(epicDepartmentSpecificPatientOrderCrisisHandlers);
+
+						getLogger().info("Notifying {} IC crisis handlers for institution ID {}...", notifiablePatientOrderCrisisHandlers.size(), institution.getInstitutionId());
+
+						for (PatientOrderCrisisHandler patientOrderCrisisHandler : notifiablePatientOrderCrisisHandlers) {
 							getLogger().info("Enqueuing IC crisis call message for {}...", patientOrderCrisisHandler.getPhoneNumber());
 
 							Map<String, Object> messageContext = new HashMap<>();
@@ -1640,11 +1649,22 @@ public class ScreeningService {
 							CallMessage callMessage = new CallMessage.Builder(institution.getInstitutionId(), CallMessageTemplate.IC_CRISIS, patientOrderCrisisHandler.getPhoneNumber(), institution.getLocale())
 									.messageContext(messageContext)
 									.build();
+
 							getMessageService().enqueueMessage(callMessage);
 						}
 
 						// Also automatically assign to the institution's designated safety manager, if one exists
 						UUID integratedCareSafetyPlanningManagerAccountId = institution.getIntegratedCareSafetyPlanningManagerAccountId();
+
+						// If there is a department-specific safety manager, assign that person instead.
+						// If there are multiple department-specific safety managers, pick the first one we encounter.
+						List<Account> epicDepartmentSafetyPlanningManagerAccounts = getPatientOrderService().findEpicDepartmentSafetyPlanningManagerAccountsByEpicDepartmentId(patientOrder.getEpicDepartmentId());
+
+						if (epicDepartmentSafetyPlanningManagerAccounts.size() > 0) {
+							Account epicDepartmentSafetyPlanningManagerAccount = epicDepartmentSafetyPlanningManagerAccounts.get(0);
+							getLogger().info("Using specially-configured safety planning manager account {} for epic department ID {}...", epicDepartmentSafetyPlanningManagerAccount.getEmailAddress(), patientOrder.getEpicDepartmentId());
+							integratedCareSafetyPlanningManagerAccountId = epicDepartmentSafetyPlanningManagerAccount.getAccountId();
+						}
 
 						if (integratedCareSafetyPlanningManagerAccountId != null) {
 							Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();

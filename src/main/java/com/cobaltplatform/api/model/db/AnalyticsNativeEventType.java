@@ -63,7 +63,7 @@ public class AnalyticsNativeEventType {
 		// When the browser's URL changes, either from initial page load or SPA client-side routing
 		// Additional data:
 		// * url (String, the URL that was changed to)
-		// * responseBody (String, the URL that was navigated away from, may be null for initial loads/external referrals)
+		// * previousUrl (String, the URL that was navigated away from, may be null for initial loads/external referrals)
 		URL_CHANGED,
 		// When an API call attempt fails (returns a status >= 400, terminated client-side, etc.)
 		// Additional data:
@@ -145,9 +145,13 @@ public class AnalyticsNativeEventType {
 		// * topicCenterId (UUID)
 		PAGE_VIEW_TOPIC_CENTER,
 		// On the web, when the toplevel Resource Library page is rendered.
-		// * mode: (String, one of DEFAULT, SEARCH, or RECOMMENDED based on how page is displayed)
-		// * searchQuery: (String, if in SEARCH mode, when the page is filtered by a search query)
-		// * totalCount: (Integer, if in SEARCH or RECOMMENDED mode, how many results exist for the mode. Not all results may be shown)
+		// * mode: (String, one of DEFAULT, FILTERED, or RECOMMENDED based on how page is displayed)
+		// * searchQuery: (String, if in FILTERED mode, when the page is filtered by a search query)
+		// * tagIds: (String[], if in FILTERED mode and the page is filtered by tag IDs)
+		// * contentTypeIds: (String[], if in FILTERED mode and the page is filtered by content type IDs)
+		// * contentDurationIds: (String[], if in FILTERED mode and the page is filtered by content duration IDs),
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
+		// * totalCount: (Integer, if in FILTERED or RECOMMENDED mode, how many results exist for the mode. Not all results may be shown)
 		PAGE_VIEW_RESOURCE_LIBRARY,
 		// On the web, when a Resource Library Tag Group page is rendered.
 		// Additional data:
@@ -155,6 +159,7 @@ public class AnalyticsNativeEventType {
 		// * tagIds: (String[], if the page is filtered by tag IDs)
 		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
 		// * contentDurationIds: (String[], if the page is filtered by content duration IDs),
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
 		// * searchQuery: (String, if the page is filtered by a search query)
 		// * totalCount: (Integer, how many results exist. Not all results may be shown)
 		PAGE_VIEW_RESOURCE_LIBRARY_TAG_GROUP,
@@ -163,6 +168,7 @@ public class AnalyticsNativeEventType {
 		// * tagId (String)
 		// * contentTypeIds: (String[], if the page is filtered by content type IDs)
 		// * contentDurationIds: (String[], if the page is filtered by content duration IDs)
+		// * contentAudienceTypeIds: (String[], if in FILTERED mode and the page is filtered by content audience type IDs),
 		PAGE_VIEW_RESOURCE_LIBRARY_TAG,
 		// On the web, when a Resource Library Detail page is rendered.
 		// Additional data:
@@ -326,7 +332,34 @@ public class AnalyticsNativeEventType {
 		// When an MHIC clicks on the "Review" button on the order detail page's assessment section.
 		// Additional data:
 		// * patientOrderId (UUID)
-		CLICKTHROUGH_MHIC_ORDER_ASSESSMENT_RESULTS
+		CLICKTHROUGH_MHIC_ORDER_ASSESSMENT_RESULTS,
+		// When a Topic Center page viewer clicks through on a group session to view its detail page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * groupSessionId (UUID)
+		CLICKTHROUGH_TOPIC_CENTER_GROUP_SESSION,
+		// When a Topic Center page viewer clicks through on a piece of content to view its detail page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * contentId (UUID)
+		CLICKTHROUGH_TOPIC_CENTER_CONTENT,
+		// When a Topic Center page viewer clicks through on a tag group to view its Resource Library page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * tagGroupId (String)
+		CLICKTHROUGH_TOPIC_CENTER_TAG_GROUP,
+		// When a Topic Center page viewer clicks through on a tag to view its Resource Library page.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * tagId (String)
+		CLICKTHROUGH_TOPIC_CENTER_TAG,
+		// When a Topic Center page viewer clicks through on a link contained within a "pinboard note" component.
+		// Additional data:
+		// * topicCenterId (UUID)
+		// * pinboardNoteId (UUID)
+		// * linkUrl (String, the URL linked in the anchor tag)
+		// * linkText (String, the text component of the anchor tag)
+		CLICKTHROUGH_TOPIC_CENTER_PINBOARD_NOTE_LINK,
 	}
 
 	@Override

@@ -70,7 +70,6 @@ public class PatientOrderServiceTests {
 				setInstitutionId(institutionId);
 				setPatientOrderImportTypeId(PatientOrderImportTypeId.CSV);
 				setAccountId(adminAccount.getAccountId());
-				setAutomaticallyAssignToPanelAccounts(false);
 			}});
 
 			UUID patientOrderImportId = patientOrderImportResult.getPatientOrderImportId();
