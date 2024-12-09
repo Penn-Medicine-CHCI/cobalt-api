@@ -1751,16 +1751,12 @@ public class PatientOrderService implements AutoCloseable {
 				  		SELECT patient_order_id FROM patient_order raw_po WHERE raw_po.institution_id=?
 				  		{{rawPatientOrderWhereClauseLines}}
 				  	)
-				  ),
-				  total_count_query AS (
-				  	SELECT COUNT(bq.*) AS total_count
-				  	FROM base_query bq
 				  )
 				  SELECT
 				  bq.*,
 				  tcq.total_count
 				  FROM
-				  total_count_query tcq,
+				  (SELECT COUNT(*) AS total_count FROM base_query) tcq,
 				  base_query bq
 				  ORDER BY {{orderByColumns}}
 				  LIMIT ?
