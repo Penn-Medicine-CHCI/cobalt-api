@@ -133,6 +133,7 @@ import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutr
 import com.cobaltplatform.api.model.db.PatientOrderReferral;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
@@ -5320,11 +5321,15 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		}
 
-		// For any orders in the import batch that have no flags, send a welcome message automatically
+		// For any orders in the import batch that have no flags, send a welcome message automatically.
 		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
 		for (PatientOrder importedPatientOrder : importedPatientOrders) {
+			// Don't send a welcome message for self-referrals
+			if (importedPatientOrder.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.SELF)
+				continue;
+
 			// If the order's insurance and region (state in US) are OK and patient is old enough, then send the welcome message...
 			if (importedPatientOrder.getPrimaryPlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted() && !importedPatientOrder.getPatientBelowAgeThreshold()) {
 				getLogger().info("Patient Order ID {} has an accepted region and insurance - automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
@@ -5387,6 +5392,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderDispositionId patientOrderDispositionId = PatientOrderDispositionId.OPEN;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
+		PatientOrderReferralSourceId patientOrderReferralSourceId = request.getPatientOrderReferralSourceId();
 		UUID accountId = request.getAccountId();
 		String encounterDepartmentId = trimToNull(request.getEncounterDepartmentId());
 		String encounterDepartmentIdType = trimToNull(request.getEncounterDepartmentIdType());
@@ -5450,6 +5456,10 @@ public class PatientOrderService implements AutoCloseable {
 		UUID epicDepartmentId = null;
 		UUID patientOrderId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
+
+		// If no referral source is provided, assume it's PROVIDER
+		if (patientOrderReferralSourceId == null)
+			patientOrderReferralSourceId = PatientOrderReferralSourceId.PROVIDER;
 
 		// TODO: revisit when we support non-US institutions
 		// Example: "2/25/21"
@@ -5783,8 +5793,9 @@ public class PatientOrderService implements AutoCloseable {
 							patient_clinical_sex_id,
 							patient_legal_sex_id,
 							patient_administrative_gender_id,
-							patient_demographics_imported_at
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+							patient_demographics_imported_at,
+							patient_order_referral_source_id
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, epicDepartmentId, referringPracticeId,
@@ -5797,7 +5808,8 @@ public class PatientOrderService implements AutoCloseable {
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications,
 				testPatientEmailAddress, hashedTestPatientPassword, testPatientOrder,
 				patientOrderDemographicsImportStatusId, patientEthnicityId, patientRaceId, patientBirthSexId, patientGenderIdentityId,
-				patientPreferredPronounId, patientClinicalSexId, patientLegalSexId, patientAdministrativeGenderId, patientDemographicsImportedAt);
+				patientPreferredPronounId, patientClinicalSexId, patientLegalSexId, patientAdministrativeGenderId, patientDemographicsImportedAt,
+				patientOrderReferralSourceId);
 
 		int diagnosisDisplayOrder = 0;
 

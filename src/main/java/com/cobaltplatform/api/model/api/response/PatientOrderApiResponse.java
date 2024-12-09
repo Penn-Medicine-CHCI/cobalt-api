@@ -55,6 +55,7 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -136,6 +137,8 @@ public class PatientOrderApiResponse {
 	private PatientOrderClosureReasonId patientOrderClosureReasonId;
 	@Nullable
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
+	@Nullable
+	private PatientOrderReferralSourceId patientOrderReferralSourceId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -833,6 +836,7 @@ public class PatientOrderApiResponse {
 		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
 		this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
+		this.patientOrderReferralSourceId = patientOrder.getPatientOrderReferralSourceId();
 		this.patientAccountId = patientOrder.getPatientAccountId();
 		this.patientAddressId = patientOrder.getPatientAddressId();
 		this.patientLastName = patientOrder.getPatientLastName();
@@ -1706,6 +1710,11 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
+	public PatientOrderReferralSourceId getPatientOrderReferralSourceId() {
+		return this.patientOrderReferralSourceId;
+	}
+
+	@Nullable
 	public String getPatientOrderDispositionDescription() {
 		return this.patientOrderDispositionDescription;
 	}
@@ -2273,5 +2282,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getMostRecentMessageDeliveredAtDescription() {
 		return this.mostRecentMessageDeliveredAtDescription;
+	}
+
+	@Nullable
+	public AdministrativeGenderId getPatientAdministrativeGenderId() {
+		return this.patientAdministrativeGenderId;
 	}
 }
