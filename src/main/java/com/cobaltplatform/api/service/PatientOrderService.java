@@ -518,13 +518,29 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderImportId == null)
 			return List.of();
 
+		// Make the common case very fast: where there is only one order imported
+		List<UUID> patientOrderIds = getDatabase().queryForList("""
+				SELECT patient_order_id
+				FROM patient_order
+				WHERE patient_order_import_id=?
+				""", UUID.class, patientOrderImportId);
+
+		if (patientOrderIds.size() == 0)
+			return List.of();
+
+		// Special handling for 1 order in the import
+		if (patientOrderIds.size() == 1) {
+			PatientOrder patientOrder = findPatientOrderById(patientOrderIds.get(0)).orElse(null);
+			return patientOrder == null ? List.of() : List.of(patientOrder);
+		}
+
+		// There must be multiple orders in the import, use the slow query to pull
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM v_patient_order
 				WHERE patient_order_import_id=?
-				AND patient_order_disposition_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
-				""", PatientOrder.class, patientOrderImportId, PatientOrderDispositionId.ARCHIVED);
+				""", PatientOrder.class, patientOrderImportId);
 	}
 
 	@Nonnull
