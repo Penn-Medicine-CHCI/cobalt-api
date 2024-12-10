@@ -674,11 +674,15 @@ public class PatientOrderService implements AutoCloseable {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT DISTINCT porr.*
-				FROM patient_order_referral_reason porr, patient_order_referral por, patient_order p
-				WHERE p.patient_order_id=por.patient_order_id
-				AND por.patient_order_referral_reason_id=porr.patient_order_referral_reason_id
-				AND p.institution_id=?
+				SELECT porr.*
+				FROM patient_order_referral_reason porr
+				WHERE EXISTS (
+					SELECT 1
+					FROM patient_order_referral por
+					JOIN patient_order p ON p.patient_order_id = por.patient_order_id
+					WHERE por.patient_order_referral_reason_id = porr.patient_order_referral_reason_id
+						AND p.institution_id = ?
+				)
 				ORDER BY porr.description
 				""", PatientOrderReferralReason.class, institutionId);
 	}
