@@ -619,9 +619,12 @@ public class PatientOrderService implements AutoCloseable {
 
 		return getDatabase().queryForObject("""
 				SELECT po.*
-				FROM v_patient_order po, screening_session ss
-				WHERE ss.screening_session_id=?
-				AND ss.patient_order_id=po.patient_order_id
+				FROM v_patient_order po
+				WHERE po.patient_order_id = (
+				  SELECT patient_order_id
+				  FROM screening_session
+				  WHERE screening_session_id = ?
+				)
 				""", PatientOrder.class, screeningSessionId);
 	}
 
