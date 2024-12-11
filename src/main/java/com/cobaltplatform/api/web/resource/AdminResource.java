@@ -50,6 +50,7 @@ import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.service.TagService;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
@@ -159,6 +160,7 @@ public class AdminResource {
 
 	@GET("/admin/my-content/filter")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse getMyContentFilter() {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("contentTypes", getContentService().findContentTypes());
@@ -169,6 +171,7 @@ public class AdminResource {
 
 	@GET("/admin/content")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse getContent(@QueryParameter Optional<Integer> page,
 																@QueryParameter Optional<ContentType.ContentTypeId> contentTypeId,
 																@QueryParameter Optional<Institution.InstitutionId> institutionId,
@@ -192,6 +195,7 @@ public class AdminResource {
 	@Nonnull
 	@GET("/admin/content-tags")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse tagsForContent() {
 		Account account = getCurrentContext().getAccount().get();
 
@@ -211,6 +215,7 @@ public class AdminResource {
 
 	@GET("/admin/content-statuses")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse getContentStatuses() {
 		Account account = getCurrentContext().getAccount().get();
 		if (account.getRoleId() == RoleId.ADMINISTRATOR) {
@@ -264,6 +269,7 @@ public class AdminResource {
 
 	@GET("/admin/content/{contentId}")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse getContentById(@Nonnull @PathParameter UUID contentId) {
 		requireNonNull(contentId);
 

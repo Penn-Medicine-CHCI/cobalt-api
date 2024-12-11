@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
@@ -103,6 +104,7 @@ public class ContentResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@AuthenticationRequired
 	@GET("/content/{contentId}")
 	public ApiResponse findContentById(@Nonnull @PathParameter UUID contentId) {
@@ -141,6 +143,7 @@ public class ContentResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@AuthenticationRequired
 	@GET("/content-audience-types")
 	public ApiResponse findContentAudienceTypes() {
@@ -159,6 +162,7 @@ public class ContentResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@AuthenticationRequired
 	@GET("/content-audience-type-groups")
 	public ApiResponse findContentAudienceTypeGroups() {

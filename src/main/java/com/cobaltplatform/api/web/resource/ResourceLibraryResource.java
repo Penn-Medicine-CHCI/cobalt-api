@@ -49,6 +49,7 @@ import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.lokalized.Strings;
@@ -157,6 +158,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-groups")
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTagGroups() {
@@ -171,6 +173,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library")
 	@AuthenticationRequired
 	public ApiResponse resourceLibrary() {
@@ -248,6 +251,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/search")
 	@AuthenticationRequired
 	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter Optional<String> searchQuery,
@@ -305,6 +309,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/recommended")
 	@AuthenticationRequired
 	public ApiResponse recommendedResourceLibrary(@Nonnull @QueryParameter("tagId") Optional<List<String>> tagIds,
@@ -414,6 +419,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-groups/{tagGroupId}")
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTagGroup(@Nonnull @PathParameter String tagGroupId,
@@ -526,6 +532,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tags/{tagId}")
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTag(@Nonnull @PathParameter String tagId,
@@ -598,6 +605,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-group-filters/{tagGroupId}")
 	@AuthenticationRequired
 	public ApiResponse tagGroupFilters(@Nonnull @PathParameter String tagGroupId) {
@@ -661,6 +669,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-filters/{tagIdentifier}")
 	@AuthenticationRequired
 	public ApiResponse tagFilters(@Nonnull @PathParameter String tagIdentifier) {
@@ -712,6 +721,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/content-types")
 	@AuthenticationRequired
 	public ApiResponse contentTypes() {
@@ -721,6 +731,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/content-durations")
 	@AuthenticationRequired
 	public ApiResponse contentDurations() {
@@ -730,6 +741,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/filters")
 	@AuthenticationRequired
 	public ApiResponse filters() {
