@@ -1471,7 +1471,7 @@ public class GroupSessionService implements AutoCloseable {
 							.replyToAddress(pinnedGroupSession.getTargetEmailAddress())
 							.messageContext(new HashMap<String, Object>() {{
 								put("groupSession", pinnedGroupSession);
-								put("imageUrl", firstNonNull(findFileUploadUrlByForGroupSession(pinnedGroupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+								put("imageUrl", firstNonNull(findUploadedImageUrlForGroupSession(pinnedGroupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 								put("attendeeName", attendeeName);
 								put("groupSessionStartDateDescription", getFormatter().formatDate(pinnedGroupSession.getStartDateTime().toLocalDate()));
 								put("groupSessionStartTimeDescription", getFormatter().formatTime(pinnedGroupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
@@ -1500,7 +1500,7 @@ public class GroupSessionService implements AutoCloseable {
 							.replyToAddress(pinnedGroupSession.getTargetEmailAddress())
 							.messageContext(new HashMap<String, Object>() {{
 								put("groupSession", pinnedGroupSession);
-								put("imageUrl", firstNonNull(findFileUploadUrlByForGroupSession(pinnedGroupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+								put("imageUrl", firstNonNull(findUploadedImageUrlForGroupSession(pinnedGroupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 								put("groupSessionUrl", format("%s/in-the-studio", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(pinnedGroupSession.getInstitutionId(), UserExperienceTypeId.PATIENT).get()));
 								put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), pinnedGroupSession.getOverridePlatformName());
 								put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), pinnedGroupSession.getOverridePlatformEmailImageUrl());
@@ -1719,7 +1719,7 @@ public class GroupSessionService implements AutoCloseable {
 					.replyToAddress(replyToAddressForEmailsTargetingFacilitator(groupSession))
 					.messageContext(new HashMap<String, Object>() {{
 						put("groupSession", groupSession);
-						put("imageUrl", firstNonNull(findFileUploadUrlByForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+						put("imageUrl", firstNonNull(findUploadedImageUrlForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 						put("facilitatorName", groupSession.getFacilitatorName());
 						put("attendeeName", attendeeName);
 						put("groupSessionUrl", format("%s/admin/group-sessions/edit/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF).get(), groupSession.getGroupSessionId()));
@@ -1768,7 +1768,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		Map<String, Object> attendeeMessageContext = new HashMap<String, Object>() {{
 			put("groupSession", groupSession);
-			put("imageUrl", firstNonNull(findFileUploadUrlByForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+			put("imageUrl", firstNonNull(findUploadedImageUrlForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 			put("attendeeName", attendeeName);
 			put("groupSessionTitle", groupSession.getTitle());
 			put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
@@ -1821,7 +1821,7 @@ public class GroupSessionService implements AutoCloseable {
 
 		Map<String, Object> messageContext = new HashMap<>();
 		messageContext.put("groupSession", groupSession);
-		messageContext.put("imageUrl", firstNonNull(findFileUploadUrlByForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+		messageContext.put("imageUrl", firstNonNull(findUploadedImageUrlForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 		messageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name(), groupSession.getOverridePlatformName());
 		messageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(), groupSession.getOverridePlatformEmailImageUrl());
 		messageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_SUPPORT_EMAIL_ADDRESS.name(), groupSession.getOverridePlatformSupportEmailAddress());
@@ -1897,7 +1897,7 @@ public class GroupSessionService implements AutoCloseable {
 					.replyToAddress(groupSession.getTargetEmailAddress())
 					.messageContext(new HashMap<String, Object>() {{
 						put("groupSession", groupSession);
-						put("imageUrl", firstNonNull(findFileUploadUrlByForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+						put("imageUrl", firstNonNull(findUploadedImageUrlForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 						put("attendeeName", attendeeName);
 						put("groupSessionStartDateDescription", getFormatter().formatDate(groupSession.getStartDateTime().toLocalDate()));
 						put("groupSessionStartTimeDescription", getFormatter().formatTime(groupSession.getStartDateTime().toLocalTime(), FormatStyle.SHORT));
@@ -1918,7 +1918,7 @@ public class GroupSessionService implements AutoCloseable {
 					.replyToAddress(replyToAddressForEmailsTargetingFacilitator(groupSession))
 					.messageContext(new HashMap<String, Object>() {{
 						put("groupSession", groupSession);
-						put("imageUrl", firstNonNull(findFileUploadUrlByForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
+						put("imageUrl", firstNonNull(findUploadedImageUrlForGroupSession(groupSession), getConfiguration().getDefaultGroupSessionImageUrlForEmail()));
 						put("facilitatorName", groupSession.getFacilitatorName());
 						put("attendeeName", attendeeName);
 						put("attendeeEmailAddress", attendeeEmailAddress);
@@ -2470,23 +2470,18 @@ public class GroupSessionService implements AutoCloseable {
 				GroupSessionCollection.class, account.getInstitutionId());
 	}
 
-	@Nonnull
-	private String findFileUploadUrlByForGroupSession(GroupSession groupSession) {
-		requireNonNull(groupSession);
-
-		if (groupSession.getImageFileUploadId() == null)
+	@Nullable
+	private String findUploadedImageUrlForGroupSession(@Nullable GroupSession groupSession) {
+		if (groupSession == null || groupSession.getImageFileUploadId() == null)
 			return null;
-		else {
-			Optional<FileUpload> fileUpload = getDatabase().queryForObject("""
-					SELECT *
-					FROM file_upload
-					WHERE file_upload_id = ?""", FileUpload.class, groupSession.getGroupSessionId());
 
-			if (fileUpload.isPresent())
-				return fileUpload.get().getUrl();
-			else
-				return null;
-		}
+		FileUpload fileUpload = getDatabase().queryForObject("""
+				SELECT *
+				FROM file_upload
+				WHERE file_upload_id=?
+				""", FileUpload.class, groupSession.getImageFileUploadId()).orElse(null);
+
+		return fileUpload == null ? null : fileUpload.getUrl();
 	}
 
 	@Nonnull
