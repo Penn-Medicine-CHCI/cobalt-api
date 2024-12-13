@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFa
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
@@ -44,6 +45,7 @@ import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.model.service.ResourceLibrarySortColumnId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
@@ -163,13 +165,38 @@ public class ResourceLibraryResource {
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTagGroups() {
 		CurrentContext currentContext = getCurrentContext();
-		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId()).stream()
-				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
-				.collect(Collectors.toList());
+		boolean isNativeApp = isNativeApp(currentContext);
 
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("tagGroups", tagGroups);
-		}});
+		List<TagGroup> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId());
+
+		// Temporary special handling for native apps only: if a tag group has no content in it, filter it out.
+		// This is inefficient, but it's temporary and won't harm the system or meaningfully impact users.
+		// TODO: remove this special handling once dependent study completes
+		if (isNativeApp) {
+			tagGroups = tagGroups.stream().filter((tagGroup -> {
+				FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
+					{
+						setInstitutionId(currentContext.getInstitutionId());
+						setTagGroupId(tagGroup.getTagGroupId());
+					}
+				});
+
+				return findResult.getTotalCount() > 0;
+			})).collect(Collectors.toList());
+		}
+
+		return new ApiResponse(Map.of("tagGroups", tagGroups.stream()
+				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
+				.collect(Collectors.toList())));
+	}
+
+	@Nonnull
+	protected Boolean isNativeApp(@Nonnull CurrentContext currentContext) {
+		requireNonNull(currentContext);
+
+		RemoteClient remoteClient = currentContext.getRemoteClient().orElse(null);
+		ClientDeviceTypeId clientDeviceTypeId = remoteClient != null ? remoteClient.getTypeId().orElse(null) : null;
+		return clientDeviceTypeId != null && clientDeviceTypeId.isNativeApp();
 	}
 
 	@Nonnull
