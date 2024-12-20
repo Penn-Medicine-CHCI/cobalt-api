@@ -25,6 +25,7 @@ import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
 import com.cobaltplatform.api.integration.epic.code.SlotStatusCode;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindAvailability;
+import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindOutputFormat;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest.ProviderFindSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
@@ -67,6 +68,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AssessmentScoringService;
@@ -92,6 +94,9 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.CustomResponse;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,9 +105,14 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -122,6 +132,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -284,7 +295,11 @@ public class ProviderResource {
 	@Nonnull
 	@POST("/providers/find")
 	@AuthenticationRequired
-	public ApiResponse findProviders(@Nonnull @RequestBody String requestBody) {
+	public Object findProviders(@Nonnull @RequestBody String requestBody,
+															@Nonnull HttpServletResponse httpServletResponse) throws IOException {
+		requireNonNull(requestBody);
+		requireNonNull(httpServletResponse);
+
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
@@ -303,6 +318,11 @@ public class ProviderResource {
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
+
+		ProviderFindOutputFormat providerFindOutputFormat = request.getProviderFindOutputFormat();
+
+		if (providerFindOutputFormat == null)
+			providerFindOutputFormat = ProviderFindOutputFormat.DEFAULT;
 
 		// There is no longer a UI for this, so ignore legacy data
 		// TODO: remove legacy time filtering options
@@ -665,6 +685,68 @@ public class ProviderResource {
 					finalSections.add(firstEmptySectionInRange);
 				}
 			}
+		}
+
+		// Special handling: export to CSV if specifically requested
+		if (providerFindOutputFormat == ProviderFindOutputFormat.CSV) {
+			DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
+					.withLocale(locale)
+					.withZone(getCurrentContext().getTimeZone());
+
+			String filename = format("Provider Availability on %s.csv", instantFormatter.format(Instant.now()));
+
+			httpServletResponse.setContentType("text/csv");
+			httpServletResponse.setHeader("Content-Encoding", "gzip");
+			httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", filename));
+
+			List<String> headerColumns = List.of(
+					getStrings().get("Provider ID"),
+					getStrings().get("Provider Name"),
+					getStrings().get("Slot Date"),
+					getStrings().get("Slot Time"),
+					getStrings().get("Slot Status"),
+					getStrings().get("Epic Department ID"),
+					getStrings().get("Appointment Type IDs")
+			);
+
+			try (PrintWriter printWriter = new PrintWriter(new GZIPOutputStream(httpServletResponse.getOutputStream()));
+					 CSVPrinter csvPrinter = new CSVPrinter(printWriter, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+
+				for (ProviderFindSection providerFindSection : finalSections) {
+					for (Object providerObject : providerFindSection.getProviders()) {
+						Map<String, Object> normalizedProviderFind = (Map<String, Object>) providerObject;
+						Object providerId = normalizedProviderFind.get("providerId");
+						Object providerName = normalizedProviderFind.get("name");
+						LocalDate slotDate = providerFindSection.getDate();
+
+						List<Object> timeObjects = (List<Object>) normalizedProviderFind.get("times");
+
+						for (Object timeObject : timeObjects) {
+							Map<String, Object> normalizedTimeObject = (Map<String, Object>) timeObject;
+
+							LocalTime slotTime = (LocalTime) normalizedTimeObject.get("time");
+							AvailabilityStatus slotStatus = (AvailabilityStatus) normalizedTimeObject.get("status");
+							Object epicDepartmentId = normalizedTimeObject.get("epicDepartmentId");
+							List<UUID> slotAppointmentTypeIds = (List<UUID>) normalizedTimeObject.get("appointmentTypeIds");
+
+							List<String> recordElements = new ArrayList<>();
+							recordElements.add(providerId == null ? null : providerId.toString());
+							recordElements.add(providerName == null ? null : providerName.toString());
+							recordElements.add(slotDate == null ? null : slotDate.toString());
+							recordElements.add(slotTime == null ? null : slotTime.toString());
+							recordElements.add(slotStatus == null ? null : slotStatus.toString());
+							recordElements.add(epicDepartmentId == null ? null : epicDepartmentId.toString());
+							recordElements.add(slotAppointmentTypeIds == null ? null : slotAppointmentTypeIds.stream().map(slotAppointmentTypeId -> slotAppointmentTypeId.toString()).collect(Collectors.joining(", ")));
+
+							csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+						}
+					}
+				}
+
+				csvPrinter.flush();
+			}
+
+			return CustomResponse.instance();
 		}
 
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{

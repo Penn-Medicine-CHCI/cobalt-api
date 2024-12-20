@@ -518,13 +518,29 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderImportId == null)
 			return List.of();
 
+		// Make the common case very fast: where there is only one order imported
+		List<UUID> patientOrderIds = getDatabase().queryForList("""
+				SELECT patient_order_id
+				FROM patient_order
+				WHERE patient_order_import_id=?
+				""", UUID.class, patientOrderImportId);
+
+		if (patientOrderIds.size() == 0)
+			return List.of();
+
+		// Special handling for 1 order in the import
+		if (patientOrderIds.size() == 1) {
+			PatientOrder patientOrder = findPatientOrderById(patientOrderIds.get(0)).orElse(null);
+			return patientOrder == null ? List.of() : List.of(patientOrder);
+		}
+
+		// There must be multiple orders in the import, use the slow query to pull
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM v_patient_order
 				WHERE patient_order_import_id=?
-				AND patient_order_disposition_id != ?
 				ORDER BY order_date DESC, order_age_in_minutes
-				""", PatientOrder.class, patientOrderImportId, PatientOrderDispositionId.ARCHIVED);
+				""", PatientOrder.class, patientOrderImportId);
 	}
 
 	@Nonnull
@@ -602,9 +618,12 @@ public class PatientOrderService implements AutoCloseable {
 
 		return getDatabase().queryForObject("""
 				SELECT po.*
-				FROM v_patient_order po, screening_session ss
-				WHERE ss.screening_session_id=?
-				AND ss.patient_order_id=po.patient_order_id
+				FROM v_patient_order po
+				WHERE po.patient_order_id = (
+				  SELECT patient_order_id
+				  FROM screening_session
+				  WHERE screening_session_id = ?
+				)
 				""", PatientOrder.class, screeningSessionId);
 	}
 
@@ -658,11 +677,15 @@ public class PatientOrderService implements AutoCloseable {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT DISTINCT porr.*
-				FROM patient_order_referral_reason porr, patient_order_referral por, patient_order p
-				WHERE p.patient_order_id=por.patient_order_id
-				AND por.patient_order_referral_reason_id=porr.patient_order_referral_reason_id
-				AND p.institution_id=?
+				SELECT porr.*
+				FROM patient_order_referral_reason porr
+				WHERE EXISTS (
+					SELECT 1
+					FROM patient_order_referral por
+					JOIN patient_order p ON p.patient_order_id = por.patient_order_id
+					WHERE por.patient_order_referral_reason_id = porr.patient_order_referral_reason_id
+						AND p.institution_id = ?
+				)
 				ORDER BY porr.description
 				""", PatientOrderReferralReason.class, institutionId);
 	}
@@ -1734,16 +1757,12 @@ public class PatientOrderService implements AutoCloseable {
 				  		SELECT patient_order_id FROM patient_order raw_po WHERE raw_po.institution_id=?
 				  		{{rawPatientOrderWhereClauseLines}}
 				  	)
-				  ),
-				  total_count_query AS (
-				  	SELECT COUNT(bq.*) AS total_count
-				  	FROM base_query bq
 				  )
 				  SELECT
 				  bq.*,
 				  tcq.total_count
 				  FROM
-				  total_count_query tcq,
+				  (SELECT COUNT(*) AS total_count FROM base_query) tcq,
 				  base_query bq
 				  ORDER BY {{orderByColumns}}
 				  LIMIT ?

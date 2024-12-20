@@ -239,24 +239,28 @@ public class AdminContentService {
 		else if (contentSortOrder.equals(ContentSortOrder.EXPIRY_DATE_ASC))
 			orderByClause.append("va.publish_end_date ASC");
 
-		String query =
-				String.format("""
-						SELECT va.*, 
-						(select COUNT(*) FROM 
-						 activity_tracking at, account a WHERE
-						va.content_id = CAST (at.context ->> 'contentId' AS UUID) AND 
-						at.activity_action_id = 'VIEW' AND
-						at.activity_type_id='CONTENT' AND
-						at.account_id = a.account_id AND
-						a.institution_id = ?) AS views ,
-						count(*) over() AS total_count,
-						ic.created AS date_added_to_institution
-						FROM v_admin_content va 
-						LEFT OUTER JOIN institution_content ic ON va.content_id = ic.content_id 
-						AND ic.institution_id = ?
-						WHERE %s 
-						%s LIMIT ? OFFSET ? 
-						""", whereClause.toString(), orderByClause.toString());
+		String query = format("""
+				WITH activity_counts AS (
+				  SELECT CAST((context->>'contentId') AS uuid) AS content_id, COUNT(*) AS views
+				  FROM activity_tracking at
+				  JOIN account a ON at.account_id = a.account_id
+				  WHERE at.activity_action_id = 'VIEW'
+				    AND at.activity_type_id = 'CONTENT'
+				    AND a.institution_id = ?
+				  GROUP BY CAST((context->>'contentId') AS uuid)
+				)
+				SELECT va.*,
+				       ac.views,
+				       count(*) OVER() AS total_count,
+				       ic.created AS date_added_to_institution
+				FROM v_admin_content va
+				LEFT JOIN institution_content ic ON va.content_id = ic.content_id
+				    AND ic.institution_id = ?
+				LEFT JOIN activity_counts ac ON va.content_id = ac.content_id
+				WHERE %s
+				%s
+				LIMIT ? OFFSET ?
+				""", whereClause, orderByClause);
 
 		parameters.add(limit);
 		parameters.add(offset);

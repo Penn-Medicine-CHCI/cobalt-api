@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFa
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
@@ -44,11 +45,13 @@ import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.RemoteClient;
 import com.cobaltplatform.api.model.service.ResourceLibrarySortColumnId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.lokalized.Strings;
@@ -157,20 +160,47 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-groups")
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTagGroups() {
 		CurrentContext currentContext = getCurrentContext();
-		List<TagGroupApiResponse> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId()).stream()
-				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
-				.collect(Collectors.toList());
+		boolean isNativeApp = isNativeApp(currentContext);
 
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("tagGroups", tagGroups);
-		}});
+		List<TagGroup> tagGroups = getTagService().findTagGroupsByInstitutionId(currentContext.getInstitutionId());
+
+		// Temporary special handling for native apps only: if a tag group has no content in it, filter it out.
+		// This is inefficient, but it's temporary and won't harm the system or meaningfully impact users.
+		// TODO: remove this special handling once dependent study completes
+		if (isNativeApp) {
+			tagGroups = tagGroups.stream().filter((tagGroup -> {
+				FindResult<Content> findResult = getContentService().findResourceLibraryContent(new FindResourceLibraryContentRequest() {
+					{
+						setInstitutionId(currentContext.getInstitutionId());
+						setTagGroupId(tagGroup.getTagGroupId());
+					}
+				});
+
+				return findResult.getTotalCount() > 0;
+			})).collect(Collectors.toList());
+		}
+
+		return new ApiResponse(Map.of("tagGroups", tagGroups.stream()
+				.map(tagGroup -> getTagGroupApiResponseFactory().create(tagGroup))
+				.collect(Collectors.toList())));
 	}
 
 	@Nonnull
+	protected Boolean isNativeApp(@Nonnull CurrentContext currentContext) {
+		requireNonNull(currentContext);
+
+		RemoteClient remoteClient = currentContext.getRemoteClient().orElse(null);
+		ClientDeviceTypeId clientDeviceTypeId = remoteClient != null ? remoteClient.getTypeId().orElse(null) : null;
+		return clientDeviceTypeId != null && clientDeviceTypeId.isNativeApp();
+	}
+
+	@Nonnull
+	@ReadReplica
 	@GET("/resource-library")
 	@AuthenticationRequired
 	public ApiResponse resourceLibrary() {
@@ -248,6 +278,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/search")
 	@AuthenticationRequired
 	public ApiResponse searchResourceLibrary(@Nonnull @QueryParameter Optional<String> searchQuery,
@@ -305,6 +336,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/recommended")
 	@AuthenticationRequired
 	public ApiResponse recommendedResourceLibrary(@Nonnull @QueryParameter("tagId") Optional<List<String>> tagIds,
@@ -414,6 +446,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-groups/{tagGroupId}")
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTagGroup(@Nonnull @PathParameter String tagGroupId,
@@ -526,6 +559,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tags/{tagId}")
 	@AuthenticationRequired
 	public ApiResponse resourceLibraryTag(@Nonnull @PathParameter String tagId,
@@ -598,6 +632,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-group-filters/{tagGroupId}")
 	@AuthenticationRequired
 	public ApiResponse tagGroupFilters(@Nonnull @PathParameter String tagGroupId) {
@@ -661,6 +696,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/tag-filters/{tagIdentifier}")
 	@AuthenticationRequired
 	public ApiResponse tagFilters(@Nonnull @PathParameter String tagIdentifier) {
@@ -712,6 +748,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/content-types")
 	@AuthenticationRequired
 	public ApiResponse contentTypes() {
@@ -721,6 +758,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/content-durations")
 	@AuthenticationRequired
 	public ApiResponse contentDurations() {
@@ -730,6 +768,7 @@ public class ResourceLibraryResource {
 	}
 
 	@Nonnull
+	@ReadReplica
 	@GET("/resource-library/filters")
 	@AuthenticationRequired
 	public ApiResponse filters() {

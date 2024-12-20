@@ -56,6 +56,7 @@ import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
@@ -186,6 +187,7 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions/collections")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse collectionsWithGroupSessions() {
 		Account account = getCurrentContext().getAccount().get();
 
@@ -201,6 +203,7 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse groupSessions(@Nonnull @QueryParameter Optional<Integer> pageNumber,
 																	 @Nonnull @QueryParameter Optional<Integer> pageSize,
 																	 @Nonnull @QueryParameter Optional<GroupSessionViewType> viewType,
@@ -279,6 +282,7 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions/counts")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse groupSessionCounts() {
 		Account account = getCurrentContext().getAccount().get();
 		// TODO: for superadmins, don't include institution ID
@@ -300,6 +304,7 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions/{groupSessionId}")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse groupSession(@Nonnull @PathParameter("groupSessionId") String groupSessionIdentifier) {
 		requireNonNull(groupSessionIdentifier);
 
@@ -462,6 +467,7 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-session-collections")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse groupSessionCollections() {
 		Account account = getCurrentContext().getAccount().get();
 
@@ -476,6 +482,7 @@ public class GroupSessionResource {
 	@Nonnull
 	@GET("/group-sessions/validate-url-name")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse groupSessionUrlValidation(@Nonnull @QueryParameter String searchQuery,
 																							 @Nonnull @QueryParameter Optional<UUID> groupSessionId) {
 		requireNonNull(searchQuery);

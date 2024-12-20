@@ -78,6 +78,13 @@ public class ProviderFindRequest {
 	private Set<AppointmentTimeId> appointmentTimeIds; // Empty means no appointment time restrictions
 	@Nullable
 	private UUID patientOrderId;
+	@Nullable
+	private ProviderFindOutputFormat providerFindOutputFormat;
+
+	public enum ProviderFindOutputFormat {
+		DEFAULT,
+		CSV
+	}
 
 	public enum ProviderFindAvailability {
 		ALL,
@@ -271,5 +278,14 @@ public class ProviderFindRequest {
 
 	public void setPatientOrderId(@Nullable UUID patientOrderId) {
 		this.patientOrderId = patientOrderId;
+	}
+
+	@Nullable
+	public ProviderFindOutputFormat getProviderFindOutputFormat() {
+		return this.providerFindOutputFormat;
+	}
+
+	public void setProviderFindOutputFormat(@Nullable ProviderFindOutputFormat providerFindOutputFormat) {
+		this.providerFindOutputFormat = providerFindOutputFormat;
 	}
 }
