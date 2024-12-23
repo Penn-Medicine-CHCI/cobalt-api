@@ -165,9 +165,9 @@ public class CareResourceLocationApiResponse {
 					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 					.collect(Collectors.toList());
 		else
-		this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
-				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
-				.collect(Collectors.toList());
+			this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
 
 		if (this.overridePayors) {
 			this.payors = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.PAYORS).stream()

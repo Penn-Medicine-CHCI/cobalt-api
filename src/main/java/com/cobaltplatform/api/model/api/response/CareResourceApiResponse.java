@@ -91,6 +91,7 @@ public class CareResourceApiResponse {
 																 @Nonnull CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory,
 																 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 																 @Nonnull Formatter formatter) {
+		requireNonNull(careResourceService);
 		requireNonNull(careResource);
 		requireNonNull(formatter);
 		requireNonNull(careResourceLocationApiResponseFactory);

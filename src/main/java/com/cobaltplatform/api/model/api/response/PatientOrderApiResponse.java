@@ -1102,6 +1102,10 @@ public class PatientOrderApiResponse {
 
 			this.mostRecentMessageDeliveredAt = patientOrder.getMostRecentMessageDeliveredAt();
 			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestamp(mostRecentMessageDeliveredAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+
+			if (this.patientOrderResourcingStatusId.equals(PatientOrderResourcingStatusId.NEEDS_RESOURCES)) {
+				//TODO: Return resource packet
+			}
 		}
 	}
 

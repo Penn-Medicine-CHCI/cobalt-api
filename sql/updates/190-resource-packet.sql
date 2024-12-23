@@ -22,14 +22,14 @@ CREATE UNIQUE INDEX idx_care_resource_tag_id_group ON care_resource_tag(care_res
 CREATE TABLE care_resource (
 	care_resource_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	name TEXT NOT NULL,
-  	import_reference_number INTEGER,  	
-  	insurance_notes VARCHAR,
-  	notes VARCHAR,
-  	phone_number TEXT NULL,
-  	website_url TEXT NULL,  
-  	email_address TEXT NULL,  	  	
-  	deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  	created_by_account_id UUID NOT NULL REFERENCES account,
+  import_reference_number INTEGER,  	
+  insurance_notes VARCHAR,
+  notes VARCHAR,
+  phone_number TEXT NULL,
+  website_url TEXT NULL,  
+  email_address TEXT NULL,  	  	
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_account_id UUID NOT NULL REFERENCES account,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -97,15 +97,16 @@ CREATE TABLE patient_order_resource_packet (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_resource_packet FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE patient_order_resource_packet_care_resource (
-	patient_order_resource_packet_care_resource_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE patient_order_resource_packet_care_resource_location (
+	patient_order_resource_packet_care_resource_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	patient_order_resource_packet_id UUID REFERENCES patient_order_resource_packet,
-	care_resource_id UUID NOT NULL REFERENCES care_resource,
+	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
 	display_order INTEGER NOT NULL,
+	deleted BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_resource_packet_care_resource FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_resource_packet_care_resource_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- If a resource packet is send this column will contain a link to the patient_order_resource_packet that was sent
 ALTER TABLE patient_order ADD COLUMN patient_order_resource_packet_id UUID NULL REFERENCES patient_order_resource_packet;

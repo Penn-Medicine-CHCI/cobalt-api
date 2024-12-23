@@ -61,6 +61,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
+import com.cobaltplatform.api.model.api.request.CreatePatientOrderResourcePacketRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
@@ -296,6 +297,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
 	@Nonnull
+	private final Provider<CareResourceService> careResourceServiceProvider;
+	@Nonnull
 	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -337,6 +340,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<ScreeningService> screeningServiceProvider,
 														 @Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 														 @Nonnull Provider<SystemService> systemServiceProvider,
+														 @Nonnull Provider<CareResourceService> careResourceServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
@@ -355,6 +359,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(screeningServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(systemServiceProvider);
+		requireNonNull(careResourceServiceProvider);
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
@@ -374,6 +379,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.screeningServiceProvider = screeningServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
+		this.careResourceServiceProvider = careResourceServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
@@ -2864,6 +2870,12 @@ public class PatientOrderService implements AutoCloseable {
 					setAccountId(accountId);
 					setPatientOrderId(patientOrderId);
 					setPatientOrderResourcingStatusId(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+				}});
+
+				//Create a resource packet
+				getCareResourceService().createPatientOrderResourcePacket(new CreatePatientOrderResourcePacketRequest() {{
+					setPatientOrderId(patientOrderId);
+					setAccountId(accountId);
 				}});
 			}
 		} else if (patientOrderResourceCheckInResponseStatusId == PatientOrderResourceCheckInResponseStatusId.NO_LONGER_NEED_CARE) {
@@ -6624,6 +6636,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationServiceProvider.get();
+	}
+
+	@Nonnull
+	protected CareResourceService getCareResourceService() {
+		return this.careResourceServiceProvider.get();
 	}
 
 	@Nonnull

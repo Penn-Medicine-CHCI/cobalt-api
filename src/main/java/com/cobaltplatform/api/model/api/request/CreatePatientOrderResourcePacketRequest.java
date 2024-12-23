@@ -34,11 +34,7 @@ public class CreatePatientOrderResourcePacketRequest {
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
-	private UUID addressId;
-	@Nullable
-	private Integer travelRadius;
-	@Nullable
-	private String travelRadiusDistanceUnitId;
+	private UUID accountId;
 
 	@Nullable
 	public UUID getPatientOrderId() {
@@ -50,29 +46,11 @@ public class CreatePatientOrderResourcePacketRequest {
 	}
 
 	@Nullable
-	public UUID getAddressId() {
-		return addressId;
+	public UUID getAccountId() {
+		return accountId;
 	}
 
-	public void setAddressId(@Nullable UUID addressId) {
-		this.addressId = addressId;
-	}
-
-	@Nullable
-	public Integer getTravelRadius() {
-		return travelRadius;
-	}
-
-	public void setTravelRadius(@Nullable Integer travelRadius) {
-		this.travelRadius = travelRadius;
-	}
-
-	@Nullable
-	public String getTravelRadiusDistanceUnitId() {
-		return travelRadiusDistanceUnitId;
-	}
-
-	public void setTravelRadiusDistanceUnitId(@Nullable String travelRadiusDistanceUnitId) {
-		this.travelRadiusDistanceUnitId = travelRadiusDistanceUnitId;
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
 	}
 }

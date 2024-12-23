@@ -36,8 +36,9 @@ import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
+import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PatientOrderResourcePacket;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -46,7 +47,6 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.maps.places.v1.Place;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import org.checkerframework.checker.units.qual.N;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +56,6 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -86,6 +85,8 @@ public class CareResourceService {
 	@Nonnull
 	private final Provider<AddressService> addressServiceProvider;
 	@Nonnull
+	private final Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final PlaceService placeService;
 
 	@Inject
@@ -93,17 +94,20 @@ public class CareResourceService {
 														 @Nonnull Strings strings,
 														 @Nonnull Provider<AccountService> accountServiceProvider,
 														 @Nonnull Provider<AddressService> addressServiceProvider,
+														 @Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 														 @Nonnull PlaceService placeService) {
 		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(addressServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(placeService);
 
 		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.accountServiceProvider = accountServiceProvider;
 		this.addressServiceProvider = addressServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.placeService = placeService;
 	}
@@ -346,6 +350,19 @@ public class CareResourceService {
 				WHERE crl.care_resource_id = ?
 				AND crl.deleted=false
 				""", CareResourceLocation.class, careResourceId);
+	}
+
+	@Nonnull
+	public List<CareResourceLocation> findPatientOrderResourcePacketLocations(@Nonnull UUID patientOrderResourcePacketId) {
+		requireNonNull(patientOrderResourcePacketId);
+
+		return getDatabase().queryForList("""
+				SELECT crl.*
+				FROM care_resource_location crl, patient_order_resource_packet_care_resource_location po
+				WHERE crl.care_resource_location_id = po.care_resource_location_id
+				AND po.patient_order_resource_packet_id = ?
+				AND crl.deleted=false
+				""", CareResourceLocation.class, patientOrderResourcePacketId);
 	}
 
 	@Nonnull
@@ -841,9 +858,19 @@ public class CareResourceService {
 
 		UUID patientOrderResourcePacketId = UUID.randomUUID();
 		UUID patientOrderId = request.getPatientOrderId();
-		UUID addressId = request.getAddressId();
-		Integer travelRadius = request.getTravelRadius();
-		String travelRadiusDistanceUnitId = request.getTravelRadiusDistanceUnitId();
+		ValidationException validationException = new ValidationException();
+
+		Optional<PatientOrder> patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId);
+
+		if (!patientOrder.isPresent())
+			validationException.add(new ValidationException.FieldError("patientOrderId", "Could not find patient order."));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UUID addressId = patientOrder.get().getPatientAddressId();
+		Integer travelRadius = patientOrder.get().getInPersonCareRadius();
+		DistanceUnitId travelRadiusDistanceUnitId = patientOrder.get().getInPersonCareRadiusDistanceUnitId();
 
 		getDatabase().execute("""
 				INSERT INTO patient_order_resource_packet
@@ -869,7 +896,10 @@ public class CareResourceService {
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
 	}
-
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
+	}
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
