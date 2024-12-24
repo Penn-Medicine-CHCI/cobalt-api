@@ -57,8 +57,6 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class DataSyncService implements AutoCloseable {
 	@Nonnull
-	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
-	@Nonnull
 	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
 	@Nonnull
 	private static final String FDW_SERVER_NAME;
@@ -88,7 +86,6 @@ public class DataSyncService implements AutoCloseable {
 	private ScheduledExecutorService backgroundTaskExecutorService;
 
 	static {
-		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 600L;
 		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
 		FDW_SERVER_NAME = "cobalt_remote";
 	}
@@ -131,6 +128,8 @@ public class DataSyncService implements AutoCloseable {
 
 	@Nonnull
 	public Boolean startBackgroundTask() {
+		final Long dataSyncIntervalInSeconds = getConfiguration().getDataSyncIntervalInSeconds();
+
 		synchronized (getBackgroundTaskLock()) {
 			if (isBackgroundTaskStarted())
 				return false;
@@ -146,10 +145,10 @@ public class DataSyncService implements AutoCloseable {
 					try {
 						getBackgroundSyncTaskProvider().get().run();
 					} catch (Exception e) {
-						getLogger().warn(format("Unable to complete data sync background task - will retry in %s seconds", String.valueOf(getBackgroundTaskIntervalInSeconds())), e);
+						getLogger().warn(format("Unable to complete data sync background task - will retry in %s seconds", String.valueOf(dataSyncIntervalInSeconds), e));
 					}
 				}
-			}, getBackgroundTaskInitialDelayInSeconds(), getBackgroundTaskIntervalInSeconds(), TimeUnit.SECONDS);
+			}, getBackgroundTaskInitialDelayInSeconds(), dataSyncIntervalInSeconds, TimeUnit.SECONDS);
 
 			getLogger().trace("Data sync background task started.");
 
@@ -332,7 +331,8 @@ public class DataSyncService implements AutoCloseable {
 					(SELECT rfu.file_upload_id, ?, rfu.url, rfu.storage_key,
 					rfu.filename, rfu.content_type, rfu.file_upload_type_id, rfu.filesize, TRUE
 					FROM remote_file_upload rfu 
-					WHERE rfu.file_upload_id NOT IN
+					WHERE rfu.file_upload_type_id IN ('GROUP_SESSION_IMAGE','CONTENT_IMAGE', 'CONTENT')
+					AND rfu.file_upload_id NOT IN
 					(SELECT fu.file_upload_id
 					FROM file_upload fu)
 					AND rfu.file_upload_id IN
@@ -366,6 +366,18 @@ public class DataSyncService implements AutoCloseable {
 					WHERE vrc.content_id NOT IN 
 					(SELECT c.content_id 
 					FROM content c))""");
+
+			getDatabase().execute("""
+       		INSERT INTO content_audience 
+       		(content_id, content_audience_type_id, created_by_account_id, remote_data_flag)
+       		(SELECT content_id, content_audience_type_id, ?, TRUE
+       		FROM v_remote_content_audience vr
+       		WHERE NOT EXISTS
+       		(SELECT 'X'
+       		FROM content_audience ca
+       		WHERE ca.content_id = vr.content_id
+       		AND ca.content_audience_type_id = vr.content_audience_type_id))
+							""", serviceAccount.getAccountId());
 
 			//Pull over any content_tag data that we do not have in this database instance
 			getDatabase().execute("""
@@ -427,6 +439,16 @@ public class DataSyncService implements AutoCloseable {
 					WHERE tag_content_id NOT IN
 					(SELECT vrtc.tag_content_id 
 					FROM v_remote_tag_content vrtc)
+					AND remote_data_flag = true""");
+
+			//Remove any content audience types that are no longer associated to content that we have synced over
+			getDatabase().execute("""
+					DELETE FROM content_audience
+					WHERE NOT EXISTS
+					(SELECT 'X' 
+					FROM v_remote_content_audience vrc
+					WHERE content_audience.content_id = vrc.content_id
+					AND content_audience.content_audience_type_id = vrc.content_audience_type_id)
 					AND remote_data_flag = true""");
 		});
 	}
@@ -570,11 +592,6 @@ public class DataSyncService implements AutoCloseable {
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
-	}
-
-	@Nonnull
-	protected Long getBackgroundTaskIntervalInSeconds() {
-		return BACKGROUND_TASK_INTERVAL_IN_SECONDS;
 	}
 
 	@Nonnull
