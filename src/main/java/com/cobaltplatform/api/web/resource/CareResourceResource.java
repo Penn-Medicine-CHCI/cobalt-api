@@ -439,6 +439,19 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
+	@DELETE("/resource-packets/{resourcePacketId}/location/{careResourceLocationId}")
+	@AuthenticationRequired
+	public ApiResponse deleteResourcePacketLocation(@Nonnull @PathParameter UUID resourcePacketId,
+																									@Nonnull @PathParameter UUID careResourceLocationId) {
+		requireNonNull(careResourceLocationId);
+		requireNonNull(resourcePacketId);
+
+		getCareResourceService().deleteCareResourceLocationFromResourcePacket(resourcePacketId, careResourceLocationId);
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
 	}

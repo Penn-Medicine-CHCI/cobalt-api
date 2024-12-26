@@ -20,7 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 
-import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketCareResourceLocationApiResponse.ResourcePacketCareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.google.inject.assistedinject.Assisted;
@@ -46,9 +46,9 @@ public class ResourcePacketApiResponse {
 	@Nullable
 	private Integer careResourceLocationCount;
 	@Nullable
-	private List<CareResourceLocationApiResponse> careResourceLocations;
+	private List<ResourcePacketCareResourceLocationApiResponse> careResourceLocations;
 	@Nullable
-	private CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory;
+	private ResourcePacketCareResourceLocationApiResponseFactory resourcePacketCareResourceLocationApiResponseFactory;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -59,15 +59,15 @@ public class ResourcePacketApiResponse {
 
 	@AssistedInject
 	public ResourcePacketApiResponse(@Assisted @Nonnull ResourcePacket resourcePacket,
-																	 @Nonnull CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory,
+																	 @Nonnull ResourcePacketCareResourceLocationApiResponseFactory resourcePacketCareResourceLocationApiResponseFactory,
 																	 @Nonnull CareResourceService careResourceService) {
 		requireNonNull(resourcePacket);
-		requireNonNull(careResourceLocationApiResponseFactory);
+		requireNonNull(resourcePacketCareResourceLocationApiResponseFactory);
 		requireNonNull(careResourceService);
 
 		this.resourcePacketId = resourcePacket.getResourcePacketId();
 		this.careResourceLocations = careResourceService.findResourcePacketLocations(resourcePacket.getResourcePacketId())
-				.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
+				.stream().map(careResourceLocation -> resourcePacketCareResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
 
 	}
 
@@ -82,12 +82,12 @@ public class ResourcePacketApiResponse {
 	}
 
 	@Nullable
-	public List<CareResourceLocationApiResponse> getCareResourceLocations() {
+	public List<ResourcePacketCareResourceLocationApiResponse> getCareResourceLocations() {
 		return careResourceLocations;
 	}
 
 	@Nullable
-	public CareResourceLocationApiResponseFactory getCareResourceLocationApiResponseFactory() {
-		return careResourceLocationApiResponseFactory;
+	public ResourcePacketCareResourceLocationApiResponseFactory getResourcePacketCareResourceLocationApiResponseFactory() {
+		return resourcePacketCareResourceLocationApiResponseFactory;
 	}
 }

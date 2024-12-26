@@ -138,6 +138,7 @@ WHERE cr.care_resource_id = cri.care_resource_id
 AND cr.care_resource_id = crl.care_resource_id
 AND cr.deleted = false;
 
+
 INSERT INTO care_resource_tag_group 
   (care_resource_tag_group_id, name)
 VALUES

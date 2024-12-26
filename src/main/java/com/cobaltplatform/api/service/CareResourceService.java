@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ResourcePacket;
+import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -233,11 +234,11 @@ public class CareResourceService {
 	@Nonnull
 	private void appendTagWhereClause(@Nonnull StringBuilder query, Set<String> tags) {
 		query.append(format("""
-					AND EXISTS 
-					(SELECT 'X'
-					FROM care_resource_location_care_resource_tag crlc
-					WHERE crlc.care_resource_location_id = vcr.care_resource_location_id
-					AND crlc.care_resource_tag_id IN %s) """, sqlInListPlaceholders(tags)));
+				AND EXISTS 
+				(SELECT 'X'
+				FROM care_resource_location_care_resource_tag crlc
+				WHERE crlc.care_resource_location_id = vcr.care_resource_location_id
+				AND crlc.care_resource_tag_id IN %s) """, sqlInListPlaceholders(tags)));
 	}
 
 	@Nonnull
@@ -334,7 +335,7 @@ public class CareResourceService {
 		parameters.add(limit);
 		parameters.add(offset);
 
-		getLogger().debug(format("SQL = %s", query.toString() ));
+		getLogger().debug(format("SQL = %s", query.toString()));
 		List<CareResourceLocationWithTotalCount> careResources = getDatabase().queryForList(query.toString(), CareResourceLocationWithTotalCount.class, parameters.toArray());
 
 		FindResult<? extends CareResourceLocation> findResult = new FindResult<>(careResources, careResources.size() == 0 ? 0 : careResources.get(0).getTotalCount());
@@ -355,24 +356,29 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public Optional<ResourcePacket> findResourcePacketByPatientOrderId(@Nonnull UUID patientOrderId){
+	public Optional<ResourcePacket> findResourcePacketByPatientOrderId(@Nonnull UUID patientOrderId) {
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM resource_packet
 				WHERE patient_order_id = ?
 				""", ResourcePacket.class, patientOrderId);
 	}
+
 	@Nonnull
-	public List<CareResourceLocation> findResourcePacketLocations(@Nonnull UUID resourcePacketId) {
+	public List<ResourcePacketCareResourceLocation> findResourcePacketLocations(@Nonnull UUID resourcePacketId) {
 		requireNonNull(resourcePacketId);
 
 		return getDatabase().queryForList("""
-				SELECT crl.*
-				FROM care_resource_location crl, resource_packet_care_resource_location po
+				SELECT po.*, CASE WHEN crl.name IS NULL THEN cr.name ELSE CRL.name END AS care_resource_location_name,
+				a.first_name AS created_by_account_first_name, a.last_name AS created_by_account_last_name
+				FROM care_resource_location crl, resource_packet_care_resource_location po, care_resource cr,
+				account a
 				WHERE crl.care_resource_location_id = po.care_resource_location_id
+				AND crl.care_resource_id = cr.care_resource_id
+				AND crl.created_by_account_id = a.account_id
 				AND po.resource_packet_id = ?
 				AND crl.deleted=false
-				""", CareResourceLocation.class, resourcePacketId);
+				""", ResourcePacketCareResourceLocation.class, resourcePacketId);
 	}
 
 	@Nonnull
@@ -397,18 +403,34 @@ public class CareResourceService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Integer displayOrder = getDatabase().queryForObject("""
-				SELECT COUNT(*) 
+		Boolean locationExists = getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
 				FROM resource_packet_care_resource_location rp
-				WHERE rp.resource_packet_id = ?
-				""", Integer.class, resourcePacketId).get() + 1;
+				WHERE resource_packet_id = ? 
+				AND care_resource_location_id=?
+				""", Boolean.class, resourcePacketId, careResourceLocationId).get();
 
-		getDatabase().execute("""
-				INSERT INTO resource_packet_care_resource_location
-				(resource_packet_care_resource_location_id, resource_packet_id, care_resource_location_id, created_by_account_id, display_order)
-				VALUES 
-				(?,?,?,?,?)
-				""", resourcePacketCareResourceLocationId, resourcePacketId, careResourceLocationId, createdByAccountId, displayOrder);
+		if (locationExists)
+			getDatabase().execute("""
+					UPDATE resource_packet_care_resource_location
+					SET deleted=false
+					WHERE resource_packet_id = ? 
+					AND care_resource_location_id=?
+					""", resourcePacketId, careResourceLocationId);
+		else {
+			Integer displayOrder = getDatabase().queryForObject("""
+					SELECT COUNT(*) 
+					FROM resource_packet_care_resource_location rp
+					WHERE rp.resource_packet_id = ?
+					""", Integer.class, resourcePacketId).get() + 1;
+
+			getDatabase().execute("""
+					INSERT INTO resource_packet_care_resource_location
+					(resource_packet_care_resource_location_id, resource_packet_id, care_resource_location_id, created_by_account_id, display_order)
+					VALUES 
+					(?,?,?,?,?)
+					""", resourcePacketCareResourceLocationId, resourcePacketId, careResourceLocationId, createdByAccountId, displayOrder);
+		}
 
 		return resourcePacketCareResourceLocationId;
 	}
@@ -660,7 +682,7 @@ public class CareResourceService {
 		if (appointmentTypeInPerson && googlePlaceId == null)
 			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required for in an person location."));
 		else if (appointmentTypeInPerson && googlePlaceId != null) {
-			place =  getPlaceService().findPlaceByPlaceId(googlePlaceId);
+			place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
 
 			if (place == null)
 				validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
@@ -870,14 +892,14 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public boolean deleteCareResource (@Nonnull UUID careResourceId) {
+	public boolean deleteCareResource(@Nonnull UUID careResourceId) {
 		requireNonNull(careResourceId);
 
 		List<CareResourceLocation> careResourceLocations = findCareResourceLocations(careResourceId);
 
 		for (CareResourceLocation careResourceLocation : careResourceLocations)
 			deleteCareResourceLocation((careResourceLocation.getCareResourceLocationId()));
-		
+
 		boolean deleted = getDatabase().execute("""
 				UPDATE care_resource
 				SET deleted = TRUE
@@ -888,7 +910,7 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public boolean deleteCareResourceLocation (@Nonnull UUID careResourceLocationId) {
+	public boolean deleteCareResourceLocation(@Nonnull UUID careResourceLocationId) {
 		requireNonNull(careResourceLocationId);
 
 		boolean deleted = getDatabase().execute("""
@@ -901,7 +923,23 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public UUID createResourcePacket (@Nonnull CreateResourcePacketRequest request) {
+	public boolean deleteCareResourceLocationFromResourcePacket(@Nonnull UUID resourcePacketId,
+																															@Nonnull UUID careResourceLocationId) {
+		requireNonNull(resourcePacketId);
+		requireNonNull(careResourceLocationId);
+
+		boolean deleted = getDatabase().execute("""
+				UPDATE resource_packet_care_resource_location
+				SET deleted = TRUE
+				WHERE resource_packet_id=?
+				AND care_resource_location_id=?
+				""", resourcePacketId, careResourceLocationId) > 0;
+
+		return deleted;
+	}
+
+	@Nonnull
+	public UUID createResourcePacket(@Nonnull CreateResourcePacketRequest request) {
 		requireNonNull(request);
 
 		UUID resourcePacketId = UUID.randomUUID();
@@ -944,10 +982,12 @@ public class CareResourceService {
 	protected AccountService getAccountService() {
 		return this.accountServiceProvider.get();
 	}
+
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
 	}
+
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;

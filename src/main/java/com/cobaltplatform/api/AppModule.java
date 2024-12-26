@@ -136,6 +136,7 @@ import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApi
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketCareResourceLocationApiResponse.ResourcePacketCareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningApiResponse.ScreeningApiResponseFactory;
@@ -364,6 +365,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(CareResourceApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CareResourceLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ResourcePacketApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ResourcePacketCareResourceLocationApiResponseFactory.class)));
 	}
 
 	@Provides
