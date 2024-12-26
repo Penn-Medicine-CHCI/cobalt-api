@@ -422,11 +422,11 @@ public class DataSyncService implements AutoCloseable {
 
 			// Copy over any institution_content records. This is only needed when the same institution exists
 			// in both the remote and local database. The only instance of this is to support local development
-			// where the COBALT instance exists bot remotely and locally.
+			// where the COBALT instance exists both remotely and locally.
 			getDatabase().execute("""
 							INSERT INTO institution_content
-							(institution_content_id, institution_id, content_id)
-							SELECT institution_content_id, institution_id, content_id
+							(institution_content_id, institution_id, content_id, remote_data_flag)
+							SELECT institution_content_id, institution_id, content_id, TRUE
 							FROM v_remote_institution_content virc
 							WHERE institution_content_id NOT IN
 							(SELECT ic.institution_content_id
