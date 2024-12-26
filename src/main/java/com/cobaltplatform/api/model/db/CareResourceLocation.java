@@ -68,6 +68,14 @@ public class CareResourceLocation {
 	@Nullable
 	private Instant lastUpdated;
 
+	//From the Care Resource
+	@Nullable
+	private String resourceName;
+	@Nullable
+	private String resourceNotes;
+	@Nullable
+	private String resourceInsuranceNotes;
+
 	@Nullable
 	public UUID getCareResourceLocationId() {
 		return careResourceLocationId;
@@ -228,5 +236,32 @@ public class CareResourceLocation {
 
 	public void setAppointmentTypeOnline(@Nullable Boolean appointmentTypeOnline) {
 		this.appointmentTypeOnline = appointmentTypeOnline;
+	}
+
+	@Nullable
+	public String getResourceName() {
+		return resourceName;
+	}
+
+	public void setResourceName(@Nullable String resourceName) {
+		this.resourceName = resourceName;
+	}
+
+	@Nullable
+	public String getResourceNotes() {
+		return resourceNotes;
+	}
+
+	public void setResourceNotes(@Nullable String resourceNotes) {
+		this.resourceNotes = resourceNotes;
+	}
+
+	@Nullable
+	public String getResourceInsuranceNotes() {
+		return resourceInsuranceNotes;
+	}
+
+	public void setResourceInsuranceNotes(@Nullable String resourceInsuranceNotes) {
+		this.resourceInsuranceNotes = resourceInsuranceNotes;
 	}
 }

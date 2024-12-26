@@ -114,14 +114,12 @@ public class CareResourceLocationApiResponse {
 	@ThreadSafe
 	public interface CareResourceLocationApiResponseFactory {
 		@Nonnull
-		CareResourceLocationApiResponse create(@Nonnull CareResourceLocation careResourceLocation,
-																					 @Nonnull CareResource careResource);
+		CareResourceLocationApiResponse create(@Nonnull CareResourceLocation careResourceLocation);
 	}
 
 	@AssistedInject
 	public CareResourceLocationApiResponse(@Nonnull CareResourceService careResourceService,
 																				 @Assisted @Nonnull CareResourceLocation careResourceLocation,
-																				 @Assisted @Nonnull CareResource careResource,
 																				 @Nonnull AddressService addressService,
 																				 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 																				 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
@@ -139,8 +137,8 @@ public class CareResourceLocationApiResponse {
 		if (account.getRoleId() == Role.RoleId.MHIC)
 			this.internalNotes = careResourceLocation.getInternalNotes();
 
-		this.resourceName = careResource.getName();
-		this.resourceNotes = careResource.getNotes();
+		this.resourceName = careResourceLocation.getResourceName();
+		this.resourceNotes = careResourceLocation.getResourceNotes();
 		this.careResourceId = careResourceLocation.getCareResourceId();
 		this.websiteUrl = careResourceLocation.getWebsiteUrl();
 		this.emailAddress = careResourceLocation.getEmailAddress();
@@ -165,7 +163,7 @@ public class CareResourceLocationApiResponse {
 					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 					.collect(Collectors.toList());
 		else
-			this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
+			this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
 					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 					.collect(Collectors.toList());
 
@@ -175,10 +173,10 @@ public class CareResourceLocationApiResponse {
 					.collect(Collectors.toList());
 			this.insuranceNotes = careResourceLocation.getInsuranceNotes();
 		} else {
-			this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResource.getCareResourceId(), CareResourceTagGroupId.PAYORS).stream()
+			this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.PAYORS).stream()
 					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 					.collect(Collectors.toList());
-			this.insuranceNotes = careResource.getInsuranceNotes();
+			this.insuranceNotes = careResourceLocation.getResourceInsuranceNotes();
 		}
 		this.therapyTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.THERAPY_TYPES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))

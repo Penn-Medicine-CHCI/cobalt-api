@@ -78,8 +78,6 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CareResourceApiResponse;
-import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.ClientDeviceActivityApiResponse.ClientDeviceActivityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
@@ -132,7 +130,6 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGro
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse;
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
@@ -160,6 +157,10 @@ import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCen
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowTagApiResponse.TopicCenterRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.Formatter;
@@ -359,9 +360,10 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountStudyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeGroupApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(CareResourceTagApiResponse.CareResourceTagApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(CareResourceApiResponse.CareResourceApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CareResourceTagApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CareResourceApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CareResourceLocationApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ResourcePacketApiResponseFactory.class)));
 	}
 
 	@Provides

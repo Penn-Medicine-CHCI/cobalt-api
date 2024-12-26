@@ -22,9 +22,10 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.integration.google.model.NormalizedPlace;
 import com.cobaltplatform.api.model.api.request.CreateAddressRequest;
+import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationForResourcePacket;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
-import com.cobaltplatform.api.model.api.request.CreatePatientOrderResourcePacketRequest;
+import com.cobaltplatform.api.model.api.request.CreateResourcePacketRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAddressRequest;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.db.DistanceUnit.DistanceUnitId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -353,16 +355,62 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public List<CareResourceLocation> findPatientOrderResourcePacketLocations(@Nonnull UUID patientOrderResourcePacketId) {
-		requireNonNull(patientOrderResourcePacketId);
+	public Optional<ResourcePacket> findResourcePacketByPatientOrderId(@Nonnull UUID patientOrderId){
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM resource_packet
+				WHERE patient_order_id = ?
+				""", ResourcePacket.class, patientOrderId);
+	}
+	@Nonnull
+	public List<CareResourceLocation> findResourcePacketLocations(@Nonnull UUID resourcePacketId) {
+		requireNonNull(resourcePacketId);
 
 		return getDatabase().queryForList("""
 				SELECT crl.*
-				FROM care_resource_location crl, patient_order_resource_packet_care_resource_location po
+				FROM care_resource_location crl, resource_packet_care_resource_location po
 				WHERE crl.care_resource_location_id = po.care_resource_location_id
-				AND po.patient_order_resource_packet_id = ?
+				AND po.resource_packet_id = ?
 				AND crl.deleted=false
-				""", CareResourceLocation.class, patientOrderResourcePacketId);
+				""", CareResourceLocation.class, resourcePacketId);
+	}
+
+	@Nonnull
+	public UUID createCareResourceLocationForResourcePacket(@Nonnull CreateCareResourceLocationForResourcePacket request) {
+		requireNonNull(request);
+
+		UUID resourcePacketCareResourceLocationId = UUID.randomUUID();
+		UUID resourcePacketId = request.getResourcePacketId();
+		UUID careResourceLocationId = request.getCareResourceLocationId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		ValidationException validationException = new ValidationException();
+
+		if (resourcePacketId == null)
+			validationException.add(new ValidationException.FieldError("resourcePacketId", "resourcePacketId is required."));
+
+		if (careResourceLocationId == null)
+			validationException.add(new ValidationException.FieldError("careResourceLocationId", "careResourceLocationId is required."));
+
+		if (createdByAccountId == null)
+			validationException.add(new ValidationException.FieldError("createdByAccountId", "createdByAccountId is required."));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer displayOrder = getDatabase().queryForObject("""
+				SELECT COUNT(*) 
+				FROM resource_packet_care_resource_location rp
+				WHERE rp.resource_packet_id = ?
+				""", Integer.class, resourcePacketId).get() + 1;
+
+		getDatabase().execute("""
+				INSERT INTO resource_packet_care_resource_location
+				(resource_packet_care_resource_location_id, resource_packet_id, care_resource_location_id, created_by_account_id, display_order)
+				VALUES 
+				(?,?,?,?,?)
+				""", resourcePacketCareResourceLocationId, resourcePacketId, careResourceLocationId, createdByAccountId, displayOrder);
+
+		return resourcePacketCareResourceLocationId;
 	}
 
 	@Nonnull
@@ -853,10 +901,10 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public UUID createPatientOrderResourcePacket (@Nonnull CreatePatientOrderResourcePacketRequest request) {
+	public UUID createResourcePacket (@Nonnull CreateResourcePacketRequest request) {
 		requireNonNull(request);
 
-		UUID patientOrderResourcePacketId = UUID.randomUUID();
+		UUID resourcePacketId = UUID.randomUUID();
 		UUID patientOrderId = request.getPatientOrderId();
 		ValidationException validationException = new ValidationException();
 
@@ -873,13 +921,13 @@ public class CareResourceService {
 		DistanceUnitId travelRadiusDistanceUnitId = patientOrder.get().getInPersonCareRadiusDistanceUnitId();
 
 		getDatabase().execute("""
-				INSERT INTO patient_order_resource_packet
-				  (patient_order_resource_packet_id, patient_order_id, address_id, travel_radius, travel_radius_distance_unit_id)
+				INSERT INTO resource_packet
+				  (resource_packet_id, patient_order_id, address_id, travel_radius, travel_radius_distance_unit_id)
 				VALUES
 				  (?,?,?,?,?)
-				  """, patientOrderResourcePacketId, patientOrderId, addressId, travelRadius, travelRadiusDistanceUnitId);
+				  """, resourcePacketId, patientOrderId, addressId, travelRadius, travelRadiusDistanceUnitId);
 
-		return patientOrderResourcePacketId;
+		return resourcePacketId;
 	}
 
 	@Nonnull

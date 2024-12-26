@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachAp
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
@@ -56,6 +57,7 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.Patient
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
+import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
@@ -75,6 +77,7 @@ import com.cobaltplatform.api.model.service.PatientOrderEncounterDocumentationSt
 import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AddressService;
+import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ScreeningService;
@@ -99,6 +102,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -583,6 +587,8 @@ public class PatientOrderApiResponse {
 	private Instant mostRecentMessageDeliveredAt;
 	@Nullable
 	private String mostRecentMessageDeliveredAtDescription;
+	@Nullable
+	private ResourcePacketApiResponse resourcePacket;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -624,6 +630,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull AddressService addressService,
 																 @Nonnull InstitutionService institutionService,
 																 @Nonnull ScreeningService screeningService,
+																 @Nonnull CareResourceService careResourceService,
 																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
@@ -634,6 +641,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
+																 @Nonnull ResourcePacketApiResponseFactory resourcePacketApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -644,6 +652,7 @@ public class PatientOrderApiResponse {
 				addressService,
 				institutionService,
 				screeningService,
+				careResourceService,
 				accountApiResponseFactory,
 				patientOrderNoteApiResponseFactory,
 				patientOrderOutreachApiResponseFactory,
@@ -654,6 +663,7 @@ public class PatientOrderApiResponse {
 				screeningSessionApiResponseFactory,
 				addressApiResponseFactory,
 				patientOrderVoicemailTaskApiResponseFactory,
+				resourcePacketApiResponseFactory,
 				formatter,
 				strings,
 				currentContextProvider,
@@ -668,6 +678,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull AddressService addressService,
 																 @Nonnull InstitutionService institutionService,
 																 @Nonnull ScreeningService screeningService,
+																 @Nonnull CareResourceService careResourceService,
 																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
 																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
@@ -678,6 +689,7 @@ public class PatientOrderApiResponse {
 																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
 																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
+																 @Nonnull ResourcePacketApiResponseFactory resourcePacketApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull Strings strings,
 																 @Nonnull Provider<CurrentContext> currentContextProvider,
@@ -689,6 +701,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(addressService);
 		requireNonNull(institutionService);
 		requireNonNull(screeningService);
+		requireNonNull(careResourceService);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(patientOrderNoteApiResponseFactory);
 		requireNonNull(patientOrderOutreachApiResponseFactory);
@@ -699,6 +712,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(addressApiResponseFactory);
 		requireNonNull(patientOrderVoicemailTaskApiResponseFactory);
+		requireNonNull(resourcePacketApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(currentContextProvider);
@@ -1104,7 +1118,10 @@ public class PatientOrderApiResponse {
 			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestamp(mostRecentMessageDeliveredAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 			if (this.patientOrderResourcingStatusId.equals(PatientOrderResourcingStatusId.NEEDS_RESOURCES)) {
-				//TODO: Return resource packet
+				Optional<ResourcePacket> resourcePacket = careResourceService.findResourcePacketByPatientOrderId(patientOrderId);
+
+				if (resourcePacket.isPresent())
+				this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
 			}
 		}
 	}
@@ -2277,5 +2294,10 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getMostRecentMessageDeliveredAtDescription() {
 		return this.mostRecentMessageDeliveredAtDescription;
+	}
+
+	@Nullable
+	public ResourcePacketApiResponse getResourcePacket() {
+		return resourcePacket;
 	}
 }

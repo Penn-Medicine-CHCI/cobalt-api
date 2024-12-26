@@ -61,13 +61,13 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderOutreachReques
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderDiagnosisRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest.CreatePatientOrderMedicationRequest;
-import com.cobaltplatform.api.model.api.request.CreatePatientOrderResourcePacketRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledOutreachRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledScreeningRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupRequest.CreatePatientOrderTriageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
+import com.cobaltplatform.api.model.api.request.CreateResourcePacketRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
@@ -2871,12 +2871,6 @@ public class PatientOrderService implements AutoCloseable {
 					setPatientOrderId(patientOrderId);
 					setPatientOrderResourcingStatusId(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
 				}});
-
-				//Create a resource packet
-				getCareResourceService().createPatientOrderResourcePacket(new CreatePatientOrderResourcePacketRequest() {{
-					setPatientOrderId(patientOrderId);
-					setAccountId(accountId);
-				}});
 			}
 		} else if (patientOrderResourceCheckInResponseStatusId == PatientOrderResourceCheckInResponseStatusId.NO_LONGER_NEED_CARE) {
 			// If the patient indicated they don't need care and the order is open, close it out
@@ -3042,6 +3036,12 @@ public class PatientOrderService implements AutoCloseable {
 				}});
 			}
 		}
+
+		if (patientOrderResourcingStatusId == PatientOrderResourcingStatusId.NEEDS_RESOURCES)
+			getCareResourceService().createResourcePacket(new CreateResourcePacketRequest() {{
+				setPatientOrderId(patientOrderId);
+				setAccountId(accountId);
+			}});
 
 		// TODO: track changes in event history table
 

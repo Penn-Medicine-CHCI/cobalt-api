@@ -28,9 +28,9 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PatientOrderResourcePacket {
+public class ResourcePacket {
 	@Nullable
-	private UUID patientOrderResourcePacketId;
+	private UUID resourcePacketId;
 	@Nullable
 	private UUID patientOrderId;
 	@Nullable
@@ -45,12 +45,12 @@ public class PatientOrderResourcePacket {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getPatientOrderResourcePacketId() {
-		return patientOrderResourcePacketId;
+	public UUID getResourcePacketId() {
+		return resourcePacketId;
 	}
 
-	public void setPatientOrderResourcePacketId(@Nullable UUID patientOrderResourcePacketId) {
-		this.patientOrderResourcePacketId = patientOrderResourcePacketId;
+	public void setResourcePacketId(@Nullable UUID resourcePacketId) {
+		this.resourcePacketId = resourcePacketId;
 	}
 
 	@Nullable

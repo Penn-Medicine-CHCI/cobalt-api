@@ -19,38 +19,46 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.List;
 import java.util.UUID;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class CreatePatientOrderResourcePacketRequest {
+public class CreateCareResourceLocationForResourcePacket {
 	@Nullable
-	private UUID patientOrderId;
+	private UUID resourcePacketId;
 	@Nullable
-	private UUID accountId;
-
+	private UUID careResourceLocationId;
 	@Nullable
-	public UUID getPatientOrderId() {
-		return patientOrderId;
+	private UUID createdByAccountId;
+	@Nullable
+	public UUID getResourcePacketId() {
+		return resourcePacketId;
 	}
 
-	public void setPatientOrderId(@Nullable UUID patientOrderId) {
-		this.patientOrderId = patientOrderId;
+	public void setResourcePacketId(@Nullable UUID resourcePacketId) {
+		this.resourcePacketId = resourcePacketId;
 	}
 
 	@Nullable
-	public UUID getAccountId() {
-		return accountId;
+	public UUID getCareResourceLocationId() {
+		return careResourceLocationId;
 	}
 
-	public void setAccountId(@Nullable UUID accountId) {
-		this.accountId = accountId;
+	public void setCareResourceLocationId(@Nullable UUID careResourceLocationId) {
+		this.careResourceLocationId = careResourceLocationId;
 	}
+
+	@Nullable
+	public UUID getCreatedByAccountId() {
+		return createdByAccountId;
+	}
+
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
+	}
+
 }

@@ -86,30 +86,31 @@ CREATE TABLE care_resource_location_care_resource_tag(
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON care_resource_location_care_resource_tag FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE patient_order_resource_packet (
-	patient_order_resource_packet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE resource_packet (
+	resource_packet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	patient_order_id UUID NOT NULL REFERENCES patient_order,
 	address_id UUID NULL REFERENCES address,
-	travel_radius INTEGER NOT NULL,
-	travel_radius_distance_unit_id TEXT NOT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE',
+	travel_radius INTEGER  NULL,
+	travel_radius_distance_unit_id TEXT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE',
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_resource_packet FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON resource_packet FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE patient_order_resource_packet_care_resource_location (
-	patient_order_resource_packet_care_resource_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	patient_order_resource_packet_id UUID REFERENCES patient_order_resource_packet,
+CREATE TABLE resource_packet_care_resource_location (
+	resource_packet_care_resource_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	resource_packet_id UUID REFERENCES resource_packet,
 	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
+	created_by_account_id UUID NOT NULL REFERENCES account,
 	display_order INTEGER NOT NULL,
 	deleted BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON patient_order_resource_packet_care_resource_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON resource_packet_care_resource_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
--- If a resource packet is send this column will contain a link to the patient_order_resource_packet that was sent
-ALTER TABLE patient_order ADD COLUMN patient_order_resource_packet_id UUID NULL REFERENCES patient_order_resource_packet;
+-- If resources are needed this column will contain a link to the resource_packet that was sent
+ALTER TABLE patient_order ADD COLUMN resource_packet_id UUID NULL REFERENCES resource_packet;
 
 ALTER TABLE address 
 ADD COLUMN google_maps_url TEXT NULL,
@@ -131,7 +132,7 @@ AND cr.deleted = false;
 
 CREATE VIEW v_care_resource_location_institution 
 AS
-SELECT crl.*, cri.institution_id
+SELECT crl.*, cr.name as resource_name, cr.notes as resource_notes, cr.insurance_notes as resource_insurance_notes, cri.institution_id
 FROM care_resource cr, care_resource_location crl, care_resource_institution cri
 WHERE cr.care_resource_id = cri.care_resource_id
 AND cr.care_resource_id = crl.care_resource_id

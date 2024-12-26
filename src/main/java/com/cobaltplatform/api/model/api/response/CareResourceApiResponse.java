@@ -115,7 +115,7 @@ public class CareResourceApiResponse {
 					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 					.collect(Collectors.toList());
 			this.careResourceLocations = careResourceService.findCareResourceLocations(careResource.getCareResourceId())
-					.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation, careResource)).collect(Collectors.toList());
+					.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
 		}
 	}
 

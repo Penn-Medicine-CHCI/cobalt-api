@@ -21,12 +21,8 @@ package com.cobaltplatform.api.model.api.response;
 
 
 import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
-import com.cobaltplatform.api.model.db.CareResource;
-import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
-import com.cobaltplatform.api.model.db.PatientOrderResourcePacket;
+import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.service.CareResourceService;
-import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
@@ -46,7 +42,7 @@ import static java.util.Objects.requireNonNull;
 @Immutable
 public class ResourcePacketApiResponse {
 	@Nullable
-	private UUID patientOrderResourcePacketId;
+	private UUID resourcePacketId;
 	@Nullable
 	private Integer careResourceLocationCount;
 	@Nullable
@@ -58,29 +54,26 @@ public class ResourcePacketApiResponse {
 	@ThreadSafe
 	public interface ResourcePacketApiResponseFactory {
 		@Nonnull
-		ResourcePacketApiResponse create(@Nonnull PatientOrderResourcePacket patientOrderResourcePacket);
+		ResourcePacketApiResponse create(@Nonnull ResourcePacket resourcePacket);
 	}
 
 	@AssistedInject
-	public ResourcePacketApiResponse(@Nonnull PatientOrderResourcePacket patientOrderResourcePacket,
+	public ResourcePacketApiResponse(@Assisted @Nonnull ResourcePacket resourcePacket,
 																	 @Nonnull CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory,
-																	 @Nonnull CareResourceService careResourceService,
-																	 @Nonnull Formatter formatter) {
-		requireNonNull(patientOrderResourcePacket);
-		requireNonNull(formatter);
+																	 @Nonnull CareResourceService careResourceService) {
+		requireNonNull(resourcePacket);
 		requireNonNull(careResourceLocationApiResponseFactory);
 		requireNonNull(careResourceService);
 
-		this.patientOrderResourcePacketId = patientOrderResourcePacket.getPatientOrderResourcePacketId();
-
-		//this.careResourceLocations = careResourceService.findPatientOrderResourcePacketLocations(patientOrderResourcePacket.getPatientOrderResourcePacketId())
-		//		.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation, careResource)).collect(Collectors.toList());
+		this.resourcePacketId = resourcePacket.getResourcePacketId();
+		this.careResourceLocations = careResourceService.findResourcePacketLocations(resourcePacket.getResourcePacketId())
+				.stream().map(careResourceLocation -> careResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
 
 	}
 
 	@Nullable
-	public UUID getPatientOrderResourcePacketId() {
-		return patientOrderResourcePacketId;
+	public UUID getResourcePacketId() {
+		return resourcePacketId;
 	}
 
 	@Nullable

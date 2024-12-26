@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationForResourcePacket;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
@@ -260,8 +261,7 @@ public class CareResourceResource {
 			put("totalCount", findResult.getTotalCount());
 			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 			put("careResourceLocations", findResult.getResults().stream()
-					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation, getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
-									getCurrentContext().getAccount().get().getInstitutionId()).orElse(null)))
+					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -345,13 +345,8 @@ public class CareResourceResource {
 		if (careResourceLocation == null)
 			throw new NotFoundException();
 
-		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
-				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
-
-		if (careResource == null)
-			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
 		}});
 	}
 
@@ -366,14 +361,8 @@ public class CareResourceResource {
 
 		if (careResourceLocation == null)
 			throw new NotFoundException();
-
-		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
-				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
-
-		if (careResource == null)
-			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
 		}});
 	}
 
@@ -385,14 +374,9 @@ public class CareResourceResource {
 
 		List<CareResourceLocation> careResourceLocations = getCareResourceService().findCareResourceLocations(careResourceId);
 
-		CareResource careResource = getCareResourceService().findCareResourceById(careResourceId,
-				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
-
-		if (careResource == null)
-			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("careResourceLocations", careResourceLocations.stream()
-					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource))
+					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -409,19 +393,12 @@ public class CareResourceResource {
 
 		CareResourceLocation careResourceLocation = getCareResourceService().findCareResourceLocationById(careResourceLocationId,
 				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
-		getLogger().debug("1");
-		getLogger().debug(careResourceLocationId.toString());
+
 		if (careResourceLocation == null)
 			throw new NotFoundException();
 
-		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
-				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
-		getLogger().debug("2");
-		if (careResource == null)
-			throw new NotFoundException();
-		getLogger().debug("3");
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
 		}});
 	}
 
@@ -441,14 +418,23 @@ public class CareResourceResource {
 		if (careResourceLocation == null)
 			throw new NotFoundException();
 
-		CareResource careResource = getCareResourceService().findCareResourceById(careResourceLocation.getCareResourceId(),
-				getCurrentContext().getAccount().get().getInstitutionId()).orElse(null);
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation));
+		}});
+	}
 
-		if (careResource == null)
-			throw new NotFoundException();
+	@Nonnull
+	@POST("/resource-packets/location")
+	@AuthenticationRequired
+	public ApiResponse createCareResourceLocationForResourcePacket(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		CreateCareResourceLocationForResourcePacket request = getRequestBodyParser().parse(requestBody, CreateCareResourceLocationForResourcePacket.class);
+		request.setCreatedByAccountId(getCurrentContext().getAccount().get().getAccountId());
+		UUID resourcePacketCareResourceLocationId = careResourceService.createCareResourceLocationForResourcePacket(request);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("careResourceLocation", getCareResourceLocationApiResponseFactory().create(careResourceLocation, careResource));
+			put("resourcePacketCareResourceLocationId", resourcePacketCareResourceLocationId);
 		}});
 	}
 
