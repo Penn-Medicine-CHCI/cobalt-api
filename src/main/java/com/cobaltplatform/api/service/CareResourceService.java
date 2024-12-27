@@ -436,8 +436,8 @@ public class CareResourceService {
 					SELECT COUNT(*) 
 					FROM resource_packet_care_resource_location rp
 					WHERE rp.resource_packet_id = ?
-					""", Integer.class, resourcePacketId).get() + 1;
-
+					""", Integer.class, resourcePacketId).get();
+			
 			getDatabase().execute("""
 					INSERT INTO resource_packet_care_resource_location
 					(resource_packet_care_resource_location_id, resource_packet_id, care_resource_location_id, created_by_account_id, display_order)
