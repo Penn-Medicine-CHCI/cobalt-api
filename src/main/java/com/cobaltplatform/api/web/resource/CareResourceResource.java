@@ -32,12 +32,15 @@ import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
+import com.cobaltplatform.api.model.db.ResourcePacket;
+import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -88,6 +91,8 @@ public class CareResourceResource {
 	@Nonnull
 	private final CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory;
 	@Nonnull
+	private final ResourcePacketApiResponseFactory resourcePacketApiResponseFactory;
+	@Nonnull
 	private final SupportRoleApiResponseFactory supportRoleApiResponseFactory;
 	@Nonnull
 	private final Logger logger;
@@ -105,6 +110,7 @@ public class CareResourceResource {
 															@Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 															@Nonnull CareResourceLocationApiResponseFactory careResourceLocationApiResponseFactory,
 															@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+															@Nonnull ResourcePacketApiResponseFactory resourcePacketApiResponseFactory,
 															@Nonnull RequestBodyParser requestBodyParser,
 															@Nonnull CareResourceApiResponseFactory careResourceApiResponseFactory,
 															@Nonnull AuthorizationService authorizationService,
@@ -116,6 +122,7 @@ public class CareResourceResource {
 		requireNonNull(supportRoleApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(careResourceApiResponseFactory);
+		requireNonNull(resourcePacketApiResponseFactory);
 		requireNonNull(authorizationService);
 		requireNonNull(formatter);
 
@@ -124,6 +131,7 @@ public class CareResourceResource {
 		this.careResourceTagApiResponseFactory = careResourceTagApiResponseFactory;
 		this.careResourceLocationApiResponseFactory = careResourceLocationApiResponseFactory;
 		this.supportRoleApiResponseFactory = supportRoleApiResponseFactory;
+		this.resourcePacketApiResponseFactory = resourcePacketApiResponseFactory;
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.careResourceApiResponseFactory = careResourceApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
@@ -461,7 +469,9 @@ public class CareResourceResource {
 
 		getCareResourceService().updateCareResourceLocationFromResourcePacket(resourcePacketCareResourceLocationId, request);
 
-		return new ApiResponse();
+		Optional<ResourcePacket> resourcePacket = getCareResourceService().findResourcePacketByLocationId(resourcePacketCareResourceLocationId);
+
+		return resourcePacket.map(packet -> new ApiResponse(getResourcePacketApiResponseFactory().create(packet))).orElseGet(ApiResponse::new);
 	}
 
 	@Nonnull
@@ -507,6 +517,11 @@ public class CareResourceResource {
 	@Nonnull
 	public CareResourceTagApiResponseFactory getCareResourceTagApiResponseFactory() {
 		return careResourceTagApiResponseFactory;
+	}
+
+	@Nonnull
+	public ResourcePacketApiResponseFactory getResourcePacketApiResponseFactory() {
+		return resourcePacketApiResponseFactory;
 	}
 
 	@Nonnull

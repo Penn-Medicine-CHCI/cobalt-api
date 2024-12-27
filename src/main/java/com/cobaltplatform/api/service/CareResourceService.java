@@ -366,6 +366,18 @@ public class CareResourceService {
 	}
 
 	@Nonnull
+	public Optional<ResourcePacket> findResourcePacketByLocationId(@Nonnull UUID resourcePacketCareResourceLocationId) {
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM resource_packet rp
+				WHERE rp.resource_packet_id = 
+				(SELECT resource_packet_id
+				FROM resource_packet_care_resource_location
+				WHERE resource_packet_care_resource_location_id = ?)
+				""", ResourcePacket.class, resourcePacketCareResourceLocationId);
+	}
+
+	@Nonnull
 	public List<ResourcePacketCareResourceLocation> findResourcePacketLocations(@Nonnull UUID resourcePacketId) {
 		requireNonNull(resourcePacketId);
 
@@ -938,7 +950,7 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	private Optional<ResourcePacketCareResourceLocation> findResourcePacketCareResourceLocationById(@Nonnull UUID resourcePacketCareResourceLocationId){
+	public Optional<ResourcePacketCareResourceLocation> findResourcePacketCareResourceLocationById(@Nonnull UUID resourcePacketCareResourceLocationId){
 		requireNonNull((resourcePacketCareResourceLocationId));
 
 		return getDatabase().queryForObject("""

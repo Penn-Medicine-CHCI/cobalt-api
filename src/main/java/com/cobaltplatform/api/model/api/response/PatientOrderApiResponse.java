@@ -1121,7 +1121,7 @@ public class PatientOrderApiResponse {
 				Optional<ResourcePacket> resourcePacket = careResourceService.findResourcePacketByPatientOrderId(patientOrderId);
 
 				if (resourcePacket.isPresent())
-				this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
+					this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
 			}
 		}
 	}
