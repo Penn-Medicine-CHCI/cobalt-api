@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.api.request.CreateResourcePacketRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAddressRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationForResourcePacket;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
@@ -378,6 +379,7 @@ public class CareResourceService {
 				AND crl.created_by_account_id = a.account_id
 				AND po.resource_packet_id = ?
 				AND crl.deleted=false
+				ORDER BY po.display_order ASC
 				""", ResourcePacketCareResourceLocation.class, resourcePacketId);
 	}
 
@@ -923,19 +925,67 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public boolean deleteCareResourceLocationFromResourcePacket(@Nonnull UUID resourcePacketId,
-																															@Nonnull UUID careResourceLocationId) {
-		requireNonNull(resourcePacketId);
-		requireNonNull(careResourceLocationId);
+	public boolean deleteCareResourceLocationFromResourcePacket(@Nonnull UUID resourcePacketCareResourceLocationId) {
+		requireNonNull(resourcePacketCareResourceLocationId);
 
 		boolean deleted = getDatabase().execute("""
 				UPDATE resource_packet_care_resource_location
 				SET deleted = TRUE
-				WHERE resource_packet_id=?
-				AND care_resource_location_id=?
-				""", resourcePacketId, careResourceLocationId) > 0;
+				WHERE resource_packet_care_resource_location_id=?
+				""", resourcePacketCareResourceLocationId) > 0;
 
 		return deleted;
+	}
+
+	@Nonnull
+	private Optional<ResourcePacketCareResourceLocation> findResourcePacketCareResourceLocationById(@Nonnull UUID resourcePacketCareResourceLocationId){
+		requireNonNull((resourcePacketCareResourceLocationId));
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM resource_packet_care_resource_location
+				WHERE resource_packet_care_resource_location_id=?
+				""", ResourcePacketCareResourceLocation.class, resourcePacketCareResourceLocationId);
+	}
+
+	@Nonnull
+	public UUID updateCareResourceLocationFromResourcePacket(@Nonnull UUID resourcePacketCareResourceLocationId,
+																													 @Nonnull UpdateCareResourceLocationForResourcePacket request) {
+		requireNonNull(resourcePacketCareResourceLocationId);
+		requireNonNull(request);
+
+		ValidationException validationException = new ValidationException();
+		Optional<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocation =
+				findResourcePacketCareResourceLocationById(resourcePacketCareResourceLocationId);
+
+		if (!resourcePacketCareResourceLocation.isPresent())
+			validationException.add(new ValidationException.FieldError("resourcePacketCareResourceLocationId", "Could not find location for resource packet"));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (resourcePacketCareResourceLocation.get().getDisplayOrder() == request.getDisplayOrder())
+			return resourcePacketCareResourceLocationId;
+
+		getDatabase().execute("""
+				UPDATE resource_packet_care_resource_location
+				SET display_order = 
+				CASE
+						WHEN display_order >= ? AND display_order < ? THEN display_order + 1
+						WHEN display_order <= ? AND display_order > ? THEN display_order - 1
+						ELSE display_order
+				END
+				WHERE resource_packet_care_resource_location_id != ?
+				""", request.getDisplayOrder(), resourcePacketCareResourceLocation.get().getDisplayOrder(),
+				request.getDisplayOrder(), resourcePacketCareResourceLocation.get().getDisplayOrder(), resourcePacketCareResourceLocationId);
+
+		getDatabase().execute("""
+				UPDATE resource_packet_care_resource_location
+				SET display_order = ?
+				WHERE resource_packet_care_resource_location_id = ?
+				""", request.getDisplayOrder(), resourcePacketCareResourceLocationId);
+
+		return resourcePacketCareResourceLocationId;
 	}
 
 	@Nonnull

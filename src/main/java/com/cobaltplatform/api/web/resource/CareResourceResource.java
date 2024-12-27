@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.api.request.CreateCareResourceLocationReques
 import com.cobaltplatform.api.model.api.request.CreateCareResourceRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareResourcesRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationForResourcePacket;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
@@ -439,14 +440,26 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
-	@DELETE("/resource-packets/{resourcePacketId}/location/{careResourceLocationId}")
+	@DELETE("/resource-packets/location/{resourcePacketCareResourceLocationId}")
 	@AuthenticationRequired
-	public ApiResponse deleteResourcePacketLocation(@Nonnull @PathParameter UUID resourcePacketId,
-																									@Nonnull @PathParameter UUID careResourceLocationId) {
-		requireNonNull(careResourceLocationId);
-		requireNonNull(resourcePacketId);
+	public ApiResponse deleteResourcePacketLocation(@Nonnull @PathParameter UUID resourcePacketCareResourceLocationId) {
+		requireNonNull(resourcePacketCareResourceLocationId);
 
-		getCareResourceService().deleteCareResourceLocationFromResourcePacket(resourcePacketId, careResourceLocationId);
+		getCareResourceService().deleteCareResourceLocationFromResourcePacket(resourcePacketCareResourceLocationId);
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
+	@PUT("/resource-packets/location/{resourcePacketCareResourceLocationId}")
+	@AuthenticationRequired
+	public ApiResponse updateResourcePacketLocationOrder(@Nonnull @PathParameter UUID resourcePacketCareResourceLocationId,
+																											 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(resourcePacketCareResourceLocationId);
+
+		UpdateCareResourceLocationForResourcePacket request = getRequestBodyParser().parse(requestBody, UpdateCareResourceLocationForResourcePacket.class);
+
+		getCareResourceService().updateCareResourceLocationFromResourcePacket(resourcePacketCareResourceLocationId, request);
 
 		return new ApiResponse();
 	}
