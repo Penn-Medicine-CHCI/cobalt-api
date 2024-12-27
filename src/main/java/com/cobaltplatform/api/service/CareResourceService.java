@@ -391,6 +391,7 @@ public class CareResourceService {
 				AND crl.created_by_account_id = a.account_id
 				AND po.resource_packet_id = ?
 				AND crl.deleted=false
+				AND po.deleted=false
 				ORDER BY po.display_order ASC
 				""", ResourcePacketCareResourceLocation.class, resourcePacketId);
 	}
@@ -978,7 +979,7 @@ public class CareResourceService {
 
 		if (resourcePacketCareResourceLocation.get().getDisplayOrder() == request.getDisplayOrder())
 			return resourcePacketCareResourceLocationId;
-
+		
 		getDatabase().execute("""
 				UPDATE resource_packet_care_resource_location
 				SET display_order = 
