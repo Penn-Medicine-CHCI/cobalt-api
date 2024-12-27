@@ -103,7 +103,6 @@ CREATE TABLE resource_packet_care_resource_location (
 	care_resource_location_id UUID NOT NULL REFERENCES care_resource_location,
 	created_by_account_id UUID NOT NULL REFERENCES account,
 	display_order INTEGER NOT NULL,
-	deleted BOOLEAN NOT NULL DEFAULT FALSE,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

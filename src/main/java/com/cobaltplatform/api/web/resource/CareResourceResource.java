@@ -469,9 +469,7 @@ public class CareResourceResource {
 
 		getCareResourceService().updateCareResourceLocationFromResourcePacket(resourcePacketCareResourceLocationId, request);
 
-		Optional<ResourcePacket> resourcePacket = getCareResourceService().findResourcePacketByLocationId(resourcePacketCareResourceLocationId);
-
-		return resourcePacket.map(packet -> new ApiResponse(getResourcePacketApiResponseFactory().create(packet))).orElseGet(ApiResponse::new);
+		return new ApiResponse();
 	}
 
 	@Nonnull

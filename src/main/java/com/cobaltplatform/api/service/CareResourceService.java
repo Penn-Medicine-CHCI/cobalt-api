@@ -391,7 +391,6 @@ public class CareResourceService {
 				AND crl.created_by_account_id = a.account_id
 				AND po.resource_packet_id = ?
 				AND crl.deleted=false
-				AND po.deleted=false
 				ORDER BY po.display_order ASC
 				""", ResourcePacketCareResourceLocation.class, resourcePacketId);
 	}
@@ -941,11 +940,33 @@ public class CareResourceService {
 	public boolean deleteCareResourceLocationFromResourcePacket(@Nonnull UUID resourcePacketCareResourceLocationId) {
 		requireNonNull(resourcePacketCareResourceLocationId);
 
+		Optional<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocation =
+				findResourcePacketCareResourceLocationById(resourcePacketCareResourceLocationId);
+
+		ValidationException validationException = new ValidationException();
+
+		if (!resourcePacketCareResourceLocation.isPresent())
+			validationException.add(new ValidationException.FieldError("resourcePacketCareResourceLocationId", "Could not find resource packet."));
+
 		boolean deleted = getDatabase().execute("""
-				UPDATE resource_packet_care_resource_location
-				SET deleted = TRUE
+				DELETE FROM resource_packet_care_resource_location				
 				WHERE resource_packet_care_resource_location_id=?
 				""", resourcePacketCareResourceLocationId) > 0;
+
+		getDatabase().execute("""
+				WITH RowNumbered AS (
+				    SELECT
+				        resource_packet_care_resource_location_id,
+				        ROW_NUMBER() OVER (ORDER BY display_order) AS row_num
+				    FROM resource_packet_care_resource_location
+				)
+				UPDATE resource_packet_care_resource_location
+				SET display_order = RowNumbered.row_num - 1
+				FROM RowNumbered
+				WHERE resource_packet_care_resource_location.resource_packet_care_resource_location_id 
+				= RowNumbered.resource_packet_care_resource_location_id
+				AND resource_packet_care_resource_location.resource_packet_id = ?;
+				""", resourcePacketCareResourceLocation.get().getResourcePacketId());
 
 		return deleted;
 	}
@@ -979,7 +1000,7 @@ public class CareResourceService {
 
 		if (resourcePacketCareResourceLocation.get().getDisplayOrder() == request.getDisplayOrder())
 			return resourcePacketCareResourceLocationId;
-		
+
 		getDatabase().execute("""
 				UPDATE resource_packet_care_resource_location
 				SET display_order = 
