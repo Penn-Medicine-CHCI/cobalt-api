@@ -299,7 +299,7 @@ public class CareResourceService {
 		StringBuilder query = new StringBuilder("SELECT vcr.*, COUNT(vcr.care_resource_location_id) OVER() AS total_count ");
 
 		if (googlePlaceId != null) {
-			query.append(", ST_DistanceSphere(ST_MakePoint(?, ?),ST_MakePoint(longitude, latitude)) AS distance_in_miles ");
+			query.append(", round((ST_DistanceSphere(ST_MakePoint(?, ?), ST_MakePoint(longitude, latitude)) / 1609.344)::numeric, 2) AS distance_in_miles ");
 			parameters.add(longitude);
 			parameters.add(latitude);
 		}
