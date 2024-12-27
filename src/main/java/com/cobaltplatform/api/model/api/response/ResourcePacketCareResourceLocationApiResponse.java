@@ -21,7 +21,10 @@ package com.cobaltplatform.api.model.api.response;
 
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
+import com.cobaltplatform.api.service.AddressService;
+import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.inject.assistedinject.Assisted;
@@ -63,6 +66,22 @@ public class ResourcePacketCareResourceLocationApiResponse {
 	private String addedByDisplayName;
 	@Nullable
 	private String addedDateDescription;
+	@Nullable
+	private String phoneNumber;
+	@Nullable
+	private String formattedPhoneNumber;
+	@Nullable
+	private String careResourceNotes;
+	@Nullable
+	private String notes;
+	@Nullable
+	private String websiteUrl;
+	@Nullable
+	private String emailAddress;
+	@Nullable
+	private UUID addressId;
+	@Nullable
+	private Address address;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -72,10 +91,15 @@ public class ResourcePacketCareResourceLocationApiResponse {
 	}
 
 	@AssistedInject
-	public ResourcePacketCareResourceLocationApiResponse(@Assisted @Nonnull ResourcePacketCareResourceLocation resourcePacketCareResourceLocation,
+	public ResourcePacketCareResourceLocationApiResponse(@Nonnull AddressService addressService,
+																											 @Assisted @Nonnull ResourcePacketCareResourceLocation resourcePacketCareResourceLocation,
 																											 @Nonnull Formatter formatter,
 																											 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(resourcePacketCareResourceLocation);
+		requireNonNull(addressService);
+		requireNonNull(formatter);
+		requireNonNull(currentContextProvider);
+
 		LocalDate updatedDate = LocalDate.ofInstant(resourcePacketCareResourceLocation.getLastUpdated(), currentContextProvider.get().getTimeZone());
 		this.resourcePacketCareResourceLocationId = resourcePacketCareResourceLocation.getResourcePacketCareResourceLocationId();
 		this.resourcePacketId = resourcePacketCareResourceLocation.getResourcePacketId();
@@ -87,6 +111,13 @@ public class ResourcePacketCareResourceLocationApiResponse {
 		this.careResourceLocationName = resourcePacketCareResourceLocation.getCareResourceLocationName();
 		this.addedDateDescription = formatter.formatDate(updatedDate);
 		this.addedByDisplayName = Normalizer.normalizeName(resourcePacketCareResourceLocation.getCreatedByAccountFirstName(), resourcePacketCareResourceLocation.getCreatedByAccountLastName()).orElse(null);
+		this.address = addressService.findAddressById(resourcePacketCareResourceLocation.getAddressId()).orElse(null);
+		this.phoneNumber = resourcePacketCareResourceLocation.getPhoneNumber();
+		this.formattedPhoneNumber = formatter.formatPhoneNumber(resourcePacketCareResourceLocation.getPhoneNumber());
+		this.careResourceNotes = resourcePacketCareResourceLocation.getCareResourceNotes();
+		this.notes = resourcePacketCareResourceLocation.getNotes();
+		this.websiteUrl = resourcePacketCareResourceLocation.getWebsiteUrl();
+		this.emailAddress = resourcePacketCareResourceLocation.getEmailAddress();
 	}
 
 	@Nullable
@@ -137,5 +168,45 @@ public class ResourcePacketCareResourceLocationApiResponse {
 	@Nullable
 	public String getAddedDateDescription() {
 		return addedDateDescription;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	@Nullable
+	public String getCareResourceNotes() {
+		return careResourceNotes;
+	}
+
+	@Nullable
+	public String getNotes() {
+		return notes;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return websiteUrl;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	@Nullable
+	public UUID getAddressId() {
+		return addressId;
+	}
+
+	@Nullable
+	public Address getAddress() {
+		return address;
+	}
+
+	@Nullable
+	public String getFormattedPhoneNumber() {
+		return formattedPhoneNumber;
 	}
 }

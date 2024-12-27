@@ -46,6 +46,18 @@ public class ResourcePacketCareResourceLocation {
 	@Nullable
 	private String careResourceLocationName;
 	@Nullable
+	private String phoneNumber;
+	@Nullable
+	private String careResourceNotes;
+	@Nullable
+	private String notes;
+	@Nullable
+	private String websiteUrl;
+	@Nullable
+	private String emailAddress;
+	@Nullable
+	private UUID addressId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -138,5 +150,59 @@ public class ResourcePacketCareResourceLocation {
 
 	public void setCareResourceLocationName(@Nullable String careResourceLocationName) {
 		this.careResourceLocationName = careResourceLocationName;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(@Nullable String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	@Nullable
+	public String getCareResourceNotes() {
+		return careResourceNotes;
+	}
+
+	public void setCareResourceNotes(@Nullable String careResourceNotes) {
+		this.careResourceNotes = careResourceNotes;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public UUID getAddressId() {
+		return addressId;
+	}
+
+	public void setAddressId(@Nullable UUID addressId) {
+		this.addressId = addressId;
+	}
+
+	@Nullable
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(@Nullable String notes) {
+		this.notes = notes;
 	}
 }

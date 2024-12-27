@@ -382,8 +382,16 @@ public class CareResourceService {
 		requireNonNull(resourcePacketId);
 
 		return getDatabase().queryForList("""
-				SELECT po.*, CASE WHEN crl.name IS NULL THEN cr.name ELSE CRL.name END AS care_resource_location_name,
-				a.first_name AS created_by_account_first_name, a.last_name AS created_by_account_last_name
+				SELECT po.*, 
+				cr.notes AS care_resource_notes,
+				crl.notes,
+				crl.address_id,
+				CASE WHEN crl.website_url IS NULL THEN cr.website_url ELSE CRL.website_url END AS website_url,
+				CASE WHEN crl.phone_number IS NULL THEN cr.phone_number ELSE CRL.phone_number END AS phone_number,
+				CASE WHEN crl.email_address IS NULL THEN cr.email_address ELSE CRL.email_address END AS email_address,
+				CASE WHEN crl.name IS NULL THEN cr.name ELSE CRL.name END AS care_resource_location_name,
+				a.first_name AS created_by_account_first_name, 
+				a.last_name AS created_by_account_last_name
 				FROM care_resource_location crl, resource_packet_care_resource_location po, care_resource cr,
 				account a
 				WHERE crl.care_resource_location_id = po.care_resource_location_id
