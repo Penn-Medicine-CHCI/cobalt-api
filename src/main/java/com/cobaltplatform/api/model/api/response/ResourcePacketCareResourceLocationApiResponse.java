@@ -128,4 +128,14 @@ public class ResourcePacketCareResourceLocationApiResponse {
 	public String getCareResourceLocationName() {
 		return careResourceLocationName;
 	}
+
+	@Nullable
+	public String getAddedByDisplayName() {
+		return addedByDisplayName;
+	}
+
+	@Nullable
+	public String getAddedDateDescription() {
+		return addedDateDescription;
+	}
 }
