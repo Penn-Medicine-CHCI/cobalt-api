@@ -63,6 +63,9 @@ public class CareResourceLocation {
 	private Boolean appointmentTypeInPerson;
 	@Nullable
 	private Boolean appointmentTypeOnline;
+
+	@Nullable
+	Double distanceInMiles;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -263,5 +266,14 @@ public class CareResourceLocation {
 
 	public void setResourceInsuranceNotes(@Nullable String resourceInsuranceNotes) {
 		this.resourceInsuranceNotes = resourceInsuranceNotes;
+	}
+
+	@Nullable
+	public Double getDistanceInMiles() {
+		return distanceInMiles;
+	}
+
+	public void setDistanceInMiles(@Nullable Double distanceInMiles) {
+		this.distanceInMiles = distanceInMiles;
 	}
 }

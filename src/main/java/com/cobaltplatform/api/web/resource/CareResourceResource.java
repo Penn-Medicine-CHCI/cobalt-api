@@ -229,7 +229,8 @@ public class CareResourceResource {
 																															@Nonnull @QueryParameter Optional<List<String>> genderIds,
 																															@Nonnull @QueryParameter Optional<List<String>> ethnicityIds,
 																															@Nonnull @QueryParameter Optional<List<String>> languageIds,
-																															@Nonnull @QueryParameter Optional<List<String>> facilityTypes) {
+																															@Nonnull @QueryParameter Optional<List<String>> facilityTypes,
+																															@Nonnull @QueryParameter Optional<String> googlePlaceId) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(searchQuery);
@@ -244,6 +245,7 @@ public class CareResourceResource {
 		requireNonNull(facilityTypes);
 		requireNonNull(wheelchairAccess);
 		requireNonNull(searchRadiusMiles);
+		requireNonNull(googlePlaceId);
 
 		Account account = getCurrentContext().getAccount().get();
 		FindResult<CareResourceLocation> findResult = getCareResourceService().findAllCareResourceLocationsByInstitutionIdWithFilters(new FindCareResourceLocationsRequest() {
@@ -262,6 +264,8 @@ public class CareResourceResource {
 				setLanguageIds(new HashSet<>(languageIds.orElse(List.of())));
 				setFacilityTypes(new HashSet<>(facilityTypes.orElse(List.of())));
 				setWheelchairAccess(wheelchairAccess.orElse(null));
+				setGooglePlaceId(googlePlaceId.orElse(null));
+				setSearchRadiusMiles(searchRadiusMiles.orElse(null));
 			}
 		});
 

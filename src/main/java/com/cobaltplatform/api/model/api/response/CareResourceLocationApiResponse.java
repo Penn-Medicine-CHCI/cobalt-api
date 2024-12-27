@@ -107,6 +107,8 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private Boolean appointmentTypeOnline;
 	@Nullable
+	private Double distanceInMiles;
+	@Nullable
 	private CareResourceTagApiResponseFactory careResourceTagApiResponseFactory;
 
 
@@ -193,6 +195,7 @@ public class CareResourceLocationApiResponse {
 		this.facilityTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.FACILITY_TYPES).stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
+		this.distanceInMiles = careResourceLocation.getDistanceInMiles();
 	}
 
 	@Nullable
@@ -339,5 +342,10 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	public Boolean getAppointmentTypeOnline() {
 		return appointmentTypeOnline;
+	}
+
+	@Nullable
+	public Double getDistanceInMiles() {
+		return distanceInMiles;
 	}
 }

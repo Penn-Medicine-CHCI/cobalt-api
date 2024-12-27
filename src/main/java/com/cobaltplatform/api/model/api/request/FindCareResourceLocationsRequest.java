@@ -61,6 +61,8 @@ public class FindCareResourceLocationsRequest {
 	private Set<String> languageIds;
 	@Nullable
 	private Set<String> facilityTypes;
+	@Nullable
+	private String googlePlaceId;
 
 	public enum OrderBy {
 		NAME_ASC,
@@ -200,5 +202,14 @@ public class FindCareResourceLocationsRequest {
 
 	public void setSearchRadiusMiles(@Nullable Integer searchRadiusMiles) {
 		this.searchRadiusMiles = searchRadiusMiles;
+	}
+
+	@Nullable
+	public String getGooglePlaceId() {
+		return googlePlaceId;
+	}
+
+	public void setGooglePlaceId(@Nullable String googlePlaceId) {
+		this.googlePlaceId = googlePlaceId;
 	}
 }

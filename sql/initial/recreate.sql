@@ -36,7 +36,7 @@ CREATE EXTENSION hstore SCHEMA cobalt;
 CREATE EXTENSION pg_stat_statements WITH SCHEMA cobalt;
 --CREATE EXTENSION "plv8";
 CREATE EXTENSION postgres_fdw;
-GRANT USAGE ON FOREIGN DATA WRAPPER postgres_fdw TO cobalt;
+GRANT USAGE ON FOREIGN DATA WRAPPER postgres_fdw TO cobalt; 
 
 CREATE USER fdwuser WITH PASSWORD 'password';
 GRANT USAGE ON SCHEMA cobalt TO fdwUser;

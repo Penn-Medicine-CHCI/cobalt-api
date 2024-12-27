@@ -239,7 +239,12 @@ public class CareResourceService {
 				(SELECT 'X'
 				FROM care_resource_location_care_resource_tag crlc
 				WHERE crlc.care_resource_location_id = vcr.care_resource_location_id
-				AND crlc.care_resource_tag_id IN %s) """, sqlInListPlaceholders(tags)));
+				AND crlc.care_resource_tag_id IN %s
+				UNION ALL
+				SELECT 'X'
+				FROM care_resource_care_resource_tag crlc
+				WHERE crlc.care_resource_id = vcr.care_resource_id
+				AND crlc.care_resource_tag_id IN %s) """, sqlInListPlaceholders(tags), sqlInListPlaceholders(tags)));
 	}
 
 	@Nonnull
@@ -259,11 +264,15 @@ public class CareResourceService {
 		Set<String> ethnicityIds = request.getEthnicityIds() == null ? Set.of() : request.getEthnicityIds();
 		Set<String> languageIds = request.getLanguageIds() == null ? Set.of() : request.getLanguageIds();
 		Set<String> facilityTypes = request.getFacilityTypes() == null ? Set.of() : request.getFacilityTypes();
+		String googlePlaceId = trimToNull(request.getGooglePlaceId());
+		Integer searchRadiusMiles = request.getSearchRadiusMiles();
+		Place place = null;
 
 		FindCareResourceLocationsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindCareResourceLocationsRequest.OrderBy.NAME_ASC : request.getOrderBy();
 
 		final int DEFAULT_PAGE_SIZE = 25;
 		final int MAXIMUM_PAGE_SIZE = 100;
+		final int DEFAULT_SEARCH_RADIUS_MILES = 5;
 
 		if (pageNumber == null || pageNumber < 0)
 			pageNumber = 0;
@@ -277,7 +286,25 @@ public class CareResourceService {
 		Integer offset = pageNumber * pageSize;
 		List<Object> parameters = new ArrayList<>();
 
-		StringBuilder query = new StringBuilder("SELECT vcr.*, COUNT(vcr.care_resource_location_id) OVER() AS total_count FROM v_care_resource_location_institution vcr ");
+		double latitude = 0.0;
+		double longitude = 0.0;
+
+		if (googlePlaceId != null) {
+			place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+			NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+			latitude = normalizedPlace.getLatitude();
+			longitude = normalizedPlace.getLongitude();
+		}
+
+		StringBuilder query = new StringBuilder("SELECT vcr.*, COUNT(vcr.care_resource_location_id) OVER() AS total_count ");
+
+		if (googlePlaceId != null) {
+			query.append(", ST_DistanceSphere(ST_MakePoint(?, ?),ST_MakePoint(longitude, latitude)) AS distance_in_miles ");
+			parameters.add(longitude);
+			parameters.add(latitude);
+		}
+
+		query.append("FROM v_care_resource_location_institution vcr ");
 
 		query.append("WHERE vcr.institution_id = ? ");
 		parameters.add(institutionId);
@@ -289,39 +316,54 @@ public class CareResourceService {
 		if (payorIds.size() > 0) {
 			appendTagWhereClause(query, request.getPayorIds());
 			parameters.addAll(request.getPayorIds());
+			parameters.addAll(request.getPayorIds());
 		}
 		if (specialtyIds.size() > 0) {
 			appendTagWhereClause(query, request.getSpecialtyIds());
+			parameters.addAll(request.getSpecialtyIds());
 			parameters.addAll(request.getSpecialtyIds());
 		}
 		if (therapyTypeIds.size() > 0) {
 			appendTagWhereClause(query, request.getTherapyTypeIds());
 			parameters.addAll(request.getTherapyTypeIds());
+			parameters.addAll(request.getTherapyTypeIds());
 		}
 		if (populationServedIds.size() > 0) {
 			appendTagWhereClause(query, request.getPopulationServedIds());
+			parameters.addAll(request.getPopulationServedIds());
 			parameters.addAll(request.getPopulationServedIds());
 		}
 		if (genderIds.size() > 0) {
 			appendTagWhereClause(query, request.getGenderIds());
 			parameters.addAll(request.getGenderIds());
+			parameters.addAll(request.getGenderIds());
 		}
 		if (ethnicityIds.size() > 0) {
 			appendTagWhereClause(query, request.getEthnicityIds());
+			parameters.addAll(request.getEthnicityIds());
 			parameters.addAll(request.getEthnicityIds());
 		}
 		if (languageIds.size() > 0) {
 			appendTagWhereClause(query, request.getLanguageIds());
 			parameters.addAll(request.getLanguageIds());
+			parameters.addAll(request.getLanguageIds());
 		}
 		if (facilityTypes.size() > 0) {
 			appendTagWhereClause(query, request.getFacilityTypes());
+			parameters.addAll(request.getFacilityTypes());
 			parameters.addAll(request.getFacilityTypes());
 		}
 
 		if (wheelchairAccess != null) {
 			query.append("AND wheelchair_access = ? ");
 			parameters.add(wheelchairAccess);
+		}
+
+		if (googlePlaceId != null) {
+			query.append("AND ST_DistanceSphere(ST_MakePoint(?, ?),ST_MakePoint(longitude, latitude)) / 1609.344 < ? ");
+			parameters.add(longitude);
+			parameters.add(latitude);
+			parameters.add(searchRadiusMiles == null ? DEFAULT_SEARCH_RADIUS_MILES : searchRadiusMiles);
 		}
 
 		query.append(" ORDER BY ");

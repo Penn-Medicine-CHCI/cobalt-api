@@ -131,12 +131,28 @@ AND cr.deleted = false;
 
 CREATE VIEW v_care_resource_location_institution 
 AS
-SELECT crl.*, cr.name as resource_name, cr.notes as resource_notes, cr.insurance_notes as resource_insurance_notes, cri.institution_id
-FROM care_resource cr, care_resource_location crl, care_resource_institution cri
-WHERE cr.care_resource_id = cri.care_resource_id
-AND cr.care_resource_id = crl.care_resource_id
-AND cr.deleted = false;
-
+SELECT 
+    crl.*, 
+    cr.name AS resource_name, 
+    cr.notes AS resource_notes, 
+    cr.insurance_notes AS resource_insurance_notes, 
+    cri.institution_id,
+    addr.latitude,
+    addr.longitude,
+    addr.google_place_id
+FROM 
+    care_resource_location crl
+JOIN 
+    care_resource cr 
+    ON cr.care_resource_id = crl.care_resource_id
+JOIN 
+    care_resource_institution cri 
+    ON cr.care_resource_id = cri.care_resource_id
+LEFT OUTER JOIN 
+    address addr 
+    ON crl.address_id = addr.address_id
+WHERE 
+    cr.deleted = false;
 
 INSERT INTO care_resource_tag_group 
   (care_resource_tag_group_id, name)
