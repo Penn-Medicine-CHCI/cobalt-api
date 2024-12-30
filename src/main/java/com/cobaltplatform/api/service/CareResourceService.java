@@ -399,11 +399,12 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public Optional<ResourcePacket> findResourcePacketByPatientOrderId(@Nonnull UUID patientOrderId) {
+	public Optional<ResourcePacket> findCurrentResourcePacketByPatientOrderId(@Nonnull UUID patientOrderId) {
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM resource_packet
 				WHERE patient_order_id = ?
+				AND current_flag=true
 				""", ResourcePacket.class, patientOrderId);
 	}
 
@@ -1078,12 +1079,16 @@ public class CareResourceService {
 
 		UUID resourcePacketId = UUID.randomUUID();
 		UUID patientOrderId = request.getPatientOrderId();
+		UUID createdByAccountId = request.getAccountId();
 		ValidationException validationException = new ValidationException();
 
 		Optional<PatientOrder> patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId);
 
 		if (!patientOrder.isPresent())
 			validationException.add(new ValidationException.FieldError("patientOrderId", "Could not find patient order."));
+
+		if (createdByAccountId == null)
+			validationException.add(new ValidationException.FieldError("createdByAccountId", "createdByAccountId is required."));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1092,6 +1097,14 @@ public class CareResourceService {
 		Integer travelRadius = patientOrder.get().getInPersonCareRadius();
 		DistanceUnitId travelRadiusDistanceUnitId = patientOrder.get().getInPersonCareRadiusDistanceUnitId();
 
+		//Update and resource packets that this patient order may already have to not be current
+		getDatabase().execute("""
+				UPDATE resource_packet
+				SET current_flag=false
+				WHERE patient_order_id = ?
+				AND current_flag=true
+				""", patientOrderId);
+
 		getDatabase().execute("""
 				INSERT INTO resource_packet
 				  (resource_packet_id, patient_order_id, address_id, travel_radius, travel_radius_distance_unit_id)
@@ -1099,6 +1112,20 @@ public class CareResourceService {
 				  (?,?,?,?,?)
 				  """, resourcePacketId, patientOrderId, addressId, travelRadius, travelRadiusDistanceUnitId);
 
+		//add the resource locations from the most recent resource packet for this patient order if any exist
+		getDatabase().execute("""
+				INSERT INTO resource_packet_care_resource_location
+				   (resource_packet_id, care_resource_location_id, created_by_account_id, display_order)
+				 SELECT ?, crl.care_resource_location_id, ?, crl.display_order
+				 FROM resource_packet_care_resource_location crl
+				 WHERE crl.resource_packet_id = 
+				 (SELECT rp.resource_packet_id
+				 FROM resource_packet rp
+				 WHERE rp.patient_order_id = ?
+				 AND resource_packet_id != ?
+				 ORDER BY rp.created DESC
+				 LIMIT 1)
+				 """, resourcePacketId, createdByAccountId, patientOrderId, resourcePacketId);
 		return resourcePacketId;
 	}
 

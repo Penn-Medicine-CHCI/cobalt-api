@@ -92,6 +92,7 @@ CREATE TABLE resource_packet (
 	address_id UUID NULL REFERENCES address,
 	travel_radius INTEGER  NULL,
 	travel_radius_distance_unit_id TEXT NULL REFERENCES distance_unit(distance_unit_id) DEFAULT 'MILE',
+	current_flag BOOLEAN NOT NULL DEFAULT true,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -107,6 +108,7 @@ CREATE TABLE resource_packet_care_resource_location (
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON resource_packet_care_resource_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX idx_resource_packet_care_resource_location_ak1 ON resource_packet_care_resource_location(resource_packet_id, care_resource_location_id);
 
 -- If resources are needed this column will contain a link to the resource_packet that was sent
 ALTER TABLE patient_order ADD COLUMN resource_packet_id UUID NULL REFERENCES resource_packet;
@@ -153,17 +155,5 @@ LEFT OUTER JOIN
     ON crl.address_id = addr.address_id
 WHERE 
     cr.deleted = false;
-
-INSERT INTO care_resource_tag_group 
-  (care_resource_tag_group_id, name)
-VALUES
-  ('PAYORS', 'Payors'),
-  ('SPECIALTIES', 'Specialties'),
-  ('THERAPY_TYPES', 'Therapy Types'),
-  ('POPULATION_SERVED', 'Population Served'),
-  ('GENDERS', 'Genders'),
-  ('ETHNICITIES', 'Ethnicites'),
-  ('LANGUAGES', 'Languages'),
-  ('FACILITY_TYPES', 'Facility Type');
 
 COMMIT;
