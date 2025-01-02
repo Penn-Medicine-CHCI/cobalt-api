@@ -46,6 +46,7 @@ FROM institution_feature
 WHERE institution_id='COBALT'
 AND feature_id='THERAPY';
 
+-- Is an order a provider referral (e.g. PCP or OB-GYN) or a patient self-referring?
 CREATE TABLE patient_order_referral_source (
   patient_order_referral_source_id VARCHAR PRIMARY KEY,
   description TEXT NOT NULL
