@@ -49,6 +49,7 @@ import java.util.Optional;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -88,7 +89,7 @@ public class PlaceService {
 
 	@Nonnull
 	public List<PlacePrediction> autocompletePlace(@Nullable String searchTerm) {
-		requireNonNull(searchTerm);
+		searchTerm = trimToNull(searchTerm);
 
 		if (searchTerm == null)
 			return Collections.emptyList();
@@ -114,7 +115,8 @@ public class PlaceService {
 
 	@Nonnull
 	public Optional<Place> findPlaceByPlaceId(@Nullable String placeIdRequest) {
-		requireNonNull(placeIdRequest);
+		if (placeIdRequest == null)
+			return Optional.empty();
 
 		String placeId = format("places/%s", placeIdRequest);
 
@@ -129,7 +131,8 @@ public class PlaceService {
 
 	@Nonnull
 	public Optional<Place> findPlaceByPlaceAddress(@Nullable Address address) {
-		requireNonNull(address);
+		if (address == null)
+			return Optional.empty();
 
 		SearchTextRequest searchTextRequest = SearchTextRequest.newBuilder()
 				.setTextQuery(format("%s, %s, %s, %s", address.getStreetAddress1(), address.getLocality(), address.getRegion(), address.getPostalCode()))
