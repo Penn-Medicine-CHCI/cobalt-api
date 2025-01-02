@@ -28,6 +28,7 @@ import com.google.maps.places.v1.Place;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 
 import javax.annotation.Nonnull;
@@ -90,7 +91,10 @@ public class PlaceResource {
 	public ApiResponse findPlace(@Nonnull @QueryParameter String googlePlaceId) {
 		requireNonNull(googlePlaceId);
 
-		Place place = placeService.findPlaceByPlaceId(googlePlaceId);
+		Place place = placeService.findPlaceByPlaceId(googlePlaceId).orElse(null);
+
+		if(place == null)
+			throw new NotFoundException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("place", place);

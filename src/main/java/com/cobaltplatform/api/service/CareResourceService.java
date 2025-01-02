@@ -298,7 +298,7 @@ public class CareResourceService {
 					longitude = address.get().getLongitude();
 				} else {
 					//Try to get the place from Google
-					place = getPlaceService().findPlaceByPlaceAddress(address.get());
+					place = getPlaceService().findPlaceByPlaceAddress(address.get()).orElse(null);
 					if (place != null) {
 						NormalizedPlace normalizedPlace = new NormalizedPlace(place);
 						latitude = normalizedPlace.getLatitude();
@@ -307,7 +307,7 @@ public class CareResourceService {
 					}
 				}
 		} else if (addressId != null) {
-			place = getPlaceService().findPlaceByPlaceId(addressId);
+			place = getPlaceService().findPlaceByPlaceId(addressId).orElse(null);
 			if (place != null) {
 				NormalizedPlace normalizedPlace = new NormalizedPlace(place);
 				latitude = normalizedPlace.getLatitude();
@@ -608,7 +608,7 @@ public class CareResourceService {
 
 			if (!currentGooglePlaceId.equals(googlePlaceId)) {
 				// Place has changed so get the new place from Google
-				Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+				Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId).orElse(null);
 
 				if (place == null)
 					validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
@@ -656,7 +656,7 @@ public class CareResourceService {
 			getAddressService().updateAddress(updateAddressRequest);
 		} else if (appointmentTypeInPerson && addressId == null) {
 			//We're creating an address for the location
-			Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+			Place place = getPlaceService().findPlaceByPlaceId(googlePlaceId).orElse(null);
 
 			if (place == null)
 				validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
@@ -771,7 +771,7 @@ public class CareResourceService {
 		if (appointmentTypeInPerson && googlePlaceId == null)
 			validationException.add(new ValidationException.FieldError("googlePlaceId", "Address is required for in an person location."));
 		else if (appointmentTypeInPerson && googlePlaceId != null) {
-			place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
+			place = getPlaceService().findPlaceByPlaceId(googlePlaceId).orElse(null);
 
 			if (place == null)
 				validationException.add(new ValidationException.FieldError("place", "Could not find the Google place"));
@@ -826,7 +826,7 @@ public class CareResourceService {
 						  appointment_type_in_person, appointment_type_online)
 						VALUES
 						  (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-						  """, careResourceLocationId, careResourceId, addressId,
+						""", careResourceLocationId, careResourceId, addressId,
 				phoneNumber, wheelchairAccessible != null && wheelchairAccessible, notes, acceptingNewPatients != null && acceptingNewPatients,
 				websiteUrl, name, insuranceNotes, createdByAccountId, emailAddress, overridePayors, overrideSpecialties,
 				appointmentTypeInPerson, appointmentTypeOnline);
@@ -1134,7 +1134,7 @@ public class CareResourceService {
 				  (resource_packet_id, patient_order_id, address_id, travel_radius, travel_radius_distance_unit_id)
 				VALUES
 				  (?,?,?,?,?)
-				  """, resourcePacketId, patientOrderId, addressId, travelRadius, travelRadiusDistanceUnitId);
+				""", resourcePacketId, patientOrderId, addressId, travelRadius, travelRadiusDistanceUnitId);
 
 		//add the resource locations from the most recent resource packet for this patient order if any exist
 		getDatabase().execute("""
@@ -1149,7 +1149,7 @@ public class CareResourceService {
 				 AND resource_packet_id != ?
 				 ORDER BY rp.created DESC
 				 LIMIT 1)
-				 """, resourcePacketId, createdByAccountId, patientOrderId, resourcePacketId);
+				""", resourcePacketId, createdByAccountId, patientOrderId, resourcePacketId);
 		return resourcePacketId;
 	}
 
