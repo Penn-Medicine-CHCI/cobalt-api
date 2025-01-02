@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.google.DefaultGoogleGeoClient;
 import com.cobaltplatform.api.integration.google.GoogleGeoClient;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.places.PlacePrediction;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.maps.PlacesApi;
@@ -31,6 +32,8 @@ import com.google.maps.places.v1.AutocompletePlacesRequest;
 import com.google.maps.places.v1.AutocompletePlacesResponse;
 import com.google.maps.places.v1.GetPlaceRequest;
 import com.google.maps.places.v1.Place;
+import com.google.maps.places.v1.SearchTextRequest;
+import com.google.maps.places.v1.SearchTextResponse;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -49,6 +52,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -152,6 +156,30 @@ public class PlaceService {
 			place = googleGeoClient.getPlace(request).orElse(null);
 		} catch (Exception e) {
 			getLogger().warn(format("Unable to find place for place ID %s", placeIdRequest), e);
+		}
+
+		return place;
+	}
+
+	@Nonnull
+	public Place findPlaceByPlaceAddress(@Nullable Address address) {
+		requireNonNull(address);
+		Place place = null;
+
+		try (GoogleGeoClient googleGeoClient = acquireGoogleGeoClient()) {
+			SearchTextRequest searchTextRequest = SearchTextRequest.newBuilder()
+					.setTextQuery(format("%s, %s, %s, %s", address.getStreetAddress1(), address.getLocality(), address.getRegion(), address.getPostalCode()))
+					.setLanguageCode("en")
+					.setRegionCode("US")
+					.build();
+
+			SearchTextResponse response = googleGeoClient.findPlacesBySearchText(searchTextRequest);
+
+			if (response.getPlacesList().size() > 0)
+				place =  response.getPlacesList().get(0);
+
+		} catch (Exception e) {
+			getLogger().warn(format("Unable to find place for address ID %s", address.getAddressId()), e);
 		}
 
 		return place;

@@ -62,11 +62,12 @@ public class FindCareResourceLocationsRequest {
 	@Nullable
 	private Set<String> facilityTypes;
 	@Nullable
-	private String googlePlaceId;
+	private String addressId;
 
 	public enum OrderBy {
 		NAME_ASC,
-		NAME_DESC
+		NAME_DESC,
+		DISTANCE_ASC
 	}
 
 	@Nullable
@@ -205,11 +206,11 @@ public class FindCareResourceLocationsRequest {
 	}
 
 	@Nullable
-	public String getGooglePlaceId() {
-		return googlePlaceId;
+	public String getAddressId() {
+		return addressId;
 	}
 
-	public void setGooglePlaceId(@Nullable String googlePlaceId) {
-		this.googlePlaceId = googlePlaceId;
+	public void setAddressId(@Nullable String addressId) {
+		this.addressId = addressId;
 	}
 }

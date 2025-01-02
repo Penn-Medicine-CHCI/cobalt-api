@@ -47,6 +47,7 @@ import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.maps.places.v1.Place;
 import com.lokalized.Strings;
@@ -264,15 +265,14 @@ public class CareResourceService {
 		Set<String> ethnicityIds = request.getEthnicityIds() == null ? Set.of() : request.getEthnicityIds();
 		Set<String> languageIds = request.getLanguageIds() == null ? Set.of() : request.getLanguageIds();
 		Set<String> facilityTypes = request.getFacilityTypes() == null ? Set.of() : request.getFacilityTypes();
-		String googlePlaceId = trimToNull(request.getGooglePlaceId());
+		String addressId = trimToNull(request.getAddressId());
 		Integer searchRadiusMiles = request.getSearchRadiusMiles();
 		Place place = null;
-
-		FindCareResourceLocationsRequest.OrderBy orderBy = request.getOrderBy() == null ? FindCareResourceLocationsRequest.OrderBy.NAME_ASC : request.getOrderBy();
+		Boolean canSearchByDistance = false;
 
 		final int DEFAULT_PAGE_SIZE = 25;
 		final int MAXIMUM_PAGE_SIZE = 100;
-		final int DEFAULT_SEARCH_RADIUS_MILES = 5;
+		final int DEFAULT_SEARCH_RADIUS_MILES = 50;
 
 		if (pageNumber == null || pageNumber < 0)
 			pageNumber = 0;
@@ -289,16 +289,39 @@ public class CareResourceService {
 		double latitude = 0.0;
 		double longitude = 0.0;
 
-		if (googlePlaceId != null) {
-			place = getPlaceService().findPlaceByPlaceId(googlePlaceId);
-			NormalizedPlace normalizedPlace = new NormalizedPlace(place);
-			latitude = normalizedPlace.getLatitude();
-			longitude = normalizedPlace.getLongitude();
+		if (addressId != null && ValidationUtility.isValidUUID(addressId)) {
+			//Attempt to get the latitude and longitude from the address
+			Optional<Address> address = getAddressService().findAddressById(UUID.fromString(addressId));
+			if (address.isPresent())
+				if (address.get().getLatitude() != null && address.get().getLongitude() != null) {
+					latitude = address.get().getLatitude();
+					longitude = address.get().getLongitude();
+				} else {
+					//Try to get the place from Google
+					place = getPlaceService().findPlaceByPlaceAddress(address.get());
+					if (place != null) {
+						NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+						latitude = normalizedPlace.getLatitude();
+						longitude = normalizedPlace.getLongitude();
+						canSearchByDistance = true;
+					}
+				}
+		} else if (addressId != null) {
+			place = getPlaceService().findPlaceByPlaceId(addressId);
+			if (place != null) {
+				NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+				latitude = normalizedPlace.getLatitude();
+				longitude = normalizedPlace.getLongitude();
+				canSearchByDistance = true;
+			}
 		}
 
+		FindCareResourceLocationsRequest.OrderBy orderBy = request.getOrderBy() == null && !canSearchByDistance ?
+				FindCareResourceLocationsRequest.OrderBy.NAME_ASC : canSearchByDistance ? FindCareResourceLocationsRequest.OrderBy.DISTANCE_ASC :
+				request.getOrderBy();
 		StringBuilder query = new StringBuilder("SELECT vcr.*, COUNT(vcr.care_resource_location_id) OVER() AS total_count ");
 
-		if (googlePlaceId != null) {
+		if (canSearchByDistance) {
 			query.append(", round((ST_DistanceSphere(ST_MakePoint(?, ?), ST_MakePoint(longitude, latitude)) / 1609.344)::numeric, 2) AS distance_in_miles ");
 			parameters.add(longitude);
 			parameters.add(latitude);
@@ -359,7 +382,7 @@ public class CareResourceService {
 			parameters.add(wheelchairAccess);
 		}
 
-		if (googlePlaceId != null) {
+		if (canSearchByDistance) {
 			query.append("AND ST_DistanceSphere(ST_MakePoint(?, ?),ST_MakePoint(longitude, latitude)) / 1609.344 < ? ");
 			parameters.add(longitude);
 			parameters.add(latitude);
@@ -372,13 +395,14 @@ public class CareResourceService {
 			query.append("vcr.name DESC ");
 		else if (orderBy == FindCareResourceLocationsRequest.OrderBy.NAME_ASC)
 			query.append("vcr.name ASC ");
+		else if (orderBy == FindCareResourceLocationsRequest.OrderBy.DISTANCE_ASC)
+			query.append("distance_in_miles ASC ");
 
 		query.append("LIMIT ? OFFSET ? ");
 
 		parameters.add(limit);
 		parameters.add(offset);
 
-		getLogger().debug(format("SQL = %s", query.toString()));
 		List<CareResourceLocationWithTotalCount> careResources = getDatabase().queryForList(query.toString(), CareResourceLocationWithTotalCount.class, parameters.toArray());
 
 		FindResult<? extends CareResourceLocation> findResult = new FindResult<>(careResources, careResources.size() == 0 ? 0 : careResources.get(0).getTotalCount());
@@ -1023,7 +1047,7 @@ public class CareResourceService {
 	}
 
 	@Nonnull
-	public Optional<ResourcePacketCareResourceLocation> findResourcePacketCareResourceLocationById(@Nonnull UUID resourcePacketCareResourceLocationId){
+	public Optional<ResourcePacketCareResourceLocation> findResourcePacketCareResourceLocationById(@Nonnull UUID resourcePacketCareResourceLocationId) {
 		requireNonNull((resourcePacketCareResourceLocationId));
 
 		return getDatabase().queryForObject("""
@@ -1053,15 +1077,15 @@ public class CareResourceService {
 			return resourcePacketCareResourceLocationId;
 
 		getDatabase().execute("""
-				UPDATE resource_packet_care_resource_location
-				SET display_order = 
-				CASE
-						WHEN display_order >= ? AND display_order < ? THEN display_order + 1
-						WHEN display_order <= ? AND display_order > ? THEN display_order - 1
-						ELSE display_order
-				END
-				WHERE resource_packet_care_resource_location_id != ?
-				""", request.getDisplayOrder(), resourcePacketCareResourceLocation.get().getDisplayOrder(),
+						UPDATE resource_packet_care_resource_location
+						SET display_order = 
+						CASE
+								WHEN display_order >= ? AND display_order < ? THEN display_order + 1
+								WHEN display_order <= ? AND display_order > ? THEN display_order - 1
+								ELSE display_order
+						END
+						WHERE resource_packet_care_resource_location_id != ?
+						""", request.getDisplayOrder(), resourcePacketCareResourceLocation.get().getDisplayOrder(),
 				request.getDisplayOrder(), resourcePacketCareResourceLocation.get().getDisplayOrder(), resourcePacketCareResourceLocationId);
 
 		getDatabase().execute("""
