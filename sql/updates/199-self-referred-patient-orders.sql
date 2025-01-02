@@ -1,6 +1,51 @@
 BEGIN;
 SELECT _v.register_patch('199-self-referred-patient-orders', NULL, NULL);
 
+-- Support for an institution being able to refer users to an integrated care institution.
+-- For example, an employee institution might direct users to a special integrated care institution designed for employees
+CREATE TABLE integrated_care_institution_referrer (
+	integrated_care_institution_referrer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	from_institution_id TEXT NOT NULL REFERENCES institution(institution_id),
+	to_institution_id TEXT NOT NULL REFERENCES institution(institution_id),
+	institution_feature_id UUID REFERENCES institution_feature, -- If this referral is specifically tied to an existing feature
+	intake_screening_flow_id UUID REFERENCES screening_flow(screening_flow_id),
+	url_name TEXT NOT NULL,
+	title TEXT NOT NULL,
+	description TEXT NOT NULL, -- can include HTML
+	page_content TEXT NOT NULL, -- content for the referrer page (e.g. markup with list of FAQs), should be HTML
+	cta_title TEXT, -- CTA to be displayed on the institution referrer page
+	cta_description TEXT, -- CTA to be displayed on the institution referrer page.  Can include HTML
+	feature_cta_title TEXT, -- CTA to be displayed on the feature page
+	feature_cta_description TEXT, -- CTA to be displayed on the feature page.  Can include HTML
+	UNIQUE (from_institution_id, to_institution_id, institution_feature_id),
+	UNIQUE (from_institution_id, url_name) -- URL names are institution-specific
+);
+
+-- Support COBALT referring to COBALT_IC for the THERAPY feature
+INSERT INTO integrated_care_institution_referrer (integrated_care_institution_referrer_id, from_institution_id, to_institution_id, institution_feature_id, intake_screening_flow_id, url_name, title, description, cta_title, cta_description, feature_cta_title, feature_cta_description, page_content)
+SELECT 'eeb3d481-7d6e-4bde-9139-b2f8b5b68380', 'COBALT', 'COBALT_IC', institution_feature_id, NULL, 'ic-referral-pilot', 'New IC Pilot for Cobalt Employees', 'We''re excited to announce that we''re partnering with the Department of Psychiatry to allow Cobalt employees to self-schedule an appointment with our clinic.', 'Get started with the clinic', 'If interested in booking a clinic appointment, click the button below or call (215) 555-1212.', 'New pilot program for Cobalt employees', 'We''re partnering with the Department of Psychiatry to allow Cobalt employees to self-schedule with our employee Psychiatry clinic.',
+  TRIM('
+    <h2>About the Clinic</h2>
+    <p>
+      <h3>Who can make a clinic appointment?</h3>
+      <ul>
+        <li>Clinic appointments are only available to Cobalt employees at this time.</li>
+      </ul>
+    </p>
+    <p>
+      <h3>How does the clinic work?</h3>
+      <ul>
+        <li>Your first visit is in-person with potential in-person/virtual visits after that.</li>
+        <li>After an initial assessment, a treatment plan may include therapy alone, medication alone, or therapy and medication.</li>
+        <li>The clinic uses a 4-month model of care using evidence-based treatments.</li>
+        <li>Care provided in the clinic is documented in EMR/MyChart.</li>
+      </ul>
+    </p>
+  ')
+FROM institution_feature
+WHERE institution_id='COBALT'
+AND feature_id='THERAPY';
+
 CREATE TABLE patient_order_referral_source (
   patient_order_referral_source_id VARCHAR PRIMARY KEY,
   description TEXT NOT NULL
