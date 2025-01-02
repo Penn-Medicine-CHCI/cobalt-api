@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('197-self-referred-patient-orders', NULL, NULL);
+SELECT _v.register_patch('199-self-referred-patient-orders', NULL, NULL);
 
 CREATE TABLE patient_order_referral_source (
   patient_order_referral_source_id VARCHAR PRIMARY KEY,
