@@ -39,8 +39,7 @@ import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
-import com.cobaltplatform.api.model.db.ResourcePacket;
-import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -55,6 +54,7 @@ import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
@@ -102,7 +102,8 @@ public class CareResourceResource {
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
-
+	@Nonnull
+	private final AuthorizationService authorizationService;
 
 	@Inject
 	public CareResourceResource(@Nonnull Provider<CurrentContext> currentContextProvider,
@@ -135,6 +136,7 @@ public class CareResourceResource {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.careResourceApiResponseFactory = careResourceApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
+		this.authorizationService = authorizationService;
 		this.formatter = formatter;
 	}
 
@@ -285,6 +287,12 @@ public class CareResourceResource {
 	public ApiResponse updateCareResource(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		Institution.InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canManageCareResources(institutionId, account))
+			throw new AuthorizationException();
+
 		UpdateCareResourceRequest request = getRequestBodyParser().parse(requestBody, UpdateCareResourceRequest.class);
 		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
 
@@ -304,6 +312,12 @@ public class CareResourceResource {
 	@AuthenticationRequired
 	public ApiResponse createCareResource(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		Institution.InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canManageCareResources(institutionId, account))
+			throw new AuthorizationException();
 
 		CreateCareResourceRequest request = getRequestBodyParser().parse(requestBody, CreateCareResourceRequest.class);
 		request.setCreatedByAccountId(getCurrentContext().getAccount().get().getAccountId());
@@ -325,6 +339,12 @@ public class CareResourceResource {
 	public ApiResponse deleteCareResource(@Nonnull @PathParameter UUID careResourceId) {
 		requireNonNull(careResourceId);
 
+		Institution.InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canManageCareResources(institutionId, account))
+			throw new AuthorizationException();
+
 		getCareResourceService().deleteCareResource(careResourceId);
 
 		return new ApiResponse();
@@ -336,6 +356,12 @@ public class CareResourceResource {
 	public ApiResponse deleteCareResourceLocation(@Nonnull @PathParameter UUID careResourceLocationId) {
 		requireNonNull(careResourceLocationId);
 
+		Institution.InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canManageCareResources(institutionId, account))
+			throw new AuthorizationException();
+
 		getCareResourceService().deleteCareResourceLocation(careResourceLocationId);
 
 		return new ApiResponse();
@@ -346,6 +372,12 @@ public class CareResourceResource {
 	@AuthenticationRequired
 	public ApiResponse createCareResourceLocation(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
+
+		Institution.InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canManageCareResources(institutionId, account))
+			throw new AuthorizationException();
 
 		CreateCareResourceLocationRequest request = getRequestBodyParser().parse(requestBody, CreateCareResourceLocationRequest.class);
 		request.setCreatedByAccountId(getCurrentContext().getAccount().get().getAccountId());
@@ -421,6 +453,12 @@ public class CareResourceResource {
 	public ApiResponse updateCareResourceLocation(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		Institution.InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canManageCareResources(institutionId, account))
+			throw new AuthorizationException();
+
 		UpdateCareResourceLocationRequest request = getRequestBodyParser().parse(requestBody, UpdateCareResourceLocationRequest.class);
 		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
 
@@ -487,6 +525,11 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationService;
+	}
+
+	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
 	}
@@ -530,4 +573,5 @@ public class CareResourceResource {
 	public CareResourceLocationApiResponseFactory getCareResourceLocationApiResponseFactory() {
 		return careResourceLocationApiResponseFactory;
 	}
+
 }

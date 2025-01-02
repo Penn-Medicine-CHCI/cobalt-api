@@ -156,4 +156,8 @@ LEFT OUTER JOIN
 WHERE 
     cr.deleted = false;
 
+INSERT INTO account_capability_type
+VALUES
+('MHIC_RESOURCE_MANAGER', 'MHIC Resource Manager');
+
 COMMIT;

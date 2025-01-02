@@ -192,6 +192,7 @@ public class AuthorizationService {
 		accountCapabilityFlags.setCanViewProviderReportAppointmentsEap(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_ADMIN)
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER));
 		accountCapabilityFlags.setCanViewStudyInsights(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.STUDY_ADMIN));
+		accountCapabilityFlags.setCanManageCareResources(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_RESOURCE_MANAGER));
 
 		return accountCapabilityFlags;
 	}
@@ -709,14 +710,15 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	public Boolean canViewCareResources(@Nonnull InstitutionId institutionId,
-																			@Nonnull Account account) {
+	public Boolean canManageCareResources(@Nonnull InstitutionId institutionId,
+																			  @Nonnull Account account) {
 		requireNonNull(institutionId);
 		requireNonNull(account);
 
-		// An admin or MHIC at the same institution is able to view care resource at that institution
+		// An admin or MHIC with the MHIC_RESOURCE_MANAGER role can create and update resources
 		if (Objects.equals(account.getInstitutionId(), institutionId)
-				&& (account.getRoleId() == RoleId.ADMINISTRATOR || account.getRoleId() == RoleId.MHIC))
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR ||
+				account.getAccountCapabilityTypeIds().contains(AccountCapabilityTypeId.MHIC_RESOURCE_MANAGER)))
 			return true;
 
 		return false;

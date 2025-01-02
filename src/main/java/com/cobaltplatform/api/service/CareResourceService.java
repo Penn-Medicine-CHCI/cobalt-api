@@ -300,6 +300,7 @@ public class CareResourceService {
 					//Try to get the place from Google
 					place = getPlaceService().findPlaceByPlaceAddress(address.get());
 					if (place != null) {
+						//TODO: update the address with the google places data
 						NormalizedPlace normalizedPlace = new NormalizedPlace(place);
 						latitude = normalizedPlace.getLatitude();
 						longitude = normalizedPlace.getLongitude();
@@ -329,7 +330,7 @@ public class CareResourceService {
 
 		query.append("FROM v_care_resource_location_institution vcr ");
 
-		query.append("WHERE vcr.institution_id = ? ");
+		query.append("WHERE vcr.institution_id = ? AND vcr.accepting_new_patients = true ");
 		parameters.add(institutionId);
 
 		if (search != null) {
