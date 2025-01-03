@@ -1117,12 +1117,13 @@ public class PatientOrderApiResponse {
 			this.mostRecentMessageDeliveredAt = patientOrder.getMostRecentMessageDeliveredAt();
 			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestamp(mostRecentMessageDeliveredAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
 
-			if (this.patientOrderResourcingStatusId.equals(PatientOrderResourcingStatusId.NEEDS_RESOURCES)) {
-				Optional<ResourcePacket> resourcePacket = careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
+			//TODO: Figure out if we always want to return the resource packet
+			//if (this.patientOrderResourcingStatusId.equals(PatientOrderResourcingStatusId.NEEDS_RESOURCES)) {
+			Optional<ResourcePacket> resourcePacket = careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
 
-				if (resourcePacket.isPresent())
-					this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
-			}
+			if (resourcePacket.isPresent())
+				this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
+			//}
 		}
 	}
 
