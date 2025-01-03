@@ -97,6 +97,7 @@ CREATE TABLE resource_packet (
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON resource_packet FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE INDEX idx_resource_packet_patient_order_id ON resource_packet(patient_order_id);
 
 CREATE TABLE resource_packet_care_resource_location (
 	resource_packet_care_resource_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

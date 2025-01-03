@@ -46,6 +46,8 @@ public class ResourcePacketApiResponse {
 	@Nullable
 	private Integer careResourceLocationCount;
 	@Nullable
+	private String patientMessage;
+	@Nullable
 	private List<ResourcePacketCareResourceLocationApiResponse> careResourceLocations;
 	@Nullable
 	private ResourcePacketCareResourceLocationApiResponseFactory resourcePacketCareResourceLocationApiResponseFactory;
@@ -66,6 +68,7 @@ public class ResourcePacketApiResponse {
 		requireNonNull(careResourceService);
 
 		this.resourcePacketId = resourcePacket.getResourcePacketId();
+		this.patientMessage = "TODO: real message";
 		this.careResourceLocations = careResourceService.findResourcePacketLocations(resourcePacket.getResourcePacketId())
 				.stream().map(careResourceLocation -> resourcePacketCareResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
 
@@ -89,5 +92,10 @@ public class ResourcePacketApiResponse {
 	@Nullable
 	public ResourcePacketCareResourceLocationApiResponseFactory getResourcePacketCareResourceLocationApiResponseFactory() {
 		return resourcePacketCareResourceLocationApiResponseFactory;
+	}
+
+	@Nullable
+	public String getPatientMessage() {
+		return patientMessage;
 	}
 }

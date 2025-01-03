@@ -589,6 +589,7 @@ public class PatientOrderApiResponse {
 	private String mostRecentMessageDeliveredAtDescription;
 	@Nullable
 	private ResourcePacketApiResponse resourcePacket;
+	@Nullable Boolean resourcesSentFlag;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -977,6 +978,12 @@ public class PatientOrderApiResponse {
 		this.epicDepartmentName = patientOrder.getEpicDepartmentName();
 		this.epicDepartmentDepartmentId = patientOrder.getEpicDepartmentDepartmentId();
 
+		Optional<ResourcePacket> resourcePacket = careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
+		this.resourcesSentFlag = patientOrder.getResourcesSentAt() != null;
+		if (resourcePacket.isPresent())
+			this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
+
+
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
 			this.panelAccountId = patientOrder.getPanelAccountId();
@@ -1117,13 +1124,6 @@ public class PatientOrderApiResponse {
 			this.mostRecentMessageDeliveredAt = patientOrder.getMostRecentMessageDeliveredAt();
 			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestamp(mostRecentMessageDeliveredAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
 
-			//TODO: Figure out if we always want to return the resource packet
-			//if (this.patientOrderResourcingStatusId.equals(PatientOrderResourcingStatusId.NEEDS_RESOURCES)) {
-			Optional<ResourcePacket> resourcePacket = careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
-
-			if (resourcePacket.isPresent())
-				this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
-			//}
 		}
 	}
 
