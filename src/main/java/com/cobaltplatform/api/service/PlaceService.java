@@ -115,6 +115,8 @@ public class PlaceService {
 
 	@Nonnull
 	public Optional<Place> findPlaceByPlaceId(@Nullable String placeIdRequest) {
+		placeIdRequest = trimToNull(placeIdRequest);
+
 		if (placeIdRequest == null)
 			return Optional.empty();
 
