@@ -33,10 +33,13 @@ import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
+import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
+import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.service.AccountService;
@@ -48,6 +51,7 @@ import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
+import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.RedirectResponse;
 import com.soklet.web.response.RedirectResponse.Type;
@@ -58,6 +62,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -294,7 +299,7 @@ public class InstitutionResource {
 	}
 
 	@GET("/institution/locations")
-	public ApiResponse geLocations() {
+	public ApiResponse getLocations() {
 		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
 
 		List<InstitutionLocationApiResponse> institutionLocations = getInstitutionService().findLocationsByInstitutionId(institution.getInstitutionId()).stream()
@@ -304,6 +309,40 @@ public class InstitutionResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("locations", institutionLocations);
 		}});
+	}
+
+	@GET("/institution-feature-institution-referrers/{featureId}")
+	public ApiResponse getInstitutionFeatureInstitutionReferrers(@Nonnull @PathParameter FeatureId featureId) {
+		requireNonNull(featureId);
+
+		List<InstitutionFeatureInstitutionReferrer> institutionFeatureInstitutionReferrers = getInstitutionService().findInstitutionFeatureInstitutionReferrers(getCurrentContext().getInstitutionId(), featureId);
+		List<InstitutionReferrer> institutionReferrers = new ArrayList<>(institutionFeatureInstitutionReferrers.size());
+
+		for (InstitutionFeatureInstitutionReferrer ifir : institutionFeatureInstitutionReferrers)
+			institutionReferrers.add(getInstitutionService().findInstitutionReferrerById(ifir.getInstitutionReferrerId()).get());
+
+		return new ApiResponse(Map.of(
+				"institutionFeatureInstitutionReferrers", institutionFeatureInstitutionReferrers.stream()
+						.map(ifir -> getInstitutionFeatureInstitutionReferrerApiResponseFactory().create(ifir))
+						.collect(Collectors.toUnmodifiableList()),
+				"institutionReferrers", institutionReferrers.stream()
+						.map(institutionReferrer -> getInstitutionReferrerApiResponseFactory().create(institutionReferrer))
+						.collect(Collectors.toUnmodifiableList())
+		));
+	}
+
+	@GET("/institution-referrers/{institutionReferrerIdentifier}")
+	public ApiResponse getInstitutionReferrerByIdentifier(@Nonnull @PathParameter String institutionReferrerIdentifier) {
+		requireNonNull(institutionReferrerIdentifier);
+
+		InstitutionReferrer institutionReferrer = getInstitutionService().findInstitutionReferrerByIdentifier(getCurrentContext().getInstitutionId(), institutionReferrerIdentifier).orElse(null);
+
+		if (institutionReferrer == null)
+			throw new NotFoundException();
+
+		return new ApiResponse(Map.of(
+				"institutionReferrer", getInstitutionReferrerApiResponseFactory().create(institutionReferrer)
+		));
 	}
 
 	@GET("/institutions/{institutionId}/mock-epic-token")
