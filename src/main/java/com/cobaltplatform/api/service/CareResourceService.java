@@ -296,12 +296,40 @@ public class CareResourceService {
 				if (address.get().getLatitude() != null && address.get().getLongitude() != null) {
 					latitude = address.get().getLatitude();
 					longitude = address.get().getLongitude();
+					canSearchByDistance = true;
 				} else {
 					//Try to get the place from Google
 					place = getPlaceService().findPlaceByPlaceAddress(address.get()).orElse(null);
 					if (place != null) {
-						//TODO: update the address with the google places data
 						NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+
+						UpdateAddressRequest updateAddressRequest = new UpdateAddressRequest();
+						updateAddressRequest.setAddressId(address.get().getAddressId());
+						updateAddressRequest.setGooglePlaceId(normalizedPlace.getGooglePlaceId());
+						updateAddressRequest.setStreetAddress1(address.get().getStreetAddress1());
+						updateAddressRequest.setStreetAddress2(address.get().getStreetAddress2());
+						updateAddressRequest.setStreetAddress3(address.get().getStreetAddress3());
+						updateAddressRequest.setStreetAddress4(address.get().getStreetAddress4());
+						updateAddressRequest.setPostOfficeBoxNumber(address.get().getPostOfficeBoxNumber());
+						updateAddressRequest.setCrossStreet(address.get().getCrossStreet());
+						updateAddressRequest.setSuburb(address.get().getSuburb());
+						updateAddressRequest.setCountrySubdivisionCode(address.get().getCountrySubdivisionCode());
+						updateAddressRequest.setPostalCode(address.get().getPostalCode());
+						updateAddressRequest.setPostalName(address.get().getPostalName());
+						updateAddressRequest.setLocality(address.get().getLocality());
+						updateAddressRequest.setRegion(address.get().getRegion());
+						updateAddressRequest.setGoogleMapsUrl(normalizedPlace.getGoogleMapsUrl());
+						updateAddressRequest.setPremise(normalizedPlace.getPremise());
+						updateAddressRequest.setSubpremise(normalizedPlace.getSubpremise());
+						updateAddressRequest.setRegionSubdivision(normalizedPlace.getRegionSubdivision());
+						updateAddressRequest.setPostalCodeSuffix(normalizedPlace.getPostalCodeSuffix());
+						updateAddressRequest.setFormattedAddress(normalizedPlace.getFormattedAddress());
+						updateAddressRequest.setLatitude(normalizedPlace.getLatitude());
+						updateAddressRequest.setLongitude(normalizedPlace.getLongitude());
+						updateAddressRequest.setCountryCode(address.get().getCountryCode());
+
+						getAddressService().updateAddress(updateAddressRequest);
+
 						latitude = normalizedPlace.getLatitude();
 						longitude = normalizedPlace.getLongitude();
 						canSearchByDistance = true;
@@ -617,6 +645,8 @@ public class CareResourceService {
 				if (validationException.hasErrors())
 					throw validationException;
 
+				//Note: this is a subset of address fields that only sets the attributes that
+				//are used for care resource locations
 				NormalizedPlace normalizedPlace = new NormalizedPlace(place);
 				updateAddressRequest.setAddressId(currentAddress.getAddressId());
 				updateAddressRequest.setGooglePlaceId(googlePlaceId);

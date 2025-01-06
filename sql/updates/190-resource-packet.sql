@@ -125,6 +125,8 @@ ADD COLUMN region_subdivision TEXT NULL,
 ADD COLUMN postal_code_suffix TEXT NULL,
 ADD COLUMN formatted_address TEXT NULL;
 
+ALTER TABLE institution ADD COLUMN resource_packets_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE VIEW v_care_resource_institution 
 AS
 SELECT cr.*, cri.institution_id

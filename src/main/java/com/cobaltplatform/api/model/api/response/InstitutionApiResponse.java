@@ -165,7 +165,8 @@ public class InstitutionApiResponse {
 	private final List<AlertApiResponse> alerts;
 	@Nonnull
 	private final Boolean contentAudiencesEnabled;
-
+	@Nonnull
+	private final Boolean resourcePacketsEnabled;
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
@@ -272,6 +273,8 @@ public class InstitutionApiResponse {
 		this.tableauEnabled = institution.getTableauEnabled();
 
 		this.contentAudiencesEnabled = institution.getContentAudiencesEnabled();
+
+		this.resourcePacketsEnabled = institution.getResourcePacketsEnabled();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -562,5 +565,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getContentAudiencesEnabled() {
 		return this.contentAudiencesEnabled;
+	}
+
+	@Nonnull
+	public Boolean getResourcePacketsEnabled() {
+		return resourcePacketsEnabled;
 	}
 }

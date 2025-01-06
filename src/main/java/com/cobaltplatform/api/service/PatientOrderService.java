@@ -3037,7 +3037,7 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		}
 
-		if (patientOrderResourcingStatusId == PatientOrderResourcingStatusId.NEEDS_RESOURCES)
+		if (patientOrderResourcingStatusId == PatientOrderResourcingStatusId.NEEDS_RESOURCES && institution.getResourcePacketsEnabled())
 			getCareResourceService().createResourcePacket(new CreateResourcePacketRequest() {{
 				setPatientOrderId(patientOrderId);
 				setAccountId(accountId);
