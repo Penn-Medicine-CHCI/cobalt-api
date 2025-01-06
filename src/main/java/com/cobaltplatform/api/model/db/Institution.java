@@ -348,6 +348,7 @@ public class Institution {
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
+		COBALT_IC_SELF_REFERRAL,
 		COBALT_FHIR,
 	}
 

@@ -17,38 +17,17 @@ CREATE TABLE integrated_care_institution_referrer (
 	cta_description TEXT, -- CTA to be displayed on the institution referrer page.  Can include HTML
 	feature_cta_title TEXT, -- CTA to be displayed on the feature page
 	feature_cta_description TEXT, -- CTA to be displayed on the feature page.  Can include HTML
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	UNIQUE (from_institution_id, to_institution_id, institution_feature_id),
 	UNIQUE (from_institution_id, url_name) -- URL names are institution-specific
 );
 
--- Support COBALT referring to COBALT_IC for the THERAPY feature
-INSERT INTO integrated_care_institution_referrer (integrated_care_institution_referrer_id, from_institution_id, to_institution_id, institution_feature_id, intake_screening_flow_id, url_name, title, description, cta_title, cta_description, feature_cta_title, feature_cta_description, page_content)
-SELECT 'eeb3d481-7d6e-4bde-9139-b2f8b5b68380', 'COBALT', 'COBALT_IC', institution_feature_id, NULL, 'ic-referral-pilot', 'New IC Pilot for Cobalt Employees', 'We''re excited to announce that we''re partnering with the Department of Psychiatry to allow Cobalt employees to self-schedule an appointment with our clinic.', 'Get started with the clinic', 'If interested in booking a clinic appointment, click the button below or call (215) 555-1212.', 'New pilot program for Cobalt employees', 'We''re partnering with the Department of Psychiatry to allow Cobalt employees to self-schedule with our employee Psychiatry clinic.',
-  TRIM('
-    <h2>About the Clinic</h2>
-    <p>
-      <h3>Who can make a clinic appointment?</h3>
-      <ul>
-        <li>Clinic appointments are only available to Cobalt employees at this time.</li>
-      </ul>
-    </p>
-    <p>
-      <h3>How does the clinic work?</h3>
-      <ul>
-        <li>Your first visit is in-person with potential in-person/virtual visits after that.</li>
-        <li>After an initial assessment, a treatment plan may include therapy alone, medication alone, or therapy and medication.</li>
-        <li>The clinic uses a 4-month model of care using evidence-based treatments.</li>
-        <li>Care provided in the clinic is documented in EMR/MyChart.</li>
-      </ul>
-    </p>
-  ')
-FROM institution_feature
-WHERE institution_id='COBALT'
-AND feature_id='THERAPY';
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON integrated_care_institution_referrer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Is an order a provider referral (e.g. PCP or OB-GYN) or a patient self-referring?
 CREATE TABLE patient_order_referral_source (
-  patient_order_referral_source_id VARCHAR PRIMARY KEY,
+  patient_order_referral_source_id TEXT PRIMARY KEY,
   description TEXT NOT NULL
 );
 
@@ -56,6 +35,23 @@ INSERT INTO patient_order_referral_source VALUES ('PROVIDER', 'Provider');
 INSERT INTO patient_order_referral_source VALUES ('SELF', 'Self');
 
 ALTER TABLE patient_order ADD COLUMN patient_order_referral_source_id TEXT REFERENCES patient_order_referral_source NOT NULL DEFAULT 'PROVIDER';
+
+-- Allow institutions to specify which referral sources they support
+CREATE TABLE institution_patient_order_referral_source (
+  institution_id TEXT NOT NULL REFERENCES institution,
+  patient_order_referral_source_id TEXT NOT NULL REFERENCES patient_order_referral_source,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (institution_id, patient_order_referral_source_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_patient_order_referral_source FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Have existing IC institutions default to 'PROVIDER'
+INSERT INTO institution_patient_order_referral_source (institution_id, patient_order_referral_source_id)
+SELECT institution_id, 'PROVIDER'
+FROM institution
+WHERE integrated_care_enabled=TRUE;
 
 drop view v_patient_order;
 drop view v_all_patient_order;
