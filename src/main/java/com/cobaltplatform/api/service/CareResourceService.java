@@ -272,7 +272,6 @@ public class CareResourceService {
 
 		final int DEFAULT_PAGE_SIZE = 25;
 		final int MAXIMUM_PAGE_SIZE = 100;
-		final int DEFAULT_SEARCH_RADIUS_MILES = 50;
 
 		if (pageNumber == null || pageNumber < 0)
 			pageNumber = 0;
@@ -411,11 +410,11 @@ public class CareResourceService {
 			parameters.add(wheelchairAccess);
 		}
 
-		if (canSearchByDistance) {
+		if (canSearchByDistance && searchRadiusMiles != null) {
 			query.append("AND ST_DistanceSphere(ST_MakePoint(?, ?),ST_MakePoint(longitude, latitude)) / 1609.344 < ? ");
 			parameters.add(longitude);
 			parameters.add(latitude);
-			parameters.add(searchRadiusMiles == null ? DEFAULT_SEARCH_RADIUS_MILES : searchRadiusMiles);
+			parameters.add(searchRadiusMiles);
 		}
 
 		query.append(" ORDER BY ");
@@ -432,6 +431,7 @@ public class CareResourceService {
 		parameters.add(limit);
 		parameters.add(offset);
 
+		getLogger().debug("query = " + query.toString());
 		List<CareResourceLocationWithTotalCount> careResources = getDatabase().queryForList(query.toString(), CareResourceLocationWithTotalCount.class, parameters.toArray());
 
 		FindResult<? extends CareResourceLocation> findResult = new FindResult<>(careResources, careResources.size() == 0 ? 0 : careResources.get(0).getTotalCount());
