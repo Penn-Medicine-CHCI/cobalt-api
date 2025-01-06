@@ -1,10 +1,10 @@
 BEGIN;
 SELECT _v.register_patch('199-self-referred-patient-orders', NULL, NULL);
 
--- Support for an institution being able to refer users to an integrated care institution.
+-- Support for an institution being able to refer users to another institution.
 -- For example, an employee institution might direct users to a special integrated care institution designed for employees
-CREATE TABLE integrated_care_institution_referrer (
-	integrated_care_institution_referrer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE institution_referrer (
+	institution_referrer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	from_institution_id TEXT NOT NULL REFERENCES institution(institution_id),
 	to_institution_id TEXT NOT NULL REFERENCES institution(institution_id),
 	institution_feature_id UUID REFERENCES institution_feature, -- If this referral is specifically tied to an existing feature
@@ -15,15 +15,29 @@ CREATE TABLE integrated_care_institution_referrer (
 	page_content TEXT NOT NULL, -- content for the referrer page (e.g. markup with list of FAQs), should be HTML
 	cta_title TEXT, -- CTA to be displayed on the institution referrer page
 	cta_description TEXT, -- CTA to be displayed on the institution referrer page.  Can include HTML
-	feature_cta_title TEXT, -- CTA to be displayed on the feature page
-	feature_cta_description TEXT, -- CTA to be displayed on the feature page.  Can include HTML
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	UNIQUE (from_institution_id, to_institution_id, institution_feature_id),
 	UNIQUE (from_institution_id, url_name) -- URL names are institution-specific
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON integrated_care_institution_referrer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_referrer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Institution features can optionally refer one or more institutions.
+-- For example, the THERAPY feature might direct users to a special integrated care institution designed for employees
+CREATE TABLE institution_feature_institution_referrer (
+	institution_feature_institution_referrer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	institution_feature_id UUID NOT NULL REFERENCES institution_feature,
+	institution_referrer_id UUID NOT NULL REFERENCES institution_referrer,
+	cta_title TEXT, -- CTA to be displayed on the feature page
+	cta_description TEXT, -- CTA to be displayed on the feature page.  Can include HTML
+	display_order INTEGER NOT NULL,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	UNIQUE (institution_feature_id, institution_referrer_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_feature_institution_referrer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Is an order a provider referral (e.g. PCP or OB-GYN) or a patient self-referring?
 CREATE TABLE patient_order_referral_source (
