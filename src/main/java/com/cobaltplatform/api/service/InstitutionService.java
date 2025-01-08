@@ -31,7 +31,9 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionColorValue;
+import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
+import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
@@ -500,6 +502,50 @@ public class InstitutionService {
 				WHERE institution_id=?
 				ORDER BY name
 				""", EpicProviderSchedule.class, institutionId);
+	}
+
+	@Nonnull
+	public Optional<InstitutionReferrer> findInstitutionReferrerByUrlName(@Nullable String urlName,
+																																				@Nullable InstitutionId fromInstitutionId) {
+		urlName = trimToNull(urlName);
+
+		if (urlName == null || fromInstitutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM institution_referrer
+				WHERE url_name=?
+				AND from_institution_id=?
+				""", InstitutionReferrer.class, urlName, fromInstitutionId);
+	}
+
+	@Nonnull
+	public Optional<InstitutionReferrer> findInstitutionReferrerById(@Nullable UUID institutionReferrerId) {
+		if (institutionReferrerId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM institution_referrer
+				WHERE institution_referrer_id=?
+				""", InstitutionReferrer.class, institutionReferrerId);
+	}
+
+	@Nonnull
+	public List<InstitutionFeatureInstitutionReferrer> findInstitutionFeatureInstitutionReferrers(@Nullable InstitutionId institutionId,
+																																																@Nullable FeatureId featureId) {
+		if (institutionId == null || featureId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT ifir.*
+				FROM institution_feature_institution_referrer ifir, institution_feature if
+				WHERE ifir.institution_feature_id=if.institution_feature_id
+				AND if.institution_id=?
+				AND if.feature_id=?
+				ORDER BY ifir.display_order
+				""", InstitutionFeatureInstitutionReferrer.class, institutionId, featureId);
 	}
 
 	@Immutable

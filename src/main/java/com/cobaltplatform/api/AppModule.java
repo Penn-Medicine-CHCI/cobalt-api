@@ -109,7 +109,9 @@ import com.cobaltplatform.api.model.api.response.GroupSessionUrlValidationResult
 import com.cobaltplatform.api.model.api.response.GroupTopicApiResponse.GroupTopicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionFeatureInstitutionReferrerApiResponse.InstitutionFeatureInstitutionReferrerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionReferrerApiResponse.InstitutionReferrerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionResourceApiResponse.InstitutionResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionResourceGroupApiResponse.InstitutionResourceGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionTeamMemberApiResponse.InstitutionTeamMemberApiResponseFactory;
@@ -356,6 +358,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountStudyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeGroupApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InstitutionReferrerApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(InstitutionFeatureInstitutionReferrerApiResponseFactory.class)));
 	}
 
 	@Provides

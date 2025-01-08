@@ -29,8 +29,10 @@ import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.Accoun
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionFeatureInstitutionReferrerApiResponse.InstitutionFeatureInstitutionReferrerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionReferrerApiResponse.InstitutionReferrerApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
@@ -45,6 +47,7 @@ import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
@@ -108,6 +111,10 @@ public class InstitutionResource {
 	private final Strings strings;
 	@Nonnull
 	private final InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory;
+	@Nonnull
+	private final InstitutionReferrerApiResponseFactory institutionReferrerApiResponseFactory;
+	@Nonnull
+	private final InstitutionFeatureInstitutionReferrerApiResponseFactory institutionFeatureInstitutionReferrerApiResponseFactory;
 
 	@Inject
 	public InstitutionResource(@Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
@@ -120,7 +127,9 @@ public class InstitutionResource {
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings,
-														 @Nonnull InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory) {
+														 @Nonnull InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory,
+														 @Nonnull InstitutionReferrerApiResponseFactory institutionReferrerApiResponseFactory,
+														 @Nonnull InstitutionFeatureInstitutionReferrerApiResponseFactory institutionFeatureInstitutionReferrerApiResponseFactory) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
 		requireNonNull(institutionBlurbApiResponseFactory);
@@ -132,6 +141,8 @@ public class InstitutionResource {
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(institutionLocationApiResponseFactory);
+		requireNonNull(institutionReferrerApiResponseFactory);
+		requireNonNull(institutionFeatureInstitutionReferrerApiResponseFactory);
 
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
@@ -144,6 +155,8 @@ public class InstitutionResource {
 		this.configuration = configuration;
 		this.strings = strings;
 		this.institutionLocationApiResponseFactory = institutionLocationApiResponseFactory;
+		this.institutionReferrerApiResponseFactory = institutionReferrerApiResponseFactory;
+		this.institutionFeatureInstitutionReferrerApiResponseFactory = institutionFeatureInstitutionReferrerApiResponseFactory;
 	}
 
 	@GET("/institution/account-sources")
@@ -335,7 +348,10 @@ public class InstitutionResource {
 	public ApiResponse getInstitutionReferrerByIdentifier(@Nonnull @PathParameter String institutionReferrerIdentifier) {
 		requireNonNull(institutionReferrerIdentifier);
 
-		InstitutionReferrer institutionReferrer = getInstitutionService().findInstitutionReferrerByIdentifier(getCurrentContext().getInstitutionId(), institutionReferrerIdentifier).orElse(null);
+		// Use UUID if it looks like a UUID, assume urlName otherwise
+		InstitutionReferrer institutionReferrer = ValidationUtility.isValidUUID(institutionReferrerIdentifier)
+				? getInstitutionService().findInstitutionReferrerById(UUID.fromString(institutionReferrerIdentifier)).orElse(null)
+				: getInstitutionService().findInstitutionReferrerByUrlName(institutionReferrerIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
 
 		if (institutionReferrer == null)
 			throw new NotFoundException();
@@ -432,6 +448,16 @@ public class InstitutionResource {
 	@Nonnull
 	protected InstitutionLocationApiResponseFactory getInstitutionLocationApiResponseFactory() {
 		return this.institutionLocationApiResponseFactory;
+	}
+
+	@Nonnull
+	protected InstitutionReferrerApiResponseFactory getInstitutionReferrerApiResponseFactory() {
+		return this.institutionReferrerApiResponseFactory;
+	}
+
+	@Nonnull
+	protected InstitutionFeatureInstitutionReferrerApiResponseFactory getInstitutionFeatureInstitutionReferrerApiResponseFactory() {
+		return this.institutionFeatureInstitutionReferrerApiResponseFactory;
 	}
 
 	@Nonnull
