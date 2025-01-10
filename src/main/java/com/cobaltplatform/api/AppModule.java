@@ -119,6 +119,9 @@ import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.In
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowApiResponse;
+import com.cobaltplatform.api.model.api.response.PageSectionApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
@@ -356,6 +359,9 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountStudyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeGroupApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageApiResponse.PageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageSectionApiResponse.PageSectionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowApiResponse.PageRowApiResponseFactory.class)));
 	}
 
 	@Provides
