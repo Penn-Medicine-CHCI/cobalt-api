@@ -148,7 +148,7 @@ public class PageService {
 		return pageId;
 	}
 	@Nonnull
-	public Optional<PageSection> findPageSectionById (@Nullable UUID pageSectionId) {
+	public Optional<PageSection> findPageSectionById(@Nullable UUID pageSectionId) {
 		requireNonNull(pageSectionId);
 
 		return getDatabase().queryForObject("""
@@ -185,6 +185,13 @@ public class PageService {
 
 		if (pageStatusId.equals(PageStatusId.LIVE))
 			validatePublishedPage(pageId);
+
+		if (displayOrder == null)
+			displayOrder = getDatabase().queryForObject("""
+					SELECT COUNT(*)
+					FROM v_page_section
+					WHERE page_id = ?
+					""", Integer.class, pageId).get();
 
 		getDatabase().execute("""
 				INSERT INTO page_section
@@ -235,6 +242,13 @@ public class PageService {
 		if (pageStatusId.equals(PageStatusId.LIVE))
 			validatePublishedPage(pageSection.get().getPageId());
 
+		if (displayOrder == null)
+			displayOrder = getDatabase().queryForObject("""
+					SELECT COUNT(*)
+					FROM v_page_row
+					WHERE page_section_id = ?
+					""", Integer.class, pageSectionId).get();
+
 		getDatabase().execute("""
 				INSERT INTO page_row
 				  (page_row_id, page_section_id, row_type_id, created_by_account_id, display_order)
@@ -242,7 +256,7 @@ public class PageService {
 				  (?,?,?,?,?)   
 				""", pageRowId, pageSectionId, rowTypeId, createdByAccountId, displayOrder);
 
-		return pageSectionId;
+		return pageRowId;
 	}
 	@Nonnull
 	protected Database getDatabase() {

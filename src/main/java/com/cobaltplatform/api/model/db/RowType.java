@@ -33,8 +33,12 @@ public class RowType {
 	private String description;
 
 	public enum RowTypeId {
-		TOPIC_CENTER,
-		COMMUNITY
+		RESOURCES,
+		GROUP_SESSIONS,
+		TAG_GROUP,
+		ONE_COLUMN_IMAGE,
+		TWO_COLUMN_IMAGE,
+		THREE_COLUMN_IMAGE
 	}
 
 	@Nullable

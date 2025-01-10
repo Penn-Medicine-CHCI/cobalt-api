@@ -141,20 +141,22 @@ public class PageResource {
 			put("pageSection", getPageSectionApiResponseFactory().create(pageSection.get()));
 		}});
 	}
-	@POST("/page/section/{sectionId}/row")
+	@POST("/page/section/{pageSectionId}/row")
 	@AuthenticationRequired
-	public ApiResponse createPageRow(@Nonnull @RequestBody String body) {
+	public ApiResponse createPageRow(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																	 @Nonnull @RequestBody String body) {
 		CreatePageRowRequest request = getRequestBodyParser().parse(body, CreatePageRowRequest.class);
 		Account account = getCurrentContext().getAccount().get();
 
 		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
 		UUID pageRowId = getPageService().createPageRow(request);
 		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("pageSection", getPageRowApiResponseFactory().create(pageRow.get()));
+			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
 		}});
 	}
 
