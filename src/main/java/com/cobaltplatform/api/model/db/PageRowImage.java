@@ -17,55 +17,59 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
-import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
-
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageSectionRequest {
-@Nullable
-private UUID pageId;
+public class PageRowImage {
 	@Nullable
-	private String name;
+	private UUID pageRowImageId;
+	@Nullable
+	private UUID pageRowId;
 	@Nullable
 	private String headline;
 	@Nullable
 	private String description;
 	@Nullable
-	private BackgroundColorId backgroundColorId;
+	private UUID imageFileUploadId;
+	@Nullable
+	private String imageAltText;
+	@Nullable
+	private Boolean deletedFlag;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private UUID createdByAccountId;
+	@Nullable
+	private Instant created;
+	@Nullable
+	private Instant lastUpdated;
 
 	@Nullable
-	private PageStatusId pageStatusId;
-
-	@Nullable
-	public UUID getPageId() {
-		return pageId;
+	public UUID getPageRowImageId() {
+		return pageRowImageId;
 	}
 
-	public void setPageId(@Nullable UUID pageId) {
-		this.pageId = pageId;
+	public void setPageRowImageId(@Nullable UUID pageRowImageId) {
+		this.pageRowImageId = pageRowImageId;
 	}
 
 	@Nullable
-	public String getName() {
-		return name;
+	public UUID getPageRowId() {
+		return pageRowId;
 	}
 
-	public void setName(@Nullable String name) {
-		this.name = name;
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 
 	@Nullable
@@ -87,12 +91,39 @@ private UUID pageId;
 	}
 
 	@Nullable
-	public BackgroundColorId getBackgroundColorId() {
-		return backgroundColorId;
+	public UUID getImageFileUploadId() {
+		return imageFileUploadId;
 	}
 
-	public void setBackgroundColorId(@Nullable BackgroundColorId backgroundColorId) {
-		this.backgroundColorId = backgroundColorId;
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
+	}
+
+	@Nullable
+	public String getImageAltText() {
+		return imageAltText;
+	}
+
+	public void setImageAltText(@Nullable String imageAltText) {
+		this.imageAltText = imageAltText;
+	}
+
+	@Nullable
+	public Boolean getDeletedFlag() {
+		return deletedFlag;
+	}
+
+	public void setDeletedFlag(@Nullable Boolean deletedFlag) {
+		this.deletedFlag = deletedFlag;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 
 	@Nullable
@@ -105,20 +136,20 @@ private UUID pageId;
 	}
 
 	@Nullable
-	public PageStatusId getPageStatusId() {
-		return pageStatusId;
+	public Instant getCreated() {
+		return created;
 	}
 
-	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
-		this.pageStatusId = pageStatusId;
+	public void setCreated(@Nullable Instant created) {
+		this.created = created;
 	}
 
 	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
+	public Instant getLastUpdated() {
+		return lastUpdated;
 	}
 
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
+	public void setLastUpdated(@Nullable Instant lastUpdated) {
+		this.lastUpdated = lastUpdated;
 	}
 }

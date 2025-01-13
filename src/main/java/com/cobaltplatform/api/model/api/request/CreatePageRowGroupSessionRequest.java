@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
-import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -30,51 +28,33 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageRowRequest {
+public class CreatePageRowGroupSessionRequest {
 	@Nullable
-	private UUID pageSectionId;
+	private UUID pageRowId;
 	@Nullable
-	private RowTypeId rowTypeId;
+	private UUID groupSessionId;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private UUID createdByAccountId;
-	@Nullable
-	private PageStatusId pageStatusId;
-	@Nullable
-	public UUID getPageSectionId() {
-		return pageSectionId;
-	}
 
-	public void setPageSectionId(@Nullable UUID pageSectionId) {
-		this.pageSectionId = pageSectionId;
-	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public UUID getPageRowId() {
+		return pageRowId;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return createdByAccountId;
+	public UUID getGroupSessionId() {
+		return groupSessionId;
 	}
 
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public PageStatusId getPageStatusId() {
-		return pageStatusId;
-	}
-
-	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
-		this.pageStatusId = pageStatusId;
+	public void setGroupSessionId(@Nullable UUID groupSessionId) {
+		this.groupSessionId = groupSessionId;
 	}
 
 	@Nullable
@@ -84,5 +64,14 @@ public class CreatePageRowRequest {
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public UUID getCreatedByAccountId() {
+		return createdByAccountId;
+	}
+
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
 	}
 }

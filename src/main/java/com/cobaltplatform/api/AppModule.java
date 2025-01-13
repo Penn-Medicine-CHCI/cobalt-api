@@ -121,6 +121,9 @@ import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApi
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
@@ -160,6 +163,7 @@ import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCen
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowTagApiResponse.TopicCenterRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
+import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.Formatter;
@@ -362,6 +366,9 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PageApiResponse.PageApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageSectionApiResponse.PageSectionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageRowApiResponse.PageRowApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowContentApiResponse.PageRowContentApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowImageApiResponse.PageRowImageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory.class)));
 	}
 
 	@Provides

@@ -21,15 +21,23 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PageSectionApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse.PageRowContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowContent;
+import com.cobaltplatform.api.model.db.PageRowGroupSession;
+import com.cobaltplatform.api.model.db.PageRowImage;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.PageService;
@@ -69,6 +77,12 @@ public class PageResource {
 	private final PageApiResponseFactory pageApiResponseFactory;
 	@Nonnull
 	private final PageSectionApiResponseFactory pageSectionApiResponseFactory;
+	@Nonnull
+	private final PageRowContentApiResponseFactory pageRowContentApiResponseFactory;
+	@Nonnull
+	private final PageRowImageApiResponseFactory pageRowImageApiResponseFactory;
+	@Nonnull
+	private final PageRowGroupSessionApiResponseFactory pageRowGroupSessionApiResponseFactory;
 
 	@Nonnull
 	private final PageRowApiResponseFactory pageRowApiResponseFactory;
@@ -85,6 +99,9 @@ public class PageResource {
 											@Nonnull PageApiResponseFactory pageApiResponseFactory,
 											@Nonnull PageSectionApiResponseFactory pageSectionApiResponseFactory,
 											@Nonnull PageRowApiResponseFactory pageRowApiResponseFactory,
+											@Nonnull PageRowContentApiResponseFactory pageRowContentApiResponseFactory,
+											@Nonnull PageRowImageApiResponseFactory pageRowImageApiResponseFactory,
+											@Nonnull PageRowGroupSessionApiResponseFactory pageRowGroupSessionApiResponseFactory,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -93,6 +110,9 @@ public class PageResource {
 		requireNonNull(pageApiResponseFactory);
 		requireNonNull(pageSectionApiResponseFactory);
 		requireNonNull(pageRowApiResponseFactory);
+		requireNonNull(pageRowContentApiResponseFactory);
+		requireNonNull(pageRowImageApiResponseFactory);
+		requireNonNull(pageRowGroupSessionApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -101,6 +121,9 @@ public class PageResource {
 		this.pageApiResponseFactory = pageApiResponseFactory;
 		this.pageSectionApiResponseFactory = pageSectionApiResponseFactory;
 		this.pageRowApiResponseFactory = pageRowApiResponseFactory;
+		this.pageRowContentApiResponseFactory = pageRowContentApiResponseFactory;
+		this.pageRowImageApiResponseFactory = pageRowImageApiResponseFactory;
+		this.pageRowGroupSessionApiResponseFactory = pageRowGroupSessionApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -141,6 +164,7 @@ public class PageResource {
 			put("pageSection", getPageSectionApiResponseFactory().create(pageSection.get()));
 		}});
 	}
+
 	@POST("/page/section/{pageSectionId}/row")
 	@AuthenticationRequired
 	public ApiResponse createPageRow(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -157,6 +181,69 @@ public class PageResource {
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@POST("/page/row/{pageRowId}/content")
+	@AuthenticationRequired
+	public ApiResponse createPageRowContent(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																					@Nonnull @RequestBody String body) {
+		CreatePageRowContentRequest request = getRequestBodyParser().parse(body, CreatePageRowContentRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageRowId(pageRowId);
+
+		UUID pageRowContentId = getPageService().createPageRowContent(request);
+
+		Optional<PageRowContent> pageRowContent = getPageService().findPageRowContentById(pageRowContentId);
+
+		if (!pageRowContent.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRowContent", getPageRowContentApiResponseFactory().create(pageRowContent.get()));
+		}});
+	}
+
+	@POST("/page/row/{pageRowId}/group-session")
+	@AuthenticationRequired
+	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																							 @Nonnull @RequestBody String body) {
+		CreatePageRowGroupSessionRequest request = getRequestBodyParser().parse(body, CreatePageRowGroupSessionRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageRowId(pageRowId);
+
+		UUID pageRowGroupSessionId = getPageService().createPageRowGroupSession(request);
+
+		Optional<PageRowGroupSession> pageRowGroupSession = getPageService().findPageRowGroupSessionById(pageRowGroupSessionId);
+
+		if (!pageRowGroupSession.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRowGroupSession", getPageRowGroupSessionApiResponseFactory().create(pageRowGroupSession.get()));
+		}});
+	}
+
+	@POST("/page/row/{pageRowId}/image")
+	@AuthenticationRequired
+	public ApiResponse createPageRowImage(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																				@Nonnull @RequestBody String body) {
+		CreatePageRowImageRequest request = getRequestBodyParser().parse(body, CreatePageRowImageRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageRowId(pageRowId);
+
+		UUID pageRowImageId = getPageService().createPageRowImage(request);
+
+		Optional<PageRowImage> pageRowImage = getPageService().findPageRowImageById(pageRowImageId);
+
+		if (!pageRowImage.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRowImage", getPageRowImageApiResponseFactory().create(pageRowImage.get()));
 		}});
 	}
 
@@ -193,5 +280,20 @@ public class PageResource {
 	@Nonnull
 	public PageRowApiResponseFactory getPageRowApiResponseFactory() {
 		return pageRowApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageRowContentApiResponseFactory getPageRowContentApiResponseFactory() {
+		return pageRowContentApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageRowImageApiResponseFactory getPageRowImageApiResponseFactory() {
+		return pageRowImageApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageRowGroupSessionApiResponseFactory getPageRowGroupSessionApiResponseFactory() {
+		return pageRowGroupSessionApiResponseFactory;
 	}
 }

@@ -160,4 +160,19 @@ SELECT *
 FROM page_row
 WHERE deleted_flag = false;
 
+CREATE VIEW v_page_row_image
+AS 
+SELECT *
+FROM page_row_image;
+
+CREATE VIEW v_page_row_content
+AS 
+SELECT *
+FROM page_row_content;
+
+CREATE VIEW v_page_row_group_session
+AS 
+SELECT *
+FROM page_row_group_session;
+
 COMMIT;

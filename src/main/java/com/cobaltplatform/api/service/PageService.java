@@ -21,11 +21,17 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowContent;
+import com.cobaltplatform.api.model.db.PageRowGroupSession;
+import com.cobaltplatform.api.model.db.PageRowImage;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
@@ -188,7 +194,7 @@ public class PageService {
 
 		if (displayOrder == null)
 			displayOrder = getDatabase().queryForObject("""
-					SELECT COUNT(*)
+					SELECT COALESCE(MAX(display_order) + 1, 0)
 					FROM v_page_section
 					WHERE page_id = ?
 					""", Integer.class, pageId).get();
@@ -244,7 +250,7 @@ public class PageService {
 
 		if (displayOrder == null)
 			displayOrder = getDatabase().queryForObject("""
-					SELECT COUNT(*)
+					SELECT COALESCE(MAX(display_order) + 1, 0)
 					FROM v_page_row
 					WHERE page_section_id = ?
 					""", Integer.class, pageSectionId).get();
@@ -258,6 +264,148 @@ public class PageService {
 
 		return pageRowId;
 	}
+
+	@Nonnull
+	public Optional<PageRowImage> findPageRowImageById (@Nullable UUID pageRowImageId) {
+		requireNonNull(pageRowImageId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_image
+				WHERE page_row_image_id = ?
+				""", PageRowImage.class, pageRowImageId);
+	}
+
+	@Nonnull
+	public UUID createPageRowImage(@Nonnull CreatePageRowImageRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowImageId= UUID.randomUUID();
+		UUID pageRowId = request.getPageRowId();
+		String headline = trimToNull(request.getHeadline());
+		String description = trimToNull(request.getDescription());
+		UUID imageFileUploadId = request.getImageFileUploadId();
+		String imageAltText = trimToNull(request.getImageAltText());
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		Integer displayOrder = request.getDisplayOrder();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Could not find Page Row")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (displayOrder == null)
+			displayOrder = getDatabase().queryForObject("""
+					SELECT COALESCE(MAX(display_order) + 1, 0)
+					FROM v_page_row_image
+					WHERE page_row_id = ?
+					""", Integer.class, pageRowId).get();
+
+		getDatabase().execute("""
+				INSERT INTO page_row_image
+				  (page_row_image_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, display_order, created_by_account_id)
+				VALUES
+				  (?,?,?,?,?,?,?,?)   
+				""", pageRowImageId, pageRowId, headline, description, imageFileUploadId, imageAltText, displayOrder, createdByAccountId);
+
+		return pageRowImageId;
+	}
+
+	@Nonnull
+	public Optional<PageRowContent> findPageRowContentById (@Nullable UUID pageRowContentId) {
+		requireNonNull(pageRowContentId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_content
+				WHERE page_row_content_id = ?
+				""", PageRowContent.class, pageRowContentId);
+	}
+
+	@Nonnull
+	public UUID createPageRowContent(@Nonnull CreatePageRowContentRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowContentId= UUID.randomUUID();
+		UUID pageRowId = request.getPageRowId();
+		UUID contentId = request.getContentId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		Integer displayOrder = request.getDisplayOrder();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Could not find Page Row")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (displayOrder == null)
+			displayOrder = getDatabase().queryForObject("""
+					SELECT COALESCE(MAX(display_order) + 1, 0)
+					FROM v_page_row_content
+					WHERE page_row_id = ?
+					""", Integer.class, pageRowId).get();
+
+		getDatabase().execute("""
+				INSERT INTO page_row_content
+				  (page_row_content_id, page_row_id, content_id, display_order, created_by_account_id)
+				VALUES
+				  (?,?,?,?,?)   
+				""", pageRowContentId, pageRowId, contentId, displayOrder, createdByAccountId);
+
+		return pageRowContentId;
+	}
+
+	@Nonnull
+	public Optional<PageRowGroupSession> findPageRowGroupSessionById (@Nullable UUID pageRowGroupSessionId) {
+		requireNonNull(pageRowGroupSessionId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_group_session
+				WHERE page_row_group_session_id = ?
+				""", PageRowGroupSession.class, pageRowGroupSessionId);
+	}
+
+	@Nonnull
+	public UUID createPageRowGroupSession(@Nonnull CreatePageRowGroupSessionRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowGroupSessionId= UUID.randomUUID();
+		UUID pageRowId = request.getPageRowId();
+		UUID groupSessionId = request.getGroupSessionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		Integer displayOrder = request.getDisplayOrder();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Could not find Page Row")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (displayOrder == null)
+			displayOrder = getDatabase().queryForObject("""
+					SELECT COALESCE(MAX(display_order) + 1, 0)
+					FROM v_page_row_group_session
+					WHERE page_row_id = ?
+					""", Integer.class, pageRowId).get();
+
+		getDatabase().execute("""
+				INSERT INTO page_row_group_session
+				  (page_row_group_session_id, page_row_id, group_session_id, display_order, created_by_account_id)
+				VALUES
+				  (?,?,?,?,?)   
+				""", pageRowGroupSessionId, pageRowId, groupSessionId, displayOrder, createdByAccountId);
+
+		return pageRowGroupSessionId;
+	}
+
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
