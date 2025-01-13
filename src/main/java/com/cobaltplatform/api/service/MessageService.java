@@ -779,6 +779,13 @@ public class MessageService implements AutoCloseable {
 			}
 
 			try {
+				// Mark the message as "sending" immediately prior to the message leaving Cobalt.
+				// This will ensure there is no issue writing to the database prior to sending (gives confidence we can mark the message as sent after sending it).
+				// For example, suppose we are unintentionally operating on a read-replica.  This would fail-fast and the message would never be sent.
+				// If this write did not occur, the message could be sent and then fail to be marked as sent, causing repeated re-sends.
+				getDatabase().execute("UPDATE message_log SET message_status_id=? WHERE message_id=?",
+						MessageStatusId.SENDING, deserializedMessage.getMessageId());
+
 				String vendorAssignedId = messageSender.sendMessage(deserializedMessage);
 
 				try {
