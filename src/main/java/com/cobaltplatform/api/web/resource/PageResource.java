@@ -20,12 +20,14 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
+import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse.PageRowContentApiResponseFactory;
@@ -33,6 +35,7 @@ import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.
 import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
@@ -40,6 +43,7 @@ import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowImage;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -83,7 +87,8 @@ public class PageResource {
 	private final PageRowImageApiResponseFactory pageRowImageApiResponseFactory;
 	@Nonnull
 	private final PageRowGroupSessionApiResponseFactory pageRowGroupSessionApiResponseFactory;
-
+	@Nonnull
+	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 	@Nonnull
 	private final PageRowApiResponseFactory pageRowApiResponseFactory;
 
@@ -102,6 +107,7 @@ public class PageResource {
 											@Nonnull PageRowContentApiResponseFactory pageRowContentApiResponseFactory,
 											@Nonnull PageRowImageApiResponseFactory pageRowImageApiResponseFactory,
 											@Nonnull PageRowGroupSessionApiResponseFactory pageRowGroupSessionApiResponseFactory,
+											@Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -113,6 +119,7 @@ public class PageResource {
 		requireNonNull(pageRowContentApiResponseFactory);
 		requireNonNull(pageRowImageApiResponseFactory);
 		requireNonNull(pageRowGroupSessionApiResponseFactory);
+		requireNonNull(fileUploadResultApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -124,6 +131,7 @@ public class PageResource {
 		this.pageRowContentApiResponseFactory = pageRowContentApiResponseFactory;
 		this.pageRowImageApiResponseFactory = pageRowImageApiResponseFactory;
 		this.pageRowGroupSessionApiResponseFactory = pageRowGroupSessionApiResponseFactory;
+		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -248,6 +256,24 @@ public class PageResource {
 	}
 
 	@Nonnull
+	@POST("/page/file-presigned-upload")
+	@AuthenticationRequired
+	public ApiResponse createFileImagePresignedUpload(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
+		request.setAccountId(account.getAccountId());
+		request.setFileUploadTypeId(FileUploadType.FileUploadTypeId.PAGE_IMAGE);
+
+		FileUploadResult fileUploadResult = getPageService().createPageFileUpload(request, "pages/files");
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("fileUploadResult", getFileUploadResultApiResponseFactory().create(fileUploadResult));
+		}});
+	}
+
+	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
 		return this.requestBodyParser;
 	}
@@ -295,5 +321,10 @@ public class PageResource {
 	@Nonnull
 	public PageRowGroupSessionApiResponseFactory getPageRowGroupSessionApiResponseFactory() {
 		return pageRowGroupSessionApiResponseFactory;
+	}
+
+	@Nonnull
+	public FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
+		return fileUploadResultApiResponseFactory;
 	}
 }

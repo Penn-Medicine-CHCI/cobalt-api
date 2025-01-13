@@ -50,7 +50,8 @@ public class FileUploadType {
 		REACHABILITY,
 		WIFI,
 		BLUETOOTH,
-		POWER_STATE
+		POWER_STATE,
+		PAGE_IMAGE
 	}
 
 	@Override

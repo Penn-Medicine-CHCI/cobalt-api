@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
@@ -36,6 +37,7 @@ import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -47,9 +49,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -69,24 +73,29 @@ public class PageService {
 	@Nonnull
 	private final Strings strings;
 	@Nonnull
+	private final Provider<SystemService> systemServiceProvider;
+	@Nonnull
 	private final Logger logger;
 
 	@Inject
 	public PageService(@Nonnull DatabaseProvider databaseProvider,
 										 @Nonnull Configuration configuration,
+										 @Nonnull Provider<SystemService> systemServiceProvider,
 										 @Nonnull Strings strings) {
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
+		requireNonNull(systemServiceProvider);
 
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
+		this.systemServiceProvider = systemServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
-	public Optional<Page> findPageById (@Nullable UUID pageId) {
+	public Optional<Page> findPageById(@Nullable UUID pageId) {
 		requireNonNull(pageId);
 
 		return getDatabase().queryForObject("""
@@ -95,6 +104,7 @@ public class PageService {
 				WHERE page_id = ?
 				""", Page.class, pageId);
 	}
+
 	@Nonnull
 	private void validatePublishedPage(@Nonnull UUID pageId) {
 		requireNonNull(pageId);
@@ -105,6 +115,7 @@ public class PageService {
 		if (!page.isPresent())
 			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
 	}
+
 	@Nonnull
 	public UUID createPage(@Nonnull CreatePageRequest request) {
 		requireNonNull(request);
@@ -143,16 +154,17 @@ public class PageService {
 		}
 
 		getDatabase().execute("""
-				INSERT INTO page
-				  (page_id, name, url_name, page_type_id, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
-				  published_date, created_by_account_id)
-				VALUES
-				  (?,?,?,?,?,?,?,?,?,?,?)   
-				""", pageId, name, urlName, pageTypeId, pageStatusId, headline, description, imageFileUploadId, imageAltText,
+						INSERT INTO page
+						  (page_id, name, url_name, page_type_id, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
+						  published_date, created_by_account_id)
+						VALUES
+						  (?,?,?,?,?,?,?,?,?,?,?)   
+						""", pageId, name, urlName, pageTypeId, pageStatusId, headline, description, imageFileUploadId, imageAltText,
 				publishedDate, createdByAccountId);
 
 		return pageId;
 	}
+
 	@Nonnull
 	public Optional<PageSection> findPageSectionById(@Nullable UUID pageSectionId) {
 		requireNonNull(pageSectionId);
@@ -210,7 +222,7 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<PageRow> findPageRowById (@Nullable UUID pageRowId) {
+	public Optional<PageRow> findPageRowById(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
 		return getDatabase().queryForObject("""
@@ -225,7 +237,7 @@ public class PageService {
 		requireNonNull(request);
 
 		UUID pageSectionId = request.getPageSectionId();
-		UUID pageRowId= UUID.randomUUID();
+		UUID pageRowId = UUID.randomUUID();
 		RowTypeId rowTypeId = request.getRowTypeId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		Integer displayOrder = request.getDisplayOrder();
@@ -266,7 +278,7 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<PageRowImage> findPageRowImageById (@Nullable UUID pageRowImageId) {
+	public Optional<PageRowImage> findPageRowImageById(@Nullable UUID pageRowImageId) {
 		requireNonNull(pageRowImageId);
 
 		return getDatabase().queryForObject("""
@@ -280,7 +292,7 @@ public class PageService {
 	public UUID createPageRowImage(@Nonnull CreatePageRowImageRequest request) {
 		requireNonNull(request);
 
-		UUID pageRowImageId= UUID.randomUUID();
+		UUID pageRowImageId = UUID.randomUUID();
 		UUID pageRowId = request.getPageRowId();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
@@ -315,7 +327,7 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<PageRowContent> findPageRowContentById (@Nullable UUID pageRowContentId) {
+	public Optional<PageRowContent> findPageRowContentById(@Nullable UUID pageRowContentId) {
 		requireNonNull(pageRowContentId);
 
 		return getDatabase().queryForObject("""
@@ -329,7 +341,7 @@ public class PageService {
 	public UUID createPageRowContent(@Nonnull CreatePageRowContentRequest request) {
 		requireNonNull(request);
 
-		UUID pageRowContentId= UUID.randomUUID();
+		UUID pageRowContentId = UUID.randomUUID();
 		UUID pageRowId = request.getPageRowId();
 		UUID contentId = request.getContentId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
@@ -361,7 +373,7 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<PageRowGroupSession> findPageRowGroupSessionById (@Nullable UUID pageRowGroupSessionId) {
+	public Optional<PageRowGroupSession> findPageRowGroupSessionById(@Nullable UUID pageRowGroupSessionId) {
 		requireNonNull(pageRowGroupSessionId);
 
 		return getDatabase().queryForObject("""
@@ -375,7 +387,7 @@ public class PageService {
 	public UUID createPageRowGroupSession(@Nonnull CreatePageRowGroupSessionRequest request) {
 		requireNonNull(request);
 
-		UUID pageRowGroupSessionId= UUID.randomUUID();
+		UUID pageRowGroupSessionId = UUID.randomUUID();
 		UUID pageRowId = request.getPageRowId();
 		UUID groupSessionId = request.getGroupSessionId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
@@ -407,6 +419,37 @@ public class PageService {
 	}
 
 	@Nonnull
+	public FileUploadResult createPageFileUpload(@Nonnull CreateFileUploadRequest request,
+																							 @Nonnull String storagePrefixKey) {
+		requireNonNull(request);
+
+		ValidationException validationException = new ValidationException();
+
+		if (request.getAccountId() == null)
+			validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Make a separate instance so we don't mutate the request passed into this method
+		CreateFileUploadRequest fileUploadRequest = new CreateFileUploadRequest();
+		fileUploadRequest.setAccountId(request.getAccountId());
+		fileUploadRequest.setContentType(request.getContentType());
+		fileUploadRequest.setFilename(request.getFilename());
+		fileUploadRequest.setPublicRead(true);
+		fileUploadRequest.setStorageKeyPrefix(storagePrefixKey);
+		fileUploadRequest.setFileUploadTypeId(request.getFileUploadTypeId());
+		fileUploadRequest.setMetadata(Map.of(
+				"account-id", request.getAccountId().toString()
+		));
+		fileUploadRequest.setFilesize(request.getFilesize());
+
+		FileUploadResult fileUploadResult = getSystemService().createFileUpload(fileUploadRequest);
+
+		return fileUploadResult;
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
 	}
@@ -424,5 +467,10 @@ public class PageService {
 	@Nonnull
 	protected Logger getLogger() {
 		return logger;
+	}
+
+	@Nonnull
+	public SystemService getSystemService() {
+		return systemServiceProvider.get();
 	}
 }
