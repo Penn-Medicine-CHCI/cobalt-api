@@ -142,6 +142,7 @@ public class PageResource {
 		Account account = getCurrentContext().getAccount().get();
 
 		request.setCreatedByAccountId(account.getAccountId());
+		request.setInstitutionId(account.getInstitutionId());
 		UUID pageId = getPageService().createPage(request);
 		Optional<Page> page = getPageService().findPageById(pageId);
 

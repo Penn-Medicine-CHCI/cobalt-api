@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 
@@ -48,6 +49,8 @@ public class CreatePageRequest {
 	private UUID imageFileUploadId;
 	@Nullable
 	private String imageAltText;
+	@Nullable
+	private InstitutionId institutionId;
 	@Nullable
 	private UUID createdByAccountId;
 
@@ -121,6 +124,15 @@ public class CreatePageRequest {
 
 	public void setImageAltText(@Nullable String imageAltText) {
 		this.imageAltText = imageAltText;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable

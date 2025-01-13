@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
@@ -130,20 +131,24 @@ public class PageService {
 		String imageAltText = trimToNull(request.getImageAltText());
 		UUID pageId = UUID.randomUUID();
 		UUID createdByAccountId = request.getCreatedByAccountId();
+		InstitutionId institutionId = request.getInstitutionId();
 		Instant publishedDate = null;
 		ValidationException validationException = new ValidationException();
 
 		if (name == null)
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is require")));
+			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
 
 		if (urlName == null)
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("URL is require")));
+			validationException.add(new ValidationException.FieldError("name", getStrings().get("URL is required.")));
 
 		if (pageTypeId == null)
-			validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is require")));
+			validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
 
 		if (pageStatusId == null)
-			validationException.add(new ValidationException.FieldError("pageStatusId", getStrings().get("Page Status is require")));
+			validationException.add(new ValidationException.FieldError("pageStatusId", getStrings().get("Page Status is required.")));
+
+		if (institutionId == null)
+			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -156,11 +161,11 @@ public class PageService {
 		getDatabase().execute("""
 						INSERT INTO page
 						  (page_id, name, url_name, page_type_id, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
-						  published_date, created_by_account_id)
+						  published_date, institution_id, created_by_account_id)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?)   
+						  (?,?,?,?,?,?,?,?,?,?,?,?)   
 						""", pageId, name, urlName, pageTypeId, pageStatusId, headline, description, imageFileUploadId, imageAltText,
-				publishedDate, createdByAccountId);
+				publishedDate, institutionId, createdByAccountId);
 
 		return pageId;
 	}
@@ -192,11 +197,11 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageId == null)
-			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Page is require")));
+			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Page is required.")));
 		if (pageStatusId == null)
-			validationException.add(new ValidationException.FieldError("pageStatusId", getStrings().get("Page Status is require")));
+			validationException.add(new ValidationException.FieldError("pageStatusId", getStrings().get("Page Status is required.")));
 		if (backgroundColorId == null)
-			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is require")));
+			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;

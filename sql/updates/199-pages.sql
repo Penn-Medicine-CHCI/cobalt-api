@@ -33,6 +33,7 @@ CREATE TABLE page (
     image_alt_text TEXT NULL,
     published_date timestamptz NULL,
     deleted_flag BOOLEAN NOT NULL DEFAULT false,
+    institution_id VARCHAR NOT NULL REFERENCES institution,
   	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
   	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -67,7 +68,7 @@ CREATE TABLE page_row (
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE page_row_image (
-    page_image_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    page_row_image_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     headline TEXT NULL,
     description TEXT NULL,
@@ -140,6 +141,11 @@ VALUES
 ('ONE_COLUMN_IMAGE', 'One Column Image'),
 ('TWO_COLUMN_IMAGE', 'Two Column Image'),
 ('THREE_COLUMN_IMAGE', 'Three Column Image');
+
+INSERT INTO file_upload_type
+(file_upload_type_id, description)
+VALUES
+('PAGE_IMAGE', 'Page Iamge');
 
 
 CREATE VIEW v_page 
