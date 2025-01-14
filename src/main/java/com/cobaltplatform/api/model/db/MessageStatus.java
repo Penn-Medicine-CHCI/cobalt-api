@@ -36,6 +36,7 @@ public class MessageStatus {
 
 	public enum MessageStatusId {
 		ENQUEUED, // Waiting to leave Cobalt
+		SENDING, // Cobalt is actively sending the message
 		SENT, // Left Cobalt, turned over to vendor for delivery attempt - not sure if delivered or not yet
 		DELIVERED, // Confirmed with vendor that delivery occurred
 		DELIVERY_FAILED, // Confirmed with vendor that delivery failed

@@ -329,6 +329,12 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	}
 
 	@Nonnull
+	@Override
+	public String getMapsPlatformApiKey() {
+		return this.mapsPlatformApiKey;
+	}
+
+	@Nonnull
 	public String getProjectId() {
 		return this.projectId;
 	}
@@ -336,11 +342,6 @@ public class DefaultGoogleGeoClient implements GoogleGeoClient, Closeable {
 	@Nonnull
 	protected GoogleCredentials getGoogleCredentials() {
 		return this.googleCredentials;
-	}
-
-	@Nonnull
-	protected String getMapsPlatformApiKey() {
-		return this.mapsPlatformApiKey;
 	}
 
 	@Nonnull

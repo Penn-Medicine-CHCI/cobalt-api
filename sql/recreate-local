@@ -194,6 +194,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/186-remote-tra
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/187-content-spring-cleaning.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/188-data-sync.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/189-order-extra-demographics.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/190-resource-packet.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/190-analytics.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/191-analytics.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/192-geo-enabled-flag.sql
@@ -204,6 +205,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/196-swap-patie
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/197-file-upload-partial-index.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/198-data-sync.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/199-pages.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/199-message-status-sending.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

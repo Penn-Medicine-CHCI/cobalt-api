@@ -46,6 +46,12 @@ import java.util.function.Function;
 public class UnsupportedGoogleGeoClient implements GoogleGeoClient {
 	@Nonnull
 	@Override
+	public String getMapsPlatformApiKey() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Nonnull
+	@Override
 	public List<GeocodingResult> geocode(@Nonnull Function<GeoApiContext, GeocodingApiRequest> geocodingApiRequestProvider) {
 		throw new UnsupportedOperationException();
 	}
