@@ -326,9 +326,14 @@ public class InstitutionResource {
 		}});
 	}
 
+	@Nonnull
+	@AuthenticationRequired
 	@GET("/institution-feature-institution-referrers/{featureId}")
 	public ApiResponse getInstitutionFeatureInstitutionReferrers(@Nonnull @PathParameter FeatureId featureId) {
 		requireNonNull(featureId);
+
+		Account account = getCurrentContext().getAccount().get();
+		UUID accountInstitutionLocationId = account.getInstitutionLocationId();
 
 		List<InstitutionFeatureInstitutionReferrer> institutionFeatureInstitutionReferrers = getInstitutionService().findInstitutionFeatureInstitutionReferrers(getCurrentContext().getInstitutionId(), featureId);
 		List<InstitutionReferrer> institutionReferrers = new ArrayList<>(institutionFeatureInstitutionReferrers.size());
@@ -346,6 +351,8 @@ public class InstitutionResource {
 		));
 	}
 
+	@Nonnull
+	@AuthenticationRequired
 	@GET("/institution-referrers/{institutionReferrerIdentifier}")
 	public ApiResponse getInstitutionReferrerByIdentifier(@Nonnull @PathParameter String institutionReferrerIdentifier) {
 		requireNonNull(institutionReferrerIdentifier);

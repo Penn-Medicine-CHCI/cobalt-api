@@ -39,6 +39,18 @@ CREATE TABLE institution_feature_institution_referrer (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_feature_institution_referrer FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- We can optionally say "this institution feature referrer is only associated with these institution locations".
+-- For example, we might want to only expose a referrer to those employees who work for a specific employer.
+CREATE TABLE institution_feature_referrer_location (
+	institution_feature_institution_referrer_id UUID NOT NULL REFERENCES institution_feature_institution_referrer,
+	institution_location_id UUID NOT NULL REFERENCES institution_location,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (institution_feature_institution_referrer_id, institution_location_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_feature_referrer_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- Is an order a provider referral (e.g. PCP or OB-GYN) or a patient self-referring?
 CREATE TABLE patient_order_referral_source (
   patient_order_referral_source_id TEXT PRIMARY KEY,
