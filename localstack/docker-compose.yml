@@ -14,7 +14,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
 
   postgres-cobalt:
-    image: postgres:16.2
+    image: postgis/postgis:16-3.5
     ports:
       - "5501:5432"
     environment:

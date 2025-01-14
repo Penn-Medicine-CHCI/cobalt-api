@@ -65,6 +65,24 @@ public class AddressApiResponse {
 	private final String countrySubdivisionCode;
 	@Nonnull
 	private final String countryCode;
+	@Nullable
+	private String googleMapsUrl;
+	@Nullable
+	private String googlePlaceId;
+	@Nullable
+	private Double latitude;
+	@Nullable
+	private Double longitude;
+	@Nullable
+	private String premise;
+	@Nullable
+	private String subpremise;
+	@Nullable
+	private String regionSubdivision;
+	@Nullable
+	private String postalCodeSuffix;
+	@Nullable
+	private String formattedAddress;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -165,5 +183,50 @@ public class AddressApiResponse {
 	@Nonnull
 	public String getCountryCode() {
 		return this.countryCode;
+	}
+
+	@Nullable
+	public String getGoogleMapsUrl() {
+		return googleMapsUrl;
+	}
+
+	@Nullable
+	public String getGooglePlaceId() {
+		return googlePlaceId;
+	}
+
+	@Nullable
+	public Double getLatitude() {
+		return latitude;
+	}
+
+	@Nullable
+	public Double getLongitude() {
+		return longitude;
+	}
+
+	@Nullable
+	public String getPremise() {
+		return premise;
+	}
+
+	@Nullable
+	public String getSubpremise() {
+		return subpremise;
+	}
+
+	@Nullable
+	public String getRegionSubdivision() {
+		return regionSubdivision;
+	}
+
+	@Nullable
+	public String getPostalCodeSuffix() {
+		return postalCodeSuffix;
+	}
+
+	@Nullable
+	public String getFormattedAddress() {
+		return formattedAddress;
 	}
 }
