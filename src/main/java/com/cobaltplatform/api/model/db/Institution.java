@@ -344,7 +344,8 @@ public class Institution {
 	private Boolean googleGeoEnabled;
 	@Nullable
 	private Boolean contentAudiencesEnabled;
-
+	@Nullable
+	private Boolean resourcePacketsEnabled;
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1627,5 +1628,14 @@ public class Institution {
 
 	public void setContentAudiencesEnabled(@Nullable Boolean contentAudiencesEnabled) {
 		this.contentAudiencesEnabled = contentAudiencesEnabled;
+	}
+
+	@Nullable
+	public Boolean getResourcePacketsEnabled() {
+		return resourcePacketsEnabled;
+	}
+
+	public void setResourcePacketsEnabled(@Nullable Boolean resourcePacketsEnabled) {
+		this.resourcePacketsEnabled = resourcePacketsEnabled;
 	}
 }

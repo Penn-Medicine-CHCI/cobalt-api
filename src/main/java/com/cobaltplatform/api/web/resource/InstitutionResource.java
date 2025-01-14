@@ -21,6 +21,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.microsoft.MicrosoftAuthenticator;
 import com.cobaltplatform.api.integration.microsoft.request.AuthenticationRedirectRequest;
@@ -44,6 +45,7 @@ import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
+import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
@@ -358,6 +360,24 @@ public class InstitutionResource {
 
 		return new ApiResponse(Map.of(
 				"institutionReferrer", getInstitutionReferrerApiResponseFactory().create(institutionReferrer)
+		));
+	}
+
+	// Google Maps API keys are only vendable to signed-in accounts for their own institution
+	@AuthenticationRequired
+	@GET("/institutions/{institutionId}/google-maps-platform-api-key")
+	public ApiResponse googleMapsApiKey(@Nonnull @PathParameter InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!account.getInstitutionId().equals(institutionId))
+			throw new AuthorizationException();
+
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId);
+
+		return new ApiResponse(Map.of(
+				"googleMapsPlatformApiKey", enterprisePlugin.googleGeoClient().getMapsPlatformApiKey()
 		));
 	}
 

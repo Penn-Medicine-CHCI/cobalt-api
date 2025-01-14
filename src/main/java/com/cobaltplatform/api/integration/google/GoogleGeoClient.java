@@ -42,6 +42,10 @@ import java.util.function.Function;
  * @author Transmogrify, LLC.
  */
 public interface GoogleGeoClient extends AutoCloseable {
+	// Expose the platform API key, e.g. for JS Maps API usage in web browser
+	@Nonnull
+	String getMapsPlatformApiKey();
+
 	// Maps Geocoding API for basic address geocoding
 	// https://developers.google.com/maps/documentation/geocoding
 	@Nonnull

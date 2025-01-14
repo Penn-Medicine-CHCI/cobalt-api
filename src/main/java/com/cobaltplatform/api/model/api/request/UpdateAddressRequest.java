@@ -21,12 +21,15 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class CreateAddressRequest {
+public class UpdateAddressRequest {
+	@Nullable
+	private UUID addressId;
 	@Nullable
 	private String postalName;
 	@Nullable
@@ -268,5 +271,14 @@ public class CreateAddressRequest {
 
 	public void setFormattedAddress(@Nullable String formattedAddress) {
 		this.formattedAddress = formattedAddress;
+	}
+
+	@Nullable
+	public UUID getAddressId() {
+		return addressId;
+	}
+
+	public void setAddressId(@Nullable UUID addressId) {
+		this.addressId = addressId;
 	}
 }

@@ -263,7 +263,7 @@ VALUES
 INSERT INTO account
 (account_id, role_id, institution_id, account_source_id, email_address, password, first_name, last_name, display_name)
 VALUES
-(uuid_generate_v4(), 'ADMINISTRATOR', 'COBALT', 'EMAIL_PASSWORD', 'admin@cobaltinnovations.org',
+('07b6f7c6-1d6d-4886-a6eb-1bcfd0139e53', 'ADMINISTRATOR', 'COBALT', 'EMAIL_PASSWORD', 'admin@cobaltinnovations.org',
 '$2a$10$M2tPoJ8eQr55OW4iOfpbBOpgqFWt0LxnvVBnW1a/1LhKNA6SuUN42', 'Cobalt', 'Admin', 'Cobalt Admin');
 
 COMMIT;
