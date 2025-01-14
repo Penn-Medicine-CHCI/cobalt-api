@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -34,6 +35,7 @@ import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowImage;
+import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
@@ -139,7 +141,7 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
 
 		if (urlName == null)
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("URL is required.")));
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("URL is required.")));
 
 		if (pageTypeId == null)
 			validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
@@ -309,7 +311,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageRowId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Could not find Page Row")));
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -355,7 +357,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageRowId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Could not find Page Row")));
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -375,6 +377,55 @@ public class PageService {
 				""", pageRowContentId, pageRowId, contentId, displayOrder, createdByAccountId);
 
 		return pageRowContentId;
+	}
+
+	@Nonnull
+	public Optional<PageRowTagGroup> findPageRowTagGroupById(@Nullable UUID pageRowTagGroupId) {
+		requireNonNull(pageRowTagGroupId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_tag_group
+				WHERE page_row_tag_group_id = ?
+				""", PageRowTagGroup.class, pageRowTagGroupId);
+	}
+	@Nonnull
+	public UUID createPageTagGroupC(@Nonnull CreatePageRowTagGroupRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowTagGroupId = UUID.randomUUID();
+		UUID pageRowId = request.getPageRowId();
+		String tagGroupId = trimToNull(request.getTagGroupId());
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		Integer displayOrder = request.getDisplayOrder();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+		if (tagGroupId == null)
+			validationException.add(new ValidationException.FieldError("tagGroupId", getStrings().get("Tag group is required.")));
+		if (createdByAccountId == null)
+			validationException.add(new ValidationException.FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (displayOrder == null)
+			displayOrder = getDatabase().queryForObject("""
+					SELECT COALESCE(MAX(display_order) + 1, 0)
+					FROM v_page_row_tag_group
+					WHERE page_row_id = ?
+					""", Integer.class, pageRowId).get();
+
+		getDatabase().execute("""
+				INSERT INTO page_row_tag_group
+				  (page_row_tag_group_id, page_row_id, tag_group_id, display_order, created_by_account_id)
+				VALUES
+				  (?,?,?,?,?)   
+				""", pageRowTagGroupId, pageRowId, tagGroupId, displayOrder, createdByAccountId);
+
+		return pageRowTagGroupId;
 	}
 
 	@Nonnull

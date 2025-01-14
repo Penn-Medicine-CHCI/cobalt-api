@@ -181,4 +181,11 @@ AS
 SELECT *
 FROM page_row_group_session;
 
+
+CREATE VIEW v_page_row_tag_group
+AS 
+SELECT *
+FROM page_row_tag_group;
+
+
 COMMIT;

@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
@@ -33,6 +34,7 @@ import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiRe
 import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse.PageRowContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse.PageRowImageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FileUploadType;
@@ -41,6 +43,7 @@ import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowImage;
+import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
@@ -88,6 +91,8 @@ public class PageResource {
 	@Nonnull
 	private final PageRowGroupSessionApiResponseFactory pageRowGroupSessionApiResponseFactory;
 	@Nonnull
+	private final PageRowTagGroupApiResponseFactory pageRowTagGroupApiResponseFactory;
+	@Nonnull
 	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 	@Nonnull
 	private final PageRowApiResponseFactory pageRowApiResponseFactory;
@@ -108,6 +113,7 @@ public class PageResource {
 											@Nonnull PageRowImageApiResponseFactory pageRowImageApiResponseFactory,
 											@Nonnull PageRowGroupSessionApiResponseFactory pageRowGroupSessionApiResponseFactory,
 											@Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
+											@Nonnull PageRowTagGroupApiResponseFactory pageRowTagGroupApiResponseFactory,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -120,6 +126,7 @@ public class PageResource {
 		requireNonNull(pageRowImageApiResponseFactory);
 		requireNonNull(pageRowGroupSessionApiResponseFactory);
 		requireNonNull(fileUploadResultApiResponseFactory);
+		requireNonNull(pageRowTagGroupApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -132,6 +139,7 @@ public class PageResource {
 		this.pageRowImageApiResponseFactory = pageRowImageApiResponseFactory;
 		this.pageRowGroupSessionApiResponseFactory = pageRowGroupSessionApiResponseFactory;
 		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
+		this.pageRowTagGroupApiResponseFactory = pageRowTagGroupApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -211,6 +219,27 @@ public class PageResource {
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageRowContent", getPageRowContentApiResponseFactory().create(pageRowContent.get()));
+		}});
+	}
+
+	@POST("/page/row/{pageRowId}/tag-group")
+	@AuthenticationRequired
+	public ApiResponse createPageRowTagGroup(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																					@Nonnull @RequestBody String body) {
+		CreatePageRowTagGroupRequest request = getRequestBodyParser().parse(body, CreatePageRowTagGroupRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageRowId(pageRowId);
+
+		UUID pageRowTagGroupId = getPageService().createPageTagGroupC(request);
+
+		Optional<PageRowTagGroup> pageRowTagGroup = getPageService().findPageRowTagGroupById(pageRowTagGroupId);
+
+		if (!pageRowTagGroup.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRowContent", getPageRowTagGroupApiResponseFactory().create(pageRowTagGroup.get()));
 		}});
 	}
 
@@ -327,5 +356,10 @@ public class PageResource {
 	@Nonnull
 	public FileUploadResultApiResponseFactory getFileUploadResultApiResponseFactory() {
 		return fileUploadResultApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageRowTagGroupApiResponseFactory getPageRowTagGroupApiResponseFactory() {
+		return pageRowTagGroupApiResponseFactory;
 	}
 }
