@@ -360,11 +360,6 @@ public class AnalyticsNativeEventType {
 		// * linkUrl (String, the URL linked in the anchor tag)
 		// * linkText (String, the text component of the anchor tag)
 		CLICKTHROUGH_TOPIC_CENTER_PINBOARD_NOTE_LINK,
-		// When a Topic Center page viewer clicks through on a group session request to view its detail page.
-		// Additional data:
-		// * topicCenterId (UUID)
-		// * groupSessionRequestId (UUID)
-		CLICKTHROUGH_TOPIC_CENTER_GROUP_SESSION_REQUEST,
 	}
 
 	@Override

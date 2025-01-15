@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('201-self-referred-patient-orders', NULL, NULL);
+SELECT _v.register_patch('200-self-referred-patient-orders', NULL, NULL);
 
 -- Support for an institution being able to refer users to another institution.
 -- For example, an employee institution might direct users to a special integrated care institution designed for employees
