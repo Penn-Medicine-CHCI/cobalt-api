@@ -4621,6 +4621,12 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (patientOrderImportTypeId == null) {
 			validationException.add(new FieldError("patientOrderImportTypeId", getStrings().get("Patient Order Import Type ID is required.")));
+		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.SELF) {
+			if (accountId == null) {
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+			} else {
+				rawOrder = format("%s-%s-%s", institutionId, accountId, patientOrderImportId);
+			}
 		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
 			if (csvContent == null) {
 				validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
@@ -5398,6 +5404,60 @@ public class PatientOrderService implements AutoCloseable {
 				AND institution_id=?
 				AND patient_order_import_type_id=?
 				""", PatientOrderImport.class, rawOrderChecksum, institutionId, patientOrderImportTypeId);
+	}
+
+	// Shorthand to more easily create a self-referred order
+	@Nonnull
+	public UUID createPatientOrderForSelfReferral(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			throw new IllegalArgumentException("Unable to find account to create self-referred order");
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		// Arbitrarily pick the first Epic department for this institution
+		EpicDepartment epicDepartment = findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream().findFirst().get();
+
+		PatientOrderImportResult patientOrderImportResult = createPatientOrderImport(new CreatePatientOrderImportRequest() {{
+			setInstitutionId(account.getInstitutionId());
+			setPatientOrderImportTypeId(PatientOrderImportTypeId.SELF);
+			setAccountId(account.getAccountId());
+		}});
+
+		UUID patientOrderImportId = patientOrderImportResult.getPatientOrderImportId();
+
+		String timestampIdentifier = LocalDateTime.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("yyyyMMHHhhmmss", Locale.US));
+
+		CreatePatientOrderRequest request = new CreatePatientOrderRequest();
+		request.setAccountId(accountId);
+		request.setOrderId(timestampIdentifier);
+		request.setOrderDate(LocalDate.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US)));
+		request.setInstitutionId(account.getInstitutionId());
+		request.setPatientFirstName("FirstName");
+		request.setPatientLastName("LastName");
+		request.setPatientOrderReferralSourceId(PatientOrderReferralSourceId.SELF);
+		request.setEncounterDepartmentId(epicDepartment.getDepartmentId());
+		request.setEncounterDepartmentIdType(epicDepartment.getDepartmentIdType());
+		request.setPatientOrderImportId(patientOrderImportId);
+		request.setPatientMrn(format("FAKE-MRN-%s", timestampIdentifier));
+		request.setPatientUniqueId(format("FAKE-%s-%s", institution.getEpicPatientUniqueIdType(), timestampIdentifier));
+		request.setPatientUniqueIdType(institution.getEpicPatientUniqueIdType());
+		request.setOrderAge("0d 00h 00m"); // Order Age example: "5d 05h 43m"
+		request.setPatientAddressLine1("123 Fake St");
+		request.setPatientLocality("Conshohocken");
+		request.setPatientRegion("PA");
+		request.setPatientPostalCode("19428");
+		request.setPatientCountryCode("US");
+		request.setPrimaryPayorName("UNKNOWN");
+		request.setPrimaryPlanName("UNKNOWN");
+		request.setReasonsForReferral(List.of(PatientOrderReferralReasonId.SELF.name()));
+
+		request.setTestPatientOrder(true);
+
+		return createPatientOrder(request);
 	}
 
 	@Nonnull

@@ -36,7 +36,8 @@ public class PatientOrderImportType {
 
 	public enum PatientOrderImportTypeId {
 		CSV,
-		HL7_MESSAGE
+		HL7_MESSAGE,
+		SELF
 	}
 
 	@Override

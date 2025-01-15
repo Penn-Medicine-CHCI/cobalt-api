@@ -943,7 +943,7 @@ public class PatientOrderApiResponse {
 		this.patientOrderIntakeScreeningStatusDescription = patientOrder.getPatientOrderIntakeScreeningStatusDescription();
 
 		this.patientAgeOnOrderDate = patientOrder.getPatientAgeOnOrderDate();
-		this.patientAgeOnOrderDateDescription = formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
+		this.patientAgeOnOrderDateDescription = patientOrder.getPatientAgeOnOrderDate() == null ? strings.get("Unknown") : formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
 
 		this.patientOrderCarePreferenceId = patientOrder.getPatientOrderCarePreferenceId();
 		this.inPersonCareRadius = patientOrder.getInPersonCareRadius();

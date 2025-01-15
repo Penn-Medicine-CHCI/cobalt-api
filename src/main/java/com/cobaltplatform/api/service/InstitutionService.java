@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -546,6 +547,20 @@ public class InstitutionService {
 				AND if.feature_id=?
 				ORDER BY ifir.display_order
 				""", InstitutionFeatureInstitutionReferrer.class, institutionId, featureId);
+	}
+
+	@Nonnull
+	public List<PatientOrderReferralSource> findPatientOrderReferralSourcesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT pors.*
+				FROM patient_order_referral_source pors, institution_patient_order_referral_source ipors
+				WHERE ipors.patient_order_referral_source_id=pors.patient_order_referral_source_id
+				AND ipors.institution_id=?
+				ORDER BY pors.patient_order_referral_source_id
+				""", PatientOrderReferralSource.class, institutionId);
 	}
 
 	@Immutable

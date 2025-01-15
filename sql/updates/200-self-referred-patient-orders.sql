@@ -91,6 +91,12 @@ SELECT institution_id, 'PROVIDER'
 FROM institution
 WHERE integrated_care_enabled=TRUE;
 
+-- Add a new Patient Order Import Type
+INSERT INTO patient_order_import_type (patient_order_import_type_id, description) VALUES ('SELF', 'Self');
+
+-- Add a new Patient Order Referral Reason
+INSERT INTO patient_order_referral_reason (patient_order_referral_reason_id, description) VALUES ('SELF', 'Self');
+
 drop view v_patient_order;
 drop view v_all_patient_order;
 
