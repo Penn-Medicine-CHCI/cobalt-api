@@ -332,8 +332,9 @@ public class InstitutionResource {
 	public ApiResponse getInstitutionFeatureInstitutionReferrers(@Nonnull @PathParameter FeatureId featureId) {
 		requireNonNull(featureId);
 
+		// TODO: based on this account's institutionLocationId and accountSourceId, filter out referrers if restrictions exist
+		@SuppressWarnings("unused")
 		Account account = getCurrentContext().getAccount().get();
-		UUID accountInstitutionLocationId = account.getInstitutionLocationId();
 
 		List<InstitutionFeatureInstitutionReferrer> institutionFeatureInstitutionReferrers = getInstitutionService().findInstitutionFeatureInstitutionReferrers(getCurrentContext().getInstitutionId(), featureId);
 		List<InstitutionReferrer> institutionReferrers = new ArrayList<>(institutionFeatureInstitutionReferrers.size());

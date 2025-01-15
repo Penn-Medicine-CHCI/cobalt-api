@@ -51,6 +51,18 @@ CREATE TABLE institution_feature_referrer_location (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_feature_referrer_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- We can optionally say "this institution feature referrer is only available for accounts with these account sources".
+-- For example, we might want to only expose a referrer to those employees who have a specific type of SSO login.
+CREATE TABLE institution_feature_referrer_account_source (
+	institution_feature_institution_referrer_id UUID NOT NULL REFERENCES institution_feature_institution_referrer,
+	account_source_id TEXT NOT NULL REFERENCES account_source,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (institution_feature_institution_referrer_id, account_source_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_feature_referrer_account_source FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- Is an order a provider referral (e.g. PCP or OB-GYN) or a patient self-referring?
 CREATE TABLE patient_order_referral_source (
   patient_order_referral_source_id TEXT PRIMARY KEY,
