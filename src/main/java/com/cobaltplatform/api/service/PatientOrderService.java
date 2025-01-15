@@ -5429,7 +5429,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		UUID patientOrderImportId = patientOrderImportResult.getPatientOrderImportId();
 
-		String timestampIdentifier = LocalDateTime.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("yyyyMMHHhhmmss", Locale.US));
+		String timestampIdentifier = LocalDateTime.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US));
 
 		CreatePatientOrderRequest request = new CreatePatientOrderRequest();
 		request.setAccountId(accountId);
