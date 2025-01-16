@@ -239,7 +239,7 @@ public class PageResource {
 		if (!pageRowTagGroup.isPresent())
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("pageRowContent", getPageRowTagGroupApiResponseFactory().create(pageRowTagGroup.get()));
+			put("pageRowTagGroup", getPageRowTagGroupApiResponseFactory().create(pageRowTagGroup.get()));
 		}});
 	}
 
