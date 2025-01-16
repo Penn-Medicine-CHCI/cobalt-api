@@ -1821,6 +1821,11 @@ public class AppointmentService {
 			return;
 		}
 
+		if (appointment.getVideoconferencePlatformId() == VideoconferencePlatformId.EXTERNAL && appointment.getVideoconferenceUrl() == null) {
+			getLogger().debug("Appointment ID {} uses external videoconferencing and there is no videoconference URL, so don't send out booking email.", appointment.getAppointmentId());
+			return;
+		}
+
 		// Failsafe; we shouldn't get here
 		if (appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC || appointment.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR) {
 			getLogger().warn("Appointment ID {} is Epic-backed, so don't send out booking emails.", appointment.getAppointmentId());
@@ -1932,6 +1937,11 @@ public class AppointmentService {
 
 		if (appointment.getVideoconferencePlatformId() == VideoconferencePlatformId.SWITCHBOARD) {
 			getLogger().debug("Appointment ID {} is Switchboard-backed, so don't send out cancelation emails.", appointment.getAppointmentId());
+			return;
+		}
+
+		if (appointment.getVideoconferencePlatformId() == VideoconferencePlatformId.EXTERNAL && appointment.getVideoconferenceUrl() == null) {
+			getLogger().debug("Appointment ID {} uses external videoconferencing and there is no videoconference URL, so don't send out cancelation emails.", appointment.getAppointmentId());
 			return;
 		}
 

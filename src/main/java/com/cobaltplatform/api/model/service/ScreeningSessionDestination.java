@@ -52,7 +52,9 @@ public class ScreeningSessionDestination {
 		IC_PATIENT_CLINICAL_SCREENING,
 		IC_MHIC_CLINICAL_SCREENING,
 		HOME,
-		GROUP_SESSION_DETAIL
+		GROUP_SESSION_DETAIL,
+		INSTITUTION_REFERRAL,
+		INSTITUTION_REFERRER_DETAIL
 	}
 
 	public ScreeningSessionDestination(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId) {

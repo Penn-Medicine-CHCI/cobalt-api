@@ -28,30 +28,30 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class PatientOrderImportType {
+public class PatientOrderReferralSource {
 	@Nullable
-	private PatientOrderImportTypeId patientOrderImportTypeId;
+	private PatientOrderReferralSourceId patientOrderReferralSourceId;
 	@Nullable
 	private String description;
 
-	public enum PatientOrderImportTypeId {
-		CSV,
-		HL7_MESSAGE,
+	public enum PatientOrderReferralSourceId {
+		PROVIDER,
 		SELF
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{patientOrderImportTypeId=%s, description=%s}", getClass().getSimpleName(), getPatientOrderImportTypeId(), getDescription());
+		return format("%s{patientOrderReferralSourceId=%s, description=%s}", getClass().getSimpleName(),
+				getPatientOrderReferralSourceId(), getDescription());
 	}
 
 	@Nullable
-	public PatientOrderImportTypeId getPatientOrderImportTypeId() {
-		return this.patientOrderImportTypeId;
+	public PatientOrderReferralSourceId getPatientOrderReferralSourceId() {
+		return this.patientOrderReferralSourceId;
 	}
 
-	public void setPatientOrderImportTypeId(@Nullable PatientOrderImportTypeId patientOrderImportTypeId) {
-		this.patientOrderImportTypeId = patientOrderImportTypeId;
+	public void setPatientOrderReferralSourceId(@Nullable PatientOrderReferralSourceId patientOrderReferralSourceId) {
+		this.patientOrderReferralSourceId = patientOrderReferralSourceId;
 	}
 
 	@Nullable

@@ -30,8 +30,8 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGro
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
@@ -56,8 +56,8 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientO
 import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutreachTypeId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
-import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
@@ -70,6 +70,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageGroup;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
 import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
+import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
@@ -140,6 +141,8 @@ public class PatientOrderApiResponse {
 	private PatientOrderClosureReasonId patientOrderClosureReasonId;
 	@Nullable
 	private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
+	@Nullable
+	private PatientOrderReferralSourceId patientOrderReferralSourceId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -589,7 +592,8 @@ public class PatientOrderApiResponse {
 	private String mostRecentMessageDeliveredAtDescription;
 	@Nullable
 	private ResourcePacketApiResponse resourcePacket;
-	@Nullable Boolean resourcesSentFlag;
+	@Nullable
+	Boolean resourcesSentFlag;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -848,6 +852,7 @@ public class PatientOrderApiResponse {
 		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
 		this.patientOrderScreeningStatusDescription = patientOrder.getPatientOrderScreeningStatusDescription();
+		this.patientOrderReferralSourceId = patientOrder.getPatientOrderReferralSourceId();
 		this.patientAccountId = patientOrder.getPatientAccountId();
 		this.patientAddressId = patientOrder.getPatientAddressId();
 		this.patientLastName = patientOrder.getPatientLastName();
@@ -938,7 +943,7 @@ public class PatientOrderApiResponse {
 		this.patientOrderIntakeScreeningStatusDescription = patientOrder.getPatientOrderIntakeScreeningStatusDescription();
 
 		this.patientAgeOnOrderDate = patientOrder.getPatientAgeOnOrderDate();
-		this.patientAgeOnOrderDateDescription = formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
+		this.patientAgeOnOrderDateDescription = patientOrder.getPatientAgeOnOrderDate() == null ? strings.get("Unknown") : formatter.formatInteger(patientOrder.getPatientAgeOnOrderDate());
 
 		this.patientOrderCarePreferenceId = patientOrder.getPatientOrderCarePreferenceId();
 		this.inPersonCareRadius = patientOrder.getInPersonCareRadius();
@@ -1728,6 +1733,11 @@ public class PatientOrderApiResponse {
 	}
 
 	@Nullable
+	public PatientOrderReferralSourceId getPatientOrderReferralSourceId() {
+		return this.patientOrderReferralSourceId;
+	}
+
+	@Nullable
 	public String getPatientOrderDispositionDescription() {
 		return this.patientOrderDispositionDescription;
 	}
@@ -2295,6 +2305,11 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public String getMostRecentMessageDeliveredAtDescription() {
 		return this.mostRecentMessageDeliveredAtDescription;
+	}
+
+	@Nullable
+	public AdministrativeGenderId getPatientAdministrativeGenderId() {
+		return this.patientAdministrativeGenderId;
 	}
 
 	@Nullable

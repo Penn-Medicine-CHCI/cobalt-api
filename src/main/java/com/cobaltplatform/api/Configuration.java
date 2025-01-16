@@ -1509,6 +1509,7 @@ public class Configuration {
 		return dataSyncRemoteDb;
 	}
 
+	@Nonnull
 	public Long getDataSyncIntervalInSeconds() {
 		return dataSyncIntervalInSeconds;
 	}

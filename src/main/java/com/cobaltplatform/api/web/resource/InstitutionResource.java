@@ -30,26 +30,33 @@ import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.Accoun
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionBlurbApiResponse.InstitutionBlurbApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionFeatureInstitutionReferrerApiResponse.InstitutionFeatureInstitutionReferrerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse.InstitutionLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.InstitutionReferrerApiResponse.InstitutionReferrerApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
+import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
+import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
+import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.RedirectResponse;
 import com.soklet.web.response.RedirectResponse.Type;
@@ -60,6 +67,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +113,10 @@ public class InstitutionResource {
 	private final Strings strings;
 	@Nonnull
 	private final InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory;
+	@Nonnull
+	private final InstitutionReferrerApiResponseFactory institutionReferrerApiResponseFactory;
+	@Nonnull
+	private final InstitutionFeatureInstitutionReferrerApiResponseFactory institutionFeatureInstitutionReferrerApiResponseFactory;
 
 	@Inject
 	public InstitutionResource(@Nonnull InstitutionApiResponseFactory institutionApiResponseFactory,
@@ -117,7 +129,9 @@ public class InstitutionResource {
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull Configuration configuration,
 														 @Nonnull Strings strings,
-														 @Nonnull InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory) {
+														 @Nonnull InstitutionLocationApiResponseFactory institutionLocationApiResponseFactory,
+														 @Nonnull InstitutionReferrerApiResponseFactory institutionReferrerApiResponseFactory,
+														 @Nonnull InstitutionFeatureInstitutionReferrerApiResponseFactory institutionFeatureInstitutionReferrerApiResponseFactory) {
 		requireNonNull(institutionApiResponseFactory);
 		requireNonNull(accountSourceApiResponseFactory);
 		requireNonNull(institutionBlurbApiResponseFactory);
@@ -129,6 +143,8 @@ public class InstitutionResource {
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(institutionLocationApiResponseFactory);
+		requireNonNull(institutionReferrerApiResponseFactory);
+		requireNonNull(institutionFeatureInstitutionReferrerApiResponseFactory);
 
 		this.institutionApiResponseFactory = institutionApiResponseFactory;
 		this.accountSourceApiResponseFactory = accountSourceApiResponseFactory;
@@ -141,6 +157,8 @@ public class InstitutionResource {
 		this.configuration = configuration;
 		this.strings = strings;
 		this.institutionLocationApiResponseFactory = institutionLocationApiResponseFactory;
+		this.institutionReferrerApiResponseFactory = institutionReferrerApiResponseFactory;
+		this.institutionFeatureInstitutionReferrerApiResponseFactory = institutionFeatureInstitutionReferrerApiResponseFactory;
 	}
 
 	@GET("/institution/account-sources")
@@ -296,7 +314,7 @@ public class InstitutionResource {
 	}
 
 	@GET("/institution/locations")
-	public ApiResponse geLocations() {
+	public ApiResponse getLocations() {
 		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
 
 		List<InstitutionLocationApiResponse> institutionLocations = getInstitutionService().findLocationsByInstitutionId(institution.getInstitutionId()).stream()
@@ -306,6 +324,51 @@ public class InstitutionResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("locations", institutionLocations);
 		}});
+	}
+
+	@Nonnull
+	@AuthenticationRequired
+	@GET("/institution-feature-institution-referrers/{featureId}")
+	public ApiResponse getInstitutionFeatureInstitutionReferrers(@Nonnull @PathParameter FeatureId featureId) {
+		requireNonNull(featureId);
+
+		// TODO: based on this account's institutionLocationId and accountSourceId, filter out referrers if restrictions exist
+		@SuppressWarnings("unused")
+		Account account = getCurrentContext().getAccount().get();
+
+		List<InstitutionFeatureInstitutionReferrer> institutionFeatureInstitutionReferrers = getInstitutionService().findInstitutionFeatureInstitutionReferrers(getCurrentContext().getInstitutionId(), featureId);
+		List<InstitutionReferrer> institutionReferrers = new ArrayList<>(institutionFeatureInstitutionReferrers.size());
+
+		for (InstitutionFeatureInstitutionReferrer ifir : institutionFeatureInstitutionReferrers)
+			institutionReferrers.add(getInstitutionService().findInstitutionReferrerById(ifir.getInstitutionReferrerId()).get());
+
+		return new ApiResponse(Map.of(
+				"institutionFeatureInstitutionReferrers", institutionFeatureInstitutionReferrers.stream()
+						.map(ifir -> getInstitutionFeatureInstitutionReferrerApiResponseFactory().create(ifir))
+						.collect(Collectors.toUnmodifiableList()),
+				"institutionReferrers", institutionReferrers.stream()
+						.map(institutionReferrer -> getInstitutionReferrerApiResponseFactory().create(institutionReferrer))
+						.collect(Collectors.toUnmodifiableList())
+		));
+	}
+
+	@Nonnull
+	@AuthenticationRequired
+	@GET("/institution-referrers/{institutionReferrerIdentifier}")
+	public ApiResponse getInstitutionReferrerByIdentifier(@Nonnull @PathParameter String institutionReferrerIdentifier) {
+		requireNonNull(institutionReferrerIdentifier);
+
+		// Use UUID if it looks like a UUID, assume urlName otherwise
+		InstitutionReferrer institutionReferrer = ValidationUtility.isValidUUID(institutionReferrerIdentifier)
+				? getInstitutionService().findInstitutionReferrerById(UUID.fromString(institutionReferrerIdentifier)).orElse(null)
+				: getInstitutionService().findInstitutionReferrerByUrlName(institutionReferrerIdentifier, getCurrentContext().getInstitutionId()).orElse(null);
+
+		if (institutionReferrer == null)
+			throw new NotFoundException();
+
+		return new ApiResponse(Map.of(
+				"institutionReferrer", getInstitutionReferrerApiResponseFactory().create(institutionReferrer)
+		));
 	}
 
 	// Google Maps API keys are only vendable to signed-in accounts for their own institution
@@ -413,6 +476,16 @@ public class InstitutionResource {
 	@Nonnull
 	protected InstitutionLocationApiResponseFactory getInstitutionLocationApiResponseFactory() {
 		return this.institutionLocationApiResponseFactory;
+	}
+
+	@Nonnull
+	protected InstitutionReferrerApiResponseFactory getInstitutionReferrerApiResponseFactory() {
+		return this.institutionReferrerApiResponseFactory;
+	}
+
+	@Nonnull
+	protected InstitutionFeatureInstitutionReferrerApiResponseFactory getInstitutionFeatureInstitutionReferrerApiResponseFactory() {
+		return this.institutionFeatureInstitutionReferrerApiResponseFactory;
 	}
 
 	@Nonnull

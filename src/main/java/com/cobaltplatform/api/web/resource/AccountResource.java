@@ -85,6 +85,7 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.GroupSessionVisibilityType.GroupSessionVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
@@ -104,6 +105,7 @@ import com.cobaltplatform.api.service.FeatureService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
+import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.SessionService;
@@ -111,6 +113,7 @@ import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.LinkGenerator;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
@@ -148,6 +151,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -170,6 +174,8 @@ public class AccountResource {
 	private final FeatureService featureService;
 	@Nonnull
 	private final MyChartService myChartService;
+	@Nonnull
+	private final PatientOrderService patientOrderService;
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
@@ -233,6 +239,7 @@ public class AccountResource {
 												 @Nonnull MyChartService myChartService,
 												 @Nonnull ScreeningService screeningService,
 												 @Nonnull FeatureService featureService,
+												 @Nonnull PatientOrderService patientOrderService,
 												 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
 												 @Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 												 @Nonnull GroupSessionRequestApiResponseFactory groupSessionRequestApiResponseFactory,
@@ -266,6 +273,7 @@ public class AccountResource {
 		requireNonNull(myChartService);
 		requireNonNull(screeningService);
 		requireNonNull(featureService);
+		requireNonNull(patientOrderService);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(groupSessionRequestApiResponseFactory);
@@ -299,6 +307,7 @@ public class AccountResource {
 		this.myChartService = myChartService;
 		this.screeningService = screeningService;
 		this.featureService = featureService;
+		this.patientOrderService = patientOrderService;
 		this.accountApiResponseFactory = accountApiResponseFactory;
 		this.groupSessionApiResponseFactory = groupSessionApiResponseFactory;
 		this.groupSessionRequestApiResponseFactory = groupSessionRequestApiResponseFactory;
@@ -407,9 +416,38 @@ public class AccountResource {
 		requireNonNull(httpServletResponse);
 
 		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 
 		EmailPasswordAccessTokenRequest request = getRequestBodyParser().parse(requestBody, EmailPasswordAccessTokenRequest.class);
 		request.setInstitutionId(institutionId);
+
+		// Special handling for IC self-referring institutions in non-production environments:
+		// If we authenticate with email/password, actually just create an account if one doesn't exist and create an order for it.
+		if (!getConfiguration().isProduction()
+				&& ValidationUtility.isValidEmailAddress(request.getEmailAddress())
+				&& trimToNull(request.getPassword()) != null
+				&& institution.getIntegratedCareEnabled()
+				&& institutionService.findPatientOrderReferralSourcesByInstitutionId(institutionId).stream()
+				.map(patientOrderReferralSource -> patientOrderReferralSource.getPatientOrderReferralSourceId())
+				.anyMatch(patientOrderReferralSourceId -> patientOrderReferralSourceId == PatientOrderReferralSourceId.SELF)) {
+
+			// See if an account already exists for this email.  If not, we create one and self-refer an order for it.
+			Account existingAccount = getAccountService().findAccountByEmailAddressAndAccountSourceId(request.getEmailAddress(), AccountSourceId.EMAIL_PASSWORD, institutionId).orElse(null);
+
+			if (existingAccount == null) {
+				getLogger().info("An account with email address '{}' does not exist, creating and self-referring an order...", request.getEmailAddress());
+
+				UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
+					setRoleId(RoleId.PATIENT);
+					setInstitutionId(institutionId);
+					setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
+					setEmailAddress(request.getEmailAddress());
+					setPassword(getAuthenticator().hashPassword(request.getPassword()));
+				}});
+
+				getPatientOrderService().createPatientOrderForSelfReferral(accountId);
+			}
+		}
 
 		String accessToken = getAccountService().obtainEmailPasswordAccessToken(request);
 		Account account = getAccountService().findAccountByAccessToken(accessToken).get();
@@ -1378,6 +1416,11 @@ public class AccountResource {
 	@Nonnull
 	protected FeatureService getFeatureService() {
 		return this.featureService;
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderService;
 	}
 
 	@Nonnull
