@@ -134,6 +134,7 @@ import com.cobaltplatform.api.model.db.PatientOrderOutreachType.PatientOrderOutr
 import com.cobaltplatform.api.model.db.PatientOrderReferral;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType;
@@ -4620,6 +4621,12 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (patientOrderImportTypeId == null) {
 			validationException.add(new FieldError("patientOrderImportTypeId", getStrings().get("Patient Order Import Type ID is required.")));
+		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.SELF) {
+			if (accountId == null) {
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+			} else {
+				rawOrder = format("%s-%s-%s", institutionId, accountId, patientOrderImportId);
+			}
 		} else if (patientOrderImportTypeId == PatientOrderImportTypeId.CSV) {
 			if (csvContent == null) {
 				validationException.add(new FieldError("csvContent", getStrings().get("CSV file is required.")));
@@ -5335,11 +5342,15 @@ public class PatientOrderService implements AutoCloseable {
 			}
 		}
 
-		// For any orders in the import batch that have no flags, send a welcome message automatically
+		// For any orders in the import batch that have no flags, send a welcome message automatically.
 		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
 		for (PatientOrder importedPatientOrder : importedPatientOrders) {
+			// Don't send a welcome message for self-referrals
+			if (importedPatientOrder.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.SELF)
+				continue;
+
 			// If the order's insurance and region (state in US) are OK and patient is old enough, then send the welcome message...
 			if (importedPatientOrder.getPrimaryPlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted() && !importedPatientOrder.getPatientBelowAgeThreshold()) {
 				getLogger().info("Patient Order ID {} has an accepted region and insurance - automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
@@ -5395,6 +5406,76 @@ public class PatientOrderService implements AutoCloseable {
 				""", PatientOrderImport.class, rawOrderChecksum, institutionId, patientOrderImportTypeId);
 	}
 
+	// Shorthand to more easily create a self-referred order
+	@Nonnull
+	public UUID createPatientOrderForSelfReferral(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+		if (account == null)
+			throw new IllegalArgumentException("Unable to find account to create self-referred order");
+
+		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+
+		// Arbitrarily pick the first Epic department for this institution
+		EpicDepartment epicDepartment = findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream().findFirst().get();
+
+		PatientOrderImportResult patientOrderImportResult = createPatientOrderImport(new CreatePatientOrderImportRequest() {{
+			setInstitutionId(account.getInstitutionId());
+			setPatientOrderImportTypeId(PatientOrderImportTypeId.SELF);
+			setAccountId(account.getAccountId());
+		}});
+
+		UUID patientOrderImportId = patientOrderImportResult.getPatientOrderImportId();
+
+		String timestampIdentifier = LocalDateTime.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US));
+
+		CreatePatientOrderRequest request = new CreatePatientOrderRequest();
+		request.setAccountId(accountId);
+		request.setOrderId(timestampIdentifier);
+		request.setOrderDate(LocalDate.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US)));
+		request.setInstitutionId(account.getInstitutionId());
+		// TODO: name could be pulled from source account
+		request.setPatientFirstName("FirstName");
+		request.setPatientLastName("LastName");
+		request.setPatientOrderReferralSourceId(PatientOrderReferralSourceId.SELF);
+		request.setEncounterDepartmentId(epicDepartment.getDepartmentId());
+		request.setEncounterDepartmentIdType(epicDepartment.getDepartmentIdType());
+		request.setPatientOrderImportId(patientOrderImportId);
+		request.setPatientMrn(format("FAKE-MRN-%s", timestampIdentifier));
+		request.setPatientUniqueId(format("FAKE-%s-%s", institution.getEpicPatientUniqueIdType(), timestampIdentifier));
+		request.setPatientUniqueIdType(institution.getEpicPatientUniqueIdType());
+		request.setOrderAge("0d 00h 00m"); // Order Age example: "5d 05h 43m"
+		request.setPatientAddressLine1("123 Fake St");
+		request.setPatientLocality("Conshohocken");
+		request.setPatientRegion("PA");
+		request.setPatientPostalCode("19428");
+		request.setPatientCountryCode("US");
+		request.setPrimaryPayorName("UNKNOWN");
+		request.setPrimaryPlanName("UNKNOWN");
+		request.setReasonsForReferral(List.of(PatientOrderReferralReasonId.SELF.name()));
+
+		// TODO: remove this, it's to support test patients
+		request.setTestPatientOrder(true);
+
+		UUID patientOrderId = createPatientOrder(request);
+
+		// TODO: remove this, it's to support test patients
+		getDatabase().execute("""
+				UPDATE account SET
+				epic_patient_mrn=?,
+				epic_patient_unique_id=?,
+				epic_patient_unique_id_type=?
+				WHERE account_id=?
+				""", request.getPatientMrn(), request.getPatientMrn(), institution.getEpicPatientUniqueIdType(), accountId);
+
+		// Immediately set the order's account ID
+		getDatabase().execute("UPDATE patient_order SET patient_account_id=? WHERE patient_order_id=?", accountId, patientOrderId);
+
+		return patientOrderId;
+	}
+
 	@Nonnull
 	public UUID createPatientOrder(@Nonnull CreatePatientOrderRequest request) {
 		requireNonNull(request);
@@ -5402,6 +5483,7 @@ public class PatientOrderService implements AutoCloseable {
 		PatientOrderDispositionId patientOrderDispositionId = PatientOrderDispositionId.OPEN;
 		UUID patientOrderImportId = request.getPatientOrderImportId();
 		InstitutionId institutionId = request.getInstitutionId();
+		PatientOrderReferralSourceId patientOrderReferralSourceId = request.getPatientOrderReferralSourceId();
 		UUID accountId = request.getAccountId();
 		String encounterDepartmentId = trimToNull(request.getEncounterDepartmentId());
 		String encounterDepartmentIdType = trimToNull(request.getEncounterDepartmentIdType());
@@ -5465,6 +5547,10 @@ public class PatientOrderService implements AutoCloseable {
 		UUID epicDepartmentId = null;
 		UUID patientOrderId = UUID.randomUUID();
 		ValidationException validationException = new ValidationException();
+
+		// If no referral source is provided, assume it's PROVIDER
+		if (patientOrderReferralSourceId == null)
+			patientOrderReferralSourceId = PatientOrderReferralSourceId.PROVIDER;
 
 		// TODO: revisit when we support non-US institutions
 		// Example: "2/25/21"
@@ -5798,8 +5884,9 @@ public class PatientOrderService implements AutoCloseable {
 							patient_clinical_sex_id,
 							patient_legal_sex_id,
 							patient_administrative_gender_id,
-							patient_demographics_imported_at
-						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+							patient_demographics_imported_at,
+							patient_order_referral_source_id
+						) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""",
 				patientOrderId, patientOrderDispositionId, patientOrderImportId,
 				institutionId, encounterDepartmentId, encounterDepartmentIdType, encounterDepartmentName, epicDepartmentId, referringPracticeId,
@@ -5812,7 +5899,8 @@ public class PatientOrderService implements AutoCloseable {
 				lastActiveMedicationOrderSummary, recentPsychotherapeuticMedications,
 				testPatientEmailAddress, hashedTestPatientPassword, testPatientOrder,
 				patientOrderDemographicsImportStatusId, patientEthnicityId, patientRaceId, patientBirthSexId, patientGenderIdentityId,
-				patientPreferredPronounId, patientClinicalSexId, patientLegalSexId, patientAdministrativeGenderId, patientDemographicsImportedAt);
+				patientPreferredPronounId, patientClinicalSexId, patientLegalSexId, patientAdministrativeGenderId, patientDemographicsImportedAt,
+				patientOrderReferralSourceId);
 
 		int diagnosisDisplayOrder = 0;
 

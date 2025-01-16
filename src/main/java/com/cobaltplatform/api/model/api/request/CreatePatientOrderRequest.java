@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 
 import javax.annotation.Nullable;
@@ -38,6 +39,8 @@ public class CreatePatientOrderRequest {
 	private UUID patientOrderImportId;
 	@Nullable
 	private InstitutionId institutionId;
+	@Nullable
+	private PatientOrderReferralSourceId patientOrderReferralSourceId;
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -167,6 +170,15 @@ public class CreatePatientOrderRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public PatientOrderReferralSourceId getPatientOrderReferralSourceId() {
+		return this.patientOrderReferralSourceId;
+	}
+
+	public void setPatientOrderReferralSourceId(@Nullable PatientOrderReferralSourceId patientOrderReferralSourceId) {
+		this.patientOrderReferralSourceId = patientOrderReferralSourceId;
 	}
 
 	@Nullable

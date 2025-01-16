@@ -35,6 +35,7 @@ import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispo
 import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.PatientOrderIntakeInsuranceStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderResourceCheckInResponseStatus.PatientOrderResourceCheckInResponseStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingType.PatientOrderResourcingTypeId;
@@ -79,6 +80,8 @@ public class RawPatientOrder {
 	private UUID panelAccountId;
 	@Nullable
 	private PatientOrderClosureReasonId patientOrderClosureReasonId;
+	@Nullable
+	private PatientOrderReferralSourceId patientOrderReferralSourceId;
 	@Nullable
 	private String encounterDepartmentId;
 	@Nullable
@@ -342,6 +345,15 @@ public class RawPatientOrder {
 
 	public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
 		this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+	}
+
+	@Nullable
+	public PatientOrderReferralSourceId getPatientOrderReferralSourceId() {
+		return this.patientOrderReferralSourceId;
+	}
+
+	public void setPatientOrderReferralSourceId(@Nullable PatientOrderReferralSourceId patientOrderReferralSourceId) {
+		this.patientOrderReferralSourceId = patientOrderReferralSourceId;
 	}
 
 	@Nullable

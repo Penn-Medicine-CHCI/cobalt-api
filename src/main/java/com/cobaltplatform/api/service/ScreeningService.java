@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
@@ -164,6 +165,8 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
+	private final Provider<CurrentContext> currentContextProvider;
+	@Nonnull
 	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
 	@Nonnull
 	private final StudyService studyService;
@@ -192,6 +195,7 @@ public class ScreeningService {
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Provider<MessageService> messageServiceProvider,
+													@Nonnull Provider<CurrentContext> currentContextProvider,
 													@Nonnull StudyService studyService,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
@@ -208,6 +212,7 @@ public class ScreeningService {
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(messageServiceProvider);
+		requireNonNull(currentContextProvider);
 		requireNonNull(studyService);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
@@ -225,6 +230,7 @@ public class ScreeningService {
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.currentContextProvider = currentContextProvider;
 		this.studyService = studyService;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
@@ -2363,8 +2369,8 @@ public class ScreeningService {
 			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).get();
 			LocalDate currentDate = LocalDateTime.ofInstant(Instant.now(), institution.getTimeZone()).toLocalDate();
 
-			Long patientAgeInYears = Period.between(patientOrder.getPatientBirthdate(), currentDate)
-					.get(ChronoUnit.YEARS);
+			Long patientAgeInYears = patientOrder.getPatientBirthdate() == null
+					? null : Period.between(patientOrder.getPatientBirthdate(), currentDate).get(ChronoUnit.YEARS);
 
 			context.put("patientAgeInYears", patientAgeInYears);
 			context.put("patientBirthSexId", patientOrder.getPatientBirthSexId());
@@ -2387,6 +2393,9 @@ public class ScreeningService {
 			context.put("patientOrderReferralReasonIds", patientOrderReferralReasonIds);
 		}
 
+		Account account = getCurrentContext().getAccount().orElse(null);
+
+		context.put("accountId", account == null ? null : account.getAccountId());
 		context.put("screenings", screenings);
 		context.put("screeningsByName", screeningsByName);
 		context.put("screeningSession", screeningSession);
@@ -3016,6 +3025,11 @@ public class ScreeningService {
 	@Nonnull
 	protected MessageService getMessageService() {
 		return this.messageServiceProvider.get();
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull
