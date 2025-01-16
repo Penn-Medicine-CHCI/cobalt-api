@@ -173,9 +173,13 @@ public class AdminContentService {
 		List<Object> parameters = new ArrayList();
 		Integer pageNumber = page.orElse(0);
 		Integer limit = DEFAULT_PAGE_SIZE;
-		Integer offset = pageNumber * DEFAULT_PAGE_SIZE;
 		StringBuilder whereClause = new StringBuilder(" 1=1 ");
 		StringBuilder orderByClause = new StringBuilder("ORDER BY ");
+
+		if (search != null && pageNumber != 0)
+			pageNumber = 0;
+
+		Integer offset = pageNumber * DEFAULT_PAGE_SIZE;
 
 		parameters.add(account.getInstitutionId());
 		parameters.add(account.getInstitutionId());
