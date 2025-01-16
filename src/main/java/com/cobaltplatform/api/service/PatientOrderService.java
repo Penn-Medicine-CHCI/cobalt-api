@@ -5436,6 +5436,7 @@ public class PatientOrderService implements AutoCloseable {
 		request.setOrderId(timestampIdentifier);
 		request.setOrderDate(LocalDate.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US)));
 		request.setInstitutionId(account.getInstitutionId());
+		// TODO: name could be pulled from source account
 		request.setPatientFirstName("FirstName");
 		request.setPatientLastName("LastName");
 		request.setPatientOrderReferralSourceId(PatientOrderReferralSourceId.SELF);
@@ -5455,9 +5456,24 @@ public class PatientOrderService implements AutoCloseable {
 		request.setPrimaryPlanName("UNKNOWN");
 		request.setReasonsForReferral(List.of(PatientOrderReferralReasonId.SELF.name()));
 
+		// TODO: remove this, it's to support test patients
 		request.setTestPatientOrder(true);
 
-		return createPatientOrder(request);
+		UUID patientOrderId = createPatientOrder(request);
+
+		// TODO: remove this, it's to support test patients
+		getDatabase().execute("""
+				UPDATE account SET
+				epic_patient_mrn=?,
+				epic_patient_unique_id=?,
+				epic_patient_unique_id_type=?
+				WHERE account_id=?
+				""", request.getPatientMrn(), request.getPatientMrn(), institution.getEpicPatientUniqueIdType(), accountId);
+
+		// Immediately set the order's account ID
+		getDatabase().execute("UPDATE patient_order SET patient_account_id=? WHERE patient_order_id=?", accountId, patientOrderId);
+
+		return patientOrderId;
 	}
 
 	@Nonnull

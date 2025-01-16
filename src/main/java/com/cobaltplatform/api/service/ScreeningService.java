@@ -2369,8 +2369,8 @@ public class ScreeningService {
 			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).get();
 			LocalDate currentDate = LocalDateTime.ofInstant(Instant.now(), institution.getTimeZone()).toLocalDate();
 
-			Long patientAgeInYears = Period.between(patientOrder.getPatientBirthdate(), currentDate)
-					.get(ChronoUnit.YEARS);
+			Long patientAgeInYears = patientOrder.getPatientBirthdate() == null
+					? null : Period.between(patientOrder.getPatientBirthdate(), currentDate).get(ChronoUnit.YEARS);
 
 			context.put("patientAgeInYears", patientAgeInYears);
 			context.put("patientBirthSexId", patientOrder.getPatientBirthSexId());
