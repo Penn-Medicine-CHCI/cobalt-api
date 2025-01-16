@@ -108,9 +108,19 @@ public class BulkGeocoder {
 
 						response = googleGeoClient.findPlacesBySearchText(searchTextRequest);
 
-						if (response.getPlacesList().size() > 0) {
-							//System.out.println(new GsonBuilder().setPrettyPrinting().create().toJson(response.getRawPlaces().get(0)));
-							normalizedPlacesByInputAddressId.put(inputAddress.getId(), new NormalizedPlace(response.getPlacesList().get(0)));
+						if (!response.getPlacesList().isEmpty()) {
+							NormalizedPlace bestMatch = null;
+							for (var place : response.getPlacesList()) {
+								if (place.getFormattedAddress().contains(inputAddress.getAddress())) {
+									bestMatch = new NormalizedPlace(place);
+									break;
+								}
+							}
+
+							if (bestMatch == null) {
+								bestMatch = new NormalizedPlace(response.getPlacesList().get(0)); // fallback to the first result
+							}
+							normalizedPlacesByInputAddressId.put(inputAddress.getId(), bestMatch);
 						} else {
 							// No match for just the address?  Then bail entirely.
 							System.out.printf("Warning: no place data found for %s\n", ToStringBuilder.reflectionToString(inputAddress, ToStringStyle.SHORT_PREFIX_STYLE));

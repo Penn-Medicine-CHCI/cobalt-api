@@ -192,8 +192,9 @@ public class CareResourceService {
 		final int DEFAULT_PAGE_SIZE = 25;
 		final int MAXIMUM_PAGE_SIZE = 100;
 
-		if (pageNumber == null || pageNumber < 0)
+		if ((pageNumber == null || pageNumber < 0) || (search != null && pageNumber != 0)) {
 			pageNumber = 0;
+		}
 
 		if (pageSize == null || pageSize <= 0)
 			pageSize = DEFAULT_PAGE_SIZE;
