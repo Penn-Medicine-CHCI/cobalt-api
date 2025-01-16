@@ -290,12 +290,6 @@ public class Configuration {
 	@Nonnull
 	private final Long dataSyncIntervalInSeconds;
 
-	@Nonnull
-	private final String mapsPlatformApiKeyFilename;
-
-	@Nonnull
-	private final String geoServiceAccountPrivateKeyFilename;
-
 	static {
 		ENV_ENV_VARIABLE_NAME = "COBALT_API_ENV";
 		PORT_ENV_VARIABLE_NAME = "COBALT_API_PORT";
@@ -463,8 +457,6 @@ public class Configuration {
 
 		this.shouldRunDataSync = valueFor("com.cobaltplatform.api.shouldRunDataSync", Boolean.class);
 		this.dataSyncRemoteDb = valueFor("com.cobaltplatform.api.dataSyncRemoteDb", String.class);
-		this.mapsPlatformApiKeyFilename = valueFor("com.cobaltplatform.api.mapsPlatformApiKeyFilename", String.class);
-		this.geoServiceAccountPrivateKeyFilename = valueFor("com.cobaltplatform.api.geoServiceAccountPrivateKeyFilename", String.class);
 		this.dataSyncIntervalInSeconds = valueFor("com.cobaltplatform.api.dataSyncIntervalInSeconds", Long.class);
 
 		if (getAmazonUseLocalstack()) {
@@ -1515,16 +1507,6 @@ public class Configuration {
 	@Nonnull
 	public String getDataSyncRemoteDb() {
 		return dataSyncRemoteDb;
-	}
-
-	@Nonnull
-	public String getMapsPlatformApiKeyFilename() {
-		return mapsPlatformApiKeyFilename;
-	}
-
-	@Nonnull
-	public String getGeoServiceAccountPrivateKeyFilename() {
-		return geoServiceAccountPrivateKeyFilename;
 	}
 
 	public Long getDataSyncIntervalInSeconds() {

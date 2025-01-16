@@ -846,6 +846,7 @@ public class CareResourceService {
 			createAddressRequest.setFormattedAddress(place.getFormattedAddress());
 			createAddressRequest.setLatitude(place.getLocation().getLatitude());
 			createAddressRequest.setLongitude(place.getLocation().getLongitude());
+			createAddressRequest.setCountryCode("US"); // TODO: remove hardcoding if we expand outside of US
 
 			addressId = getAddressService().createAddress(createAddressRequest);
 		}
