@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
+import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
@@ -41,6 +42,8 @@ import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.service.FileUploadResult;
+import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PageWithTotalCount;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -56,6 +59,8 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -390,7 +395,7 @@ public class PageService {
 				""", PageRowTagGroup.class, pageRowTagGroupId);
 	}
 	@Nonnull
-	public UUID createPageTagGroupC(@Nonnull CreatePageRowTagGroupRequest request) {
+	public UUID createPageTagGroup(@Nonnull CreatePageRowTagGroupRequest request) {
 		requireNonNull(request);
 
 		UUID pageRowTagGroupId = UUID.randomUUID();
@@ -505,6 +510,53 @@ public class PageService {
 		return fileUploadResult;
 	}
 
+	@Nonnull
+	public FindResult<Page> findAllPagesByInstitutionId(@Nonnull FindPagesRequest request) {
+		requireNonNull(request);
+
+		InstitutionId institutionId = request.getInstitutionId();
+		Integer pageNumber = request.getPageNumber();
+		Integer pageSize = request.getPageSize();
+		FindPagesRequest.OrderBy orderBy = request.getOrderBy() == null ? FindPagesRequest.OrderBy.CREATED_DESC : request.getOrderBy();
+		final int DEFAULT_PAGE_SIZE = 25;
+		final int MAXIMUM_PAGE_SIZE = 100;
+
+		if (pageNumber == null || pageNumber < 0)
+			pageNumber = 0;
+
+		if (pageSize == null || pageSize <= 0)
+			pageSize = DEFAULT_PAGE_SIZE;
+		else if (pageSize > MAXIMUM_PAGE_SIZE)
+			pageSize = MAXIMUM_PAGE_SIZE;
+
+		Integer limit = pageSize;
+		Integer offset = pageNumber * pageSize;
+		List<Object> parameters = new ArrayList<>();
+
+		StringBuilder query = new StringBuilder("SELECT vp.*, COUNT(vp.page_id) OVER() AS total_count FROM v_page vp ");
+
+		query.append("WHERE vp.institution_id = ? ");
+		parameters.add(institutionId);
+
+		query.append("ORDER BY ");
+
+		if (orderBy == FindPagesRequest.OrderBy.CREATED_DESC)
+			query.append("vp.created DESC ");
+		else if (orderBy == FindPagesRequest.OrderBy.CREATED_ASC)
+			query.append("vp.created  ASC ");
+
+		query.append("LIMIT ? OFFSET ? ");
+
+		parameters.add(limit);
+		parameters.add(offset);
+
+		List<PageWithTotalCount> pages = getDatabase().queryForList(query.toString(), PageWithTotalCount.class, parameters.toArray());
+
+		FindResult<? extends Page> findResult = new FindResult<>(pages, pages.size() == 0 ? 0 : pages.get(0).getTotalCount());
+
+		return (FindResult<Page>) findResult;
+
+	}
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();

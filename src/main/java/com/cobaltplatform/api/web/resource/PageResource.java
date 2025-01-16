@@ -28,6 +28,8 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
+import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
+import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
@@ -37,6 +39,7 @@ import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse.PageRow
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
@@ -47,11 +50,14 @@ import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
+import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PathParameter;
+import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.NotFoundException;
@@ -64,8 +70,11 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -143,7 +152,7 @@ public class PageResource {
 		this.formatter = formatter;
 	}
 
-	@POST("/page")
+	@POST("/pages")
 	@AuthenticationRequired
 	public ApiResponse createPage(@Nonnull @RequestBody String body) {
 		CreatePageRequest request = getRequestBodyParser().parse(body, CreatePageRequest.class);
@@ -161,7 +170,33 @@ public class PageResource {
 		}});
 	}
 
-	@POST("/page/{pageId}/section")
+	@GET("/pages")
+	@AuthenticationRequired
+	public ApiResponse pages(@Nonnull @QueryParameter Optional<Integer> pageNumber,
+													 @Nonnull @QueryParameter Optional<Integer> pageSize,
+													 @Nonnull @QueryParameter Optional<FindPagesRequest.OrderBy> orderBy) {
+
+		Account account = getCurrentContext().getAccount().get();
+
+		FindResult<Page> findResult = getPageService().findAllPagesByInstitutionId(new FindPagesRequest() {
+			{
+				setPageNumber(pageNumber.orElse(0));
+				setPageSize(pageSize.orElse(0));
+				setOrderBy(orderBy.orElse(null));
+				setInstitutionId(account.getInstitutionId());
+			}
+		});
+
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("totalCount", findResult.getTotalCount());
+			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+			put("pages", findResult.getResults().stream()
+					.map(careResourceLocation -> getPageApiResponseFactory().create(careResourceLocation))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@POST("/pages/{pageId}/section")
 	@AuthenticationRequired
 	public ApiResponse createPageSection(@Nonnull @PathParameter("pageId") UUID pageId,
 																			 @Nonnull @RequestBody String body) {
@@ -182,7 +217,7 @@ public class PageResource {
 		}});
 	}
 
-	@POST("/page/section/{pageSectionId}/row")
+	@POST("/pages/section/{pageSectionId}/row")
 	@AuthenticationRequired
 	public ApiResponse createPageRow(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
 																	 @Nonnull @RequestBody String body) {
@@ -201,7 +236,7 @@ public class PageResource {
 		}});
 	}
 
-	@POST("/page/row/{pageRowId}/content")
+	@POST("/pages/row/{pageRowId}/content")
 	@AuthenticationRequired
 	public ApiResponse createPageRowContent(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
 																					@Nonnull @RequestBody String body) {
@@ -222,7 +257,7 @@ public class PageResource {
 		}});
 	}
 
-	@POST("/page/row/{pageRowId}/tag-group")
+	@POST("/pages/row/{pageRowId}/tag-group")
 	@AuthenticationRequired
 	public ApiResponse createPageRowTagGroup(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
 																					@Nonnull @RequestBody String body) {
@@ -232,7 +267,7 @@ public class PageResource {
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageRowId(pageRowId);
 
-		UUID pageRowTagGroupId = getPageService().createPageTagGroupC(request);
+		UUID pageRowTagGroupId = getPageService().createPageTagGroup(request);
 
 		Optional<PageRowTagGroup> pageRowTagGroup = getPageService().findPageRowTagGroupById(pageRowTagGroupId);
 
@@ -243,7 +278,7 @@ public class PageResource {
 		}});
 	}
 
-	@POST("/page/row/{pageRowId}/group-session")
+	@POST("/pages/row/{pageRowId}/group-session")
 	@AuthenticationRequired
 	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
 																							 @Nonnull @RequestBody String body) {
@@ -264,7 +299,7 @@ public class PageResource {
 		}});
 	}
 
-	@POST("/page/row/{pageRowId}/image")
+	@POST("/pages/row/{pageRowId}/image")
 	@AuthenticationRequired
 	public ApiResponse createPageRowImage(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
 																				@Nonnull @RequestBody String body) {
@@ -286,7 +321,7 @@ public class PageResource {
 	}
 
 	@Nonnull
-	@POST("/page/file-presigned-upload")
+	@POST("/pages/file-presigned-upload")
 	@AuthenticationRequired
 	public ApiResponse createFileImagePresignedUpload(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
