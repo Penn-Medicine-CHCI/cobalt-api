@@ -74,6 +74,14 @@ public class PageApiResponse {
 	private final LocalDate publishedDate;
 	@Nullable
 	private final String publishedDateDescription;
+	@Nullable
+	private final Instant created;
+	@Nullable
+	private final String createdDescription;
+	@Nullable
+	private final Instant lastUpdated;
+	@Nullable
+	private final String lastUpdatedDescription;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -101,7 +109,11 @@ public class PageApiResponse {
 		this.imageFileUploadId = page.getImageFileUploadId();
 		this.imageAltText = page.getImageAltText();
 		this.publishedDate = page.getPublishedDate();
-		this.publishedDateDescription = this.publishedDate == null ? "Not Published" : formatter.formatDate(this.publishedDate, FormatStyle.LONG);
+		this.publishedDateDescription = this.publishedDate == null ? "Not Published" : formatter.formatDate(this.publishedDate, FormatStyle.MEDIUM);
+		this.created = page.getCreated();
+		this.createdDescription = formatter.formatTimestamp(page.getCreated(), FormatStyle.MEDIUM,FormatStyle.SHORT);
+		this.lastUpdated = page.getLastUpdated();
+		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM,FormatStyle.SHORT);
 }
 
 	@Nonnull
@@ -157,6 +169,26 @@ public class PageApiResponse {
 	@Nullable
 	public String getPublishedDateDescription() {
 		return publishedDateDescription;
+	}
+
+	@Nullable
+	public Instant getCreated() {
+		return created;
+	}
+
+	@Nullable
+	public String getCreatedDescription() {
+		return createdDescription;
+	}
+
+	@Nullable
+	public Instant getLastUpdated() {
+		return lastUpdated;
+	}
+
+	@Nullable
+	public String getLastUpdatedDescription() {
+		return lastUpdatedDescription;
 	}
 }
 
