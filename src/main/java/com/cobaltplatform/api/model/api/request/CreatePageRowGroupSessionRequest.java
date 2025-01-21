@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,40 +31,28 @@ import java.util.UUID;
 @NotThreadSafe
 public class CreatePageRowGroupSessionRequest {
 	@Nullable
-	private UUID pageRowId;
+	private UUID pageSectionId;
 	@Nullable
-	private UUID groupSessionId;
-	@Nullable
-	private Integer displayOrder;
+	private List<UUID> groupSessionIds;
 	@Nullable
 	private UUID createdByAccountId;
 
-
 	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
-	}
-
-	@Nullable
-	public UUID getGroupSessionId() {
-		return groupSessionId;
-	}
-
-	public void setGroupSessionId(@Nullable UUID groupSessionId) {
-		this.groupSessionId = groupSessionId;
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
+	public List<UUID> getGroupSessionIds() {
+		return groupSessionIds;
 	}
 
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
+	public void setGroupSessionIds(@Nullable List<UUID> groupSessionIds) {
+		this.groupSessionIds = groupSessionIds;
 	}
 
 	@Nullable

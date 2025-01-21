@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,39 +31,28 @@ import java.util.UUID;
 @NotThreadSafe
 public class CreatePageRowContentRequest {
 	@Nullable
-	private UUID pageRowId;
+	private UUID pageSectionId;
 	@Nullable
-	private UUID contentId;
-	@Nullable
-	private Integer displayOrder;
+	private List<UUID> contentIds;
 	@Nullable
 	private UUID createdByAccountId;
 
 	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
-	}
-
-	@Nullable
-	public UUID getContentId() {
-		return contentId;
-	}
-
-	public void setContentId(@Nullable UUID contentId) {
-		this.contentId = contentId;
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
+	public List<UUID> getContentIds() {
+		return contentIds;
 	}
 
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
+	public void setContentIds(@Nullable List<UUID> contentIds) {
+		this.contentIds = contentIds;
 	}
 
 	@Nullable

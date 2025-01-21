@@ -19,16 +19,18 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.PageRowContent;
+import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -39,40 +41,36 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class PageRowTagGroupApiResponse {
 	@Nonnull
-	private final UUID pageRowTagGroupId;
-	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
-	private final String tagGroupId;
-	@Nullable
-	private final Integer displayOrder;
-
+	private Integer displayOrder;
+	@Nonnull
+	private final RowTypeId rowTypeId;
+	@Nonnull
+	private final PageRowTagGroup tagGroup;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageRowTagGroupApiResponseFactory {
 		@Nonnull
-		PageRowTagGroupApiResponse create(@Nonnull PageRowTagGroup pageRowTagGroup);
+		PageRowTagGroupApiResponse create(@Nonnull PageRow pageRow);
 	}
 
 	@AssistedInject
 	public PageRowTagGroupApiResponse(@Nonnull Formatter formatter,
 																		@Nonnull Strings strings,
-																		@Assisted @Nonnull PageRowTagGroup pageRowTagGroup) {
+																		@Assisted @Nonnull PageRow pageRow,
+																		@Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
-		requireNonNull(pageRowTagGroup);
+		requireNonNull(pageRow);
+		requireNonNull(pageService);
 
-		this.pageRowTagGroupId = pageRowTagGroup.getPageRowTagGroupId();
-		this.pageRowId = pageRowTagGroup.getPageRowId();
-		this.tagGroupId = pageRowTagGroup.getTagGroupId();
-		this.displayOrder = pageRowTagGroup.getDisplayOrder();
-}
-
-	@Nonnull
-	public UUID getPageRowTagGroupId() {
-		return pageRowTagGroupId;
+		this.pageRowId = pageRow.getPageRowId();
+		this.displayOrder = pageRow.getDisplayOrder();
+		this.tagGroup = pageService.findPageRowTagGroupByRowId(pageRow.getPageRowId()).orElse(null);
+		this.rowTypeId = pageRow.getRowTypeId();
 	}
 
 	@Nonnull
@@ -81,13 +79,18 @@ public class PageRowTagGroupApiResponse {
 	}
 
 	@Nonnull
-	public String getTagGroupId() {
-		return tagGroupId;
-	}
-
-	@Nullable
 	public Integer getDisplayOrder() {
 		return displayOrder;
+	}
+
+	@Nonnull
+	public PageRowTagGroup getTagGroup() {
+		return tagGroup;
+	}
+
+	@Nonnull
+	public RowTypeId getRowTypeId() {
+		return rowTypeId;
 	}
 }
 

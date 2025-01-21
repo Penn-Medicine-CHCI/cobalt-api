@@ -24,11 +24,8 @@ import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
-import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
-import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
-import com.cobaltplatform.api.model.api.request.FindCareResourceLocationsRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
@@ -39,20 +36,16 @@ import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse.PageRow
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
-import com.cobaltplatform.api.model.db.PageRowContent;
-import com.cobaltplatform.api.model.db.PageRowGroupSession;
-import com.cobaltplatform.api.model.db.PageRowImage;
-import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -71,7 +64,6 @@ import javax.inject.Singleton;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -154,8 +146,10 @@ public class PageResource {
 
 	@POST("/pages")
 	@AuthenticationRequired
-	public ApiResponse createPage(@Nonnull @RequestBody String body) {
-		CreatePageRequest request = getRequestBodyParser().parse(body, CreatePageRequest.class);
+	public ApiResponse createPage(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		CreatePageRequest request = getRequestBodyParser().parse(requestBody, CreatePageRequest.class);
 		Account account = getCurrentContext().getAccount().get();
 
 		request.setCreatedByAccountId(account.getAccountId());
@@ -166,15 +160,19 @@ public class PageResource {
 		if (!page.isPresent())
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("page", getPageApiResponseFactory().create(page.get()));
+			put("page", getPageApiResponseFactory().create(page.get(), false));
 		}});
 	}
 
 	@GET("/pages")
 	@AuthenticationRequired
+	@ReadReplica
 	public ApiResponse pages(@Nonnull @QueryParameter Optional<Integer> pageNumber,
 													 @Nonnull @QueryParameter Optional<Integer> pageSize,
 													 @Nonnull @QueryParameter Optional<FindPagesRequest.OrderBy> orderBy) {
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+		requireNonNull(orderBy);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -191,18 +189,36 @@ public class PageResource {
 			put("totalCount", findResult.getTotalCount());
 			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 			put("pages", findResult.getResults().stream()
-					.map(careResourceLocation -> getPageApiResponseFactory().create(careResourceLocation))
+					.map(page -> getPageApiResponseFactory().create(page, false))
 					.collect(Collectors.toList()));
+		}});
+	}
+
+	@GET("/pages/{pageId}")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse page(@Nonnull @PathParameter("pageId") UUID pageId) {
+		requireNonNull(pageId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		Optional<Page> page = getPageService().findPageById(pageId);
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("page", getPageApiResponseFactory().create(page.get(), true));
 		}});
 	}
 
 	@POST("/pages/{pageId}/section")
 	@AuthenticationRequired
 	public ApiResponse createPageSection(@Nonnull @PathParameter("pageId") UUID pageId,
-																			 @Nonnull @RequestBody String body) {
+																			 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(pageId);
+		requireNonNull(requestBody);
 
-		CreatePageSectionRequest request = getRequestBodyParser().parse(body, CreatePageSectionRequest.class);
+		CreatePageSectionRequest request = getRequestBodyParser().parse(requestBody, CreatePageSectionRequest.class);
 		Account account = getCurrentContext().getAccount().get();
 
 		request.setCreatedByAccountId(account.getAccountId());
@@ -217,108 +233,79 @@ public class PageResource {
 		}});
 	}
 
-	@POST("/pages/section/{pageSectionId}/row")
+
+	@POST("/pages/row/{pageSectionId}/content")
 	@AuthenticationRequired
-	public ApiResponse createPageRow(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
-																	 @Nonnull @RequestBody String body) {
-		CreatePageRowRequest request = getRequestBodyParser().parse(body, CreatePageRowRequest.class);
+	public ApiResponse createPageRowContent(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																					@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowContentRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowContentRequest.class);
 		Account account = getCurrentContext().getAccount().get();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
-		UUID pageRowId = getPageService().createPageRow(request);
+
+		UUID pageRowId = getPageService().createPageRowContent(request);
+
 		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
+			put("pageRow", getPageRowContentApiResponseFactory().create(pageRow.get()));
 		}});
 	}
 
-	@POST("/pages/row/{pageRowId}/content")
+	@POST("/pages/row/{pageSectionId}/tag-group")
 	@AuthenticationRequired
-	public ApiResponse createPageRowContent(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
-																					@Nonnull @RequestBody String body) {
-		CreatePageRowContentRequest request = getRequestBodyParser().parse(body, CreatePageRowContentRequest.class);
+	public ApiResponse createPageRowTagGroup(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																					@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowTagGroupRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowTagGroupRequest.class);
 		Account account = getCurrentContext().getAccount().get();
 
 		request.setCreatedByAccountId(account.getAccountId());
-		request.setPageRowId(pageRowId);
+		request.setPageSectionId(pageSectionId);
 
-		UUID pageRowContentId = getPageService().createPageRowContent(request);
+		UUID pageRowId = getPageService().createPageTagGroup(request);
 
-		Optional<PageRowContent> pageRowContent = getPageService().findPageRowContentById(pageRowContentId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
 
-		if (!pageRowContent.isPresent())
+		if (!pageRow.isPresent())
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("pageRowContent", getPageRowContentApiResponseFactory().create(pageRowContent.get()));
+			put("pageRow", getPageRowTagGroupApiResponseFactory().create(pageRow.get()));
 		}});
 	}
 
-	@POST("/pages/row/{pageRowId}/tag-group")
+	@POST("/pages/row/{pageSectionId}/group-session")
 	@AuthenticationRequired
-	public ApiResponse createPageRowTagGroup(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
-																					@Nonnull @RequestBody String body) {
-		CreatePageRowTagGroupRequest request = getRequestBodyParser().parse(body, CreatePageRowTagGroupRequest.class);
+	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																							 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowGroupSessionRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowGroupSessionRequest.class);
 		Account account = getCurrentContext().getAccount().get();
 
 		request.setCreatedByAccountId(account.getAccountId());
-		request.setPageRowId(pageRowId);
+		request.setPageSectionId(pageSectionId);
 
-		UUID pageRowTagGroupId = getPageService().createPageTagGroup(request);
+		UUID pageId = getPageService().createPageRowGroupSession(request);
 
-		Optional<PageRowTagGroup> pageRowTagGroup = getPageService().findPageRowTagGroupById(pageRowTagGroupId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
 
-		if (!pageRowTagGroup.isPresent())
+		if (!pageRow.isPresent())
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("pageRowTagGroup", getPageRowTagGroupApiResponseFactory().create(pageRowTagGroup.get()));
+			put("pageRow", getPageRowGroupSessionApiResponseFactory().create(pageRow.get()));
 		}});
 	}
 
-	@POST("/pages/row/{pageRowId}/group-session")
-	@AuthenticationRequired
-	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
-																							 @Nonnull @RequestBody String body) {
-		CreatePageRowGroupSessionRequest request = getRequestBodyParser().parse(body, CreatePageRowGroupSessionRequest.class);
-		Account account = getCurrentContext().getAccount().get();
-
-		request.setCreatedByAccountId(account.getAccountId());
-		request.setPageRowId(pageRowId);
-
-		UUID pageRowGroupSessionId = getPageService().createPageRowGroupSession(request);
-
-		Optional<PageRowGroupSession> pageRowGroupSession = getPageService().findPageRowGroupSessionById(pageRowGroupSessionId);
-
-		if (!pageRowGroupSession.isPresent())
-			throw new NotFoundException();
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("pageRowGroupSession", getPageRowGroupSessionApiResponseFactory().create(pageRowGroupSession.get()));
-		}});
-	}
-
-	@POST("/pages/row/{pageRowId}/image")
-	@AuthenticationRequired
-	public ApiResponse createPageRowImage(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
-																				@Nonnull @RequestBody String body) {
-		CreatePageRowImageRequest request = getRequestBodyParser().parse(body, CreatePageRowImageRequest.class);
-		Account account = getCurrentContext().getAccount().get();
-
-		request.setCreatedByAccountId(account.getAccountId());
-		request.setPageRowId(pageRowId);
-
-		UUID pageRowImageId = getPageService().createPageRowImage(request);
-
-		Optional<PageRowImage> pageRowImage = getPageService().findPageRowImageById(pageRowImageId);
-
-		if (!pageRowImage.isPresent())
-			throw new NotFoundException();
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("pageRowImage", getPageRowImageApiResponseFactory().create(pageRowImage.get()));
-		}});
-	}
 
 	@Nonnull
 	@POST("/pages/file-presigned-upload")

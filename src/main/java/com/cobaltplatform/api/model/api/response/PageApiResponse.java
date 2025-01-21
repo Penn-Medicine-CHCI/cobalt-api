@@ -19,13 +19,10 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse.ContentAudienceTypeApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
-import com.cobaltplatform.api.model.db.Content;
-import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
-import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
+
 import com.cobaltplatform.api.model.db.Page;
-import com.cobaltplatform.api.service.ContentService;
+import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -37,11 +34,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -82,22 +76,30 @@ public class PageApiResponse {
 	private final Instant lastUpdated;
 	@Nullable
 	private final String lastUpdatedDescription;
+	@Nullable
+	private final List<PageSectionApiResponse> pageSections;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageApiResponseFactory {
 		@Nonnull
-		PageApiResponse create(@Nonnull Page page);
+		PageApiResponse create(@Nonnull Page page,
+													 @Nonnull Boolean includeDetails);
 	}
 
 	@AssistedInject
 	public PageApiResponse(@Nonnull Formatter formatter,
 												 @Nonnull Strings strings,
-												 @Assisted @Nonnull Page page) {
+												 @Assisted @Nonnull Page page,
+												 @Assisted @Nonnull Boolean includeDetails,
+												 @Nonnull PageService pageService,
+												 @Nonnull PageSectionApiResponseFactory pageSectionApiResponseFactory) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(page);
+		requireNonNull(pageService);
+		requireNonNull(pageSectionApiResponseFactory);
 
 		this.pageId = page.getPageId();
 		this.name = page.getName();
@@ -111,10 +113,16 @@ public class PageApiResponse {
 		this.publishedDate = page.getPublishedDate();
 		this.publishedDateDescription = this.publishedDate == null ? "Not Published" : formatter.formatDate(this.publishedDate, FormatStyle.MEDIUM);
 		this.created = page.getCreated();
-		this.createdDescription = formatter.formatTimestamp(page.getCreated(), FormatStyle.MEDIUM,FormatStyle.SHORT);
+		this.createdDescription = formatter.formatTimestamp(page.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.lastUpdated = page.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM,FormatStyle.SHORT);
-}
+		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+
+		if (includeDetails)
+			this.pageSections = pageService.findPageSectionByPageId(page.getPageId())
+					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).collect(Collectors.toList());
+		else
+			this.pageSections = new ArrayList<>();
+	}
 
 	@Nonnull
 	public UUID getPageId() {
@@ -189,6 +197,11 @@ public class PageApiResponse {
 	@Nullable
 	public String getLastUpdatedDescription() {
 		return lastUpdatedDescription;
+	}
+
+	@Nullable
+	public List<PageSectionApiResponse> getPageSections() {
+		return pageSections;
 	}
 }
 

@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -32,19 +31,9 @@ public class PageRowGroupSession {
 	@Nullable
 	private UUID pageRowGroupSessionId;
 	@Nullable
-	private UUID pageRowId;
-	@Nullable
 	private UUID groupSessionId;
 	@Nullable
-	private Boolean deletedFlag;
-	@Nullable
-	private Integer displayOrder;
-	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
+	private Integer groupSessionDisplayOrder;
 
 	@Nullable
 	public UUID getPageRowGroupSessionId() {
@@ -53,15 +42,6 @@ public class PageRowGroupSession {
 
 	public void setPageRowGroupSessionId(@Nullable UUID pageRowGroupSessionId) {
 		this.pageRowGroupSessionId = pageRowGroupSessionId;
-	}
-
-	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
-	}
-
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
 	}
 
 	@Nullable
@@ -74,47 +54,11 @@ public class PageRowGroupSession {
 	}
 
 	@Nullable
-	public Boolean getDeletedFlag() {
-		return deletedFlag;
+	public Integer getGroupSessionDisplayOrder() {
+		return groupSessionDisplayOrder;
 	}
 
-	public void setDeletedFlag(@Nullable Boolean deletedFlag) {
-		this.deletedFlag = deletedFlag;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
-	}
-
-	@Nullable
-	public UUID getCreatedByAccountId() {
-		return createdByAccountId;
-	}
-
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
+	public void setGroupSessionDisplayOrder(@Nullable Integer groupSessionDisplayOrder) {
+		this.groupSessionDisplayOrder = groupSessionDisplayOrder;
 	}
 }

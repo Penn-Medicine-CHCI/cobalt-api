@@ -19,7 +19,10 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -28,6 +31,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -38,41 +42,37 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class PageRowGroupSessionApiResponse {
 	@Nullable
-	private UUID pageRowGroupSessionId;
-	@Nullable
 	private UUID pageRowId;
 	@Nullable
-	private UUID groupSessionId;
-	@Nullable
 	private Integer displayOrder;
-
+	@Nonnull
+	private final RowTypeId rowTypeId;
+	@Nullable
+	private List<PageRowGroupSession> groupSessions;
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageRowGroupSessionApiResponseFactory {
 		@Nonnull
-		PageRowGroupSessionApiResponse create(@Nonnull PageRowGroupSession pageRowGroupSession);
+		PageRowGroupSessionApiResponse create(@Nonnull PageRow pageRow);
 	}
 
 	@AssistedInject
 	public PageRowGroupSessionApiResponse(@Nonnull Formatter formatter,
 																				@Nonnull Strings strings,
-																				@Assisted @Nonnull PageRowGroupSession pageRowGroupSession) {
+																				@Assisted @Nonnull PageRow pageRow,
+																				@Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
-		requireNonNull(pageRowGroupSession);
+		requireNonNull(pageRow);
+		requireNonNull(pageService);
 
-		this.pageRowGroupSessionId = pageRowGroupSession.getPageRowGroupSessionId();
-		this.pageRowId = pageRowGroupSession.getPageRowId();
-		this.groupSessionId = pageRowGroupSession.getGroupSessionId();
-		this.displayOrder = pageRowGroupSession.getDisplayOrder();
+		this.pageRowId = pageRow.getPageRowId();
+		this.groupSessions = pageService.findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
+		this.displayOrder = pageRow.getDisplayOrder();
+		this.rowTypeId = pageRow.getRowTypeId();
 
 }
-
-	@Nullable
-	public UUID getPageRowGroupSessionId() {
-		return pageRowGroupSessionId;
-	}
 
 	@Nullable
 	public UUID getPageRowId() {
@@ -80,13 +80,18 @@ public class PageRowGroupSessionApiResponse {
 	}
 
 	@Nullable
-	public UUID getGroupSessionId() {
-		return groupSessionId;
+	public Integer getDisplayOrder() {
+		return displayOrder;
 	}
 
 	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
+	public List<PageRowGroupSession> getGroupSessions() {
+		return groupSessions;
+	}
+
+	@Nonnull
+	public RowTypeId getRowTypeId() {
+		return rowTypeId;
 	}
 }
 

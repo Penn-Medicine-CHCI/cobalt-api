@@ -30,21 +30,19 @@ import java.util.UUID;
 @NotThreadSafe
 public class CreatePageRowTagGroupRequest {
 	@Nullable
-	private UUID pageRowId;
+	private UUID pageSectionId;
 	@Nullable
 	private String tagGroupId;
-	@Nullable
-	private Integer displayOrder;
 	@Nullable
 	private UUID createdByAccountId;
 
 	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
@@ -54,15 +52,6 @@ public class CreatePageRowTagGroupRequest {
 
 	public void setTagGroupId(@Nullable String tagGroupId) {
 		this.tagGroupId = tagGroupId;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 
 	@Nullable

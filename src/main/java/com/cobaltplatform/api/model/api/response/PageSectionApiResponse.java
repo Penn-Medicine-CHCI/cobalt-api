@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageSection;
+import com.cobaltplatform.api.service.PageService;
+import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -29,7 +31,9 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -52,6 +56,8 @@ public class PageSectionApiResponse {
 	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private Integer displayOrder;
+	@Nonnull
+	private List<PageRowApiResponse> pageRows;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -63,11 +69,17 @@ public class PageSectionApiResponse {
 	@AssistedInject
 	public PageSectionApiResponse(@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
-																@Assisted @Nonnull PageSection pageSection) {
+																@Assisted @Nonnull PageSection pageSection,
+																@Nonnull PageRowApiResponseFactory pageRowApiResponseFactory,
+																@Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(pageSection);
+		requireNonNull(pageService);
+
+		this.pageRows = pageService.findPageRowsBySectionId(pageSection.getPageSectionId())
+				.stream().map(pageRow -> pageRowApiResponseFactory.create(pageRow)).collect(Collectors.toList());
 
 		this.pageSectionId = pageSection.getPageSectionId();
 		this.pageId = pageSection.getPageId();
@@ -111,6 +123,11 @@ public class PageSectionApiResponse {
 	@Nonnull
 	public Integer getDisplayOrder() {
 		return displayOrder;
+	}
+
+	@Nonnull
+	public List<PageRowApiResponse> getPageRows() {
+		return pageRows;
 	}
 }
 

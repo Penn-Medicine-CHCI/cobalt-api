@@ -19,9 +19,12 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowContent;
+import com.cobaltplatform.api.model.db.PageRowGroupSession;
+import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -30,8 +33,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.time.LocalDate;
-import java.time.format.FormatStyle;
+import java.util.List;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -48,7 +50,14 @@ public class PageRowApiResponse {
 	@Nonnull
 	private final RowTypeId rowTypeId;
 	@Nonnull
-	private Integer displayOrder;
+	private final Integer displayOrder;
+	@Nonnull
+	private  List<PageRowContent> contents;
+	@Nullable
+	private  List<PageRowGroupSession> groupSessions;
+	@Nullable
+	private  PageRowTagGroup tagGroup;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageRowApiResponseFactory {
@@ -59,7 +68,8 @@ public class PageRowApiResponse {
 	@AssistedInject
 	public PageRowApiResponse(@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
-														@Assisted @Nonnull PageRow pageRow) {
+														@Assisted @Nonnull PageRow pageRow,
+														@Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -69,7 +79,14 @@ public class PageRowApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.displayOrder = pageRow.getDisplayOrder();
-}
+
+		if (this.rowTypeId.equals(RowTypeId.RESOURCES))
+			this.contents = pageService.findPageRowContentByPageRowId(pageRow.getPageRowId());
+		else if (this.rowTypeId.equals(RowTypeId.GROUP_SESSIONS))
+			this.groupSessions = pageService.findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
+		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
+			this.tagGroup = pageService.findPageRowTagGroupByRowId(pageRow.getPageRowId()).orElse(null);
+	}
 
 	@Nonnull
 	public UUID getPageRowId() {
@@ -89,6 +106,21 @@ public class PageRowApiResponse {
 	@Nonnull
 	public Integer getDisplayOrder() {
 		return displayOrder;
+	}
+
+	@Nonnull
+	public List<PageRowContent> getContents() {
+		return contents;
+	}
+
+	@Nullable
+	public List<PageRowGroupSession> getGroupSessions() {
+		return groupSessions;
+	}
+
+	@Nullable
+	public PageRowTagGroup getTagGroup() {
+		return tagGroup;
 	}
 }
 

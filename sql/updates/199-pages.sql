@@ -73,50 +73,30 @@ CREATE TABLE page_row_image (
     headline TEXT NULL,
     description TEXT NULL,
     image_file_upload_id UUID NULL REFERENCES file_upload,
-    image_alt_text TEXT NULL,
-    deleted_flag BOOLEAN NOT NULL DEFAULT false,
-    display_order SMALLINT NOT NULL,
-  	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
-  	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+    image_alt_text TEXT NULL,    
+    image_display_order SMALLINT NOT NULL
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_image FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE page_row_group_session (
     page_row_group_session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     group_session_id UUID NOT NULL REFERENCES group_session,
-    deleted_flag BOOLEAN NOT NULL DEFAULT false,
-    display_order SMALLINT NOT NULL,
-  	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
-  	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+    group_session_display_order SMALLINT NOT NULL
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_group_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE page_row_content (
     page_row_content_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     content_id UUID NOT NULL REFERENCES content,
-    deleted_flag BOOLEAN NOT NULL DEFAULT false,
-    display_order SMALLINT NOT NULL,
-  	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
-  	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+    content_display_order SMALLINT NOT NULL
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_content FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE page_row_tag_group (
     page_row_tag_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
-    tag_group_id VARCHAR NOT NULL REFERENCES tag_group,
-    deleted_flag BOOLEAN NOT NULL DEFAULT false,
-    display_order SMALLINT NOT NULL,
-  	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
-  	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+    tag_group_id VARCHAR NOT NULL REFERENCES tag_group
 );
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_tag_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 
 INSERT INTO page_type
 VALUES
@@ -184,8 +164,11 @@ FROM page_row_group_session;
 
 CREATE VIEW v_page_row_tag_group
 AS 
-SELECT *
-FROM page_row_tag_group;
+SELECT prt.page_row_tag_group_id, pr.page_row_id, pr.display_order, pr.page_section_id, pr.row_type_id, 
+prt.tag_group_id, pr.created_by_account_id, pr.created, pr.last_updated
+FROM page_row_tag_group prt, page_row pr
+WHERE prt.page_row_id = pr.page_row_id
+AND pr.deleted_flag = FALSE;
 
 
 COMMIT;

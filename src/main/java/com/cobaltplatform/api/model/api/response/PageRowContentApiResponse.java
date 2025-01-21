@@ -19,15 +19,19 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Page;
+import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
+import com.cobaltplatform.api.model.db.RowType;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.List;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -38,41 +42,36 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class PageRowContentApiResponse {
 	@Nonnull
-	private final UUID pageRowContentId;
-	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
-	private final UUID contentId;
-	@Nullable
 	private final Integer displayOrder;
 
+	@Nonnull
+	private final List<PageRowContent> contents;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageRowContentApiResponseFactory {
 		@Nonnull
-		PageRowContentApiResponse create(@Nonnull PageRowContent pageRowContent);
+		PageRowContentApiResponse create(@Nonnull PageRow pageRow);
 	}
 
 	@AssistedInject
 	public PageRowContentApiResponse(@Nonnull Formatter formatter,
 																	 @Nonnull Strings strings,
-																	 @Assisted @Nonnull PageRowContent pageRowContent) {
+																	 @Assisted @Nonnull PageRow pageRow,
+																	 @Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
-		requireNonNull(pageRowContent);
+		requireNonNull(pageRow);
+		requireNonNull(pageService);
 
-		this.pageRowContentId = pageRowContent.getPageRowContentId();
-		this.pageRowId = pageRowContent.getPageRowId();
-		this.contentId = pageRowContent.getContentId();
-		this.displayOrder = pageRowContent.getDisplayOrder();
+		this.pageRowId = pageRow.getPageRowId();
+		this.contents = pageService.findPageRowContentByPageRowId(pageRow.getPageRowId());
+		this.displayOrder = pageRow.getDisplayOrder();
 }
 
-	@Nonnull
-	public UUID getPageRowContentId() {
-		return pageRowContentId;
-	}
 
 	@Nonnull
 	public UUID getPageRowId() {
@@ -80,14 +79,16 @@ public class PageRowContentApiResponse {
 	}
 
 	@Nonnull
-	public UUID getContentId() {
-		return contentId;
+	public List<PageRowContent> getContents() {
+		return contents;
 	}
 
-	@Nullable
+	@Nonnull
 	public Integer getDisplayOrder() {
 		return displayOrder;
 	}
+
+
 }
 
 

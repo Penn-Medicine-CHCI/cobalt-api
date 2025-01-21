@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -32,19 +31,7 @@ public class PageRowTagGroup {
 	@Nullable
 	private UUID pageRowTagGroupId;
 	@Nullable
-	private UUID pageRowId;
-	@Nullable
 	private String tagGroupId;
-	@Nullable
-	private Boolean deletedFlag;
-	@Nullable
-	private Integer displayOrder;
-	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
 
 	@Nullable
 	public UUID getPageRowTagGroupId() {
@@ -56,15 +43,6 @@ public class PageRowTagGroup {
 	}
 
 	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
-	}
-
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
-	}
-
-	@Nullable
 	public String getTagGroupId() {
 		return tagGroupId;
 	}
@@ -73,48 +51,4 @@ public class PageRowTagGroup {
 		this.tagGroupId = tagGroupId;
 	}
 
-	@Nullable
-	public Boolean getDeletedFlag() {
-		return deletedFlag;
-	}
-
-	public void setDeletedFlag(@Nullable Boolean deletedFlag) {
-		this.deletedFlag = deletedFlag;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
-	}
-
-	@Nullable
-	public UUID getCreatedByAccountId() {
-		return createdByAccountId;
-	}
-
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
-	}
 }

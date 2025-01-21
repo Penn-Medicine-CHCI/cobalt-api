@@ -30,7 +30,7 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PageRowImage {
+public class PageRowImage extends PageRow {
 	@Nullable
 	private UUID pageRowImageId;
 	@Nullable
@@ -46,13 +46,7 @@ public class PageRowImage {
 	@Nullable
 	private Boolean deletedFlag;
 	@Nullable
-	private Integer displayOrder;
-	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
+	private Integer imageDisplayOrder;
 
 	@Nullable
 	public UUID getPageRowImageId() {
@@ -118,38 +112,11 @@ public class PageRowImage {
 	}
 
 	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
+	public Integer getImageDisplayOrder() {
+		return imageDisplayOrder;
 	}
 
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
-	}
-
-	@Nullable
-	public UUID getCreatedByAccountId() {
-		return createdByAccountId;
-	}
-
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
+	public void setImageDisplayOrder(@Nullable Integer imageDisplayOrder) {
+		this.imageDisplayOrder = imageDisplayOrder;
 	}
 }
