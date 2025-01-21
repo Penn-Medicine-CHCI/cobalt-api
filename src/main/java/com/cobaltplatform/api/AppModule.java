@@ -124,8 +124,11 @@ import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.
 import com.cobaltplatform.api.model.api.response.PageApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse;
-import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
@@ -374,7 +377,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PageSectionApiResponse.PageSectionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageRowApiResponse.PageRowApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageRowContentApiResponse.PageRowContentApiResponseFactory.class)));
-		install((new FactoryModuleBuilder().build(PageRowImageApiResponse.PageRowImageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowColumnApiResponse.PageRowImageApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionReferrerApiResponseFactory.class)));
@@ -384,6 +387,9 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(CareResourceLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ResourcePacketApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ResourcePacketCareResourceLocationApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory.class)));
 	}
 
 	@Provides

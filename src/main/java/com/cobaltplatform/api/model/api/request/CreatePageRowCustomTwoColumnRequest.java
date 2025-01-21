@@ -28,74 +28,41 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageRowImageRequest {
+public class CreatePageRowCustomTwoColumnRequest {
 	@Nullable
-	private UUID pageRowId;
+	private UUID pageSectionId;
 	@Nullable
-	private String headline;
+	private CreatePageRowColumnRequest columnOne;
 	@Nullable
-	private String description;
-	@Nullable
-	private UUID imageFileUploadId;
-	@Nullable
-	private String imageAltText;
-	@Nullable
-	private Integer displayOrder;
+	private CreatePageRowColumnRequest columnTwo;
 	@Nullable
 	private UUID createdByAccountId;
 
 	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
-	}
-
-	@Nullable
-	public String getHeadline() {
-		return headline;
-	}
-
-	public void setHeadline(@Nullable String headline) {
-		this.headline = headline;
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public CreatePageRowColumnRequest getColumnOne() {
+		return columnOne;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
-	}
-
-	@Nullable
-	public UUID getImageFileUploadId() {
-		return imageFileUploadId;
-	}
-
-	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
-		this.imageFileUploadId = imageFileUploadId;
+	public void setColumnOne(@Nullable CreatePageRowColumnRequest columnOne) {
+		this.columnOne = columnOne;
 	}
 
 	@Nullable
-	public String getImageAltText() {
-		return imageAltText;
+	public CreatePageRowColumnRequest getColumnTwo() {
+		return columnTwo;
 	}
 
-	public void setImageAltText(@Nullable String imageAltText) {
-		this.imageAltText = imageAltText;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
+	public void setColumnTwo(@Nullable CreatePageRowColumnRequest columnTwo) {
+		this.columnTwo = columnTwo;
 	}
 
 	@Nullable

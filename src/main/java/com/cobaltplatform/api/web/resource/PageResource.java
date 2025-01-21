@@ -23,6 +23,9 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCustomThreeColumnRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
@@ -31,8 +34,11 @@ import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.Fil
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse.PageRowContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PageRowImageApiResponse.PageRowImageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -97,7 +103,12 @@ public class PageResource {
 	private final FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory;
 	@Nonnull
 	private final PageRowApiResponseFactory pageRowApiResponseFactory;
-
+	@Nonnull
+	private final PageCustomOneColumnApiResponseFactory pageCustomOneColumnApiResponseFactory;
+	@Nonnull
+	private final PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory;
+	@Nonnull
+	private final PageCustomThreeColumnApiResponseFactory pageRowCustomThreeColumnApiResponseFactory;
 	@Nonnull
 	private final PageService pageService;
 	@Nonnull
@@ -115,6 +126,9 @@ public class PageResource {
 											@Nonnull PageRowGroupSessionApiResponseFactory pageRowGroupSessionApiResponseFactory,
 											@Nonnull FileUploadResultApiResponseFactory fileUploadResultApiResponseFactory,
 											@Nonnull PageRowTagGroupApiResponseFactory pageRowTagGroupApiResponseFactory,
+											@Nonnull PageCustomOneColumnApiResponseFactory pageCustomOneColumnApiResponseFactory,
+											@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
+											@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -128,6 +142,9 @@ public class PageResource {
 		requireNonNull(pageRowGroupSessionApiResponseFactory);
 		requireNonNull(fileUploadResultApiResponseFactory);
 		requireNonNull(pageRowTagGroupApiResponseFactory);
+		requireNonNull(pageCustomOneColumnApiResponseFactory);
+		requireNonNull(pageCustomTwoColumnApiResponseFactory);
+		requireNonNull(pageCustomThreeColumnApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -141,6 +158,9 @@ public class PageResource {
 		this.pageRowGroupSessionApiResponseFactory = pageRowGroupSessionApiResponseFactory;
 		this.fileUploadResultApiResponseFactory = fileUploadResultApiResponseFactory;
 		this.pageRowTagGroupApiResponseFactory = pageRowTagGroupApiResponseFactory;
+		this.pageCustomOneColumnApiResponseFactory = pageCustomOneColumnApiResponseFactory;
+		this.pageCustomTwoColumnApiResponseFactory = pageCustomTwoColumnApiResponseFactory;
+		this.pageRowCustomThreeColumnApiResponseFactory = pageCustomThreeColumnApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -261,7 +281,7 @@ public class PageResource {
 	@POST("/pages/row/{pageSectionId}/tag-group")
 	@AuthenticationRequired
 	public ApiResponse createPageRowTagGroup(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
-																					@Nonnull @RequestBody String requestBody) {
+																					 @Nonnull @RequestBody String requestBody) {
 		requireNonNull(pageSectionId);
 		requireNonNull(requestBody);
 
@@ -306,6 +326,78 @@ public class PageResource {
 		}});
 	}
 
+	@POST("/pages/row/{pageSectionId}/custom-one-column")
+	@AuthenticationRequired
+	public ApiResponse createPageRowCustomOneColumn(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																									@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowCustomOneColumnRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCustomOneColumnRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
+
+		UUID pageId = getPageService().createPageRowOneColumn(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageCustomOneColumnApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@POST("/pages/row/{pageSectionId}/custom-two-column")
+	@AuthenticationRequired
+	public ApiResponse createPageRowCustomTwoColumn(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																									@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowCustomTwoColumnRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCustomTwoColumnRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
+
+		UUID pageId = getPageService().createPageRowTwoColumn(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageCustomTwoColumnApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+
+	@POST("/pages/row/{pageSectionId}/custom-three-column")
+	@AuthenticationRequired
+	public ApiResponse createPageRowCustomThreeColumn(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																										@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowCustomThreeColumnRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCustomThreeColumnRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
+
+		UUID pageId = getPageService().createPageRowThreeColumn(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowCustomThreeColumnApiResponseFactory().create(pageRow.get()));
+		}});
+	}
 
 	@Nonnull
 	@POST("/pages/file-presigned-upload")
@@ -383,5 +475,20 @@ public class PageResource {
 	@Nonnull
 	public PageRowTagGroupApiResponseFactory getPageRowTagGroupApiResponseFactory() {
 		return pageRowTagGroupApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageCustomOneColumnApiResponseFactory getPageCustomOneColumnApiResponseFactory() {
+		return pageCustomOneColumnApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageCustomTwoColumnApiResponseFactory getPageCustomTwoColumnApiResponseFactory() {
+		return pageCustomTwoColumnApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageCustomThreeColumnApiResponseFactory getPageRowCustomThreeColumnApiResponseFactory() {
+		return pageRowCustomThreeColumnApiResponseFactory;
 	}
 }

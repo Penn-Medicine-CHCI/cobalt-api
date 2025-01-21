@@ -24,6 +24,9 @@ import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -56,6 +59,12 @@ public class PageRowApiResponse {
 	@Nullable
 	private  List<PageRowGroupSession> groupSessions;
 	@Nullable
+	private PageRowCustomOneColumnApiResponse pageRowOneColumn;
+	@Nullable
+	private PageRowCustomTwoColumnApiResponse pageRowTwoColumn;
+	@Nullable
+	private PageRowCustomThreeColumnApiResponse pageRowThreeColumn;
+	@Nullable
 	private  PageRowTagGroup tagGroup;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -69,11 +78,17 @@ public class PageRowApiResponse {
 	public PageRowApiResponse(@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Assisted @Nonnull PageRow pageRow,
-														@Nonnull PageService pageService) {
+														@Nonnull PageService pageService,
+														@Nonnull PageCustomOneColumnApiResponseFactory pageCustomOneColumnApiResponseFactory,
+														@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
+														@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(pageRow);
+		requireNonNull(pageCustomOneColumnApiResponseFactory);
+		requireNonNull(pageCustomTwoColumnApiResponseFactory);
+		requireNonNull(pageCustomThreeColumnApiResponseFactory);
 
 		this.pageRowId = pageRow.getPageRowId();
 		this.pageSectionId = pageRow.getPageSectionId();
@@ -86,6 +101,12 @@ public class PageRowApiResponse {
 			this.groupSessions = pageService.findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
 		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = pageService.findPageRowTagGroupByRowId(pageRow.getPageRowId()).orElse(null);
+		else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
+			this.pageRowOneColumn = pageCustomOneColumnApiResponseFactory.create(pageRow);
+		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE))
+			this.pageRowTwoColumn = pageCustomTwoColumnApiResponseFactory.create(pageRow);
+		else if (this.rowTypeId.equals(RowTypeId.THREE_COLUMN_IMAGE))
+			this.pageRowThreeColumn = pageCustomThreeColumnApiResponseFactory.create(pageRow);
 	}
 
 	@Nonnull
@@ -121,6 +142,21 @@ public class PageRowApiResponse {
 	@Nullable
 	public PageRowTagGroup getTagGroup() {
 		return tagGroup;
+	}
+
+	@Nullable
+	public PageRowCustomOneColumnApiResponse getPageRowOneColumn() {
+		return pageRowOneColumn;
+	}
+
+	@Nullable
+	public PageRowCustomTwoColumnApiResponse getPageRowTwoColumn() {
+		return pageRowTwoColumn;
+	}
+
+	@Nullable
+	public PageRowCustomThreeColumnApiResponse getPageRowThreeColumn() {
+		return pageRowThreeColumn;
 	}
 }
 

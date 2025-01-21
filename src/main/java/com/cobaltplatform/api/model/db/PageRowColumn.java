@@ -19,20 +19,17 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PageRowImage extends PageRow {
+public class PageRowColumn {
 	@Nullable
-	private UUID pageRowImageId;
+	private UUID pageRowColumnId;
 	@Nullable
 	private UUID pageRowId;
 	@Nullable
@@ -44,17 +41,15 @@ public class PageRowImage extends PageRow {
 	@Nullable
 	private String imageAltText;
 	@Nullable
-	private Boolean deletedFlag;
-	@Nullable
-	private Integer imageDisplayOrder;
+	private Integer columnDisplayOrder;
 
 	@Nullable
-	public UUID getPageRowImageId() {
-		return pageRowImageId;
+	public UUID getPageRowColumnId() {
+		return pageRowColumnId;
 	}
 
-	public void setPageRowImageId(@Nullable UUID pageRowImageId) {
-		this.pageRowImageId = pageRowImageId;
+	public void setPageRowColumnId(@Nullable UUID pageRowColumnId) {
+		this.pageRowColumnId = pageRowColumnId;
 	}
 
 	@Nullable
@@ -103,20 +98,11 @@ public class PageRowImage extends PageRow {
 	}
 
 	@Nullable
-	public Boolean getDeletedFlag() {
-		return deletedFlag;
+	public Integer getColumnDisplayOrder() {
+		return columnDisplayOrder;
 	}
 
-	public void setDeletedFlag(@Nullable Boolean deletedFlag) {
-		this.deletedFlag = deletedFlag;
-	}
-
-	@Nullable
-	public Integer getImageDisplayOrder() {
-		return imageDisplayOrder;
-	}
-
-	public void setImageDisplayOrder(@Nullable Integer imageDisplayOrder) {
-		this.imageDisplayOrder = imageDisplayOrder;
+	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
+		this.columnDisplayOrder = columnDisplayOrder;
 	}
 }

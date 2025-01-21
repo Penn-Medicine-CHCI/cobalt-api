@@ -67,14 +67,14 @@ CREATE TABLE page_row (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
-CREATE TABLE page_row_image (
-    page_row_image_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE page_row_column (
+    page_row_column_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     headline TEXT NULL,
     description TEXT NULL,
     image_file_upload_id UUID NULL REFERENCES file_upload,
     image_alt_text TEXT NULL,    
-    image_display_order SMALLINT NOT NULL
+    column_display_order SMALLINT NOT NULL
 );
 
 CREATE TABLE page_row_group_session (
@@ -146,10 +146,10 @@ SELECT *
 FROM page_row
 WHERE deleted_flag = false;
 
-CREATE VIEW v_page_row_image
+CREATE VIEW v_page_row_column
 AS 
 SELECT *
-FROM page_row_image;
+FROM page_row_column;
 
 CREATE VIEW v_page_row_content
 AS 

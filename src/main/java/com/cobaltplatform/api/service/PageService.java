@@ -22,9 +22,12 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCustomThreeColumnRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
-import com.cobaltplatform.api.model.api.request.CreatePageRowImageRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
@@ -35,7 +38,7 @@ import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
-import com.cobaltplatform.api.model.db.PageRowImage;
+import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
@@ -306,28 +309,123 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<PageRowImage> findPageRowImageById(@Nullable UUID pageRowImageId) {
-		requireNonNull(pageRowImageId);
+	public Optional<PageRowColumn> findPageRowImageByPageRowIdAndDisplayOrder(@Nullable UUID pageRowId,
+																																						@Nullable Integer displayOrder) {
+		requireNonNull(pageRowId);
+		requireNonNull(displayOrder);
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM v_page_row_image
-				WHERE page_row_image_id = ?
-				""", PageRowImage.class, pageRowImageId);
+				FROM v_page_row_column
+				WHERE page_row_id = ?
+				AND column_display_order = ?
+				""", PageRowColumn.class, pageRowId, displayOrder);
 	}
 
 	@Nonnull
-	public UUID createPageRowImage(@Nonnull CreatePageRowImageRequest request) {
+	public UUID createPageRowOneColumn(@Nonnull CreatePageRowCustomOneColumnRequest request) {
 		requireNonNull(request);
 
+		UUID pageSectionId = request.getPageSectionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageSectionId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer displayOrder = findNextRowDisplayOrderByPageSectionId(pageSectionId);
+
+		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
+		createPageRowRequest.setPageSectionId(pageSectionId);
+		createPageRowRequest.setCreatedByAccountId(createdByAccountId);
+		createPageRowRequest.setDisplayOrder(displayOrder);
+		createPageRowRequest.setRowTypeId(RowTypeId.ONE_COLUMN_IMAGE);
+
+		UUID pageRowId = createPageRow(createPageRowRequest);
+
+		createPageRowColumn(request.getColumnOne(), pageRowId);
+
+		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID createPageRowTwoColumn(@Nonnull CreatePageRowCustomTwoColumnRequest request) {
+		requireNonNull(request);
+
+		UUID pageSectionId = request.getPageSectionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageSectionId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer displayOrder = findNextRowDisplayOrderByPageSectionId(pageSectionId);
+
+		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
+		createPageRowRequest.setPageSectionId(pageSectionId);
+		createPageRowRequest.setCreatedByAccountId(createdByAccountId);
+		createPageRowRequest.setDisplayOrder(displayOrder);
+		createPageRowRequest.setRowTypeId(RowTypeId.TWO_COLUMN_IMAGE);
+
+		UUID pageRowId = createPageRow(createPageRowRequest);
+
+		createPageRowColumn(request.getColumnOne(), pageRowId);
+		createPageRowColumn(request.getColumnTwo(), pageRowId);
+
+		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID createPageRowThreeColumn(@Nonnull CreatePageRowCustomThreeColumnRequest request) {
+		requireNonNull(request);
+
+		UUID pageSectionId = request.getPageSectionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageSectionId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer displayOrder = findNextRowDisplayOrderByPageSectionId(pageSectionId);
+
+		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
+		createPageRowRequest.setPageSectionId(pageSectionId);
+		createPageRowRequest.setCreatedByAccountId(createdByAccountId);
+		createPageRowRequest.setDisplayOrder(displayOrder);
+		createPageRowRequest.setRowTypeId(RowTypeId.THREE_COLUMN_IMAGE);
+
+		UUID pageRowId = createPageRow(createPageRowRequest);
+
+		createPageRowColumn(request.getColumnOne(), pageRowId);
+		createPageRowColumn(request.getColumnTwo(), pageRowId);
+		createPageRowColumn(request.getColumnThree(), pageRowId);
+
+		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID createPageRowColumn(@Nonnull CreatePageRowColumnRequest request,
+																	@Nonnull UUID pageRowId) {
+		requireNonNull(request);
+		requireNonNull(pageRowId);
+
 		UUID pageRowImageId = UUID.randomUUID();
-		UUID pageRowId = request.getPageRowId();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		UUID imageFileUploadId = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
-		UUID createdByAccountId = request.getCreatedByAccountId();
-		Integer displayOrder = request.getDisplayOrder();
 
 		ValidationException validationException = new ValidationException();
 
@@ -337,19 +435,18 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		if (displayOrder == null)
-			displayOrder = getDatabase().queryForObject("""
-					SELECT COALESCE(MAX(display_order) + 1, 0)
-					FROM v_page_row_image
-					WHERE page_row_id = ?
-					""", Integer.class, pageRowId).get();
+		Integer displayOrder = getDatabase().queryForObject("""
+				SELECT COALESCE(MAX(column_display_order) + 1, 0)
+				FROM v_page_row_column
+				WHERE page_row_id = ?
+				""", Integer.class, pageRowId).get();
 
 		getDatabase().execute("""
-				INSERT INTO page_row_image
-				  (page_row_image_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, display_order, created_by_account_id)
+				INSERT INTO page_row_column
+				  (page_row_column_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, column_display_order)
 				VALUES
-				  (?,?,?,?,?,?,?,?)   
-				""", pageRowImageId, pageRowId, headline, description, imageFileUploadId, imageAltText, displayOrder, createdByAccountId);
+				  (?,?,?,?,?,?,?)   
+				""", pageRowImageId, pageRowId, headline, description, imageFileUploadId, imageAltText, displayOrder);
 
 		return pageRowImageId;
 	}
@@ -357,11 +454,12 @@ public class PageService {
 	@Nonnull
 	private Integer findNextRowDisplayOrderByPageSectionId(@Nonnull UUID pageSectionId) {
 		return getDatabase().queryForObject("""
-					SELECT COALESCE(MAX(display_order) + 1, 0)
-					FROM v_page_row
-					WHERE page_section_id = ?
-					""", Integer.class, pageSectionId).get();
+				SELECT COALESCE(MAX(display_order) + 1, 0)
+				FROM v_page_row
+				WHERE page_section_id = ?
+				""", Integer.class, pageSectionId).get();
 	}
+
 	@Nonnull
 	public List<PageRowContent> findPageRowContentByPageRowId(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
@@ -389,7 +487,7 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Integer	displayOrder = findNextRowDisplayOrderByPageSectionId(pageSectionId);
+		Integer displayOrder = findNextRowDisplayOrderByPageSectionId(pageSectionId);
 
 		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
 		createPageRowRequest.setPageSectionId(pageSectionId);
@@ -417,12 +515,13 @@ public class PageService {
 	public Optional<PageRowTagGroup> findPageRowTagGroupByRowId(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
-		return getDatabase().	queryForObject("""
+		return getDatabase().queryForObject("""
 				SELECT *
 				FROM v_page_row_tag_group
 				WHERE page_row_id = ?
 				""", PageRowTagGroup.class, pageRowId);
 	}
+
 	@Nonnull
 	public UUID createPageTagGroup(@Nonnull CreatePageRowTagGroupRequest request) {
 		requireNonNull(request);
@@ -444,11 +543,11 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Integer	displayOrder = getDatabase().queryForObject("""
-					SELECT COALESCE(MAX(display_order) + 1, 0)
-					FROM v_page_row
-					WHERE page_section_id = ?
-					""", Integer.class, pageSectionId).get();
+		Integer displayOrder = getDatabase().queryForObject("""
+				SELECT COALESCE(MAX(display_order) + 1, 0)
+				FROM v_page_row
+				WHERE page_section_id = ?
+				""", Integer.class, pageSectionId).get();
 
 		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
 		createPageRowRequest.setPageSectionId(pageSectionId);
@@ -495,7 +594,7 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		Integer	displayOrder = findNextRowDisplayOrderByPageSectionId(pageSectionId);
+		Integer displayOrder = findNextRowDisplayOrderByPageSectionId(pageSectionId);
 
 		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
 		createPageRowRequest.setPageSectionId(pageSectionId);
@@ -509,9 +608,9 @@ public class PageService {
 		for (UUID groupSessionId : groupSessionIds) {
 			getDatabase().execute("""
 					INSERT INTO page_row_group_session
-				    (page_row_id, group_session_id, group_session_display_order)
-				  VALUES
-				    (?,?,?)   
+					   (page_row_id, group_session_id, group_session_display_order)
+					 VALUES
+					   (?,?,?)   
 					""", pageRowId, groupSessionId, groupSessionDisplayOrder);
 			groupSessionDisplayOrder++;
 		}
@@ -597,6 +696,7 @@ public class PageService {
 		return (FindResult<Page>) findResult;
 
 	}
+
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();

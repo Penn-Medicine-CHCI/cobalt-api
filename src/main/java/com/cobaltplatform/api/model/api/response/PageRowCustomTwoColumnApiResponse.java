@@ -19,14 +19,15 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.PageRowImage;
+import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.UUID;
 
@@ -36,81 +37,60 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
-public class PageRowImageApiResponse {
-	@Nullable
-	private UUID pageRowImageId;
-	@Nullable
-	private UUID pageRowId;
-	@Nullable
-	private String headline;
-	@Nullable
-	private String description;
-	@Nullable
-	private UUID imageFileUploadId;
-	@Nullable
-	private String imageAltText;
-	@Nullable
-	private Integer displayOrder;
+public class PageRowCustomTwoColumnApiResponse {
+	@Nonnull
+	private final UUID pageRowId;
+	@Nonnull
+	private final Integer displayOrder;
+	@Nonnull
+	private final PageRowColumn columnOne;
+
+	@Nonnull
+	private final PageRowColumn columnTwo;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface PageRowImageApiResponseFactory {
+	public interface PageCustomTwoColumnApiResponseFactory {
 		@Nonnull
-		PageRowImageApiResponse create(@Nonnull PageRowImage pageRowImage);
+		PageRowCustomTwoColumnApiResponse create(@Nonnull PageRow pageRow);
 	}
 
 	@AssistedInject
-	public PageRowImageApiResponse(@Nonnull Formatter formatter,
-																 @Nonnull Strings strings,
-																 @Assisted @Nonnull PageRowImage pageRowImage) {
+	public PageRowCustomTwoColumnApiResponse(@Nonnull Formatter formatter,
+																					 @Nonnull Strings strings,
+																					 @Assisted @Nonnull PageRow pageRow,
+																					 @Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
-		requireNonNull(pageRowImage);
+		requireNonNull(pageRow);
+		requireNonNull(pageService);
 
-		this.pageRowImageId = pageRowImage.getPageRowImageId();
-		this.pageRowId = pageRowImage.getPageRowId();
-		this.headline = pageRowImage.getHeadline();
-		this.description = pageRowImage.getDescription();
-		this.imageFileUploadId = pageRowImage.getImageFileUploadId();
-		this.imageAltText = pageRowImage.getImageAltText();
-		this.displayOrder = pageRowImage.getDisplayOrder();
-
+		this.pageRowId = pageRow.getPageRowId();
+		this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+		this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
+		this.displayOrder = pageRow.getDisplayOrder();
 }
 
-	@Nullable
-	public UUID getPageRowImageId() {
-		return pageRowImageId;
-	}
 
-	@Nullable
+	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
 	}
 
-	@Nullable
-	public String getHeadline() {
-		return headline;
+	@Nonnull
+	public PageRowColumn getColumnOne() {
+		return columnOne;
 	}
 
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	@Nullable
-	public UUID getImageFileUploadId() {
-		return imageFileUploadId;
-	}
-
-	@Nullable
-	public String getImageAltText() {
-		return imageAltText;
-	}
-
-	@Nullable
+	@Nonnull
 	public Integer getDisplayOrder() {
 		return displayOrder;
+	}
+
+	@Nonnull
+	public PageRowColumn getColumnTwo() {
+		return columnTwo;
 	}
 }
 
