@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
@@ -106,22 +107,27 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<Page> findPageById(@Nullable UUID pageId) {
+	public Optional<Page> findPageById(@Nullable UUID pageId,
+																		 @Nullable InstitutionId institutionId) {
 		requireNonNull(pageId);
+		requireNonNull(institutionId);
 
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM v_page
 				WHERE page_id = ?
-				""", Page.class, pageId);
+				AND institution_id = ?
+				""", Page.class, pageId, institutionId);
 	}
 
 	@Nonnull
-	private void validatePublishedPage(@Nonnull UUID pageId) {
+	private void validatePublishedPage(@Nonnull UUID pageId,
+																		 @Nonnull InstitutionId institutionId) {
 		requireNonNull(pageId);
+		requireNonNull(institutionId);
 
 		ValidationException validationException = new ValidationException();
-		Optional<Page> page = findPageById(pageId);
+		Optional<Page> page = findPageById(pageId, institutionId);
 
 		if (!page.isPresent())
 			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
@@ -164,7 +170,7 @@ public class PageService {
 			throw validationException;
 
 		if (pageStatusId.equals(PageStatusId.LIVE)) {
-			validatePublishedPage(pageId);
+			validatePublishedPage(pageId, institutionId);
 			publishedDate = Instant.now();
 		}
 
@@ -215,6 +221,8 @@ public class PageService {
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		PageStatusId pageStatusId = request.getPageStatusId();
 		Integer displayOrder = request.getDisplayOrder();
+		InstitutionId institutionId = request.getInstitutionId();
+
 		ValidationException validationException = new ValidationException();
 
 		if (pageId == null)
@@ -223,12 +231,14 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("pageStatusId", getStrings().get("Page Status is required.")));
 		if (backgroundColorId == null)
 			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
+		if (institutionId == null)
+			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
 		if (pageStatusId.equals(PageStatusId.LIVE))
-			validatePublishedPage(pageId);
+			validatePublishedPage(pageId,  institutionId);
 
 		if (displayOrder == null)
 			displayOrder = getDatabase().queryForObject("""
@@ -248,6 +258,51 @@ public class PageService {
 	}
 
 	@Nonnull
+	public UUID updatePageSection(@Nonnull UpdatePageSectionRequest request) {
+		requireNonNull(request);
+
+		UUID pageSectionId = request.getPageSectionId();
+		String name = trimToNull(request.getName());
+		String headline = trimToNull(request.getHeadline());
+		String description = trimToNull(request.getDescription());
+		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
+		Integer displayOrder = request.getDisplayOrder();
+
+		ValidationException validationException = new ValidationException();
+
+		Optional<PageSection> pageSection = findPageSectionById(pageSectionId);
+
+		if (!pageSection.isPresent())
+			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+		if (backgroundColorId == null)
+			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+						UPDATE page_section
+						SET display_order = 
+						CASE
+								WHEN display_order >= ? AND display_order < ? THEN display_order + 1
+								WHEN display_order <= ? AND display_order > ? THEN display_order - 1
+								ELSE display_order
+						END
+						WHERE page_section_id != ?
+						""", displayOrder, pageSection.get().getDisplayOrder(),
+				displayOrder, pageSection.get().getDisplayOrder(), pageSectionId);
+
+		getDatabase().execute("""
+				UPDATE page_section SET
+				  name=?, headline=?, description=?, background_color_id=?,
+				  display_order=?
+				WHERE page_section_id=?				   
+				""",  name, headline, description, backgroundColorId, displayOrder, pageSectionId);
+
+		return pageSectionId;
+	}
+
+	@Nonnull
 	public Optional<PageRow> findPageRowById(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
@@ -256,6 +311,19 @@ public class PageService {
 				FROM v_page_row
 				WHERE page_row_id = ?
 				""", PageRow.class, pageRowId);
+	}
+	@Nonnull
+	public void deletePage(@Nullable UUID pageId,
+												 @Nullable InstitutionId institutionId) {
+		requireNonNull(pageId);
+		requireNonNull(institutionId);
+
+		getDatabase().execute("""
+				UPDATE page
+				SET deleted_flag = TRUE
+				WHERE page_id = ?
+				AND institution_id = ?
+				""", pageId,institutionId);
 	}
 
 	@Nonnull

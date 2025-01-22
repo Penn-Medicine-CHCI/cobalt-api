@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
@@ -49,16 +50,20 @@ import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
+import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 
@@ -113,6 +118,8 @@ public class PageResource {
 	private final PageService pageService;
 	@Nonnull
 	private final Formatter formatter;
+	@Nonnull
+	private final AuthorizationService authorizationService;
 
 	@Inject
 	public PageResource(@Nonnull RequestBodyParser requestBodyParser,
@@ -129,6 +136,7 @@ public class PageResource {
 											@Nonnull PageCustomOneColumnApiResponseFactory pageCustomOneColumnApiResponseFactory,
 											@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
 											@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory,
+											@Nonnull AuthorizationService authorizationService,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -145,6 +153,7 @@ public class PageResource {
 		requireNonNull(pageCustomOneColumnApiResponseFactory);
 		requireNonNull(pageCustomTwoColumnApiResponseFactory);
 		requireNonNull(pageCustomThreeColumnApiResponseFactory);
+		requireNonNull(authorizationService);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -161,6 +170,7 @@ public class PageResource {
 		this.pageCustomOneColumnApiResponseFactory = pageCustomOneColumnApiResponseFactory;
 		this.pageCustomTwoColumnApiResponseFactory = pageCustomTwoColumnApiResponseFactory;
 		this.pageRowCustomThreeColumnApiResponseFactory = pageCustomThreeColumnApiResponseFactory;
+		this.authorizationService = authorizationService;
 		this.formatter = formatter;
 	}
 
@@ -175,7 +185,7 @@ public class PageResource {
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setInstitutionId(account.getInstitutionId());
 		UUID pageId = getPageService().createPage(request);
-		Optional<Page> page = getPageService().findPageById(pageId);
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -221,14 +231,24 @@ public class PageResource {
 		requireNonNull(pageId);
 
 		Account account = getCurrentContext().getAccount().get();
-
-		Optional<Page> page = getPageService().findPageById(pageId);
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
 
 		if (!page.isPresent())
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("page", getPageApiResponseFactory().create(page.get(), true));
 		}});
+	}
+
+	@DELETE("/pages/{pageId}")
+	@AuthenticationRequired
+	public ApiResponse deletePage(@Nonnull @PathParameter("pageId") UUID pageId) {
+		requireNonNull(pageId);
+
+		Account account = getCurrentContext().getAccount().get();
+		getPageService().deletePage(pageId, account.getInstitutionId());
+
+		return new ApiResponse();
 	}
 
 	@POST("/pages/{pageId}/section")
@@ -243,7 +263,31 @@ public class PageResource {
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageId(pageId);
+		request.setInstitutionId(account.getInstitutionId());
 		UUID pageSectionId = getPageService().createPageSection(request);
+		Optional<PageSection> pageSection = getPageService().findPageSectionById(pageSectionId);
+
+		if (!pageSection.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageSection", getPageSectionApiResponseFactory().create(pageSection.get()));
+		}});
+	}
+
+	@PUT("/pages/section/{pageSectionId}")
+	@AuthenticationRequired
+	public ApiResponse updatePageSection(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																			 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		UpdatePageSectionRequest request = getRequestBodyParser().parse(requestBody, UpdatePageSectionRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		//TODO: verify permission to update this page section
+
+		request.setPageSectionId(pageSectionId);
+
+		getPageService().updatePageSection(request);
 		Optional<PageSection> pageSection = getPageService().findPageSectionById(pageSectionId);
 
 		if (!pageSection.isPresent())
@@ -490,5 +534,10 @@ public class PageResource {
 	@Nonnull
 	public PageCustomThreeColumnApiResponseFactory getPageRowCustomThreeColumnApiResponseFactory() {
 		return pageRowCustomThreeColumnApiResponseFactory;
+	}
+
+	@Nonnull
+	public AuthorizationService getAuthorizationService() {
+		return authorizationService;
 	}
 }

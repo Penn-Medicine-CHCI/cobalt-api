@@ -20,9 +20,6 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
-import com.cobaltplatform.api.model.db.Institution;
-import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
-
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -32,9 +29,9 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageSectionRequest {
+public class UpdatePageSectionRequest {
 	@Nullable
-	private UUID pageId;
+	private UUID pageSectionId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -45,19 +42,14 @@ public class CreatePageSectionRequest {
 	private BackgroundColorId backgroundColorId;
 	@Nullable
 	private Integer displayOrder;
+
 	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private PageStatusId pageStatusId;
-	@Nullable
-	private Institution.InstitutionId institutionId;
-	@Nullable
-	public UUID getPageId() {
-		return pageId;
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	public void setPageId(@Nullable UUID pageId) {
-		this.pageId = pageId;
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
@@ -97,38 +89,11 @@ public class CreatePageSectionRequest {
 	}
 
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return createdByAccountId;
-	}
-
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public PageStatusId getPageStatusId() {
-		return pageStatusId;
-	}
-
-	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
-		this.pageStatusId = pageStatusId;
-	}
-
-	@Nullable
 	public Integer getDisplayOrder() {
 		return displayOrder;
 	}
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
-	}
-
-	@Nullable
-	public Institution.InstitutionId getInstitutionId() {
-		return institutionId;
-	}
-
-	public void setInstitutionId(@Nullable Institution.InstitutionId institutionId) {
-		this.institutionId = institutionId;
 	}
 }
