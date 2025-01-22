@@ -28,61 +28,50 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageRowColumnRequest {
-	@Nullable
-	private String headline;
-	@Nullable
-	private String description;
-	@Nullable
-	private UUID imageFileUploadId;
-	@Nullable
-	private String imageAltText;
+public class UpdatePageRowCustomThreeColumnRequest {
 
 	@Nullable
-	private Integer columnDisplayOrder;
+	private UUID pageRowId;
+	@Nullable
+	private CreatePageRowColumnRequest columnOne;
+	@Nullable
+	private CreatePageRowColumnRequest columnTwo;
 
 	@Nullable
-	public String getHeadline() {
-		return headline;
+	private CreatePageRowColumnRequest columnThree;
+	@Nullable
+	public UUID getPageRowId() {
+		return pageRowId;
 	}
 
-	public void setHeadline(@Nullable String headline) {
-		this.headline = headline;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 
 	@Nullable
-	public UUID getImageFileUploadId() {
-		return imageFileUploadId;
+	public CreatePageRowColumnRequest getColumnOne() {
+		return columnOne;
 	}
 
-	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
-		this.imageFileUploadId = imageFileUploadId;
-	}
-
-	@Nullable
-	public String getImageAltText() {
-		return imageAltText;
-	}
-
-	public void setImageAltText(@Nullable String imageAltText) {
-		this.imageAltText = imageAltText;
+	public void setColumnOne(@Nullable CreatePageRowColumnRequest columnOne) {
+		this.columnOne = columnOne;
 	}
 
 	@Nullable
-	public Integer getColumnDisplayOrder() {
-		return columnDisplayOrder;
+	public CreatePageRowColumnRequest getColumnTwo() {
+		return columnTwo;
 	}
 
-	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
-		this.columnDisplayOrder = columnDisplayOrder;
+	public void setColumnTwo(@Nullable CreatePageRowColumnRequest columnTwo) {
+		this.columnTwo = columnTwo;
+	}
+
+	@Nullable
+	public CreatePageRowColumnRequest getColumnThree() {
+		return columnThree;
+	}
+
+	public void setColumnThree(@Nullable CreatePageRowColumnRequest columnThree) {
+		this.columnThree = columnThree;
 	}
 }

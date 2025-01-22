@@ -35,6 +35,8 @@ import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
@@ -56,6 +58,7 @@ import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.arrow.flatbuf.Int;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +76,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -420,6 +424,7 @@ public class PageService {
 
 		UUID pageRowId = createPageRow(createPageRowRequest);
 
+		request.getColumnOne().setColumnDisplayOrder(0);
 		createPageRowColumn(request.getColumnOne(), pageRowId);
 
 		return pageRowId;
@@ -431,11 +436,15 @@ public class PageService {
 
 		UUID pageRowId = request.getPageRowId();
 		CreatePageRowColumnRequest columnOne = request.getColumnOne();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId);
 
 		ValidationException validationException = new ValidationException();
 
-		if (pageRowId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+		if (!pageRow.isPresent())
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+		if (pageRow.isPresent() && !pageRow.get().getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE))
+			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.ONE_COLUMN_IMAGE))));
 		if (columnOne == null)
 			validationException.add(new ValidationException.FieldError("columnOne", getStrings().get("Column one is required.")));
 
@@ -443,13 +452,112 @@ public class PageService {
 			throw validationException;
 
 		UpdatePageRowColumnRequest updatePageRowColumnRequest = new UpdatePageRowColumnRequest();
-		updatePageRowColumnRequest.setColumnDisplayOrder(1);
+		updatePageRowColumnRequest.setColumnDisplayOrder(0);
 		updatePageRowColumnRequest.setDescription(request.getColumnOne().getDescription());
 		updatePageRowColumnRequest.setHeadline(request.getColumnOne().getHeadline());
 		updatePageRowColumnRequest.setImageFileUploadId(request.getColumnOne().getImageFileUploadId());
 		updatePageRowColumnRequest.setImageAltText(request.getColumnOne().getImageAltText());
+		updatePageRowColumnRequest.setPageRowId(pageRowId);
 
 		updatePageRowColumn(updatePageRowColumnRequest);
+
+		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID updatePageRowTwoColumn(@Nonnull UpdatePageRowCustomTwoColumnRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		CreatePageRowColumnRequest columnOne = request.getColumnOne();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+
+		ValidationException validationException = new ValidationException();
+
+		if (!pageRow.isPresent())
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+		if (pageRow.isPresent() && !pageRow.get().getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE))
+			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.TWO_COLUMN_IMAGE))));
+		if (columnOne == null)
+			validationException.add(new ValidationException.FieldError("columnOne", getStrings().get("Column one is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UpdatePageRowColumnRequest updatePageRowColumnRequest1 = new UpdatePageRowColumnRequest();
+		updatePageRowColumnRequest1.setColumnDisplayOrder(0);
+		updatePageRowColumnRequest1.setDescription(request.getColumnOne().getDescription());
+		updatePageRowColumnRequest1.setHeadline(request.getColumnOne().getHeadline());
+		updatePageRowColumnRequest1.setImageFileUploadId(request.getColumnOne().getImageFileUploadId());
+		updatePageRowColumnRequest1.setImageAltText(request.getColumnOne().getImageAltText());
+		updatePageRowColumnRequest1.setPageRowId(pageRowId);
+
+		updatePageRowColumn(updatePageRowColumnRequest1);
+
+		UpdatePageRowColumnRequest updatePageRowColumnRequest2 = new UpdatePageRowColumnRequest();
+		updatePageRowColumnRequest2.setColumnDisplayOrder(1);
+		updatePageRowColumnRequest2.setDescription(request.getColumnTwo().getDescription());
+		updatePageRowColumnRequest2.setHeadline(request.getColumnTwo().getHeadline());
+		updatePageRowColumnRequest2.setImageFileUploadId(request.getColumnTwo().getImageFileUploadId());
+		updatePageRowColumnRequest2.setImageAltText(request.getColumnTwo().getImageAltText());
+		updatePageRowColumnRequest2.setPageRowId(pageRowId);
+
+		updatePageRowColumn(updatePageRowColumnRequest2);
+
+		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID updatePageRowThreeColumn(@Nonnull UpdatePageRowCustomThreeColumnRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		CreatePageRowColumnRequest columnOne = request.getColumnOne();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+
+		ValidationException validationException = new ValidationException();
+
+		if (!pageRow.isPresent())
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+		if (pageRow.isPresent() && !pageRow.get().getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE))
+			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.THREE_COLUMN_IMAGE))));
+		if (columnOne == null)
+			validationException.add(new ValidationException.FieldError("columnOne", getStrings().get("Column one is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UpdatePageRowColumnRequest updatePageRowColumnRequest1 = new UpdatePageRowColumnRequest();
+		updatePageRowColumnRequest1.setColumnDisplayOrder(0);
+		updatePageRowColumnRequest1.setDescription(request.getColumnOne().getDescription());
+		updatePageRowColumnRequest1.setHeadline(request.getColumnOne().getHeadline());
+		updatePageRowColumnRequest1.setImageFileUploadId(request.getColumnOne().getImageFileUploadId());
+		updatePageRowColumnRequest1.setImageAltText(request.getColumnOne().getImageAltText());
+		updatePageRowColumnRequest1.setPageRowId(pageRowId);
+
+		updatePageRowColumn(updatePageRowColumnRequest1);
+
+		UpdatePageRowColumnRequest updatePageRowColumnRequest2 = new UpdatePageRowColumnRequest();
+		updatePageRowColumnRequest2.setColumnDisplayOrder(1);
+		updatePageRowColumnRequest2.setDescription(request.getColumnTwo().getDescription());
+		updatePageRowColumnRequest2.setHeadline(request.getColumnTwo().getHeadline());
+		updatePageRowColumnRequest2.setImageFileUploadId(request.getColumnTwo().getImageFileUploadId());
+		updatePageRowColumnRequest2.setImageAltText(request.getColumnTwo().getImageAltText());
+		updatePageRowColumnRequest2.setPageRowId(pageRowId);
+
+		updatePageRowColumn(updatePageRowColumnRequest2);
+
+		UpdatePageRowColumnRequest updatePageRowColumnRequest3 = new UpdatePageRowColumnRequest();
+		updatePageRowColumnRequest3.setColumnDisplayOrder(2);
+		updatePageRowColumnRequest3.setDescription(request.getColumnTwo().getDescription());
+		updatePageRowColumnRequest3.setHeadline(request.getColumnTwo().getHeadline());
+		updatePageRowColumnRequest3.setImageFileUploadId(request.getColumnTwo().getImageFileUploadId());
+		updatePageRowColumnRequest3.setImageAltText(request.getColumnTwo().getImageAltText());
+		updatePageRowColumnRequest3.setPageRowId(pageRowId);
+
+		updatePageRowColumn(updatePageRowColumnRequest3);
 
 		return pageRowId;
 	}
@@ -478,6 +586,8 @@ public class PageService {
 
 		UUID pageRowId = createPageRow(createPageRowRequest);
 
+		request.getColumnOne().setColumnDisplayOrder(0);
+		request.getColumnTwo().setColumnDisplayOrder(1);
 		createPageRowColumn(request.getColumnOne(), pageRowId);
 		createPageRowColumn(request.getColumnTwo(), pageRowId);
 
@@ -509,6 +619,9 @@ public class PageService {
 
 		UUID pageRowId = createPageRow(createPageRowRequest);
 
+		request.getColumnOne().setColumnDisplayOrder(0);
+		request.getColumnTwo().setColumnDisplayOrder(1);
+		request.getColumnThree().setColumnDisplayOrder(2);
 		createPageRowColumn(request.getColumnOne(), pageRowId);
 		createPageRowColumn(request.getColumnTwo(), pageRowId);
 		createPageRowColumn(request.getColumnThree(), pageRowId);
@@ -527,27 +640,24 @@ public class PageService {
 		String description = trimToNull(request.getDescription());
 		UUID imageFileUploadId = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
+		Integer columnDisplayOrder = request.getColumnDisplayOrder();
 
 		ValidationException validationException = new ValidationException();
 
 		if (pageRowId == null)
 			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+		if (columnDisplayOrder == null)
+			validationException.add(new ValidationException.FieldError("columnDisplayOrder", getStrings().get("Column display order is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
-
-		Integer displayOrder = getDatabase().queryForObject("""
-				SELECT COALESCE(MAX(column_display_order) + 1, 0)
-				FROM v_page_row_column
-				WHERE page_row_id = ?
-				""", Integer.class, pageRowId).get();
 
 		getDatabase().execute("""
 				INSERT INTO page_row_column
 				  (page_row_column_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, column_display_order)
 				VALUES
 				  (?,?,?,?,?,?,?)   
-				""", pageRowColumnId, pageRowId, headline, description, imageFileUploadId, imageAltText, displayOrder);
+				""", pageRowColumnId, pageRowId, headline, description, imageFileUploadId, imageAltText, columnDisplayOrder);
 
 		return pageRowColumnId;
 	}
@@ -574,8 +684,8 @@ public class PageService {
 
 		getDatabase().execute("""
 				UPDATE page_row_column SET
-				headline=?, description=?, image_file_upload_id=?, image_alt_text=?)
-				WHERE page_row_column_id=? 
+				headline=?, description=?, image_file_upload_id=?, image_alt_text=?
+				WHERE page_row_id=? 
 				AND column_display_order=?
 				""",  headline, description, imageFileUploadId, imageAltText, pageRowId, columnDisplayOrder);
 
@@ -608,10 +718,15 @@ public class PageService {
 		UUID pageRowId = request.getPageRowId();
 		List<UUID> contentIds = request.getContentIds();
 
+		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+
 		ValidationException validationException = new ValidationException();
 
-		if (pageRowId == null)
+		if (!pageRow.isPresent())
 			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+		if (!pageRow.get().getRowTypeId().equals(RowTypeId.RESOURCES))
+			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.RESOURCES))));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -640,10 +755,15 @@ public class PageService {
 		UUID pageRowId = request.getPageRowId();
 		List<UUID> groupSessionIds = request.getGroupSessionIds();
 
+		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+
 		ValidationException validationException = new ValidationException();
 
-		if (pageRowId == null)
+		if (!pageRow.isPresent())
 			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+		if (!pageRow.get().getRowTypeId().equals(RowTypeId.GROUP_SESSIONS))
+			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.GROUP_SESSIONS))));
 
 		if (validationException.hasErrors())
 			throw validationException;

@@ -32,6 +32,8 @@ import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
@@ -443,10 +445,10 @@ public class PageResource {
 		}});
 	}
 
-	/*@PUT("/pages/row/{pageRowId}/custom-one-column")
+	@PUT("/pages/row/{pageRowId}/custom-one-column")
 	@AuthenticationRequired
-	public ApiResponse  updatePageRowCustomOneColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
-																									 @Nonnull @RequestBody String requestBody) {
+	public ApiResponse updatePageRowCustomOneColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																									@Nonnull @RequestBody String requestBody) {
 		requireNonNull(pageRowId);
 		requireNonNull(requestBody);
 
@@ -455,9 +457,9 @@ public class PageResource {
 
 		request.setPageRowId(pageRowId);
 
-		//UUID pageId = getPageService().update(request);
+		getPageService().updatePageRowOneColumn(request);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -465,7 +467,52 @@ public class PageResource {
 			put("pageRow", getPageCustomOneColumnApiResponseFactory().create(pageRow.get()));
 		}});
 	}
-*/
+	@PUT("/pages/row/{pageRowId}/custom-two-column")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowCustomTwoColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																									@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowCustomTwoColumnRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowCustomTwoColumnRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setPageRowId(pageRowId);
+
+		getPageService().updatePageRowTwoColumn(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageCustomTwoColumnApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@PUT("/pages/row/{pageRowId}/custom-three-column")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowCustomThreeColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																									@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowCustomThreeColumnRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowCustomThreeColumnRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setPageRowId(pageRowId);
+
+		getPageService().updatePageRowThreeColumn(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowCustomThreeColumnApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
 	@POST("/pages/row/{pageSectionId}/custom-two-column")
 	@AuthenticationRequired
 	public ApiResponse createPageRowCustomTwoColumn(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,

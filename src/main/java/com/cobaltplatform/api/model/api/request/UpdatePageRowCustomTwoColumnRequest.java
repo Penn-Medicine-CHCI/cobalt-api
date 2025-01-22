@@ -28,61 +28,38 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageRowColumnRequest {
-	@Nullable
-	private String headline;
-	@Nullable
-	private String description;
-	@Nullable
-	private UUID imageFileUploadId;
-	@Nullable
-	private String imageAltText;
+public class UpdatePageRowCustomTwoColumnRequest {
 
 	@Nullable
-	private Integer columnDisplayOrder;
-
+	private UUID pageRowId;
 	@Nullable
-	public String getHeadline() {
-		return headline;
+	private CreatePageRowColumnRequest columnOne;
+	@Nullable
+	private CreatePageRowColumnRequest columnTwo;
+	@Nullable
+	public UUID getPageRowId() {
+		return pageRowId;
 	}
 
-	public void setHeadline(@Nullable String headline) {
-		this.headline = headline;
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public CreatePageRowColumnRequest getColumnOne() {
+		return columnOne;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
-	}
-
-	@Nullable
-	public UUID getImageFileUploadId() {
-		return imageFileUploadId;
-	}
-
-	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
-		this.imageFileUploadId = imageFileUploadId;
+	public void setColumnOne(@Nullable CreatePageRowColumnRequest columnOne) {
+		this.columnOne = columnOne;
 	}
 
 	@Nullable
-	public String getImageAltText() {
-		return imageAltText;
+	public CreatePageRowColumnRequest getColumnTwo() {
+		return columnTwo;
 	}
 
-	public void setImageAltText(@Nullable String imageAltText) {
-		this.imageAltText = imageAltText;
-	}
-
-	@Nullable
-	public Integer getColumnDisplayOrder() {
-		return columnDisplayOrder;
-	}
-
-	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
-		this.columnDisplayOrder = columnDisplayOrder;
+	public void setColumnTwo(@Nullable CreatePageRowColumnRequest columnTwo) {
+		this.columnTwo = columnTwo;
 	}
 }
