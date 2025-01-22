@@ -19,10 +19,10 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.Page;
+
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
-import com.cobaltplatform.api.model.db.RowType;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -49,6 +49,9 @@ public class PageRowContentApiResponse {
 	@Nonnull
 	private final List<PageRowContent> contents;
 
+	@Nonnull
+	private final RowTypeId rowTypeId;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageRowContentApiResponseFactory {
@@ -70,6 +73,7 @@ public class PageRowContentApiResponse {
 		this.pageRowId = pageRow.getPageRowId();
 		this.contents = pageService.findPageRowContentByPageRowId(pageRow.getPageRowId());
 		this.displayOrder = pageRow.getDisplayOrder();
+		this.rowTypeId = pageRow.getRowTypeId();
 }
 
 
@@ -88,7 +92,10 @@ public class PageRowContentApiResponse {
 		return displayOrder;
 	}
 
-
+	@Nonnull
+	public RowTypeId getRowTypeId() {
+		return rowTypeId;
+	}
 }
 
 

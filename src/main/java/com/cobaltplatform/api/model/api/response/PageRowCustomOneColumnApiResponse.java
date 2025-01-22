@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -44,6 +45,9 @@ public class PageRowCustomOneColumnApiResponse {
 	private final Integer displayOrder;
 	@Nonnull
 	private final PageRowColumn columnOne;
+	@Nonnull
+	private final RowTypeId rowTypeId;
+
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -66,6 +70,7 @@ public class PageRowCustomOneColumnApiResponse {
 		this.pageRowId = pageRow.getPageRowId();
 		this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		this.displayOrder = pageRow.getDisplayOrder();
+		this.rowTypeId = pageRow.getRowTypeId();
 }
 
 
@@ -84,6 +89,10 @@ public class PageRowCustomOneColumnApiResponse {
 		return displayOrder;
 	}
 
+	@Nonnull
+	public RowTypeId getRowTypeId() {
+		return rowTypeId;
+	}
 }
 
 

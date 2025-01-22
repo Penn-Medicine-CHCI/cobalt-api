@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -48,6 +49,9 @@ public class PageRowCustomThreeColumnApiResponse {
 	private final PageRowColumn columnTwo;
 	@Nonnull
 	private final PageRowColumn columnThree;
+	@Nonnull
+	private final RowTypeId rowTypeId;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageCustomThreeColumnApiResponseFactory {
@@ -71,6 +75,7 @@ public class PageRowCustomThreeColumnApiResponse {
 		this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 		this.columnThree = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
 		this.displayOrder = pageRow.getDisplayOrder();
+		this.rowTypeId = pageRow.getRowTypeId();
 }
 
 
@@ -97,6 +102,11 @@ public class PageRowCustomThreeColumnApiResponse {
 	@Nonnull
 	public PageRowColumn getColumnThree() {
 		return columnThree;
+	}
+
+	@Nonnull
+	public RowTypeId getRowTypeId() {
+		return rowTypeId;
 	}
 }
 

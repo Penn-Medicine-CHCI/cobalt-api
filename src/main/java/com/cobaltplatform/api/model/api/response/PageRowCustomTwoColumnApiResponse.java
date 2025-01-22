@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -48,6 +49,10 @@ public class PageRowCustomTwoColumnApiResponse {
 	@Nonnull
 	private final PageRowColumn columnTwo;
 
+	@Nonnull
+	private final RowTypeId rowTypeId;
+
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageCustomTwoColumnApiResponseFactory {
@@ -70,6 +75,7 @@ public class PageRowCustomTwoColumnApiResponse {
 		this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 		this.displayOrder = pageRow.getDisplayOrder();
+		this.rowTypeId = pageRow.getRowTypeId();
 }
 
 
@@ -91,6 +97,11 @@ public class PageRowCustomTwoColumnApiResponse {
 	@Nonnull
 	public PageRowColumn getColumnTwo() {
 		return columnTwo;
+	}
+
+	@Nonnull
+	public RowTypeId getRowTypeId() {
+		return rowTypeId;
 	}
 }
 
