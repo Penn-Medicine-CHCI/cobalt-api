@@ -556,16 +556,19 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		getDatabase().execute("""
+				DELETE FROM page_row_content
+				WHERE page_row_id = ?""", pageRowId);
+
 		int contentDisplayOrder = 0;
 
 		for (UUID contentId : contentIds) {
 			getDatabase().execute("""
-					UPDATE page_row_content SET
-					content_display_order=?
-					WHERE page_row_id=? 
-					AND content_id=?   
-					""", contentDisplayOrder, pageRowId, contentId);
-
+					INSERT INTO page_row_content
+					  (page_row_id, content_id, content_display_order)
+					VALUES
+					  (?, ?, ?)   
+					""", pageRowId, contentId, contentDisplayOrder);
 			contentDisplayOrder++;
 		}
 	}
@@ -585,18 +588,22 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		getDatabase().execute("""
+				DELETE FROM page_row_group_session
+				WHERE page_row_id = ?""", pageRowId);
+
 		int groupSessionDisplayOrder = 0;
 
 		for (UUID groupSessionId : groupSessionIds) {
 			getDatabase().execute("""
-					UPDATE page_row_group_session SET
-					group_session_display_order=?
-					WHERE page_row_id=? 
-					AND group_session_id=?   
-					""", groupSessionDisplayOrder, pageRowId, groupSessionId);
-
+					INSERT INTO page_row_group_session
+					   (page_row_id, group_session_id, group_session_display_order)
+					 VALUES
+					   (?,?,?)   
+					""", pageRowId, groupSessionId, groupSessionDisplayOrder);
 			groupSessionDisplayOrder++;
 		}
+
 	}
 
 	@Nonnull
