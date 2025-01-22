@@ -32,6 +32,8 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -537,6 +539,64 @@ public class PageService {
 				FROM v_page_row_content
 				WHERE page_row_id = ?
 				""", PageRowContent.class, pageRowId);
+	}
+
+	@Nonnull
+	public void updatePageRowContent(@Nonnull UpdatePageRowContentRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		List<UUID> contentIds = request.getContentIds();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		int contentDisplayOrder = 0;
+
+		for (UUID contentId : contentIds) {
+			getDatabase().execute("""
+					UPDATE page_row_content SET
+					content_display_order=?
+					WHERE page_row_id=? 
+					AND content_id=?   
+					""", contentDisplayOrder, pageRowId, contentId);
+
+			contentDisplayOrder++;
+		}
+	}
+
+	@Nonnull
+	public void updatePageRowGroupSession(@Nonnull UpdatePageRowGroupSessionRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		List<UUID> groupSessionIds = request.getGroupSessionIds();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		int groupSessionDisplayOrder = 0;
+
+		for (UUID groupSessionId : groupSessionIds) {
+			getDatabase().execute("""
+					UPDATE page_row_group_session SET
+					group_session_display_order=?
+					WHERE page_row_id=? 
+					AND group_session_id=?   
+					""", groupSessionDisplayOrder, pageRowId, groupSessionId);
+
+			groupSessionDisplayOrder++;
+		}
 	}
 
 	@Nonnull

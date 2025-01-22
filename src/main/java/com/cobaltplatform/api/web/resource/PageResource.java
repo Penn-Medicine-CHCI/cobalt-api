@@ -30,6 +30,8 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
@@ -322,6 +324,29 @@ public class PageResource {
 		}});
 	}
 
+	@PUT("/pages/row/{pageRowId}/content")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowContent(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																					@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowContentRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowContentRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setPageRowId(pageRowId);
+
+		getPageService().updatePageRowContent(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowContentApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
 	@POST("/pages/row/{pageSectionId}/tag-group")
 	@AuthenticationRequired
 	public ApiResponse createPageRowTagGroup(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -362,6 +387,29 @@ public class PageResource {
 		UUID pageId = getPageService().createPageRowGroupSession(request);
 
 		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowGroupSessionApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@PUT("/pages/row/{pageRowId}/group-session")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowGroupSession(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																							 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowGroupSessionRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowGroupSessionRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setPageRowId(pageRowId);
+
+		getPageService().updatePageRowGroupSession(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
