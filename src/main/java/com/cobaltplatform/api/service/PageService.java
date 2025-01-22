@@ -32,7 +32,9 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
@@ -378,6 +380,7 @@ public class PageService {
 		return pageRowId;
 	}
 
+
 	@Nonnull
 	public Optional<PageRowColumn> findPageRowImageByPageRowIdAndDisplayOrder(@Nullable UUID pageRowId,
 																																						@Nullable Integer displayOrder) {
@@ -422,6 +425,34 @@ public class PageService {
 		return pageRowId;
 	}
 
+	@Nonnull
+	public UUID updatePageRowOneColumn(@Nonnull UpdatePageRowCustomOneColumnRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		CreatePageRowColumnRequest columnOne = request.getColumnOne();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+		if (columnOne == null)
+			validationException.add(new ValidationException.FieldError("columnOne", getStrings().get("Column one is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UpdatePageRowColumnRequest updatePageRowColumnRequest = new UpdatePageRowColumnRequest();
+		updatePageRowColumnRequest.setColumnDisplayOrder(1);
+		updatePageRowColumnRequest.setDescription(request.getColumnOne().getDescription());
+		updatePageRowColumnRequest.setHeadline(request.getColumnOne().getHeadline());
+		updatePageRowColumnRequest.setImageFileUploadId(request.getColumnOne().getImageFileUploadId());
+		updatePageRowColumnRequest.setImageAltText(request.getColumnOne().getImageAltText());
+
+		updatePageRowColumn(updatePageRowColumnRequest);
+
+		return pageRowId;
+	}
 	@Nonnull
 	public UUID createPageRowTwoColumn(@Nonnull CreatePageRowCustomTwoColumnRequest request) {
 		requireNonNull(request);
@@ -491,7 +522,7 @@ public class PageService {
 		requireNonNull(request);
 		requireNonNull(pageRowId);
 
-		UUID pageRowImageId = UUID.randomUUID();
+		UUID pageRowColumnId = UUID.randomUUID();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		UUID imageFileUploadId = request.getImageFileUploadId();
@@ -516,9 +547,38 @@ public class PageService {
 				  (page_row_column_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, column_display_order)
 				VALUES
 				  (?,?,?,?,?,?,?)   
-				""", pageRowImageId, pageRowId, headline, description, imageFileUploadId, imageAltText, displayOrder);
+				""", pageRowColumnId, pageRowId, headline, description, imageFileUploadId, imageAltText, displayOrder);
 
-		return pageRowImageId;
+		return pageRowColumnId;
+	}
+
+	public void updatePageRowColumn(@Nonnull UpdatePageRowColumnRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		String headline = trimToNull(request.getHeadline());
+		String description = trimToNull(request.getDescription());
+		UUID imageFileUploadId = request.getImageFileUploadId();
+		String imageAltText = trimToNull(request.getImageAltText());
+		Integer columnDisplayOrder = request.getColumnDisplayOrder();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageRowId == null)
+			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+		if (columnDisplayOrder == null)
+			validationException.add(new ValidationException.FieldError("columnDisplayOrder", getStrings().get("Display order is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE page_row_column SET
+				headline=?, description=?, image_file_upload_id=?, image_alt_text=?)
+				WHERE page_row_column_id=? 
+				AND column_display_order=?
+				""",  headline, description, imageFileUploadId, imageAltText, pageRowId, columnDisplayOrder);
+
 	}
 
 	@Nonnull

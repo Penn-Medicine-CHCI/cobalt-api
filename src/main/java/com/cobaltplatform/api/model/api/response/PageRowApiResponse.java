@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
@@ -58,12 +59,12 @@ public class PageRowApiResponse {
 	private  List<PageRowContent> contents;
 	@Nullable
 	private  List<PageRowGroupSession> groupSessions;
-	@Nullable
-	private PageRowCustomOneColumnApiResponse pageRowOneColumn;
-	@Nullable
-	private PageRowCustomTwoColumnApiResponse pageRowTwoColumn;
-	@Nullable
-	private PageRowCustomThreeColumnApiResponse pageRowThreeColumn;
+	@Nonnull
+	private PageRowColumn columnOne;
+	@Nonnull
+	private PageRowColumn columnTwo;
+	@Nonnull
+	private PageRowColumn columnThree;
 	@Nullable
 	private  PageRowTagGroup tagGroup;
 
@@ -102,11 +103,15 @@ public class PageRowApiResponse {
 		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = pageService.findPageRowTagGroupByRowId(pageRow.getPageRowId()).orElse(null);
 		else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
-			this.pageRowOneColumn = pageCustomOneColumnApiResponseFactory.create(pageRow);
-		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE))
-			this.pageRowTwoColumn = pageCustomTwoColumnApiResponseFactory.create(pageRow);
-		else if (this.rowTypeId.equals(RowTypeId.THREE_COLUMN_IMAGE))
-			this.pageRowThreeColumn = pageCustomThreeColumnApiResponseFactory.create(pageRow);
+			this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)) {
+			this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+			this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
+		} else if (this.rowTypeId.equals(RowTypeId.THREE_COLUMN_IMAGE)) {
+			this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+			this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
+			this.columnThree = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
+		}
 	}
 
 	@Nonnull
@@ -144,19 +149,19 @@ public class PageRowApiResponse {
 		return tagGroup;
 	}
 
-	@Nullable
-	public PageRowCustomOneColumnApiResponse getPageRowOneColumn() {
-		return pageRowOneColumn;
+	@Nonnull
+	public PageRowColumn getColumnOne() {
+		return columnOne;
 	}
 
-	@Nullable
-	public PageRowCustomTwoColumnApiResponse getPageRowTwoColumn() {
-		return pageRowTwoColumn;
+	@Nonnull
+	public PageRowColumn getColumnTwo() {
+		return columnTwo;
 	}
 
-	@Nullable
-	public PageRowCustomThreeColumnApiResponse getPageRowThreeColumn() {
-		return pageRowThreeColumn;
+	@Nonnull
+	public PageRowColumn getColumnThree() {
+		return columnThree;
 	}
 }
 

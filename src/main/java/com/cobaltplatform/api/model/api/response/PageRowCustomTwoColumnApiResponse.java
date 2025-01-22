@@ -51,7 +51,8 @@ public class PageRowCustomTwoColumnApiResponse {
 
 	@Nonnull
 	private final RowTypeId rowTypeId;
-
+	@Nonnull
+	private final UUID pageSectionId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -72,10 +73,11 @@ public class PageRowCustomTwoColumnApiResponse {
 		requireNonNull(pageService);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.rowTypeId = pageRow.getRowTypeId();
+		this.displayOrder = pageRow.getDisplayOrder();
 		this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
-		this.displayOrder = pageRow.getDisplayOrder();
-		this.rowTypeId = pageRow.getRowTypeId();
 }
 
 
@@ -102,6 +104,11 @@ public class PageRowCustomTwoColumnApiResponse {
 	@Nonnull
 	public RowTypeId getRowTypeId() {
 		return rowTypeId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 }
 

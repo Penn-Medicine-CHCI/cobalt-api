@@ -47,6 +47,8 @@ public class PageRowCustomOneColumnApiResponse {
 	private final PageRowColumn columnOne;
 	@Nonnull
 	private final RowTypeId rowTypeId;
+	@Nonnull
+	private final UUID pageSectionId;
 
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -68,9 +70,10 @@ public class PageRowCustomOneColumnApiResponse {
 		requireNonNull(pageService);
 
 		this.pageRowId = pageRow.getPageRowId();
-		this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
-		this.displayOrder = pageRow.getDisplayOrder();
+		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
+		this.displayOrder = pageRow.getDisplayOrder();
+		this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 }
 
 
@@ -92,6 +95,11 @@ public class PageRowCustomOneColumnApiResponse {
 	@Nonnull
 	public RowTypeId getRowTypeId() {
 		return rowTypeId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 }
 
