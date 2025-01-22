@@ -76,9 +76,9 @@ public class PageRowCustomThreeColumnApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.displayOrder = pageRow.getDisplayOrder();
-		this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
-		this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
-		this.columnThree = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
+		this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+		this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
+		this.columnThree = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
 }
 
 

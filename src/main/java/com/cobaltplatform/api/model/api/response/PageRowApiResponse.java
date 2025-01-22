@@ -103,14 +103,14 @@ public class PageRowApiResponse {
 		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = pageService.findPageRowTagGroupByRowId(pageRow.getPageRowId()).orElse(null);
 		else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
-			this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)) {
-			this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
-			this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
+			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+			this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 		} else if (this.rowTypeId.equals(RowTypeId.THREE_COLUMN_IMAGE)) {
-			this.columnOne = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
-			this.columnTwo = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
-			this.columnThree = pageService.findPageRowImageByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
+			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+			this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
+			this.columnThree = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
 		}
 	}
 

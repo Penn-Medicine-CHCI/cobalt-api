@@ -382,8 +382,8 @@ public class PageService {
 
 
 	@Nonnull
-	public Optional<PageRowColumn> findPageRowImageByPageRowIdAndDisplayOrder(@Nullable UUID pageRowId,
-																																						@Nullable Integer displayOrder) {
+	public Optional<PageRowColumn> findPageRowColumnByPageRowIdAndDisplayOrder(@Nullable UUID pageRowId,
+																																						 @Nullable Integer displayOrder) {
 		requireNonNull(pageRowId);
 		requireNonNull(displayOrder);
 
