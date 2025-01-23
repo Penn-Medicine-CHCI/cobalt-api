@@ -25,6 +25,8 @@ import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
@@ -39,6 +41,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -56,16 +59,16 @@ public class PageRowApiResponse {
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
-	private  List<PageRowContent> contents;
+	private  List<ContentApiResponse> contents;
 	@Nullable
-	private  List<PageRowGroupSession> groupSessions;
+	private  List<GroupSessionApiResponse> groupSessions;
 	@Nonnull
 	private PageRowColumn columnOne;
 	@Nonnull
 	private PageRowColumn columnTwo;
 	@Nonnull
 	private PageRowColumn columnThree;
-	@Nullable
+	@Nonnull
 	private  PageRowTagGroup tagGroup;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -82,6 +85,8 @@ public class PageRowApiResponse {
 														@Nonnull PageService pageService,
 														@Nonnull PageCustomOneColumnApiResponseFactory pageCustomOneColumnApiResponseFactory,
 														@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
+														@Nonnull ContentApiResponseFactory contentApiResponseFactory,
+														@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 														@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory) {
 
 		requireNonNull(formatter);
@@ -90,6 +95,8 @@ public class PageRowApiResponse {
 		requireNonNull(pageCustomOneColumnApiResponseFactory);
 		requireNonNull(pageCustomTwoColumnApiResponseFactory);
 		requireNonNull(pageCustomThreeColumnApiResponseFactory);
+		requireNonNull(contentApiResponseFactory);
+		requireNonNull(groupSessionApiResponseFactory);
 
 		this.pageRowId = pageRow.getPageRowId();
 		this.pageSectionId = pageRow.getPageSectionId();
@@ -97,9 +104,11 @@ public class PageRowApiResponse {
 		this.displayOrder = pageRow.getDisplayOrder();
 
 		if (this.rowTypeId.equals(RowTypeId.RESOURCES))
-			this.contents = pageService.findPageRowContentByPageRowId(pageRow.getPageRowId());
+			this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId()).stream()
+					.map(content -> contentApiResponseFactory.create(content)).collect(Collectors.toList());
 		else if (this.rowTypeId.equals(RowTypeId.GROUP_SESSIONS))
-			this.groupSessions = pageService.findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
+			this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId()).stream()
+					.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = pageService.findPageRowTagGroupByRowId(pageRow.getPageRowId()).orElse(null);
 		else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
@@ -135,12 +144,12 @@ public class PageRowApiResponse {
 	}
 
 	@Nonnull
-	public List<PageRowContent> getContents() {
+	public List<ContentApiResponse> getContents() {
 		return contents;
 	}
 
 	@Nullable
-	public List<PageRowGroupSession> getGroupSessions() {
+	public List<GroupSessionApiResponse> getGroupSessions() {
 		return groupSessions;
 	}
 

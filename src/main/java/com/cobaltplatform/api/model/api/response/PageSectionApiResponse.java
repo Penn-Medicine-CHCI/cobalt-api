@@ -77,6 +77,7 @@ public class PageSectionApiResponse {
 		requireNonNull(strings);
 		requireNonNull(pageSection);
 		requireNonNull(pageService);
+		requireNonNull(pageRowApiResponseFactory);
 
 		this.pageRows = pageService.findPageRowsBySectionId(pageSection.getPageSectionId())
 				.stream().map(pageRow -> pageRowApiResponseFactory.create(pageRow)).collect(Collectors.toList());

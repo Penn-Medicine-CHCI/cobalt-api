@@ -43,6 +43,8 @@ import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
+import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
@@ -862,6 +864,18 @@ public class PageService {
 	}
 
 	@Nonnull
+	public List<Content> findContentByPageRowId(@Nullable UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		return getDatabase().queryForList("""
+				SELECT va.*
+				FROM v_admin_content va, v_page_row_content vp
+				WHERE va.content_id = vp.content_id
+				AND vp.page_row_id = ?
+				""", Content.class, pageRowId);
+	}
+
+	@Nonnull
 	public void updatePageRowContent(@Nonnull UpdatePageRowContentRequest request) {
 		requireNonNull(request);
 
@@ -1043,6 +1057,17 @@ public class PageService {
 				""", PageRowGroupSession.class, pageRowId);
 	}
 
+	@Nonnull
+	public List<GroupSession> findGroupSessionsByPageRowId(@Nullable UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		return getDatabase().queryForList("""
+				SELECT vgs.*
+				FROM v_page_row_group_session vp, v_group_session vgs
+				WHERE vp.group_session_id = vgs.group_session_id
+				AND page_row_id = ?
+				""", GroupSession.class, pageRowId);
+	}
 	@Nonnull
 	public UUID createPageRowGroupSession(@Nonnull CreatePageRowGroupSessionRequest request) {
 		requireNonNull(request);

@@ -20,8 +20,8 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRow;
-import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -33,6 +33,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -48,7 +49,10 @@ public class PageRowGroupSessionApiResponse {
 	@Nonnull
 	private final RowTypeId rowTypeId;
 	@Nullable
-	private List<PageRowGroupSession> groupSessions;
+	private final List<GroupSessionApiResponse> groupSessions;
+	@Nullable
+	private GroupSessionApiResponseFactory groupSessionApiResponseFactory;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageRowGroupSessionApiResponseFactory {
@@ -60,15 +64,18 @@ public class PageRowGroupSessionApiResponse {
 	public PageRowGroupSessionApiResponse(@Nonnull Formatter formatter,
 																				@Nonnull Strings strings,
 																				@Assisted @Nonnull PageRow pageRow,
+																				@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 																				@Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(pageRow);
 		requireNonNull(pageService);
+		requireNonNull(groupSessionApiResponseFactory);
 
 		this.pageRowId = pageRow.getPageRowId();
-		this.groupSessions = pageService.findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
+		this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId()).stream()
+				.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 
@@ -85,7 +92,7 @@ public class PageRowGroupSessionApiResponse {
 	}
 
 	@Nullable
-	public List<PageRowGroupSession> getGroupSessions() {
+	public List<GroupSessionApiResponse> getGroupSessions() {
 		return groupSessions;
 	}
 

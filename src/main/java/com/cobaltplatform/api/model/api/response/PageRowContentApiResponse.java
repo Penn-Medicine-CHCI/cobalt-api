@@ -23,6 +23,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -33,6 +34,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,7 +49,7 @@ public class PageRowContentApiResponse {
 	private final Integer displayOrder;
 
 	@Nonnull
-	private final List<PageRowContent> contents;
+	private final List<ContentApiResponse> contents;
 
 	@Nonnull
 	private final RowTypeId rowTypeId;
@@ -63,15 +65,18 @@ public class PageRowContentApiResponse {
 	public PageRowContentApiResponse(@Nonnull Formatter formatter,
 																	 @Nonnull Strings strings,
 																	 @Assisted @Nonnull PageRow pageRow,
+																	 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 																	 @Nonnull PageService pageService) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(pageRow);
 		requireNonNull(pageService);
+		requireNonNull(contentApiResponseFactory);
 
 		this.pageRowId = pageRow.getPageRowId();
-		this.contents = pageService.findPageRowContentByPageRowId(pageRow.getPageRowId());
+		this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId()).stream()
+				.map(content -> contentApiResponseFactory.create(content)).collect(Collectors.toList());
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 }
@@ -83,7 +88,7 @@ public class PageRowContentApiResponse {
 	}
 
 	@Nonnull
-	public List<PageRowContent> getContents() {
+	public List<ContentApiResponse> getContents() {
 		return contents;
 	}
 
