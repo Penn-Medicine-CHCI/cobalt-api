@@ -36,6 +36,9 @@ public class PageRowContent {
 	private Integer contentDisplayOrder;
 
 	@Nullable
+	private String title;
+
+	@Nullable
 	public UUID getPageRowContentId() {
 		return pageRowContentId;
 	}
@@ -60,5 +63,14 @@ public class PageRowContent {
 
 	public void setContentDisplayOrder(@Nullable Integer contentDisplayOrder) {
 		this.contentDisplayOrder = contentDisplayOrder;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 }
