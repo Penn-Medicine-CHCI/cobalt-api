@@ -692,10 +692,10 @@ public class PageService {
 
 		UpdatePageRowColumnRequest updatePageRowColumnRequest3 = new UpdatePageRowColumnRequest();
 		updatePageRowColumnRequest3.setColumnDisplayOrder(2);
-		updatePageRowColumnRequest3.setDescription(request.getColumnTwo().getDescription());
-		updatePageRowColumnRequest3.setHeadline(request.getColumnTwo().getHeadline());
-		updatePageRowColumnRequest3.setImageFileUploadId(request.getColumnTwo().getImageFileUploadId());
-		updatePageRowColumnRequest3.setImageAltText(request.getColumnTwo().getImageAltText());
+		updatePageRowColumnRequest3.setDescription(request.getColumnThree().getDescription());
+		updatePageRowColumnRequest3.setHeadline(request.getColumnThree().getHeadline());
+		updatePageRowColumnRequest3.setImageFileUploadId(request.getColumnThree().getImageFileUploadId());
+		updatePageRowColumnRequest3.setImageAltText(request.getColumnThree().getImageAltText());
 		updatePageRowColumnRequest3.setPageRowId(pageRowId);
 
 		updatePageRowColumn(updatePageRowColumnRequest3);
@@ -787,7 +787,7 @@ public class PageService {
 
 		if (isValidUUID(imageFileUploadIdString))
 			imageFileUploadId = UUID.fromString(imageFileUploadIdString);
-		
+
 		ValidationException validationException = new ValidationException();
 
 		if (pageRowId == null)
