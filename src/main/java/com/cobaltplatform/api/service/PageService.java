@@ -780,10 +780,14 @@ public class PageService {
 		UUID pageRowColumnId = UUID.randomUUID();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
-		UUID imageFileUploadId = request.getImageFileUploadId();
+		String imageFileUploadIdString = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
+		UUID imageFileUploadId = null;
 
+		if (isValidUUID(imageFileUploadIdString))
+			imageFileUploadId = UUID.fromString(imageFileUploadIdString);
+		
 		ValidationException validationException = new ValidationException();
 
 		if (pageRowId == null)
@@ -810,9 +814,13 @@ public class PageService {
 		UUID pageRowId = request.getPageRowId();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
-		UUID imageFileUploadId = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
+		String imageFileUploadIdString = null;
+		UUID imageFileUploadId = null;
+
+		if (isValidUUID(imageFileUploadIdString))
+			imageFileUploadId = UUID.fromString(imageFileUploadIdString);
 
 		ValidationException validationException = new ValidationException();
 
