@@ -153,10 +153,11 @@ SELECT pr.*, fu.url as image_url
 FROM page_row_column pr
 LEFT OUTER JOIN file_upload fu ON pr.image_file_upload_id = fu.file_upload_id;
 
-CREATE VIEW v_page_row_content
+CREATE OR REPLACE VIEW v_page_row_content
 AS 
-SELECT *
-FROM page_row_content;
+SELECT pr.*, c.title
+FROM page_row_content pr, content c
+WHERE pr.content_id = c.content_id;
 
 CREATE VIEW v_page_row_group_session
 AS 
