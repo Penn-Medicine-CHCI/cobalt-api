@@ -816,7 +816,7 @@ public class PageService {
 		String description = trimToNull(request.getDescription());
 		String imageAltText = trimToNull(request.getImageAltText());
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
-		String imageFileUploadIdString = null;
+		String imageFileUploadIdString = request.getImageFileUploadId();
 		UUID imageFileUploadId = null;
 
 		if (isValidUUID(imageFileUploadIdString))
