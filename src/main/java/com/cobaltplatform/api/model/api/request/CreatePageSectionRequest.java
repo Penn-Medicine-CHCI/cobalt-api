@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Institution;
-import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 
 
 import javax.annotation.Nullable;
@@ -47,8 +46,6 @@ public class CreatePageSectionRequest {
 	private Integer displayOrder;
 	@Nullable
 	private UUID createdByAccountId;
-	@Nullable
-	private PageStatusId pageStatusId;
 	@Nullable
 	private Institution.InstitutionId institutionId;
 	@Nullable
@@ -103,15 +100,6 @@ public class CreatePageSectionRequest {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public PageStatusId getPageStatusId() {
-		return pageStatusId;
-	}
-
-	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
-		this.pageStatusId = pageStatusId;
 	}
 
 	@Nullable

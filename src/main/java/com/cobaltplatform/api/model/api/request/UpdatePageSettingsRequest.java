@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 
 import javax.annotation.Nullable;

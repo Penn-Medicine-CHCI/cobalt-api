@@ -150,7 +150,6 @@ public class PageService {
 		String name = trimToNull(request.getName());
 		String urlName = trimToNull(request.getUrlName());
 		PageTypeId pageTypeId = request.getPageTypeId();
-		PageStatusId pageStatusId = request.getPageStatusId();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		UUID imageFileUploadId = request.getImageFileUploadId();
@@ -170,19 +169,11 @@ public class PageService {
 		if (pageTypeId == null)
 			validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
 
-		if (pageStatusId == null)
-			validationException.add(new ValidationException.FieldError("pageStatusId", getStrings().get("Page Status is required.")));
-
 		if (institutionId == null)
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
-
-		if (pageStatusId.equals(PageStatusId.LIVE)) {
-			validatePublishedPage(pageId, institutionId);
-			publishedDate = Instant.now();
-		}
 
 		getDatabase().execute("""
 						INSERT INTO page
@@ -190,7 +181,7 @@ public class PageService {
 						  published_date, institution_id, created_by_account_id)
 						VALUES
 						  (?,?,?,?,?,?,?,?,?,?,?,?)   
-						""", pageId, name, urlName, pageTypeId, pageStatusId, headline, description, imageFileUploadId, imageAltText,
+						""", pageId, name, urlName, pageTypeId, PageStatusId.DRAFT, headline, description, imageFileUploadId, imageAltText,
 				publishedDate, institutionId, createdByAccountId);
 
 		return pageId;
@@ -278,7 +269,6 @@ public class PageService {
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
 		UUID pageSectionId = UUID.randomUUID();
 		UUID createdByAccountId = request.getCreatedByAccountId();
-		PageStatusId pageStatusId = request.getPageStatusId();
 		Integer displayOrder = request.getDisplayOrder();
 		InstitutionId institutionId = request.getInstitutionId();
 
@@ -286,8 +276,6 @@ public class PageService {
 
 		if (pageId == null)
 			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Page is required.")));
-		if (pageStatusId == null)
-			validationException.add(new ValidationException.FieldError("pageStatusId", getStrings().get("Page Status is required.")));
 		if (backgroundColorId == null)
 			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
 		if (institutionId == null)
@@ -295,9 +283,6 @@ public class PageService {
 
 		if (validationException.hasErrors())
 			throw validationException;
-
-		if (pageStatusId.equals(PageStatusId.LIVE))
-			validatePublishedPage(pageId,  institutionId);
 
 		if (displayOrder == null)
 			displayOrder = getDatabase().queryForObject("""
