@@ -52,6 +52,8 @@ public class Page {
 	@Nullable
 	private String imageAltText;
 	@Nullable
+	private String imageUrl;
+	@Nullable
 	private LocalDate publishedDate;
 	@Nullable
 	private Boolean deletedFlag;
@@ -197,5 +199,14 @@ public class Page {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(@Nullable String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 }

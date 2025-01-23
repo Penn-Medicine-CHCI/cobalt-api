@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequ
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
@@ -54,6 +55,7 @@ import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageSection;
+import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -258,6 +260,52 @@ public class PageResource {
 
 		request.setPageId(pageId);
 		getPageService().updatePageSettings(request);
+
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("page", getPageApiResponseFactory().create(page.get(), true));
+		}});
+	}
+
+	@PUT("/pages/{pageId}/publish")
+	@AuthenticationRequired
+	public ApiResponse publishPage(@Nonnull @PathParameter("pageId") UUID pageId) {
+		requireNonNull(pageId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		UpdatePageStatus request = new UpdatePageStatus();
+		request.setPageId(pageId);
+		request.setPageStatusId(PageStatus.PageStatusId.LIVE);
+		request.setInstitutionId(account.getInstitutionId());
+
+		getPageService().updatePageStatus(request);
+
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("page", getPageApiResponseFactory().create(page.get(), true));
+		}});
+	}
+
+	@PUT("/pages/{pageId}/unpublish")
+	@AuthenticationRequired
+	public ApiResponse unpublishPage(@Nonnull @PathParameter("pageId") UUID pageId) {
+		requireNonNull(pageId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		UpdatePageStatus request = new UpdatePageStatus();
+		request.setPageId(pageId);
+		request.setPageStatusId(PageStatus.PageStatusId.DRAFT);
+		request.setInstitutionId(account.getInstitutionId());
+
+		getPageService().updatePageStatus(request);
 
 		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
 

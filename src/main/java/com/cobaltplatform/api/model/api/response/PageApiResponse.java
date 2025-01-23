@@ -65,6 +65,8 @@ public class PageApiResponse {
 	@Nullable
 	private final String imageAltText;
 	@Nullable
+	private final String imageUrl;
+	@Nullable
 	private final LocalDate publishedDate;
 	@Nullable
 	private final String publishedDateDescription;
@@ -110,6 +112,7 @@ public class PageApiResponse {
 		this.description = page.getDescription();
 		this.imageFileUploadId = page.getImageFileUploadId();
 		this.imageAltText = page.getImageAltText();
+		this.imageUrl = page.getImageUrl();
 		this.publishedDate = page.getPublishedDate();
 		this.publishedDateDescription = this.publishedDate == null ? "Not Published" : formatter.formatDate(this.publishedDate, FormatStyle.MEDIUM);
 		this.created = page.getCreated();
@@ -118,7 +121,7 @@ public class PageApiResponse {
 		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 		if (includeDetails)
-			this.pageSections = pageService.findPageSectionByPageId(page.getPageId())
+			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId())
 					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).collect(Collectors.toList());
 		else
 			this.pageSections = new ArrayList<>();
@@ -202,6 +205,11 @@ public class PageApiResponse {
 	@Nullable
 	public List<PageSectionApiResponse> getPageSections() {
 		return pageSections;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
 	}
 }
 

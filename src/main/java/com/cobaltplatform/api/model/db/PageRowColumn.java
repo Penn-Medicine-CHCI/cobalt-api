@@ -41,6 +41,8 @@ public class PageRowColumn {
 	@Nullable
 	private String imageAltText;
 	@Nullable
+	private String imageUrl;
+	@Nullable
 	private Integer columnDisplayOrder;
 
 	@Nullable
@@ -104,5 +106,14 @@ public class PageRowColumn {
 
 	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
 		this.columnDisplayOrder = columnDisplayOrder;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(@Nullable String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 }

@@ -49,6 +49,8 @@ public class PageRowColumnApiResponse {
 	private UUID imageFileUploadId;
 	@Nullable
 	private String imageAltText;
+	@Nullable
+	private String imageUrl;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -72,6 +74,7 @@ public class PageRowColumnApiResponse {
 		this.description = pageRowImage.getDescription();
 		this.imageFileUploadId = pageRowImage.getImageFileUploadId();
 		this.imageAltText = pageRowImage.getImageAltText();
+		this.imageUrl = pageRowImage.getImageUrl();
 
 }
 
@@ -105,6 +108,10 @@ public class PageRowColumnApiResponse {
 		return imageAltText;
 	}
 
+	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
+	}
 }
 
 

@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
-import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -31,18 +30,13 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePageHeroRequest {
-
+public class UpdatePageStatus {
 	@Nullable
 	private UUID pageId;
 	@Nullable
-	private String headline;
+	private PageStatusId pageStatusId;
 	@Nullable
-	private String description;
-	@Nullable
-	private String imageFileUploadId;
-	@Nullable
-	private String imageAltText;
+	private InstitutionId institutionId;
 
 	@Nullable
 	public UUID getPageId() {
@@ -54,38 +48,20 @@ public class UpdatePageHeroRequest {
 	}
 
 	@Nullable
-	public String getHeadline() {
-		return headline;
+	public PageStatusId getPageStatusId() {
+		return pageStatusId;
 	}
 
-	public void setHeadline(@Nullable String headline) {
-		this.headline = headline;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
+		this.pageStatusId = pageStatusId;
 	}
 
 	@Nullable
-	public String getImageFileUploadId() {
-		return imageFileUploadId;
+	public InstitutionId getInstitutionId() {
+		return institutionId;
 	}
 
-	public void setImageFileUploadId(@Nullable String imageFileUploadId) {
-		this.imageFileUploadId = imageFileUploadId;
-	}
-
-	@Nullable
-	public String getImageAltText() {
-		return imageAltText;
-	}
-
-	public void setImageAltText(@Nullable String imageAltText) {
-		this.imageAltText = imageAltText;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 }

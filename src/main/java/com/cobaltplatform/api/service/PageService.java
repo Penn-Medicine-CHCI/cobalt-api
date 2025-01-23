@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequ
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
@@ -60,7 +61,7 @@ import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import org.apache.arrow.flatbuf.Int;
+import com.soklet.web.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,8 +79,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -140,7 +143,79 @@ public class PageService {
 		Optional<Page> page = findPageById(pageId, institutionId);
 
 		if (!page.isPresent())
-			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
+			throw new NotFoundException();
+
+		String pageHeadline = trimToNull(page.get().getHeadline());
+		String pageDescription = trimToNull(page.get().getDescription());
+		UUID pageImageFileUploadId = page.get().getImageFileUploadId();
+		String imageAltText = trimToNull(page.get().getImageAltText());
+
+		if (pageHeadline == null)
+			validationException.add(new ValidationException.FieldError("pageHeadline", getStrings().get(format("Headline is required for Page %s.", page.get().getName()))));
+		if (pageDescription == null)
+			validationException.add(new ValidationException.FieldError("pageDescription", getStrings().get(format("Description is required for Page %s.", page.get().getName()))));
+		if (pageImageFileUploadId == null)
+			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("Image is required for Page %s.", page.get().getName()))));
+		if (imageAltText == null)
+			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Page %s.", page.get().getName()))));
+
+		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
+
+		if (pageSections.size() == 0)
+			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get(format("At least one section is required for Page %s.", page.get().getName()))));
+
+		for (PageSection pageSection : pageSections) {
+			//Name and background color are required when creating or updating a page section so no need to validate them
+			String headline = trimToNull(pageSection.getHeadline());
+			String description = trimToNull(pageSection.getDescription());
+
+			if (headline == null)
+				validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A headline is required for Section %s.", pageSection.getName()))));
+			if (description == null)
+				validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A description is required for Section %s.", pageSection.getName()))));
+
+			List<PageRow> pageRows = findPageRowsBySectionId(pageSection.getPageSectionId());
+
+			if (pageRows.size() == 0)
+				validationException.add(new ValidationException.FieldError("pageRows", getStrings().get(format("At least one row is required for Section %s.", pageSection.getName()))));
+			else {
+				for (PageRow pageRow : pageRows) {
+					if (pageRow.getRowTypeId().equals(RowTypeId.RESOURCES)) {
+						List<PageRowContent> pageRowContent = findPageRowContentByPageRowId(pageRow.getPageRowId());
+						if (pageRowContent.size() == 0)
+							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.", pageSection.getName()))));
+					} else if (pageRow.getRowTypeId().equals(RowTypeId.GROUP_SESSIONS)) {
+						List<PageRowGroupSession> pageRowGroupSessions = findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
+						if (pageRowGroupSessions.size() == 0)
+							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.", pageSection.getName()))));
+					} else if (pageRow.getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE)) {
+						Optional<PageRowColumn> pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
+						if (!pageRowColumn.isPresent())
+							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column not present for Custom row in Section %s.", pageSection.getName()))));
+						else {
+							validatePageRowColum(pageRowColumn.get(), validationException);
+						}
+					}
+
+				}
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+	}
+
+	@Nonnull
+	private void validatePageRowColum(@Nonnull PageRowColumn pageRowColumn,
+																		@Nonnull ValidationException validationException) {
+		requireNonNull(pageRowColumn);
+		requireNonNull(validationException);
+
+		String headline = trimToNull(pageRowColumn.getHeadline());
+
+		if (headline == null)
+			validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A Headline is required"))));
+
 	}
 
 	@Nonnull
@@ -186,21 +261,46 @@ public class PageService {
 
 		return pageId;
 	}
+
 	@Nonnull
 	public UUID updatePageHero(@Nonnull UpdatePageHeroRequest request) {
 		requireNonNull(request);
 
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
-		UUID imageFileUploadId = request.getImageFileUploadId();
+		String imageFileUploadIdString = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
 		UUID pageId = request.getPageId();
+		UUID imageFileUploadId = null;
+
+		if (isValidUUID(imageFileUploadIdString))
+			imageFileUploadId = UUID.fromString(imageFileUploadIdString);
 
 		getDatabase().execute("""
-						UPDATE page SET
-						  headline=?, description=?, image_file_upload_id=?, image_alt_text=?
-						WHERE page_id=?   
-						""", headline, description, imageFileUploadId, imageAltText, pageId);
+				UPDATE page SET
+				  headline=?, description=?, image_file_upload_id=?, image_alt_text=?
+				WHERE page_id=?   
+				""", headline, description, imageFileUploadId, imageAltText, pageId);
+
+		return pageId;
+	}
+
+	@Nonnull
+	public UUID updatePageStatus(@Nonnull UpdatePageStatus request) {
+		requireNonNull(request);
+
+		PageStatusId pageStatusId = request.getPageStatusId();
+		InstitutionId institutionId = request.getInstitutionId();
+		UUID pageId = request.getPageId();
+
+		if (pageStatusId.equals(PageStatusId.LIVE))
+			validatePublishedPage(pageId, institutionId);
+
+		getDatabase().execute("""
+				UPDATE page SET
+				page_status_id=?
+				WHERE page_id=?					   
+				""", pageStatusId, pageId);
 
 		return pageId;
 	}
@@ -228,10 +328,10 @@ public class PageService {
 			throw validationException;
 
 		getDatabase().execute("""
-						UPDATE page SET
-						name=?, url_name=?, page_type_id=?
-						WHERE page_id=?					   
-						""", name, urlName, pageTypeId, pageId);
+				UPDATE page SET
+				name=?, url_name=?, page_type_id=?
+				WHERE page_id=?					   
+				""", name, urlName, pageTypeId, pageId);
 
 		return pageId;
 	}
@@ -248,7 +348,7 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<PageSection> findPageSectionByPageId(@Nullable UUID pageId) {
+	public List<PageSection> findPageSectionsByPageId(@Nullable UUID pageId) {
 		requireNonNull(pageId);
 
 		return getDatabase().queryForList("""
@@ -279,15 +379,17 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
 		if (institutionId == null)
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution ID is required.")));
+		if (name == null)
+			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
 		Integer displayOrder = getDatabase().queryForObject("""
-					SELECT COALESCE(MAX(display_order) + 1, 0)
-					FROM v_page_section
-					WHERE page_id = ?
-					""", Integer.class, pageId).get();
+				SELECT COALESCE(MAX(display_order) + 1, 0)
+				FROM v_page_section
+				WHERE page_id = ?
+				""", Integer.class, pageId).get();
 
 		getDatabase().execute("""
 				INSERT INTO page_section
@@ -318,6 +420,10 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
 		if (backgroundColorId == null)
 			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
+		if (name == null)
+			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+		if (displayOrder == null)
+			validationException.add(new ValidationException.FieldError("displayOrder", getStrings().get("Display Order is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -339,7 +445,7 @@ public class PageService {
 				  name=?, headline=?, description=?, background_color_id=?,
 				  display_order=?
 				WHERE page_section_id=?				   
-				""",  name, headline, description, backgroundColorId, displayOrder, pageSectionId);
+				""", name, headline, description, backgroundColorId, displayOrder, pageSectionId);
 
 		return pageSectionId;
 	}
@@ -354,6 +460,7 @@ public class PageService {
 				WHERE page_row_id = ?
 				""", PageRow.class, pageRowId);
 	}
+
 	@Nonnull
 	public void deletePage(@Nullable UUID pageId,
 												 @Nullable InstitutionId institutionId) {
@@ -365,7 +472,7 @@ public class PageService {
 				SET deleted_flag = TRUE
 				WHERE page_id = ?
 				AND institution_id = ?
-				""", pageId,institutionId);
+				""", pageId, institutionId);
 	}
 
 	@Nonnull
@@ -595,6 +702,7 @@ public class PageService {
 
 		return pageRowId;
 	}
+
 	@Nonnull
 	public UUID createPageRowTwoColumn(@Nonnull CreatePageRowCustomTwoColumnRequest request) {
 		requireNonNull(request);
@@ -721,7 +829,7 @@ public class PageService {
 				headline=?, description=?, image_file_upload_id=?, image_alt_text=?
 				WHERE page_row_id=? 
 				AND column_display_order=?
-				""",  headline, description, imageFileUploadId, imageAltText, pageRowId, columnDisplayOrder);
+				""", headline, description, imageFileUploadId, imageAltText, pageRowId, columnDisplayOrder);
 
 	}
 

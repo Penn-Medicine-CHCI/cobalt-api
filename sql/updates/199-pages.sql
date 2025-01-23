@@ -130,9 +130,10 @@ VALUES
 
 CREATE VIEW v_page 
 AS 
-SELECT *
-FROM page 
-WHERE deleted_flag = false;
+SELECT p.*, fu.url as image_url
+FROM page p
+LEFT OUTER JOIN file_upload fu ON p.image_file_upload_id=fu.file_upload_id
+WHERE p.deleted_flag = false;
 
 CREATE VIEW v_page_section
 AS 
@@ -148,8 +149,9 @@ WHERE deleted_flag = false;
 
 CREATE VIEW v_page_row_column
 AS 
-SELECT *
-FROM page_row_column;
+SELECT pr.*, fu.url as image_url
+FROM page_row_column pr
+LEFT OUTER JOIN file_upload fu ON pr.image_file_upload_id = fu.file_upload_id;
 
 CREATE VIEW v_page_row_content
 AS 
