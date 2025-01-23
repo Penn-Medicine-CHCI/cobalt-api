@@ -30,12 +30,14 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
@@ -68,7 +70,6 @@ import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
-import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 
@@ -236,6 +237,50 @@ public class PageResource {
 		requireNonNull(pageId);
 
 		Account account = getCurrentContext().getAccount().get();
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("page", getPageApiResponseFactory().create(page.get(), true));
+		}});
+	}
+
+	@PUT("/pages/{pageId}/settings")
+	@AuthenticationRequired
+	public ApiResponse updatePageSettings(@Nonnull @RequestBody String requestBody,
+																				@Nonnull @PathParameter("pageId") UUID pageId) {
+		requireNonNull(requestBody);
+		requireNonNull(pageId);
+
+		UpdatePageSettingsRequest request = getRequestBodyParser().parse(requestBody, UpdatePageSettingsRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setPageId(pageId);
+		getPageService().updatePageSettings(request);
+
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("page", getPageApiResponseFactory().create(page.get(), true));
+		}});
+	}
+
+	@PUT("/pages/{pageId}/hero")
+	@AuthenticationRequired
+	public ApiResponse updatePageHero(@Nonnull @RequestBody String requestBody,
+																		@Nonnull @PathParameter("pageId") UUID pageId) {
+		requireNonNull(requestBody);
+		requireNonNull(pageId);
+
+		UpdatePageHeroRequest request = getRequestBodyParser().parse(requestBody, UpdatePageHeroRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setPageId(pageId);
+		getPageService().updatePageHero(request);
+
 		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
 
 		if (!page.isPresent())
@@ -467,6 +512,7 @@ public class PageResource {
 			put("pageRow", getPageCustomOneColumnApiResponseFactory().create(pageRow.get()));
 		}});
 	}
+
 	@PUT("/pages/row/{pageRowId}/custom-two-column")
 	@AuthenticationRequired
 	public ApiResponse updatePageRowCustomTwoColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
@@ -493,7 +539,7 @@ public class PageResource {
 	@PUT("/pages/row/{pageRowId}/custom-three-column")
 	@AuthenticationRequired
 	public ApiResponse updatePageRowCustomThreeColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
-																									@Nonnull @RequestBody String requestBody) {
+																										@Nonnull @RequestBody String requestBody) {
 		requireNonNull(pageRowId);
 		requireNonNull(requestBody);
 

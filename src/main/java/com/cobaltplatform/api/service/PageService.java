@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRe
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
@@ -190,6 +192,55 @@ public class PageService {
 						  (?,?,?,?,?,?,?,?,?,?,?,?)   
 						""", pageId, name, urlName, pageTypeId, pageStatusId, headline, description, imageFileUploadId, imageAltText,
 				publishedDate, institutionId, createdByAccountId);
+
+		return pageId;
+	}
+	@Nonnull
+	public UUID updatePageHero(@Nonnull UpdatePageHeroRequest request) {
+		requireNonNull(request);
+
+		String headline = trimToNull(request.getHeadline());
+		String description = trimToNull(request.getDescription());
+		UUID imageFileUploadId = request.getImageFileUploadId();
+		String imageAltText = trimToNull(request.getImageAltText());
+		UUID pageId = request.getPageId();
+
+		getDatabase().execute("""
+						UPDATE page SET
+						  headline=?, description=?, image_file_upload_id=?, image_alt_text=?
+						WHERE page_id=?   
+						""", headline, description, imageFileUploadId, imageAltText, pageId);
+
+		return pageId;
+	}
+
+	@Nonnull
+	public UUID updatePageSettings(@Nonnull UpdatePageSettingsRequest request) {
+		requireNonNull(request);
+
+		String name = trimToNull(request.getName());
+		String urlName = trimToNull(request.getUrlName());
+		PageTypeId pageTypeId = request.getPageTypeId();
+		UUID pageId = request.getPageId();
+		ValidationException validationException = new ValidationException();
+
+		if (name == null)
+			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+
+		if (urlName == null)
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("URL is required.")));
+
+		if (pageTypeId == null)
+			validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+						UPDATE page SET
+						name=?, url_name=?, page_type_id=?
+						WHERE page_id=?					   
+						""", name, urlName, pageTypeId, pageId);
 
 		return pageId;
 	}
