@@ -269,7 +269,6 @@ public class PageService {
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
 		UUID pageSectionId = UUID.randomUUID();
 		UUID createdByAccountId = request.getCreatedByAccountId();
-		Integer displayOrder = request.getDisplayOrder();
 		InstitutionId institutionId = request.getInstitutionId();
 
 		ValidationException validationException = new ValidationException();
@@ -284,8 +283,7 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		if (displayOrder == null)
-			displayOrder = getDatabase().queryForObject("""
+		Integer displayOrder = getDatabase().queryForObject("""
 					SELECT COALESCE(MAX(display_order) + 1, 0)
 					FROM v_page_section
 					WHERE page_id = ?

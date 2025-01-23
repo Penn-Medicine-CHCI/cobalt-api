@@ -43,8 +43,6 @@ public class CreatePageSectionRequest {
 	@Nullable
 	private BackgroundColorId backgroundColorId;
 	@Nullable
-	private Integer displayOrder;
-	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Institution.InstitutionId institutionId;
@@ -100,15 +98,6 @@ public class CreatePageSectionRequest {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 
 	@Nullable
