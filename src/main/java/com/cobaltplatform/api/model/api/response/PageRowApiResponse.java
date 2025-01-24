@@ -21,8 +21,6 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
-import com.cobaltplatform.api.model.db.PageRowContent;
-import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
@@ -30,6 +28,7 @@ import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSe
 import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -69,7 +68,7 @@ public class PageRowApiResponse {
 	@Nonnull
 	private PageRowColumn columnThree;
 	@Nonnull
-	private  PageRowTagGroup tagGroup;
+	private  TagGroupApiResponse tagGroup;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -87,6 +86,7 @@ public class PageRowApiResponse {
 														@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
 														@Nonnull ContentApiResponseFactory contentApiResponseFactory,
 														@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
+														@Nonnull TagGroupApiResponse.TagGroupApiResponseFactory tagGroupApiResponseFactory,
 														@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory) {
 
 		requireNonNull(formatter);
@@ -97,6 +97,7 @@ public class PageRowApiResponse {
 		requireNonNull(pageCustomThreeColumnApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
+		requireNonNull(tagGroupApiResponseFactory);
 
 		this.pageRowId = pageRow.getPageRowId();
 		this.pageSectionId = pageRow.getPageSectionId();
@@ -110,7 +111,7 @@ public class PageRowApiResponse {
 			this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId()).stream()
 					.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
-			this.tagGroup = pageService.findPageRowTagGroupByRowId(pageRow.getPageRowId()).orElse(null);
+			this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));
 		else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)) {
@@ -153,8 +154,8 @@ public class PageRowApiResponse {
 		return groupSessions;
 	}
 
-	@Nullable
-	public PageRowTagGroup getTagGroup() {
+	@Nonnull
+	public TagGroupApiResponse getTagGroup() {
 		return tagGroup;
 	}
 
