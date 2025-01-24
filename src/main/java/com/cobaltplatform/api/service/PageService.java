@@ -874,6 +874,7 @@ public class PageService {
 				FROM v_admin_content va, v_page_row_content vp
 				WHERE va.content_id = vp.content_id
 				AND vp.page_row_id = ?
+				ORDER BY vp.content_display_order
 				""", Content.class, pageRowId);
 	}
 
@@ -1105,6 +1106,7 @@ public class PageService {
 				FROM v_page_row_group_session vp, v_group_session vgs
 				WHERE vp.group_session_id = vgs.group_session_id
 				AND page_row_id = ?
+				ORDER BY vp.group_session_display_order
 				""", GroupSession.class, pageRowId);
 	}
 	@Nonnull
