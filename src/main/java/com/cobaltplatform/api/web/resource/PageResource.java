@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequ
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
@@ -466,7 +467,28 @@ public class PageResource {
 			put("pageRow", getPageRowTagGroupApiResponseFactory().create(pageRow.get()));
 		}});
 	}
+	@PUT("/pages/row/{pageRowId}/tag-group")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowTagGroup(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																					 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
 
+		UpdatePageRowTagGroupRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowTagGroupRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+
+		request.setPageRowId(pageRowId);
+
+		getPageService().updatePageTagGroup(request);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowTagGroupApiResponseFactory().create(pageRow.get()));
+		}});
+	}
 	@POST("/pages/row/{pageSectionId}/group-session")
 	@AuthenticationRequired
 	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,

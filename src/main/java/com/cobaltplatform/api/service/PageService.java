@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequ
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
@@ -56,6 +57,7 @@ import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PageWithTotalCount;
@@ -1002,6 +1004,18 @@ public class PageService {
 	}
 
 	@Nonnull
+	public Optional<TagGroup> findTagGroupByRowId(@Nullable UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		return getDatabase().queryForObject("""
+				SELECT tg.*
+				FROM v_page_row_tag_group vp, tag_group tg
+				WHERE vp.tag_group_id = tg.tag_group_id 
+				AND page_row_id = ?
+				""", TagGroup.class, pageRowId);
+	}
+
+	@Nonnull
 	public UUID createPageTagGroup(@Nonnull CreatePageRowTagGroupRequest request) {
 		requireNonNull(request);
 
@@ -1044,6 +1058,31 @@ public class PageService {
 				""", pageRowTagGroupId, pageRowId, tagGroupId);
 
 		return pageRowId;
+	}
+
+	@Nonnull
+	public void updatePageTagGroup(@Nonnull UpdatePageRowTagGroupRequest request) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		String tagGroupId = trimToNull(request.getTagGroupId());
+
+		ValidationException validationException = new ValidationException();
+
+		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Page not found.")));
+		if (tagGroupId == null)
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE page_row_tag_group
+				SET tag_group_id=?
+				WHERE page_row_id=?
+				""", tagGroupId, pageRowId);
 	}
 
 	@Nonnull
