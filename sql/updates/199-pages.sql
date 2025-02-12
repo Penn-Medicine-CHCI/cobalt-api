@@ -83,6 +83,7 @@ CREATE TABLE page_row_group_session (
     group_session_id UUID NOT NULL REFERENCES group_session,
     group_session_display_order SMALLINT NOT NULL
 );
+CREATE UNIQUE INDEX idx_page_row_group_session_row_session ON page_row_group_session(page_row_id, group_session_id);
 
 CREATE TABLE page_row_content (
     page_row_content_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -90,12 +91,15 @@ CREATE TABLE page_row_content (
     content_id UUID NOT NULL REFERENCES content,
     content_display_order SMALLINT NOT NULL
 );
+CREATE UNIQUE INDEX idx_page_row_content_row_content ON page_row_content(page_row_id, content_id);
 
 CREATE TABLE page_row_tag_group (
     page_row_tag_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     tag_group_id VARCHAR NOT NULL REFERENCES tag_group
 );
+CREATE UNIQUE INDEX idx_page_row_tag_group_row_tag_group ON page_row_tag_group(page_row_id, tag_group_id);
+
 
 
 INSERT INTO page_type

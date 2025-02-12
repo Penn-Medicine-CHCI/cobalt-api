@@ -455,6 +455,69 @@ public class PageService {
 	}
 
 	@Nonnull
+	public void deletePageSection(@Nullable UUID pageSectionId) {
+		requireNonNull(pageSectionId);
+
+		ValidationException validationException = new ValidationException();
+		Optional<PageSection> pageSection = findPageSectionById(pageSectionId);
+
+		if (!pageSection.isPresent())
+			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UUID pageId = pageSection.get().getPageId();
+
+		getDatabase().execute("""
+				DELETE FROM page_row_column
+				WHERE page_row_id IN 
+				(SELECT pr.page_row_id
+				FROM page_row pr
+				WHERE pr.page_section_id =?)
+				""", pageSectionId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_group_session
+				WHERE page_row_id IN 
+				(SELECT pr.page_row_id
+				FROM page_row pr
+				WHERE pr.page_section_id =?)
+				""", pageSectionId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_content
+				WHERE page_row_id IN 
+				(SELECT pr.page_row_id
+				FROM page_row pr
+				WHERE pr.page_section_id =?) 
+				""", pageSectionId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row
+				WHERE page_section_id=? 
+				""", pageSectionId);
+
+		getDatabase().execute("""
+				DELETE FROM page_section 				
+				WHERE page_section_id = ?				
+				""", pageSectionId);
+
+		getDatabase().execute("""
+				WITH ordered AS (
+				  SELECT
+				    page_section_id,
+				    row_number() OVER (PARTITION BY page_id ORDER BY display_order) - 1 AS new_order
+				  FROM page_section
+				  WHERE page_id=?
+				)
+				UPDATE page_section AS ps
+				SET display_order = ordered.new_order
+				FROM ordered
+				WHERE ps.page_section_id = ordered.page_section_id
+				AND page_id=?;
+				""", pageId, pageId);
+	}
+	@Nonnull
 	public Optional<PageRow> findPageRowById(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
@@ -529,6 +592,55 @@ public class PageService {
 		return pageRowId;
 	}
 
+	@Nonnull
+	public void deletePageRow(@Nullable UUID pageRowId) {
+		requireNonNull(pageRowId);
+		ValidationException validationException = new ValidationException();
+
+		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Could not find page row.")));
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UUID pageSectionId = pageRow.get().getPageSectionId();
+
+		getDatabase().execute("""
+				DELETE FROM page_row_column
+				WHERE page_row_id =?
+				""", pageRowId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_group_session
+				WHERE page_row_id =?
+				""", pageRowId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_content
+				WHERE page_row_id =? 
+				""", pageRowId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row
+				WHERE page_row_id =? 
+				""", pageRowId);
+
+		getDatabase().execute("""
+				WITH ordered AS (
+				  SELECT
+				    page_row_id,
+				    row_number() OVER (PARTITION BY page_section_id ORDER BY display_order) - 1 AS new_order
+				  FROM page_row
+				  WHERE page_section_id=?
+				)
+				UPDATE page_row AS pr
+				SET display_order = ordered.new_order
+				FROM ordered
+				WHERE pr.page_row_id = ordered.page_row_id
+				AND page_section_id=?;
+				""", pageSectionId, pageSectionId);
+	}
 
 	@Nonnull
 	public Optional<PageRowColumn> findPageRowColumnByPageRowIdAndDisplayOrder(@Nullable UUID pageRowId,
@@ -994,6 +1106,34 @@ public class PageService {
 	}
 
 	@Nonnull
+	public void deletePageRowContent(@Nullable UUID pageRowId,
+												 					 @Nullable UUID contentId) {
+		requireNonNull(pageRowId);
+		requireNonNull(contentId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_content 				
+				WHERE page_row_id = ?
+				AND content_id = ?
+				""", pageRowId, contentId);
+
+		getDatabase().execute("""
+				WITH ordered AS (
+				  SELECT
+				    page_row_content_id,
+				    row_number() OVER (PARTITION BY page_row_id ORDER BY content_display_order) - 1 AS new_order
+				  FROM page_row_content
+				  WHERE page_row_id=?
+				)
+				UPDATE page_row_content AS prc
+				SET content_display_order = ordered.new_order
+				FROM ordered
+				WHERE prc.page_row_content_id = ordered.page_row_content_id
+				AND page_row_id=?;			
+				""", pageRowId, pageRowId);
+	}
+
+	@Nonnull
 	public Optional<PageRowTagGroup> findPageRowTagGroupByRowId(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
@@ -1147,6 +1287,35 @@ public class PageService {
 		}
 
 		return pageRowId;
+	}
+
+	@Nonnull
+	public void deletePageRowGroupSession(@Nullable UUID pageRowId,
+																	 			@Nullable UUID groupSessionId) {
+		requireNonNull(pageRowId);
+		requireNonNull(groupSessionId);
+
+		getLogger().debug(format("DELETE %s and %s", pageRowId, groupSessionId));
+		getDatabase().execute("""
+				DELETE FROM page_row_group_session				
+				WHERE page_row_id = ?
+				AND group_session_id = ?
+				""", pageRowId, groupSessionId);
+
+		getDatabase().execute("""
+				WITH ordered AS (
+				  SELECT
+				    page_row_group_session_id,
+				    row_number() OVER (PARTITION BY page_row_id ORDER BY group_session_display_order) - 1 AS new_order
+				  FROM page_row_group_session
+				  WHERE page_row_id=?
+				)
+				UPDATE page_row_group_session AS prgs
+				SET group_session_display_order = ordered.new_order
+				FROM ordered
+				WHERE prgs.page_row_group_session_id = ordered.page_row_group_session_id
+				AND page_row_id=?;
+				""", pageRowId, pageRowId);
 	}
 
 	@Nonnull

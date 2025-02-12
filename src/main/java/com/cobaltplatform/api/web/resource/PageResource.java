@@ -203,6 +203,16 @@ public class PageResource {
 		}});
 	}
 
+	@DELETE("/pages/row/{pageRowId}")
+	@AuthenticationRequired
+	public ApiResponse deletePageRow(@Nonnull @PathParameter("pageRowId") UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		getPageService().deletePageRow(pageRowId);
+
+		return new ApiResponse();
+	}
+
 	@GET("/pages")
 	@AuthenticationRequired
 	@ReadReplica
@@ -373,6 +383,16 @@ public class PageResource {
 		}});
 	}
 
+	@DELETE("/pages/section/{pageSectionId}")
+	@AuthenticationRequired
+	public ApiResponse deletePageSection(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId) {
+		requireNonNull(pageSectionId);
+
+		getPageService().deletePageSection(pageSectionId);
+
+		return new ApiResponse();
+	}
+
 	@PUT("/pages/section/{pageSectionId}")
 	@AuthenticationRequired
 	public ApiResponse updatePageSection(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -444,6 +464,18 @@ public class PageResource {
 		}});
 	}
 
+	@DELETE("/pages/row/{pageRowId}/content/{contentId}")
+	@AuthenticationRequired
+	public ApiResponse deletePageRowContent(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																					@Nonnull @PathParameter("contentId") UUID contentId) {
+		requireNonNull(pageRowId);
+		requireNonNull(contentId);
+
+		getPageService().deletePageRowContent(pageRowId, contentId);
+
+		return new ApiResponse();
+	}
+
 	@POST("/pages/row/{pageSectionId}/tag-group")
 	@AuthenticationRequired
 	public ApiResponse createPageRowTagGroup(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -511,6 +543,19 @@ public class PageResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageRow", getPageRowGroupSessionApiResponseFactory().create(pageRow.get()));
 		}});
+	}
+
+	@DELETE("/pages/row/{pageRowId}/group-session/{groupSessionId}")
+	@AuthenticationRequired
+	public ApiResponse deletePageRowGroupSession(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																							 @Nonnull @PathParameter("groupSessionId") UUID groupSessionId) {
+		requireNonNull(pageRowId);
+		requireNonNull(groupSessionId);
+
+		Account account = getCurrentContext().getAccount().get();
+		getPageService().deletePageRowGroupSession(pageRowId, groupSessionId);
+
+		return new ApiResponse();
 	}
 
 	@PUT("/pages/row/{pageRowId}/group-session")
