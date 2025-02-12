@@ -51,6 +51,10 @@ public class AccountSourceApiResponse {
 	private final AccountSourceDisplayStyleId accountSourceDisplayStyleId;
 	@Nullable
 	private final String ssoUrl;
+	@Nullable
+	private String supplementMessage;
+	@Nullable
+	private String supplementMessageStyle;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -74,6 +78,8 @@ public class AccountSourceApiResponse {
 		this.shortDescription = accountSource.getShortDescription();
 		this.authenticationDescription = accountSource.getAuthenticationDescription();
 		this.accountSourceDisplayStyleId = accountSource.getAccountSourceDisplayStyleId();
+		this.supplementMessage = accountSource.getSupplementMessage();
+		this.supplementMessageStyle = accountSource.getSupplementMessageStyle();
 
 		String ssoUrl = null;
 
@@ -115,5 +121,15 @@ public class AccountSourceApiResponse {
 	@Nonnull
 	public Optional<String> getSsoUrl() {
 		return Optional.ofNullable(ssoUrl);
+	}
+
+	@Nonnull
+	public Optional<String> getSupplementMessage() {
+		return Optional.ofNullable(this.supplementMessage);
+	}
+
+	@Nullable
+	public Optional<String> getSupplementMessageStyle() {
+		return Optional.ofNullable(this.supplementMessageStyle);
 	}
 }

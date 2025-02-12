@@ -55,6 +55,10 @@ public class AccountSourceForInstitution {
 	private Boolean visible;
 	@Nullable
 	private Integer displayOrder;
+	@Nullable
+	private String supplementMessage;
+	@Nullable
+	private String supplementMessageStyle;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -162,5 +166,23 @@ public class AccountSourceForInstitution {
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public String getSupplementMessage() {
+		return this.supplementMessage;
+	}
+
+	public void setSupplementMessage(@Nullable String supplementMessage) {
+		this.supplementMessage = supplementMessage;
+	}
+
+	@Nullable
+	public String getSupplementMessageStyle() {
+		return this.supplementMessageStyle;
+	}
+
+	public void setSupplementMessageStyle(@Nullable String supplementMessageStyle) {
+		this.supplementMessageStyle = supplementMessageStyle;
 	}
 }
