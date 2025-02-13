@@ -416,7 +416,6 @@ public class PageResource {
 		}});
 	}
 
-
 	@POST("/pages/row/{pageSectionId}/content")
 	@AuthenticationRequired
 	public ApiResponse createPageRowContent(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -473,7 +472,13 @@ public class PageResource {
 
 		getPageService().deletePageRowContent(pageRowId, contentId);
 
-		return new ApiResponse();
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowContentApiResponseFactory().create(pageRow.get()));
+		}});
 	}
 
 	@POST("/pages/row/{pageSectionId}/tag-group")
@@ -552,11 +557,14 @@ public class PageResource {
 		requireNonNull(pageRowId);
 		requireNonNull(groupSessionId);
 
-		Account account = getCurrentContext().getAccount().get();
 		getPageService().deletePageRowGroupSession(pageRowId, groupSessionId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
 
-		return new ApiResponse();
-	}
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowGroupSessionApiResponseFactory().create(pageRow.get()));
+		}});	}
 
 	@PUT("/pages/row/{pageRowId}/group-session")
 	@AuthenticationRequired
