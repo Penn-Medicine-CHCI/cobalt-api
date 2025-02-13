@@ -38,8 +38,10 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
@@ -405,6 +407,37 @@ public class PageService {
 		return pageSectionId;
 	}
 
+	@Nonnull
+	public void updatePageSectionDisplayOrder(@Nonnull UpdatePageSectionDisplayOrderRequest request) {
+		requireNonNull(request);
+
+		int displayOrder=0;
+
+		for (UUID pageSectionId : request.getPageSectionIds()) {
+			getDatabase().execute("""
+					UPDATE page_section
+					SET display_order = ?
+					WHERE page_section_id = ?
+					""", displayOrder, pageSectionId);
+			displayOrder++;
+		}
+	}
+
+	@Nonnull
+	public void updatePageRowDisplayOrder(@Nonnull UpdatePageRowDisplayOrderRequest request) {
+		requireNonNull(request);
+
+		int displayOrder=0;
+
+		for (UUID pageRowId : request.getPageRowIds()) {
+			getDatabase().execute("""
+					UPDATE page_row
+					SET display_order = ?
+					WHERE page_row_id = ?
+					""", displayOrder, pageRowId);
+			displayOrder++;
+		}
+	}
 	@Nonnull
 	public UUID updatePageSection(@Nonnull UpdatePageSectionRequest request) {
 		requireNonNull(request);

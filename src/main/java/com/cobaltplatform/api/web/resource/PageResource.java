@@ -35,8 +35,10 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
@@ -84,6 +86,7 @@ import javax.inject.Singleton;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -413,6 +416,44 @@ public class PageResource {
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageSection", getPageSectionApiResponseFactory().create(pageSection.get()));
+		}});
+	}
+
+	@PUT("/pages/{pageId}/section")
+	@AuthenticationRequired
+	public ApiResponse updatePageSectionDisplayOrder(@Nonnull @PathParameter("pageId") UUID pageId,
+																									 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageId);
+		requireNonNull(requestBody);
+
+		UpdatePageSectionDisplayOrderRequest request = getRequestBodyParser().parse(requestBody, UpdatePageSectionDisplayOrderRequest.class);
+
+		getPageService().updatePageSectionDisplayOrder(request);
+
+ 		List<PageSection> pageSections = getPageService().findPageSectionsByPageId(pageId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageSections", pageSections.stream().map(pageSection -> getPageSectionApiResponseFactory().create(pageSection))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@PUT("/pages/row/{pageSectionId}")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowDisplayOrder(@Nonnull @PathParameter("pageSectionId") UUID pageId,
+																							 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowDisplayOrderRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowDisplayOrderRequest.class);
+
+		getPageService().updatePageRowDisplayOrder(request);
+
+		List<PageRow> pageRows = getPageService().findPageRowsBySectionId(pageId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRows", pageRows.stream().map(pageRow -> getPageRowApiResponseFactory().create(pageRow))
+					.collect(Collectors.toList()));
 		}});
 	}
 
