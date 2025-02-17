@@ -37,7 +37,9 @@ public class ScreeningAnswerFormat {
 	public enum ScreeningAnswerFormatId {
 		SINGLE_SELECT,
 		MULTI_SELECT,
-		FREEFORM_TEXT
+		FREEFORM_TEXT,
+		CARD_SORT,
+		REORDER
 	}
 
 	@Override
