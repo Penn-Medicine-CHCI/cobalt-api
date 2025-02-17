@@ -351,6 +351,7 @@ public class Institution {
 		COBALT_IC,
 		COBALT_IC_SELF_REFERRAL,
 		COBALT_FHIR,
+		COBALT_COURSES
 	}
 
 	@Override
