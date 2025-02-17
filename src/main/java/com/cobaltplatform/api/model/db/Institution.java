@@ -346,6 +346,10 @@ public class Institution {
 	private Boolean contentAudiencesEnabled;
 	@Nullable
 	private Boolean resourcePacketsEnabled;
+
+	@Nullable
+	private UUID onboardingScreeningFlowId;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1638,5 +1642,14 @@ public class Institution {
 
 	public void setResourcePacketsEnabled(@Nullable Boolean resourcePacketsEnabled) {
 		this.resourcePacketsEnabled = resourcePacketsEnabled;
+	}
+
+	@Nullable
+	public UUID getOnboardingScreeningFlowId() {
+		return this.onboardingScreeningFlowId;
+	}
+
+	public void setOnboardingScreeningFlowId(@Nullable UUID onboardingScreeningFlowId) {
+		this.onboardingScreeningFlowId = onboardingScreeningFlowId;
 	}
 }

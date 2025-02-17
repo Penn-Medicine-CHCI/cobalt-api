@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('202-courses', NULL, NULL);
 
+-- Institutions can now have an "onboarding" screening flow that is required before proceeding further in the system
+ALTER TABLE institution ADD COLUMN onboarding_screening_flow_id UUID REFERENCES screening_flow(screening_flow_id);
+
 -- Introduce "course" feature
 INSERT INTO feature (feature_id, navigation_header_id, name, url_name) VALUES
 	('COURSE', 'CONNECT_WITH_SUPPORT', 'Complete self-guided coursework', '/courses');

@@ -167,6 +167,9 @@ public class InstitutionApiResponse {
 	private final Boolean contentAudiencesEnabled;
 	@Nonnull
 	private final Boolean resourcePacketsEnabled;
+	@Nullable
+	private final UUID onboardingScreeningFlowId;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
@@ -275,6 +278,8 @@ public class InstitutionApiResponse {
 		this.contentAudiencesEnabled = institution.getContentAudiencesEnabled();
 
 		this.resourcePacketsEnabled = institution.getResourcePacketsEnabled();
+
+		this.onboardingScreeningFlowId = institution.getOnboardingScreeningFlowId();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -570,5 +575,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getResourcePacketsEnabled() {
 		return resourcePacketsEnabled;
+	}
+
+	@Nullable
+	public UUID getOnboardingScreeningFlowId() {
+		return this.onboardingScreeningFlowId;
 	}
 }
