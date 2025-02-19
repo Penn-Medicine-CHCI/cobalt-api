@@ -78,7 +78,7 @@ CREATE TABLE video (
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_unit FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON video FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Ensure that data in video is appropriate for the type
 CREATE OR REPLACE FUNCTION video_validation()
@@ -109,9 +109,15 @@ CREATE TABLE course_unit (
 	title TEXT NOT NULL,
 	description TEXT, -- Can include HTML
 	display_order INTEGER NOT NULL, -- Order within the module
+	video_id UUID REFERENCES video, -- Only applies to VIDEO course_unit_type_id
+	screening_flow_id UUID REFERENCES screening_flow, -- Only applies to units that include questions and answers, e.g. QUIZ course_unit_type_id
+	download_url TEXT, -- Only applies to units that include downloadable files, e.g. INFOGRAPHIC course_unit_type_id
+	image_url TEXT, -- Only applies to units that include an embedded image, e.g. INFOGRAPHIC course_unit_type_id
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- TODO: download_url above might need to be its own table so we can support many downloads and include other fields like descriptions
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_unit FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
@@ -141,11 +147,11 @@ CREATE TABLE course_session_unit_status (
 );
 
 -- User has explicitly completed the unit
-INSERT INTO course_session_unit_status_id VALUES ('COMPLETE', 'Complete');
+INSERT INTO course_session_unit_status VALUES ('COMPLETE', 'Complete');
 -- User has explicitly skipped the unit
-INSERT INTO course_session_unit_status_id VALUES ('SKIPPED', 'Skipped');
+INSERT INTO course_session_unit_status VALUES ('SKIPPED', 'Skipped');
 -- User has taken some kind of action that results in units being marked as inapplicable (e.g. answering a quiz in a way that indicates their child doesn't have ADHD, which would hide the ADHD-related units)
-INSERT INTO course_session_unit_status_id VALUES ('NOT_APPLICABLE', 'Not Applicable');
+INSERT INTO course_session_unit_status VALUES ('NOT_APPLICABLE', 'Not Applicable');
 
 -- Tracks unit status for a given course session
 -- course_session_unit
@@ -200,8 +206,17 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * courseSessionId (UUID) - optional, if a session has been started for this course
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_COURSE_UNIT', 'Page View (Course Unit)');
 
--- TODO: video events
--- TODO: clickthrough events
+-- When a video that's part of a course unit fires off an event that we listen for, e.g. 'playerReady' or 'playerPaused'.
+--
+-- Additional data:
+-- * courseUnitId (UUID)
+-- * courseSessionId (UUID) - optional, if a session has been started for this course
+-- * videoId (UUID)
+-- * eventName (String) - the name of the event, e.g. 'playerReady', which is specific to the type of video (Kaltura, YouTube, ...)
+-- * eventPayload (any) - optional, a payload for the event specific to the type of video (Kaltura, YouTube, ...)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('EVENT_COURSE_UNIT_VIDEO', 'Event (Course Unit Video)');
+
+-- TODO: clickthrough events, e.g. homework download
 
 -- Additional notes
 
