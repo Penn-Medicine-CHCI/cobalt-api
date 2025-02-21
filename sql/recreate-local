@@ -207,7 +207,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/198-data-sync.
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/199-message-status-sending.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/200-self-referred-patient-orders.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/201-account-source-messages.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/202-courses.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/202-ic-config.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/203-courses.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

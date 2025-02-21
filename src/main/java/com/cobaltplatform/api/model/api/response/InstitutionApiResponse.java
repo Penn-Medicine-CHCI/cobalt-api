@@ -167,6 +167,10 @@ public class InstitutionApiResponse {
 	private final Boolean contentAudiencesEnabled;
 	@Nonnull
 	private final Boolean resourcePacketsEnabled;
+	@Nonnull
+	private final Boolean integratedCarePatientDemographicsRequired;
+	@Nonnull
+	private final Boolean integratedCarePatientCarePreferenceVisible;
 	@Nullable
 	private final UUID onboardingScreeningFlowId;
 
@@ -278,6 +282,9 @@ public class InstitutionApiResponse {
 		this.contentAudiencesEnabled = institution.getContentAudiencesEnabled();
 
 		this.resourcePacketsEnabled = institution.getResourcePacketsEnabled();
+
+		this.integratedCarePatientDemographicsRequired = institution.getIntegratedCarePatientDemographicsRequired();
+		this.integratedCarePatientCarePreferenceVisible = institution.getIntegratedCarePatientCarePreferenceVisible();
 
 		this.onboardingScreeningFlowId = institution.getOnboardingScreeningFlowId();
 
@@ -575,6 +582,16 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getResourcePacketsEnabled() {
 		return resourcePacketsEnabled;
+	}
+
+	@Nonnull
+	public Boolean getIntegratedCarePatientDemographicsRequired() {
+		return this.integratedCarePatientDemographicsRequired;
+	}
+
+	@Nonnull
+	public Boolean getIntegratedCarePatientCarePreferenceVisible() {
+		return this.integratedCarePatientCarePreferenceVisible;
 	}
 
 	@Nullable

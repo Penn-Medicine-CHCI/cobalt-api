@@ -346,7 +346,10 @@ public class Institution {
 	private Boolean contentAudiencesEnabled;
 	@Nullable
 	private Boolean resourcePacketsEnabled;
-
+	@Nullable
+	private Boolean integratedCarePatientDemographicsRequired;
+	@Nullable
+	private Boolean integratedCarePatientCarePreferenceVisible;
 	@Nullable
 	private UUID onboardingScreeningFlowId;
 
@@ -1642,6 +1645,24 @@ public class Institution {
 
 	public void setResourcePacketsEnabled(@Nullable Boolean resourcePacketsEnabled) {
 		this.resourcePacketsEnabled = resourcePacketsEnabled;
+	}
+
+
+	public Boolean getIntegratedCarePatientDemographicsRequired() {
+		return this.integratedCarePatientDemographicsRequired;
+	}
+
+	public void setIntegratedCarePatientDemographicsRequired(@Nullable Boolean integratedCarePatientDemographicsRequired) {
+		this.integratedCarePatientDemographicsRequired = integratedCarePatientDemographicsRequired;
+	}
+
+	@Nullable
+	public Boolean getIntegratedCarePatientCarePreferenceVisible() {
+		return this.integratedCarePatientCarePreferenceVisible;
+	}
+
+	public void setIntegratedCarePatientCarePreferenceVisible(@Nullable Boolean integratedCarePatientCarePreferenceVisible) {
+		this.integratedCarePatientCarePreferenceVisible = integratedCarePatientCarePreferenceVisible;
 	}
 
 	@Nullable
