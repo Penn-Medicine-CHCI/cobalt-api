@@ -1197,8 +1197,73 @@ public class ScreeningService {
 				""", Integer.class, screeningSessionScreeningId, screeningQuestionId).get() > 0;
 	}
 
+	@ThreadSafe
+	public static class CreateScreeningAnswersResult {
+		@Nonnull
+		private final List<UUID> screeningAnswerIds;
+		@Nonnull
+		private final List<CreateScreeningAnswersMessage> messages;
+		@Nonnull
+		private final Map<UUID, List<CreateScreeningAnswersMessage>> messagesByScreeningQuestionId;
+
+		public CreateScreeningAnswersResult(@Nonnull List<UUID> screeningAnswerIds,
+																				@Nonnull List<CreateScreeningAnswersMessage> messages,
+																				@Nonnull  Map<UUID, List<CreateScreeningAnswersMessage>> messagesByScreeningQuestionId) {
+			requireNonNull(screeningAnswerIds);
+			requireNonNull(messages);
+			requireNonNull(messagesByScreeningQuestionId);
+
+			this.screeningAnswerIds = Collections.unmodifiableList(new ArrayList<>(screeningAnswerIds));
+			this.messages = Collections.unmodifiableList(new ArrayList<>(messages));
+			this.messagesByScreeningQuestionId = null; // Collections.unmodifiableList(new ArrayList<>(messagesByScreeningQuestionId));
+		}
+
+		@ThreadSafe
+		public static class CreateScreeningAnswersMessage {
+			@Nonnull
+			private final CreateScreeningAnswersMessageDisplayTypeId messageDisplayTypeId;
+			@Nonnull
+			private final String message; // Can include HTML
+
+			public CreateScreeningAnswersMessage(@Nonnull CreateScreeningAnswersMessageDisplayTypeId messageDisplayTypeId,
+																					 @Nonnull String message) {
+				requireNonNull(messageDisplayTypeId);
+				requireNonNull(message);
+
+				this.messageDisplayTypeId = messageDisplayTypeId;
+				this.message = message;
+			}
+
+			public enum CreateScreeningAnswersMessageDisplayTypeId {
+				INFO,
+				WARNING,
+				ERROR
+			}
+
+			@Nonnull
+			public CreateScreeningAnswersMessageDisplayTypeId getMessageDisplayTypeId() {
+				return this.messageDisplayTypeId;
+			}
+
+			@Nonnull
+			public String getMessage() {
+				return this.message;
+			}
+		}
+
+		@Nonnull
+		public List<UUID> getScreeningAnswerIds() {
+			return this.screeningAnswerIds;
+		}
+
+		@Nonnull
+		public List<CreateScreeningAnswersMessage> getMessages() {
+			return this.messages;
+		}
+	}
+
 	@Nonnull
-	public List<UUID> createScreeningAnswers(@Nullable CreateScreeningAnswersRequest request) {
+	public CreateScreeningAnswersResult createScreeningAnswers(@Nullable CreateScreeningAnswersRequest request) {
 		requireNonNull(request);
 
 		ScreeningQuestionContextId screeningQuestionContextId = request.getScreeningQuestionContextId();
@@ -1927,7 +1992,7 @@ public class ScreeningService {
 			}
 		}
 
-		return screeningAnswerIds;
+		return new CreateScreeningAnswersResult(screeningAnswerIds, null, null);
 	}
 
 	@Nonnull
