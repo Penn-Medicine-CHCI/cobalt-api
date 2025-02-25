@@ -44,7 +44,6 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.GroupSession;
@@ -292,37 +291,45 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID updatePageStatus(@Nonnull UpdatePageStatus request) {
-		requireNonNull(request);
+	public UUID publishPage(@Nonnull UUID pageId,
+													@Nonnull InstitutionId institutionId) {
+		requireNonNull(pageId);
+		requireNonNull(institutionId);
 
-		PageStatusId pageStatusId = request.getPageStatusId();
-		InstitutionId institutionId = request.getInstitutionId();
-		UUID pageId = request.getPageId();
 		Optional<Page> page = findPageById(pageId, institutionId);
-		ValidationException validationException = new ValidationException();
 
-		if (!page.isPresent())
-			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
+		validatePublishedPage(pageId, institutionId);
 
-		if (validationException.hasErrors())
-			throw validationException;
+		//If one exists, update the parent page to draft and delete it
+		if (page.get().getParentPageId() != null)
+			getDatabase().execute("""
+					UPDATE page 
+					SET page_status_id = ?, deleted=true
+					WHERE page_id = ?""", PageStatusId.DRAFT, page.get().getParentPageId());
 
-		if (pageStatusId.equals(PageStatusId.LIVE)) {
-			validatePublishedPage(pageId, institutionId);
 
-			//If one exists, update the parent page to draft and delete it
-			if (page.get().getParentPageId() != null)
-				getDatabase().execute("""
-						UPDATE page 
-						SET page_status_id = ?, deleted=true
-						WHERE page_id = ?""", PageStatusId.DRAFT, page.get().getParentPageId());
-		}
+		getDatabase().execute("""
+				UPDATE page SET
+				page_status_id=?, published_date=NOW()
+				WHERE page_id = ?
+				AND institution_id = ?
+				""", PageStatusId.LIVE, pageId, institutionId);
+
+		return pageId;
+	}
+
+	@Nonnull
+	public UUID unpublishPage(@Nonnull UUID pageId,
+														@Nonnull InstitutionId institutionId) {
+		requireNonNull(pageId);
+		requireNonNull(institutionId);
 
 		getDatabase().execute("""
 				UPDATE page SET
 				page_status_id=?
 				WHERE page_id=?					   
-				""", pageStatusId, pageId);
+				AND institution_id = ?
+				""", PageStatusId.DRAFT, pageId, institutionId);
 
 		return pageId;
 	}

@@ -41,7 +41,6 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
-import com.cobaltplatform.api.model.api.request.UpdatePageStatus;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
@@ -58,7 +57,6 @@ import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageSection;
-import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -291,12 +289,7 @@ public class PageResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		UpdatePageStatus request = new UpdatePageStatus();
-		request.setPageId(pageId);
-		request.setPageStatusId(PageStatus.PageStatusId.LIVE);
-		request.setInstitutionId(account.getInstitutionId());
-
-		getPageService().updatePageStatus(request);
+		getPageService().publishPage(pageId, account.getInstitutionId());
 
 		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
 
@@ -331,12 +324,7 @@ public class PageResource {
 
 		Account account = getCurrentContext().getAccount().get();
 
-		UpdatePageStatus request = new UpdatePageStatus();
-		request.setPageId(pageId);
-		request.setPageStatusId(PageStatus.PageStatusId.DRAFT);
-		request.setInstitutionId(account.getInstitutionId());
-
-		getPageService().updatePageStatus(request);
+		getPageService().unpublishPage(pageId, account.getInstitutionId());
 
 		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
 
