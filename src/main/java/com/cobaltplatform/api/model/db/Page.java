@@ -62,6 +62,8 @@ public class Page {
 	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
+	private UUID parentPageId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -208,5 +210,14 @@ public class Page {
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public UUID getParentPageId() {
+		return parentPageId;
+	}
+
+	public void setParentPageId(@Nullable UUID parentPageId) {
+		this.parentPageId = parentPageId;
 	}
 }

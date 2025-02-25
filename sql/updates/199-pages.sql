@@ -34,6 +34,7 @@ CREATE TABLE page (
     published_date timestamptz NULL,
     deleted_flag BOOLEAN NOT NULL DEFAULT false,
     institution_id VARCHAR NOT NULL REFERENCES institution,
+    parent_page_id UUID NULL REFERENCES page(page_id),
   	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
   	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -74,32 +75,43 @@ CREATE TABLE page_row_column (
     description TEXT NULL,
     image_file_upload_id UUID NULL REFERENCES file_upload,
     image_alt_text TEXT NULL,    
-    column_display_order SMALLINT NOT NULL
+    column_display_order SMALLINT NOT NULL,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_column FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE page_row_group_session (
     page_row_group_session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     group_session_id UUID NOT NULL REFERENCES group_session,
-    group_session_display_order SMALLINT NOT NULL
+    group_session_display_order SMALLINT NOT NULL,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX idx_page_row_group_session_row_session ON page_row_group_session(page_row_id, group_session_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_group_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE page_row_content (
     page_row_content_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     content_id UUID NOT NULL REFERENCES content,
-    content_display_order SMALLINT NOT NULL
+    content_display_order SMALLINT NOT NULL,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX idx_page_row_content_row_content ON page_row_content(page_row_id, content_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_content FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 CREATE TABLE page_row_tag_group (
     page_row_tag_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
-    tag_group_id VARCHAR NOT NULL REFERENCES tag_group
+    tag_group_id VARCHAR NOT NULL REFERENCES tag_group,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX idx_page_row_tag_group_row_tag_group ON page_row_tag_group(page_row_id, tag_group_id);
-
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_tag_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 
 INSERT INTO page_type

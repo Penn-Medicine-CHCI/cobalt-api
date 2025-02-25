@@ -307,6 +307,23 @@ public class PageResource {
 		}});
 	}
 
+	@PUT("/pages/{pageId}/duplicate")
+	@AuthenticationRequired
+	public ApiResponse duplicatePage(@Nonnull @PathParameter("pageId") UUID pageId) {
+		requireNonNull(pageId);
+		Account account = getCurrentContext().getAccount().get();
+
+		UUID newPageId = getPageService().duplicatePage(pageId, account.getAccountId());
+
+		Optional<Page> page = getPageService().findPageById(newPageId, account.getInstitutionId());
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("page", getPageApiResponseFactory().create(page.get(), true));
+		}});
+	}
+
 	@PUT("/pages/{pageId}/unpublish")
 	@AuthenticationRequired
 	public ApiResponse unpublishPage(@Nonnull @PathParameter("pageId") UUID pageId) {

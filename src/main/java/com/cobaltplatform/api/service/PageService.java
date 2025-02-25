@@ -298,9 +298,25 @@ public class PageService {
 		PageStatusId pageStatusId = request.getPageStatusId();
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID pageId = request.getPageId();
+		Optional<Page> page = findPageById(pageId, institutionId);
+		ValidationException validationException = new ValidationException();
 
-		if (pageStatusId.equals(PageStatusId.LIVE))
+		if (!page.isPresent())
+			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (pageStatusId.equals(PageStatusId.LIVE)) {
 			validatePublishedPage(pageId, institutionId);
+
+			//If one exists, update the parent page to draft and delete it
+			if (page.get().getParentPageId() != null)
+				getDatabase().execute("""
+						UPDATE page 
+						SET page_status_id = ?, deleted=true
+						WHERE page_id = ?""", PageStatusId.DRAFT, page.get().getParentPageId());
+		}
 
 		getDatabase().execute("""
 				UPDATE page SET
@@ -411,7 +427,7 @@ public class PageService {
 	public void updatePageSectionDisplayOrder(@Nonnull UpdatePageSectionDisplayOrderRequest request) {
 		requireNonNull(request);
 
-		int displayOrder=0;
+		int displayOrder = 0;
 
 		for (UUID pageSectionId : request.getPageSectionIds()) {
 			getDatabase().execute("""
@@ -427,7 +443,7 @@ public class PageService {
 	public void updatePageRowDisplayOrder(@Nonnull UpdatePageRowDisplayOrderRequest request) {
 		requireNonNull(request);
 
-		int displayOrder=0;
+		int displayOrder = 0;
 
 		for (UUID pageRowId : request.getPageRowIds()) {
 			getDatabase().execute("""
@@ -438,6 +454,7 @@ public class PageService {
 			displayOrder++;
 		}
 	}
+
 	@Nonnull
 	public UUID updatePageSection(@Nonnull UpdatePageSectionRequest request) {
 		requireNonNull(request);
@@ -558,6 +575,7 @@ public class PageService {
 				AND page_id=?;
 				""", pageId, pageId);
 	}
+
 	@Nonnull
 	public Optional<PageRow> findPageRowById(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
@@ -1153,7 +1171,7 @@ public class PageService {
 
 	@Nonnull
 	public void deletePageRowContent(@Nullable UUID pageRowId,
-												 					 @Nullable UUID contentId) {
+																	 @Nullable UUID contentId) {
 		requireNonNull(pageRowId);
 		requireNonNull(contentId);
 
@@ -1262,8 +1280,8 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Page not found.")));
 		if (tagGroupId == null)
 
-		if (validationException.hasErrors())
-			throw validationException;
+			if (validationException.hasErrors())
+				throw validationException;
 
 		getDatabase().execute("""
 				UPDATE page_row_tag_group
@@ -1295,6 +1313,7 @@ public class PageService {
 				ORDER BY vp.group_session_display_order
 				""", GroupSession.class, pageRowId);
 	}
+
 	@Nonnull
 	public UUID createPageRowGroupSession(@Nonnull CreatePageRowGroupSessionRequest request) {
 		requireNonNull(request);
@@ -1337,7 +1356,7 @@ public class PageService {
 
 	@Nonnull
 	public void deletePageRowGroupSession(@Nullable UUID pageRowId,
-																	 			@Nullable UUID groupSessionId) {
+																				@Nullable UUID groupSessionId) {
 		requireNonNull(pageRowId);
 		requireNonNull(groupSessionId);
 
@@ -1441,6 +1460,90 @@ public class PageService {
 
 		return (FindResult<Page>) findResult;
 
+	}
+
+	@Nonnull
+	public UUID duplicatePage(@Nonnull UUID pageId,
+														@Nonnull UUID accountId) {
+		requireNonNull(pageId);
+
+		UUID newPageId = UUID.randomUUID();
+		UUID newPageSectionId;
+		UUID newPageRowId;
+
+		getDatabase().execute("""
+				INSERT INTO page
+				(page_id,name,url_name,page_type_id,page_status_id,headline,description,image_file_upload_id,
+				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id)
+				SELECT ?,name,url_name,page_type_id,page_status_id,headline,description,image_file_upload_id,
+				       image_alt_text,published_date,deleted_flag,institution_id,?,?
+				FROM page 
+				WHERE page_id=?
+				""", newPageId, accountId, pageId, pageId);
+
+		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
+		List<PageRow> pageRows;
+
+		for (PageSection pageSection : pageSections) {
+			newPageSectionId = UUID.randomUUID();
+
+			getDatabase().execute("""
+					INSERT INTO page_section
+					(page_section_id,page_id,name,headline,description,
+					 background_color_id,deleted_flag,display_order,created_by_account_id)
+					 SELECT ?,?,name,headline,description,
+					        background_color_id,deleted_flag,display_order,?
+					 FROM page_section
+					 WHERE page_section_id=?					  					 
+					""", newPageSectionId, newPageId, accountId, pageSection.getPageSectionId());
+
+			pageRows = findPageRowsBySectionId(pageSection.getPageSectionId());
+
+			for (PageRow pageRow : pageRows) {
+				newPageRowId = UUID.randomUUID();
+
+				getDatabase().execute("""
+						INSERT INTO page_row
+						(page_row_id,page_section_id,row_type_id,deleted_flag,display_order,created_by_account_id)
+						SELECT ?, ?, row_type_id,deleted_flag,display_order, ?
+						FROM page_row
+						WHERE page_row_id = ?
+						""", newPageRowId, newPageSectionId, accountId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_column
+						(page_row_id,headline,description,image_file_upload_id,image_alt_text,column_display_order)						 
+						SELECT ?,headline,description,image_file_upload_id,image_alt_text,column_display_order
+						FROM page_row_column
+						WHERE page_row_id = ?""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_group_session
+						(page_row_id,group_session_id,group_session_display_order)
+						SELECT ?,group_session_id,group_session_display_order
+						FROM page_row_group_session
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_content
+						(page_row_id, content_id, content_display_order)
+						SELECT ?, content_id, content_display_order
+						FROM page_row_content
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_tag_group
+						(page_row_id, tag_group_id)
+						SELECT ?, tag_group_id
+						FROM page_row_tag_group
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
+			}
+		}
+
+		return newPageId;
 	}
 
 	@Nonnull
