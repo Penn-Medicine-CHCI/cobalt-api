@@ -52,14 +52,17 @@ import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.
 import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageUrlValidationResultApiResponse.PageAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FileUploadType;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
@@ -125,6 +128,8 @@ public class PageResource {
 	@Nonnull
 	private final PageCustomThreeColumnApiResponseFactory pageRowCustomThreeColumnApiResponseFactory;
 	@Nonnull
+	private final PageAutocompleteResultApiResponseFactory pageAutocompleteResultApiResponseFactory;
+	@Nonnull
 	private final PageService pageService;
 	@Nonnull
 	private final Formatter formatter;
@@ -147,6 +152,7 @@ public class PageResource {
 											@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
 											@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory,
 											@Nonnull AuthorizationService authorizationService,
+											@Nonnull PageAutocompleteResultApiResponseFactory pageAutocompleteResultApiResponseFactory,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -164,6 +170,7 @@ public class PageResource {
 		requireNonNull(pageCustomTwoColumnApiResponseFactory);
 		requireNonNull(pageCustomThreeColumnApiResponseFactory);
 		requireNonNull(authorizationService);
+		requireNonNull(pageAutocompleteResultApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -181,6 +188,7 @@ public class PageResource {
 		this.pageCustomTwoColumnApiResponseFactory = pageCustomTwoColumnApiResponseFactory;
 		this.pageRowCustomThreeColumnApiResponseFactory = pageCustomThreeColumnApiResponseFactory;
 		this.authorizationService = authorizationService;
+		this.pageAutocompleteResultApiResponseFactory = pageAutocompleteResultApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -203,6 +211,25 @@ public class PageResource {
 			put("page", getPageApiResponseFactory().create(page.get(), false));
 		}});
 	}
+
+	@Nonnull
+	@GET("/pages/validate-url-name")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse pageUrlValidation(@Nonnull @QueryParameter String searchQuery,
+																			 @Nonnull @QueryParameter Optional<UUID> pageId) {
+		requireNonNull(searchQuery);
+
+		Account account = getCurrentContext().getAccount().get();
+		Institution.InstitutionId institutionId = account.getInstitutionId();
+
+		PageUrlValidationResult result = getPageService().findPageUrlValidationResults(searchQuery, institutionId, pageId.orElse(null));
+
+		return new ApiResponse(new HashMap<>() {{
+			put("pageUrlNameValidationResult", getPageAutocompleteResultApiResponseFactory().create(result));
+		}});
+	}
+
 
 	@DELETE("/pages/row/{pageRowId}")
 	@AuthenticationRequired
@@ -873,5 +900,10 @@ public class PageResource {
 	@Nonnull
 	public AuthorizationService getAuthorizationService() {
 		return authorizationService;
+	}
+
+	@Nonnull
+	public PageAutocompleteResultApiResponseFactory getPageAutocompleteResultApiResponseFactory() {
+		return pageAutocompleteResultApiResponseFactory;
 	}
 }

@@ -61,8 +61,10 @@ import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.model.service.PageWithTotalCount;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -80,6 +82,7 @@ import javax.inject.Singleton;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -87,7 +90,6 @@ import java.util.UUID;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -326,12 +328,86 @@ public class PageService {
 
 		getDatabase().execute("""
 				UPDATE page SET
-				page_status_id=?
+				page_status_id=?,
+				published_date=null
 				WHERE page_id=?					   
 				AND institution_id = ?
 				""", PageStatusId.DRAFT, pageId, institutionId);
 
 		return pageId;
+	}
+
+	@Nonnull
+	public PageUrlValidationResult findPageUrlValidationResults(@Nonnull String urlName,
+																															@Nonnull InstitutionId institutionId,
+																															@Nullable UUID pageId) {
+		requireNonNull(urlName);
+		requireNonNull(institutionId);
+
+		PageUrlValidationResult result = new PageUrlValidationResult();
+
+		boolean urlNameContainsIllegalCharacters = WebUtility.urlNameContainsIllegalCharacters(urlName.trim());
+		urlName = WebUtility.normalizeUrlName(urlName).orElse("");
+
+		if (urlNameContainsIllegalCharacters) {
+			result.setAvailable(false);
+			result.setRecommendation(recommendedUrlNameForUrlName(urlName, institutionId, pageId));
+		} else if (!urlNameExistsForInstitutionId(urlName, institutionId, pageId)) {
+			result.setAvailable(true);
+			result.setRecommendation(urlName);
+		} else {
+			result.setAvailable(false);
+			result.setRecommendation(recommendedUrlNameForUrlName(urlName, institutionId, pageId));
+		}
+
+		return result;
+	}
+
+	@Nonnull
+	protected Boolean urlNameExistsForInstitutionId(@Nonnull String urlName,
+																									@Nonnull InstitutionId institutionId,
+																									@Nullable UUID pageId) {
+		requireNonNull(urlName);
+		requireNonNull(institutionId);
+
+		urlName = WebUtility.normalizeUrlName(urlName).orElse("");
+
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
+				SELECT COUNT(*) > 0
+				FROM page p
+				WHERE p.institution_id = ?
+				AND LOWER(p.url_name) = LOWER(?)
+				""");
+
+		parameters.add(institutionId);
+		parameters.add(urlName);
+
+		if (pageId != null) {
+			query.append(" AND p.page_id != ?");
+			parameters.add(pageId);
+		}
+
+		return getDatabase().queryForObject(query.toString(), Boolean.class, parameters.toArray()).get();
+	}
+	@Nonnull
+	protected String recommendedUrlNameForUrlName(@Nonnull String urlName,
+																								@Nonnull InstitutionId institutionId,
+																								@Nullable UUID pageId) {
+		requireNonNull(urlName);
+		requireNonNull(institutionId);
+
+		String recommendedUrlName = urlName;
+		boolean suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId, pageId);
+		int urlSuffix = 1;
+
+		while (!suggestedUrlAvailable) {
+			recommendedUrlName = format("%s-%s", urlName, urlSuffix);
+			suggestedUrlAvailable = !urlNameExistsForInstitutionId(recommendedUrlName, institutionId, pageId);
+			urlSuffix++;
+		}
+
+		return recommendedUrlName;
 	}
 
 	@Nonnull
