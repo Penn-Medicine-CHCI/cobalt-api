@@ -82,6 +82,7 @@ import javax.inject.Singleton;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -157,6 +158,7 @@ public class PageService {
 		String pageDescription = trimToNull(page.get().getDescription());
 		UUID pageImageFileUploadId = page.get().getImageFileUploadId();
 		String imageAltText = trimToNull(page.get().getImageAltText());
+		Map<String, Object> metadata = new HashMap<>();
 
 		if (pageHeadline == null)
 			validationException.add(new ValidationException.FieldError("pageHeadline", getStrings().get(format("Headline is required for Page %s.", page.get().getName()))));
@@ -166,6 +168,10 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("Image is required for Page %s.", page.get().getName()))));
 		if (imageAltText == null)
 			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Page %s.", page.get().getName()))));
+
+		if (validationException.hasErrors()){
+			metadata.put("pageId", pageId);
+		}
 
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
 
@@ -182,11 +188,18 @@ public class PageService {
 			if (description == null)
 				validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A description is required for Section %s.", pageSection.getName()))));
 
+			if (validationException.hasErrors() && metadata.isEmpty()){
+				metadata.put("sectionId", pageSection.getPageSectionId());
+			}
+
 			List<PageRow> pageRows = findPageRowsBySectionId(pageSection.getPageSectionId());
 
-			if (pageRows.size() == 0)
+			if (pageRows.size() == 0) {
 				validationException.add(new ValidationException.FieldError("pageRows", getStrings().get(format("At least one row is required for Section %s.", pageSection.getName()))));
-			else {
+				if (validationException.hasErrors() && metadata.isEmpty()) {
+					metadata.put("sectionId", pageSection.getPageSectionId());
+				}
+			} else {
 				for (PageRow pageRow : pageRows) {
 					if (pageRow.getRowTypeId().equals(RowTypeId.RESOURCES)) {
 						List<PageRowContent> pageRowContent = findPageRowContentByPageRowId(pageRow.getPageRowId());
@@ -204,10 +217,15 @@ public class PageService {
 							validatePageRowColum(pageRowColumn.get(), validationException);
 						}
 					}
-
+					if (validationException.hasErrors() && metadata.isEmpty()){
+						metadata.put("sectionId", pageSection.getPageSectionId());
+						metadata.put("rowId", pageRow.getPageRowId());
+					}
 				}
 			}
 		}
+
+		validationException.setMetadata(metadata);
 
 		if (validationException.hasErrors())
 			throw validationException;
