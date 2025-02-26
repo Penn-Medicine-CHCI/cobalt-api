@@ -56,6 +56,7 @@ import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
+import com.cobaltplatform.api.model.db.PageType;
 import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.db.TagGroup;
@@ -1627,6 +1628,17 @@ public class PageService {
 		}
 
 		return newPageId;
+	}
+
+	public Optional<PageType> findPageTypeById(@Nullable String pageTypeId) {
+		if (pageTypeId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM page_type
+				WHERE page_type_id=?
+				""", PageType.class, pageTypeId);
 	}
 
 	@Nonnull

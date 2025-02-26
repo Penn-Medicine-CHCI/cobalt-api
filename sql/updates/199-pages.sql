@@ -3,7 +3,8 @@ SELECT _v.register_patch('199-pages', NULL, NULL);
 
 CREATE TABLE page_type (
   page_type_id TEXT PRIMARY KEY,
-  description TEXT NOT NULL
+  description TEXT NOT NULL,
+  relative_base_url TEXT NOT NULL
 );
 
 CREATE TABLE page_status (
@@ -116,8 +117,8 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_tag_group FO
 
 INSERT INTO page_type
 VALUES
-('TOPIC_CENTER', 'Topic Center'),
-('COMMUNITY', 'Community');
+('TOPIC_CENTER', 'Topic Center', 'topic-center'),
+('COMMUNITY', 'Community', 'community');
 
 INSERT INTO page_status
 VALUES

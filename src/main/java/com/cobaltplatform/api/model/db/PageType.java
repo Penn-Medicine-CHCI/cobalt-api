@@ -31,7 +31,8 @@ public class PageType {
 	private PageTypeId pageTypeId;
 	@Nullable
 	private String description;
-
+	@Nullable
+	private String relativeBaseUrl;
 	public enum PageTypeId {
 		TOPIC_CENTER,
 		COMMUNITY
@@ -53,5 +54,14 @@ public class PageType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getRelativeBaseUrl() {
+		return relativeBaseUrl;
+	}
+
+	public void setRelativeBaseUrl(@Nullable String relativeBaseUrl) {
+		this.relativeBaseUrl = relativeBaseUrl;
 	}
 }
