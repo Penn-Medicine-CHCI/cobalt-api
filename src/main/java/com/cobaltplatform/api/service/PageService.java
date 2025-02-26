@@ -162,13 +162,13 @@ public class PageService {
 		Map<String, Object> metadata = new HashMap<>();
 
 		if (pageHeadline == null)
-			validationException.add(new ValidationException.FieldError("pageHeadline", getStrings().get(format("Headline is required for Page %s.", page.get().getName()))));
+			validationException.add(new ValidationException.FieldError("pageHeadline", getStrings().get(format("A Headline is required for Page %s.\n", page.get().getName()))));
 		if (pageDescription == null)
-			validationException.add(new ValidationException.FieldError("pageDescription", getStrings().get(format("Description is required for Page %s.", page.get().getName()))));
+			validationException.add(new ValidationException.FieldError("pageDescription", getStrings().get(format("A Description is required for Page %s.\n", page.get().getName()))));
 		if (pageImageFileUploadId == null)
-			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("Image is required for Page %s.", page.get().getName()))));
+			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("An Image is required for Page %s.\n", page.get().getName()))));
 		if (imageAltText == null)
-			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Page %s.", page.get().getName()))));
+			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Page %s.\n", page.get().getName()))));
 
 		if (validationException.hasErrors()) {
 			metadata.put("pageId", pageId);
@@ -177,7 +177,7 @@ public class PageService {
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
 
 		if (pageSections.size() == 0)
-			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get(format("At least one section is required for Page %s.", page.get().getName()))));
+			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get(format("At least one section is required for Page %s.\n", page.get().getName()))));
 
 		for (PageSection pageSection : pageSections) {
 			//Name and background color are required when creating or updating a page section so no need to validate them
@@ -185,9 +185,9 @@ public class PageService {
 			String description = trimToNull(pageSection.getDescription());
 
 			if (headline == null)
-				validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A headline is required for Section %s.", pageSection.getName()))));
+				validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A headline is required for Section %s.\n", pageSection.getName()))));
 			if (description == null)
-				validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A description is required for Section %s.", pageSection.getName()))));
+				validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A description is required for Section %s.\n", pageSection.getName()))));
 
 			if (validationException.hasErrors() && metadata.isEmpty()) {
 				metadata.put("sectionId", pageSection.getPageSectionId());
@@ -196,7 +196,7 @@ public class PageService {
 			List<PageRow> pageRows = findPageRowsBySectionId(pageSection.getPageSectionId());
 
 			if (pageRows.size() == 0) {
-				validationException.add(new ValidationException.FieldError("pageRows", getStrings().get(format("At least one row is required for Section %s.", pageSection.getName()))));
+				validationException.add(new ValidationException.FieldError("pageRows", getStrings().get(format("At least one row is required for Section %s.\n", pageSection.getName()))));
 				if (validationException.hasErrors() && metadata.isEmpty()) {
 					metadata.put("sectionId", pageSection.getPageSectionId());
 				}
@@ -205,18 +205,18 @@ public class PageService {
 					if (pageRow.getRowTypeId().equals(RowTypeId.RESOURCES)) {
 						List<PageRowContent> pageRowContent = findPageRowContentByPageRowId(pageRow.getPageRowId());
 						if (pageRowContent.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.", pageSection.getName()))));
+							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.\n", pageSection.getName()))));
 					} else if (pageRow.getRowTypeId().equals(RowTypeId.GROUP_SESSIONS)) {
 						List<PageRowGroupSession> pageRowGroupSessions = findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
 						if (pageRowGroupSessions.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.", pageSection.getName()))));
+							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.\n", pageSection.getName()))));
 					} else if (pageRow.getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE)
 							|| pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 						Optional<PageRowColumn> pageRowColumn = Optional.empty();
 						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
 
 						if (pageRowColumn.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.", pageSection.getName()))));
+							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.\n", pageSection.getName()))));
 						else {
 							validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 						}
@@ -224,7 +224,7 @@ public class PageService {
 						if (pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1);
 							if (pageRowColumn.isEmpty())
-								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.", pageSection.getName()))));
+								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.\n", pageSection.getName()))));
 							else {
 								validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 							}
@@ -233,7 +233,7 @@ public class PageService {
 						if (pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2);
 							if (pageRowColumn.isEmpty())
-								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 3 not present for Custom row in Section %s.", pageSection.getName()))));
+								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 3 not present for Custom row in Section %s.\n", pageSection.getName()))));
 							else {
 								validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 							}
@@ -270,13 +270,13 @@ public class PageService {
 		Integer itemNumber = pageRowColumn.getColumnDisplayOrder() + 1;
 
 		if (headline == null)
-			validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A Headline is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
+			validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A Headline is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (description == null)
-			validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A Description is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
+			validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A Description is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (imageAltText == null)
-			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
+			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (imageFileUploadId == null)
-			validationException.add(new ValidationException.FieldError("imageFileUploadId", getStrings().get(format("Image is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
+			validationException.add(new ValidationException.FieldError("imageFileUploadId", getStrings().get(format("Image is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 	}
 
 	@Nonnull
@@ -360,7 +360,7 @@ public class PageService {
 		if (page.get().getParentPageId() != null)
 			getDatabase().execute("""
 					UPDATE page 
-					SET page_status_id = ?, deleted=true
+					SET page_status_id = ?, deleted_flag=true
 					WHERE page_id = ?""", PageStatusId.DRAFT, page.get().getParentPageId());
 
 
