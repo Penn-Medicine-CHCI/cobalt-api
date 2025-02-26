@@ -71,6 +71,7 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
+import org.checkerframework.checker.units.qual.N;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -213,27 +214,28 @@ public class PageService {
 							|| pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 						Optional<PageRowColumn> pageRowColumn = Optional.empty();
 						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
-						if (!pageRowColumn.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column not present for Custom row in Section %s.", pageSection.getName()))));
+
+						if (pageRowColumn.isEmpty())
+							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.", pageSection.getName()))));
 						else {
-							validatePageRowColum(pageRowColumn.get(), validationException);
+							validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 						}
 
 						if (pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1);
-							if (!pageRowColumn.isEmpty())
-								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.", pageSection.getName()))));
+							if (pageRowColumn.isEmpty())
+								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.", pageSection.getName()))));
 							else {
-								validatePageRowColum(pageRowColumn.get(), validationException);
+								validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 							}
 						}
 
 						if (pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2);
-							if (!pageRowColumn.isEmpty())
-								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.", pageSection.getName()))));
+							if (pageRowColumn.isEmpty())
+								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 3 not present for Custom row in Section %s.", pageSection.getName()))));
 							else {
-								validatePageRowColum(pageRowColumn.get(), validationException);
+								validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 							}
 						}
 					}
@@ -254,15 +256,27 @@ public class PageService {
 
 	@Nonnull
 	private void validatePageRowColum(@Nonnull PageRowColumn pageRowColumn,
+																		@Nonnull PageSection pageSection,
 																		@Nonnull ValidationException validationException) {
 		requireNonNull(pageRowColumn);
 		requireNonNull(validationException);
+		requireNonNull(pageSection);
 
 		String headline = trimToNull(pageRowColumn.getHeadline());
+		String description = trimToNull(pageRowColumn.getDescription());
+		String imageAltText = trimToNull(pageRowColumn.getImageAltText());
+		UUID imageFileUploadId = pageRowColumn.getImageFileUploadId();
+		String pageSectionName = pageSection.getName();
+		Integer itemNumber = pageRowColumn.getColumnDisplayOrder() + 1;
 
 		if (headline == null)
-			validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A Headline is required"))));
-
+			validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A Headline is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
+		if (description == null)
+			validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A Description is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
+		if (imageAltText == null)
+			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
+		if (imageFileUploadId == null)
+			validationException.add(new ValidationException.FieldError("imageFileUploadId", getStrings().get(format("Image is required for Item %s in Content Row in Section %s.", itemNumber, pageSectionName))));
 	}
 
 	@Nonnull
