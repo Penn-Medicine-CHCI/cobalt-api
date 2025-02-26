@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowColumnRequest;
@@ -84,7 +85,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -169,7 +169,7 @@ public class PageService {
 		if (imageAltText == null)
 			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Page %s.", page.get().getName()))));
 
-		if (validationException.hasErrors()){
+		if (validationException.hasErrors()) {
 			metadata.put("pageId", pageId);
 		}
 
@@ -188,7 +188,7 @@ public class PageService {
 			if (description == null)
 				validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A description is required for Section %s.", pageSection.getName()))));
 
-			if (validationException.hasErrors() && metadata.isEmpty()){
+			if (validationException.hasErrors() && metadata.isEmpty()) {
 				metadata.put("sectionId", pageSection.getPageSectionId());
 			}
 
@@ -203,21 +203,42 @@ public class PageService {
 				for (PageRow pageRow : pageRows) {
 					if (pageRow.getRowTypeId().equals(RowTypeId.RESOURCES)) {
 						List<PageRowContent> pageRowContent = findPageRowContentByPageRowId(pageRow.getPageRowId());
-						if (pageRowContent.size() == 0)
+						if (pageRowContent.isEmpty())
 							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.", pageSection.getName()))));
 					} else if (pageRow.getRowTypeId().equals(RowTypeId.GROUP_SESSIONS)) {
 						List<PageRowGroupSession> pageRowGroupSessions = findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
-						if (pageRowGroupSessions.size() == 0)
+						if (pageRowGroupSessions.isEmpty())
 							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.", pageSection.getName()))));
-					} else if (pageRow.getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE)) {
-						Optional<PageRowColumn> pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
-						if (!pageRowColumn.isPresent())
+					} else if (pageRow.getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE)
+							|| pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
+						Optional<PageRowColumn> pageRowColumn = Optional.empty();
+						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
+						if (!pageRowColumn.isEmpty())
 							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column not present for Custom row in Section %s.", pageSection.getName()))));
 						else {
 							validatePageRowColum(pageRowColumn.get(), validationException);
 						}
+
+						if (pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
+							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1);
+							if (!pageRowColumn.isEmpty())
+								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.", pageSection.getName()))));
+							else {
+								validatePageRowColum(pageRowColumn.get(), validationException);
+							}
+						}
+
+						if (pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
+							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2);
+							if (!pageRowColumn.isEmpty())
+								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.", pageSection.getName()))));
+							else {
+								validatePageRowColum(pageRowColumn.get(), validationException);
+							}
+						}
 					}
-					if (validationException.hasErrors() && metadata.isEmpty()){
+
+					if (validationException.hasErrors() && metadata.isEmpty()) {
 						metadata.put("sectionId", pageSection.getPageSectionId());
 						metadata.put("rowId", pageRow.getPageRowId());
 					}
@@ -409,6 +430,7 @@ public class PageService {
 
 		return getDatabase().queryForObject(query.toString(), Boolean.class, parameters.toArray()).get();
 	}
+
 	@Nonnull
 	protected String recommendedUrlNameForUrlName(@Nonnull String urlName,
 																								@Nonnull InstitutionId institutionId,
@@ -1565,23 +1587,55 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID duplicatePage(@Nonnull UUID pageId,
-														@Nonnull UUID accountId) {
-		requireNonNull(pageId);
+	public UUID duplicatePage(@Nonnull DuplicatePageRequest request) {
+		requireNonNull(request);
 
 		UUID newPageId = UUID.randomUUID();
 		UUID newPageSectionId;
 		UUID newPageRowId;
+		UUID accountId = request.getCreatedByAccountId();
+		UUID pageId = request.getPageId();
+		String name =trimToNull(request.getName());
+		String urlName = trimToNull(request.getUrlName());
+		Boolean copyForEditing = request.getCopyForEditing();
+		InstitutionId institutionId = request.getInstitutionId();
+		PageTypeId pageTypeId = request.getPageTypeId();
+		ValidationException validationException = new ValidationException();
+
+		Optional<Page> page = findPageById(pageId, institutionId);
+
+		if (!page.isPresent())
+			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
+
+		if (!copyForEditing){
+			if (name == null)
+				validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+
+			if (urlName == null)
+				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("URL is required.")));
+
+			if (pageTypeId == null)
+				validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		if (copyForEditing) {
+			name = page.get().getName();
+			urlName = page.get().getUrlName();
+			pageTypeId = page.get().getPageTypeId();
+		}
 
 		getDatabase().execute("""
 				INSERT INTO page
 				(page_id,name,url_name,page_type_id,page_status_id,headline,description,image_file_upload_id,
 				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id)
-				SELECT ?,name,url_name,page_type_id,page_status_id,headline,description,image_file_upload_id,
+				SELECT ?,?,?,?,page_status_id,headline,description,image_file_upload_id,
 				       image_alt_text,published_date,deleted_flag,institution_id,?,?
 				FROM page 
 				WHERE page_id=?
-				""", newPageId, accountId, pageId, pageId);
+				""", newPageId, name, urlName, pageTypeId, accountId, pageId, pageId);
 
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
 		List<PageRow> pageRows;
@@ -1648,7 +1702,7 @@ public class PageService {
 		return newPageId;
 	}
 
-	public Optional<PageType> findPageTypeById(@Nullable String pageTypeId) {
+	public Optional<PageType> findPageTypeById(@Nullable PageTypeId pageTypeId) {
 		if (pageTypeId == null)
 			return Optional.empty();
 

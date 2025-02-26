@@ -58,7 +58,7 @@ public class PageApiResponse {
 	@Nullable
 	private final String relativeUrl;
 	@Nullable
-	private final String pageTypeId;
+	private final PageTypeId pageTypeId;
 	@Nullable
 	private final String pageTypeDescription;
 	@Nullable
@@ -154,10 +154,9 @@ public class PageApiResponse {
 	}
 
 	@Nullable
-	public String getPageTypeId() {
+	public PageTypeId getPageTypeId() {
 		return pageTypeId;
 	}
-
 	@Nullable
 	public String getPageStatusId() {
 		return pageStatusId;

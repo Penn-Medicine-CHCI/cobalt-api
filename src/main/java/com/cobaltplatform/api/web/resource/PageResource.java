@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
@@ -230,7 +231,6 @@ public class PageResource {
 		}});
 	}
 
-
 	@DELETE("/pages/row/{pageRowId}")
 	@AuthenticationRequired
 	public ApiResponse deletePageRow(@Nonnull @PathParameter("pageRowId") UUID pageRowId) {
@@ -329,12 +329,17 @@ public class PageResource {
 
 	@PUT("/pages/{pageId}/duplicate")
 	@AuthenticationRequired
-	public ApiResponse duplicatePage(@Nonnull @PathParameter("pageId") UUID pageId) {
+	public ApiResponse duplicatePage(@Nonnull @RequestBody String requestBody,
+																	 @Nonnull @PathParameter("pageId") UUID pageId) {
 		requireNonNull(pageId);
+
 		Account account = getCurrentContext().getAccount().get();
+		DuplicatePageRequest request = getRequestBodyParser().parse(requestBody, DuplicatePageRequest.class);
+		request.setPageId(pageId);
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setInstitutionId(account.getInstitutionId());
 
-		UUID newPageId = getPageService().duplicatePage(pageId, account.getAccountId());
-
+		UUID newPageId = getPageService().duplicatePage(request);
 		Optional<Page> page = getPageService().findPageById(newPageId, account.getInstitutionId());
 
 		if (!page.isPresent())

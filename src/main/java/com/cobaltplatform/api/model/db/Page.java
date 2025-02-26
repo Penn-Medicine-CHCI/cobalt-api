@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,7 +41,7 @@ public class Page {
 	@Nullable
 	private String urlName;
 	@Nullable
-	private String pageTypeId;
+	private PageTypeId pageTypeId;
 	@Nullable
 	private String pageStatusId;
 	@Nullable
@@ -96,11 +97,11 @@ public class Page {
 	}
 
 	@Nullable
-	public String getPageTypeId() {
+	public PageTypeId getPageTypeId() {
 		return pageTypeId;
 	}
 
-	public void setPageTypeId(@Nullable String pageTypeId) {
+	public void setPageTypeId(@Nullable PageTypeId pageTypeId) {
 		this.pageTypeId = pageTypeId;
 	}
 
@@ -150,6 +151,15 @@ public class Page {
 	}
 
 	@Nullable
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(@Nullable String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
 	public LocalDate getPublishedDate() {
 		return publishedDate;
 	}
@@ -168,12 +178,30 @@ public class Page {
 	}
 
 	@Nullable
+	public InstitutionId getInstitutionId() {
+		return institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
 	public UUID getCreatedByAccountId() {
 		return createdByAccountId;
 	}
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public UUID getParentPageId() {
+		return parentPageId;
+	}
+
+	public void setParentPageId(@Nullable UUID parentPageId) {
+		this.parentPageId = parentPageId;
 	}
 
 	@Nullable
@@ -186,38 +214,11 @@ public class Page {
 	}
 
 	@Nullable
-	public InstitutionId getInstitutionId() {
-		return institutionId;
-	}
-
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
-	}
-
-	@Nullable
 	public Instant getLastUpdated() {
 		return lastUpdated;
 	}
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
-	}
-
-	@Nullable
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(@Nullable String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
-
-	@Nullable
-	public UUID getParentPageId() {
-		return parentPageId;
-	}
-
-	public void setParentPageId(@Nullable UUID parentPageId) {
-		this.parentPageId = parentPageId;
 	}
 }
