@@ -190,5 +190,8 @@ FROM page_row_tag_group prt, page_row pr
 WHERE prt.page_row_id = pr.page_row_id
 AND pr.deleted_flag = FALSE;
 
+INSERT INTO account_capability_type
+VALUES
+('PAGE_CREATOR', 'Page Creator');
 
 COMMIT;

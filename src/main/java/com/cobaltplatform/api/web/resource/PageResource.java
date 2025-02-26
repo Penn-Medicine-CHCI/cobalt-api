@@ -271,14 +271,14 @@ public class PageResource {
 		}});
 	}
 
-	@GET("/pages/{pageId}")
+	@GET("/pages/{pageIdentifier}")
 	@AuthenticationRequired
 	@ReadReplica
-	public ApiResponse page(@Nonnull @PathParameter("pageId") UUID pageId) {
-		requireNonNull(pageId);
+	public ApiResponse page(@Nonnull @PathParameter("pageIdentifier") String pageIdentifier) {
+		requireNonNull(pageIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
-		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId());
 
 		if (!page.isPresent())
 			throw new NotFoundException();

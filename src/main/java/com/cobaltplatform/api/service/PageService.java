@@ -66,12 +66,12 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.model.service.PageWithTotalCount;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
-import org.checkerframework.checker.units.qual.N;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +91,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUrlSubdirectory;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -130,17 +131,40 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<Page> findPageById(@Nullable UUID pageId,
+	public Optional<Page> findPageById(@Nullable Object pageIdentifier,
 																		 @Nullable InstitutionId institutionId) {
-		requireNonNull(pageId);
+		requireNonNull(pageIdentifier);
 		requireNonNull(institutionId);
 
-		return getDatabase().queryForObject("""
+		if (pageIdentifier == null || institutionId == null)
+			return Optional.empty();
+		Page page = null;
+		UUID pageId = null;
+
+		if (pageIdentifier instanceof UUID)
+			pageId = (UUID) pageIdentifier;
+		else if (pageIdentifier instanceof String && ValidationUtility.isValidUUID((String) pageIdentifier))
+			pageId = UUID.fromString((String) pageIdentifier);
+
+		if (pageId != null)
+		page = getDatabase().queryForObject("""
 				SELECT *
 				FROM v_page
 				WHERE page_id = ?
 				AND institution_id = ?
-				""", Page.class, pageId, institutionId);
+				""", Page.class, pageId, institutionId).orElse(null);
+		else if (pageIdentifier instanceof String)
+			page = getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page
+				WHERE url_name = ?
+				AND institution_id = ?
+				""", Page.class, pageIdentifier, institutionId).orElse(null);
+
+		if (page == null)
+			return Optional.empty();
+
+		return Optional.of(page);
 	}
 
 	@Nonnull
@@ -284,7 +308,7 @@ public class PageService {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
-		String urlName = trimToNull(request.getUrlName());
+		String urlName = request.getUrlName() == null ? null : WebUtility.normalizeUrlName(request.getUrlName()).orElse(null);
 		PageTypeId pageTypeId = request.getPageTypeId();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
@@ -308,6 +332,12 @@ public class PageService {
 		if (institutionId == null)
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution is required.")));
 
+		if (urlName == null)
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+		else if (!isValidUrlSubdirectory(urlName))
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 		if (validationException.hasErrors())
 			throw validationException;
 
