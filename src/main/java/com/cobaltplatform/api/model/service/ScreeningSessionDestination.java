@@ -54,7 +54,8 @@ public class ScreeningSessionDestination {
 		HOME,
 		GROUP_SESSION_DETAIL,
 		INSTITUTION_REFERRAL,
-		INSTITUTION_REFERRER_DETAIL
+		INSTITUTION_REFERRER_DETAIL,
+		NONE
 	}
 
 	public ScreeningSessionDestination(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId) {

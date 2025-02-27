@@ -140,6 +140,14 @@ FOR EACH ROW EXECUTE FUNCTION course_unit_validation();
 --
 -- course_session
 
+
+-- User has taken some kind of action that results in a module being marked as inapplicable (e.g. answering a quiz in a way that indicates their child doesn't have ADHD, which would make the ADHD module optional for that session)
+CREATE TABLE course_session_optional_module (
+	course_session_id UUID NOT NULL REFERENCES course_session,
+  course_module_id UUID NOT NULL REFERENCES course_module,
+  PRIMARY KEY (course_session_id, course_module_id)
+);
+
 --
 CREATE TABLE course_session_unit_status (
 	course_session_unit_status_id TEXT PRIMARY KEY,
@@ -150,11 +158,16 @@ CREATE TABLE course_session_unit_status (
 INSERT INTO course_session_unit_status VALUES ('COMPLETE', 'Complete');
 -- User has explicitly skipped the unit
 INSERT INTO course_session_unit_status VALUES ('SKIPPED', 'Skipped');
--- User has taken some kind of action that results in units being marked as inapplicable (e.g. answering a quiz in a way that indicates their child doesn't have ADHD, which would hide the ADHD-related units)
-INSERT INTO course_session_unit_status VALUES ('NOT_APPLICABLE', 'Not Applicable');
 
 -- Tracks unit status for a given course session
--- course_session_unit
+CREATE TABLE course_session_unit (
+  course_session_id UUID NOT NULL REFERENCES course_session,
+  course_unit_id UUID NOT NULL REFERENCES course_unit,
+	course_session_unit_status_id TEXT NOT NULL REFERENCES course_session_unit_status,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (course_session_id, course_unit_id)
+);
 
 -- How course units can depend on each other
 CREATE TABLE course_unit_dependency_type (
@@ -168,6 +181,7 @@ INSERT INTO course_unit_dependency_type VALUES ('STRONG', 'Strong');
 INSERT INTO course_unit_dependency_type VALUES ('WEAK', 'Weak');
 
 -- course_unit_dependency
+
 
 -- Associate courses with institutions
 CREATE TABLE institution_course (
@@ -219,12 +233,6 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- TODO: clickthrough events, e.g. homework download
 
 -- Additional notes
-
--- * POST /screening-answers should optionally return:
---   1. A "message" construct with type (success, warning, error) and title and message (html supported).
---   2. A "resultsByScreeningAnswerOptionId", where key is screening_answer_option_id and value is an object with "type" (success, warning, error) and "message" (optional) fields.
-
--- * Introduce ScreeningSessionDestinationId.NONE to indicate "don't go anywhere" after session is done.
 
 -- * Completing a screening flow should return an optional set of notApplicableCourseUnitIds, so you can say "if user said their child doesn't have ADHD, hide the ADHD-related units"
 

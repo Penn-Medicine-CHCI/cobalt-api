@@ -1204,45 +1204,93 @@ public class ScreeningService {
 		@Nonnull
 		private final List<CreateScreeningAnswersMessage> messages;
 		@Nonnull
-		private final Map<UUID, List<CreateScreeningAnswersMessage>> messagesByScreeningQuestionId;
+		private final Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningQuestionId;
 
 		public CreateScreeningAnswersResult(@Nonnull List<UUID> screeningAnswerIds,
 																				@Nonnull List<CreateScreeningAnswersMessage> messages,
-																				@Nonnull  Map<UUID, List<CreateScreeningAnswersMessage>> messagesByScreeningQuestionId) {
+																				@Nonnull Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningQuestionId) {
 			requireNonNull(screeningAnswerIds);
 			requireNonNull(messages);
-			requireNonNull(messagesByScreeningQuestionId);
+			requireNonNull(questionResultsByScreeningQuestionId);
 
 			this.screeningAnswerIds = Collections.unmodifiableList(new ArrayList<>(screeningAnswerIds));
 			this.messages = Collections.unmodifiableList(new ArrayList<>(messages));
-			this.messagesByScreeningQuestionId = null; // Collections.unmodifiableList(new ArrayList<>(messagesByScreeningQuestionId));
+			this.questionResultsByScreeningQuestionId = Collections.unmodifiableMap(new HashMap<>(questionResultsByScreeningQuestionId));
+		}
+
+		public enum CreateScreeningAnswersDisplayTypeId {
+			DEFAULT,
+			PRIMARY,
+			SECONDARY,
+			SUCCESS,
+			DANGER,
+			WARNING,
+			INFO,
+			DARK,
+			LIGHT
+		}
+
+		public enum CreateScreeningAnswersCorrectnessIndicatorId {
+			CORRECT,
+			INCORRECT
+		}
+
+		@ThreadSafe
+		public static class CreateScreeningAnswersQuestionResult {
+			@Nonnull
+			private final CreateScreeningAnswersCorrectnessIndicatorId correctnessIndicatorId;
+			@Nonnull
+			private final CreateScreeningAnswersDisplayTypeId displayTypeId;
+
+			public CreateScreeningAnswersQuestionResult(@Nonnull CreateScreeningAnswersCorrectnessIndicatorId correctnessIndicatorId,
+																									@Nonnull CreateScreeningAnswersDisplayTypeId displayTypeId) {
+				requireNonNull(correctnessIndicatorId);
+				requireNonNull(displayTypeId);
+
+				this.correctnessIndicatorId = correctnessIndicatorId;
+				this.displayTypeId = displayTypeId;
+			}
+
+			@Nonnull
+			public CreateScreeningAnswersCorrectnessIndicatorId getCorrectnessIndicatorId() {
+				return this.correctnessIndicatorId;
+			}
+
+			@Nonnull
+			public CreateScreeningAnswersDisplayTypeId getDisplayTypeId() {
+				return this.displayTypeId;
+			}
 		}
 
 		@ThreadSafe
 		public static class CreateScreeningAnswersMessage {
 			@Nonnull
-			private final CreateScreeningAnswersMessageDisplayTypeId messageDisplayTypeId;
+			private final CreateScreeningAnswersDisplayTypeId displayTypeId;
+			@Nonnull
+			private final String title;
 			@Nonnull
 			private final String message; // Can include HTML
 
-			public CreateScreeningAnswersMessage(@Nonnull CreateScreeningAnswersMessageDisplayTypeId messageDisplayTypeId,
+			public CreateScreeningAnswersMessage(@Nonnull CreateScreeningAnswersDisplayTypeId displayTypeId,
+																					 @Nonnull String title,
 																					 @Nonnull String message) {
-				requireNonNull(messageDisplayTypeId);
+				requireNonNull(displayTypeId);
+				requireNonNull(title);
 				requireNonNull(message);
 
-				this.messageDisplayTypeId = messageDisplayTypeId;
+				this.displayTypeId = displayTypeId;
+				this.title = title;
 				this.message = message;
 			}
 
-			public enum CreateScreeningAnswersMessageDisplayTypeId {
-				INFO,
-				WARNING,
-				ERROR
+			@Nonnull
+			public CreateScreeningAnswersDisplayTypeId getDisplayTypeId() {
+				return this.displayTypeId;
 			}
 
 			@Nonnull
-			public CreateScreeningAnswersMessageDisplayTypeId getMessageDisplayTypeId() {
-				return this.messageDisplayTypeId;
+			public String getTitle() {
+				return this.title;
 			}
 
 			@Nonnull
@@ -1259,6 +1307,11 @@ public class ScreeningService {
 		@Nonnull
 		public List<CreateScreeningAnswersMessage> getMessages() {
 			return this.messages;
+		}
+
+		@Nonnull
+		public Map<UUID, CreateScreeningAnswersQuestionResult> getQuestionResultsByScreeningQuestionId() {
+			return this.questionResultsByScreeningQuestionId;
 		}
 	}
 
@@ -1992,7 +2045,8 @@ public class ScreeningService {
 			}
 		}
 
-		return new CreateScreeningAnswersResult(screeningAnswerIds, null, null);
+		// TODO: drive messages and feedback off of data returned in JS
+		return new CreateScreeningAnswersResult(screeningAnswerIds, List.of(), Map.of());
 	}
 
 	@Nonnull
