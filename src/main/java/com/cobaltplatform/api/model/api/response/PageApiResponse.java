@@ -107,7 +107,7 @@ public class PageApiResponse {
 		this.pageId = page.getPageId();
 		this.name = page.getName();
 		this.urlName = page.getUrlName();
-		this.relativeUrl = format("/%s", page.getUrlName());
+		this.relativeUrl = format("/%s/%s", "pages", page.getUrlName());
 		this.pageStatusId = page.getPageStatusId();
 		this.headline = page.getHeadline();
 		this.description = page.getDescription();

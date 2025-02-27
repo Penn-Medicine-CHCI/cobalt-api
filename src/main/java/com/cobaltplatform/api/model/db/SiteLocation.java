@@ -26,7 +26,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PageType {
+public class SiteLocation {
 	@Nullable
 	private PageTypeId pageTypeId;
 	@Nullable

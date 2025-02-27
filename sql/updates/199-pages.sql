@@ -1,8 +1,8 @@
 BEGIN;
 SELECT _v.register_patch('199-pages', NULL, NULL);
 
-CREATE TABLE page_type (
-  page_type_id TEXT PRIMARY KEY,
+CREATE TABLE site_location (
+  site_location_id TEXT PRIMARY KEY,
   description TEXT NOT NULL,
   relative_base_url TEXT NOT NULL
 );
@@ -41,6 +41,17 @@ CREATE TABLE page (
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 CREATE UNIQUE INDEX unique_institution_url_active ON page (institution_id, url_name) WHERE deleted_flag = false;
+
+CREATE TABLE page_site_location (
+    page_site_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    page_id UUID NOT NULL REFERENCES page,
+    site_location_id TEXT REFERENCES site_location,
+    created_by_account_id UUID NOT NULL REFERENCES account(account_id),
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_site_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX idx_page_site_location_page_site_location ON page_site_location (page_id, site_location_id);
 
 CREATE TABLE page_section (
     page_section_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -115,7 +126,7 @@ CREATE UNIQUE INDEX idx_page_row_tag_group_row_tag_group ON page_row_tag_group(p
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_tag_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 
-INSERT INTO page_type
+INSERT INTO site_location
 VALUES
 ('TOPIC_CENTER', 'Topic Center', 'topic-center'),
 ('COMMUNITY', 'Community', 'community');
