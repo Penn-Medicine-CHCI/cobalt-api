@@ -22,8 +22,6 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
-import com.cobaltplatform.api.model.db.PageType;
-import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -57,10 +55,6 @@ public class PageApiResponse {
 	private final String urlName;
 	@Nullable
 	private final String relativeUrl;
-	@Nullable
-	private final PageTypeId pageTypeId;
-	@Nullable
-	private final String pageTypeDescription;
 	@Nullable
 	private final String pageStatusId;
 	@Nullable
@@ -110,14 +104,10 @@ public class PageApiResponse {
 		requireNonNull(pageService);
 		requireNonNull(pageSectionApiResponseFactory);
 
-		PageType pageType = pageService.findPageTypeById(page.getPageTypeId()).get();
-
 		this.pageId = page.getPageId();
 		this.name = page.getName();
 		this.urlName = page.getUrlName();
-		this.relativeUrl = format("/%s/%s", pageType.getRelativeBaseUrl(),page.getUrlName());
-		this.pageTypeId = page.getPageTypeId();
-		this.pageTypeDescription = pageType.getDescription();
+		this.relativeUrl = format("/%s", page.getUrlName());
 		this.pageStatusId = page.getPageStatusId();
 		this.headline = page.getHeadline();
 		this.description = page.getDescription();
@@ -153,10 +143,6 @@ public class PageApiResponse {
 		return urlName;
 	}
 
-	@Nullable
-	public PageTypeId getPageTypeId() {
-		return pageTypeId;
-	}
 	@Nullable
 	public String getPageStatusId() {
 		return pageStatusId;
@@ -220,11 +206,6 @@ public class PageApiResponse {
 	@Nullable
 	public String getImageUrl() {
 		return imageUrl;
-	}
-
-	@Nullable
-	public String getPageTypeDescription() {
-		return pageTypeDescription;
 	}
 
 	@Nullable

@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.PageType.PageTypeId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
@@ -35,10 +33,6 @@ public class UpdatePageSettingsRequest {
 	private UUID pageId;
 	@Nullable
 	private String name;
-	@Nullable
-	private String urlName;
-	@Nullable
-	private PageTypeId pageTypeId;
 
 	@Nullable
 	public UUID getPageId() {
@@ -58,21 +52,4 @@ public class UpdatePageSettingsRequest {
 		this.name = name;
 	}
 
-	@Nullable
-	public String getUrlName() {
-		return urlName;
-	}
-
-	public void setUrlName(@Nullable String urlName) {
-		this.urlName = urlName;
-	}
-
-	@Nullable
-	public PageTypeId getPageTypeId() {
-		return pageTypeId;
-	}
-
-	public void setPageTypeId(@Nullable PageTypeId pageTypeId) {
-		this.pageTypeId = pageTypeId;
-	}
 }

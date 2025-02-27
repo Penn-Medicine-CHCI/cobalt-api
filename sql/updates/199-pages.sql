@@ -26,7 +26,6 @@ CREATE TABLE page (
     page_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     url_name TEXT NOT NULL,
-    page_type_id TEXT NOT NULL REFERENCES page_type,
     page_status_id TEXT NOT NULL REFERENCES page_status,
     headline TEXT NULL,
     description TEXT NULL,
@@ -41,6 +40,7 @@ CREATE TABLE page (
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX unique_institution_url_active ON page (institution_id, url_name) WHERE deleted_flag = false;
 
 CREATE TABLE page_section (
     page_section_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

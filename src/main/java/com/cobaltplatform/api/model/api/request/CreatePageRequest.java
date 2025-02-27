@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -36,8 +35,6 @@ public class CreatePageRequest {
 	private String name;
 	@Nullable
 	private String urlName;
-	@Nullable
-	private PageTypeId pageTypeId;
 	@Nullable
 	private String headline;
 	@Nullable
@@ -67,15 +64,6 @@ public class CreatePageRequest {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
-	}
-
-	@Nullable
-	public PageTypeId getPageTypeId() {
-		return pageTypeId;
-	}
-
-	public void setPageTypeId(@Nullable PageTypeId pageTypeId) {
-		this.pageTypeId = pageTypeId;
 	}
 
 	@Nullable

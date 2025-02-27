@@ -22,7 +22,6 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,8 +39,6 @@ public class Page {
 	private String name;
 	@Nullable
 	private String urlName;
-	@Nullable
-	private PageTypeId pageTypeId;
 	@Nullable
 	private String pageStatusId;
 	@Nullable
@@ -94,15 +91,6 @@ public class Page {
 
 	public void setUrlName(@Nullable String urlName) {
 		this.urlName = urlName;
-	}
-
-	@Nullable
-	public PageTypeId getPageTypeId() {
-		return pageTypeId;
-	}
-
-	public void setPageTypeId(@Nullable PageTypeId pageTypeId) {
-		this.pageTypeId = pageTypeId;
 	}
 
 	@Nullable

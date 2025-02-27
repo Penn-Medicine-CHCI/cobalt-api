@@ -20,7 +20,6 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,8 +34,6 @@ public class DuplicatePageRequest {
 	private UUID pageId;
 	@Nullable
 	private InstitutionId institutionId;
-	@Nullable
-	private PageTypeId pageTypeId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -89,15 +86,6 @@ public class DuplicatePageRequest {
 
 	public void setCopyForEditing(@Nullable Boolean copyForEditing) {
 		this.copyForEditing = copyForEditing;
-	}
-
-	@Nullable
-	public PageTypeId getPageTypeId() {
-		return pageTypeId;
-	}
-
-	public void setPageTypeId(@Nullable PageTypeId pageTypeId) {
-		this.pageTypeId = pageTypeId;
 	}
 
 	@Nullable

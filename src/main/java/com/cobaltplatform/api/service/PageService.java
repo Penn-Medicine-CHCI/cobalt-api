@@ -57,8 +57,6 @@ import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
-import com.cobaltplatform.api.model.db.PageType;
-import com.cobaltplatform.api.model.db.PageType.PageTypeId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.service.FileUploadResult;
@@ -309,7 +307,6 @@ public class PageService {
 
 		String name = trimToNull(request.getName());
 		String urlName = request.getUrlName() == null ? null : WebUtility.normalizeUrlName(request.getUrlName()).orElse(null);
-		PageTypeId pageTypeId = request.getPageTypeId();
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		UUID imageFileUploadId = request.getImageFileUploadId();
@@ -322,12 +319,8 @@ public class PageService {
 
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
-
-		if (urlName == null)
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("URL is required.")));
-
-		if (pageTypeId == null)
-			validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
+		else if (nameExistsForInstitutionId(name, institutionId, null))
+			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name already exists.")));
 
 		if (institutionId == null)
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution is required.")));
@@ -338,16 +331,17 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
 		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
 			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
 						INSERT INTO page
-						  (page_id, name, url_name, page_type_id, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
+						  (page_id, name, url_name, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
 						  published_date, institution_id, created_by_account_id)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?,?)   
-						""", pageId, name, urlName, pageTypeId, PageStatusId.DRAFT, headline, description, imageFileUploadId, imageAltText,
+						  (?,?,?,?,?,?,?,?,?,?,?)   
+						""", pageId, name, urlName, PageStatusId.DRAFT, headline, description, imageFileUploadId, imageAltText,
 				publishedDate, institutionId, createdByAccountId);
 
 		return pageId;
@@ -448,6 +442,33 @@ public class PageService {
 	}
 
 	@Nonnull
+	protected Boolean nameExistsForInstitutionId(@Nonnull String name,
+																							 @Nonnull InstitutionId institutionId,
+																							 @Nullable UUID pageId) {
+		requireNonNull(name);
+		requireNonNull(institutionId);
+
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
+				SELECT COUNT(*) > 0
+				FROM v_page p
+				WHERE p.institution_id = ?
+				AND LOWER(p.name) = LOWER(?)
+				""");
+
+		parameters.add(institutionId);
+		parameters.add(name);
+
+		if (pageId != null) {
+			query.append(" AND p.page_id != ?");
+			parameters.add(pageId);
+		}
+
+		return getDatabase().queryForObject(query.toString(), Boolean.class, parameters.toArray()).get();
+	}
+
+
+	@Nonnull
 	protected Boolean urlNameExistsForInstitutionId(@Nonnull String urlName,
 																									@Nonnull InstitutionId institutionId,
 																									@Nullable UUID pageId) {
@@ -459,9 +480,9 @@ public class PageService {
 		List<Object> parameters = new ArrayList<>();
 		StringBuilder query = new StringBuilder("""
 				SELECT COUNT(*) > 0
-				FROM page p
+				FROM v_page p
 				WHERE p.institution_id = ?
-				AND LOWER(p.url_name) = LOWER(?)
+				AND LOWER(p.url_name) = LOWER(?)				
 				""");
 
 		parameters.add(institutionId);
@@ -500,28 +521,20 @@ public class PageService {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
-		String urlName = trimToNull(request.getUrlName());
-		PageTypeId pageTypeId = request.getPageTypeId();
 		UUID pageId = request.getPageId();
 		ValidationException validationException = new ValidationException();
 
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
 
-		if (urlName == null)
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("URL is required.")));
-
-		if (pageTypeId == null)
-			validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
-
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
 				UPDATE page SET
-				name=?, url_name=?, page_type_id=?
+				name=?
 				WHERE page_id=?					   
-				""", name, urlName, pageTypeId, pageId);
+				""", name, pageId);
 
 		return pageId;
 	}
@@ -1643,7 +1656,6 @@ public class PageService {
 		String urlName = trimToNull(request.getUrlName());
 		Boolean copyForEditing = request.getCopyForEditing();
 		InstitutionId institutionId = request.getInstitutionId();
-		PageTypeId pageTypeId = request.getPageTypeId();
 		ValidationException validationException = new ValidationException();
 
 		Optional<Page> page = findPageById(pageId, institutionId);
@@ -1654,12 +1666,16 @@ public class PageService {
 		if (!copyForEditing){
 			if (name == null)
 				validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+			else if (nameExistsForInstitutionId(name, institutionId, null))
+				validationException.add(new ValidationException.FieldError("name", getStrings().get("Name already exists.")));
 
 			if (urlName == null)
-				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("URL is required.")));
+				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+			else if (!isValidUrlSubdirectory(urlName))
+				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+			else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
+				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
-			if (pageTypeId == null)
-				validationException.add(new ValidationException.FieldError("pageTypeId", getStrings().get("Page Type is required.")));
 		}
 
 		if (validationException.hasErrors())
@@ -1668,18 +1684,17 @@ public class PageService {
 		if (copyForEditing) {
 			name = page.get().getName();
 			urlName = page.get().getUrlName();
-			pageTypeId = page.get().getPageTypeId();
 		}
 
 		getDatabase().execute("""
 				INSERT INTO page
-				(page_id,name,url_name,page_type_id,page_status_id,headline,description,image_file_upload_id,
+				(page_id,name,url_name,page_status_id,headline,description,image_file_upload_id,
 				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id)
-				SELECT ?,?,?,?,page_status_id,headline,description,image_file_upload_id,
+				SELECT ?,?,?,page_status_id,headline,description,image_file_upload_id,
 				       image_alt_text,published_date,deleted_flag,institution_id,?,?
 				FROM page 
 				WHERE page_id=?
-				""", newPageId, name, urlName, pageTypeId, accountId, pageId, pageId);
+				""", newPageId, name, urlName, accountId, pageId, pageId);
 
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
 		List<PageRow> pageRows;
@@ -1744,17 +1759,6 @@ public class PageService {
 		}
 
 		return newPageId;
-	}
-
-	public Optional<PageType> findPageTypeById(@Nullable PageTypeId pageTypeId) {
-		if (pageTypeId == null)
-			return Optional.empty();
-
-		return getDatabase().queryForObject("""
-				SELECT *
-				FROM page_type
-				WHERE page_type_id=?
-				""", PageType.class, pageTypeId);
 	}
 
 	@Nonnull
