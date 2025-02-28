@@ -202,6 +202,20 @@ public class AnalyticsNativeEventType {
 		// On the web, when the "in crisis" page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_IN_CRISIS,
+		//-- On the web, when the "courses" page is rendered.
+		//-- There is no additional data associated with this event type.
+		PAGE_VIEW_COURSES,
+		// On the web, when the "course detail" page is rendered.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		PAGE_VIEW_COURSE_DETAIL,
+		// On the web, when the "course unit" page is rendered.
+		// Additional data:
+		// * courseUnitId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		PAGE_VIEW_COURSE_UNIT,
+
 		// On the web, when the MHIC "Priorities" page is rendered.
 		// If a priority group tab on the page is selected, another event should be fired.
 		// Additional data:
@@ -360,6 +374,20 @@ public class AnalyticsNativeEventType {
 		// * linkUrl (String, the URL linked in the anchor tag)
 		// * linkText (String, the text component of the anchor tag)
 		CLICKTHROUGH_TOPIC_CENTER_PINBOARD_NOTE_LINK,
+		// When the user clicks to download a file that's part of a course unit.
+		// Additional data:
+		// * courseUnitId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
+		CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE,
+		// When a video that's part of a course unit fires off an event that we listen for, e.g. 'playerReady' or 'playerPaused'.
+		// Additional data:
+		// * courseUnitId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * videoId (UUID)
+		// * eventName (String) - the name of the event, e.g. 'playerReady', which is specific to the type of video (Kaltura, YouTube, ...)
+		// * eventPayload (any) - optional, a payload for the event specific to the type of video (Kaltura, YouTube, ...)
+		EVENT_COURSE_UNIT_VIDEO,
 	}
 
 	@Override

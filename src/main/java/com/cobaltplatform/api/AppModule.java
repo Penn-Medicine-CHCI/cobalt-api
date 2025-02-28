@@ -78,6 +78,9 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceActivityApiResponse.ClientDeviceActivityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDeviceApiResponse.ClientDeviceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClientDevicePushTokenApiResponse.ClientDevicePushTokenApiResponseFactory;
@@ -88,6 +91,7 @@ import com.cobaltplatform.api.model.api.response.ContentAudienceTypeGroupApiResp
 import com.cobaltplatform.api.model.api.response.ContentFeedbackApiResponse.ContentFeedbackApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ContentStatusApiResponse.ContentStatusApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CountryApiResponse.CountryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CourseApiResponse.CourseApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.EncounterApiResponse.EncounterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.EpicDepartmentApiResponse.EpicDepartmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
@@ -138,6 +142,7 @@ import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApi
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ResourcePacketCareResourceLocationApiResponse.ResourcePacketCareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerApiResponse.ScreeningAnswerApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningAnswerOptionApiResponse.ScreeningAnswerOptionApiResponseFactory;
@@ -160,10 +165,6 @@ import com.cobaltplatform.api.model.api.response.TopicCenterApiResponse.TopicCen
 import com.cobaltplatform.api.model.api.response.TopicCenterRowApiResponse.TopicCenterRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TopicCenterRowTagApiResponse.TopicCenterRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.Formatter;
@@ -370,6 +371,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(CareResourceLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ResourcePacketApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ResourcePacketCareResourceLocationApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CourseApiResponseFactory.class)));
 	}
 
 	@Provides

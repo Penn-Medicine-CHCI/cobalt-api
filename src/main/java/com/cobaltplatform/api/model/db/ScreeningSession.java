@@ -59,6 +59,8 @@ public class ScreeningSession {
 	@Nullable
 	private UUID groupSessionId;
 	@Nullable
+	private UUID courseSessionId;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private Boolean completed;
@@ -139,6 +141,15 @@ public class ScreeningSession {
 
 	public void setGroupSessionId(@Nullable UUID groupSessionId) {
 		this.groupSessionId = groupSessionId;
+	}
+
+	@Nullable
+	public UUID getCourseSessionId() {
+		return this.courseSessionId;
+	}
+
+	public void setCourseSessionId(@Nullable UUID courseSessionId) {
+		this.courseSessionId = courseSessionId;
 	}
 
 	@Nullable
