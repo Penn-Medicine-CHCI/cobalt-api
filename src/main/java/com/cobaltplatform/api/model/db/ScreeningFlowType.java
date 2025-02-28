@@ -43,7 +43,8 @@ public class ScreeningFlowType {
 		INTEGRATED_CARE_INTAKE,
 		FEATURE,
 		GROUP_SESSION_INTAKE,
-		STUDY
+		STUDY,
+		COURSE_UNIT
 	}
 
 	@Override

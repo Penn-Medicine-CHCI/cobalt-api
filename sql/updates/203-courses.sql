@@ -111,15 +111,28 @@ CREATE TABLE course_unit (
 	display_order INTEGER NOT NULL, -- Order within the module
 	video_id UUID REFERENCES video, -- Only applies to VIDEO course_unit_type_id
 	screening_flow_id UUID REFERENCES screening_flow, -- Only applies to units that include questions and answers, e.g. QUIZ course_unit_type_id
-	download_url TEXT, -- Only applies to units that include downloadable files, e.g. INFOGRAPHIC course_unit_type_id
 	image_url TEXT, -- Only applies to units that include an embedded image, e.g. INFOGRAPHIC course_unit_type_id
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- TODO: download_url above might need to be its own table so we can support many downloads and include other fields like descriptions
-
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_unit FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Some units might contain a set of downloadable files, e.g. INFOGRAPHIC course_unit_type_id.
+-- This lets us associate an ordered list of files with the unit.
+-- We have an explicit course_unit_downloadable_file_id PK instead of composite (course_unit_id, file_upload_id) to make analytics tracking more robust.
+CREATE TABLE course_unit_downloadable_file (
+  course_unit_downloadable_file_id UUID NOT NULL PRIMARY KEY,
+	course_unit_id UUID NOT NULL REFERENCES course_unit,
+	file_upload_id UUID NOT NULL REFERENCES file_upload,
+	display_order INTEGER NOT NULL,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_course_unit_downloadable_file_file_upload ON course_unit_downloadable_file (course_unit_id, file_upload_id);
+CREATE UNIQUE INDEX idx_course_unit_downloadable_file_display_order ON course_unit_downloadable_file (course_unit_id, display_order);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_unit_downloadable_file FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Ensure that data in course_unit is appropriate for the type
 CREATE OR REPLACE FUNCTION course_unit_validation()
@@ -137,18 +150,43 @@ CREATE TRIGGER course_unit_validation_tg
 AFTER INSERT OR UPDATE ON course_unit
 FOR EACH ROW EXECUTE FUNCTION course_unit_validation();
 
---
--- course_session
+-- Is a course session in-progress, completed, or canceled?
+CREATE TABLE course_session_status (
+	course_session_status_id TEXT PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
 
+INSERT INTO course_session_status VALUES ('IN_PROGRESS', 'In-Progress');
+INSERT INTO course_session_status VALUES ('COMPLETED', 'Completed');
+INSERT INTO course_session_status VALUES ('CANCELED', 'Canceled');
 
--- User has taken some kind of action that results in a module being marked as inapplicable (e.g. answering a quiz in a way that indicates their child doesn't have ADHD, which would make the ADHD module optional for that session)
+-- Keeps track of a participant's "session" when taking a course.
+-- All responses/events that occur while taking the course are tied to the session.
+-- You might retake a course, for example, which would create a new session.
+CREATE TABLE course_session (
+	course_session_id UUID NOT NULL PRIMARY KEY,
+  account_id UUID NOT NULL REFERENCES account,
+  course_session_status_id TEXT NOT NULL REFERENCES course_session_status,
+  -- TODO: other columns?
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_session FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- User has taken some kind of action that results in a module being marked as optional (e.g. answering a quiz in a way that indicates their child doesn't have ADHD, which would make the ADHD module optional for that session).
+-- This lets the UI take custom action, e.g. showing the module below all the other ones and making it visually distinct.
 CREATE TABLE course_session_optional_module (
 	course_session_id UUID NOT NULL REFERENCES course_session,
   course_module_id UUID NOT NULL REFERENCES course_module,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (course_session_id, course_module_id)
 );
 
---
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_session_optional_module FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Keeps track of unit progress during a session - was the unit completed or skipped?
 CREATE TABLE course_session_unit_status (
 	course_session_unit_status_id TEXT PRIMARY KEY,
   description VARCHAR NOT NULL
@@ -169,6 +207,8 @@ CREATE TABLE course_session_unit (
   PRIMARY KEY (course_session_id, course_unit_id)
 );
 
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_session_unit FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- How course units can depend on each other
 CREATE TABLE course_unit_dependency_type (
 	course_unit_dependency_type_id TEXT PRIMARY KEY,
@@ -180,8 +220,17 @@ INSERT INTO course_unit_dependency_type VALUES ('STRONG', 'Strong');
 -- A weak dependency means a unit _is recommended to be completed_ prior to completing another
 INSERT INTO course_unit_dependency_type VALUES ('WEAK', 'Weak');
 
--- course_unit_dependency
+-- Units can depend on the completion of others, e.g. you can "unlock" a unit (strong) or get advised "you should probably complete this unit first" (weak)
+CREATE TABLE course_unit_dependency (
+	determinant_course_unit_id UUID NOT NULL REFERENCES course_unit(course_unit_id), -- The unit that must be completed first
+	dependent_course_unit_id UUID NOT NULL REFERENCES course_unit(course_unit_id), -- The unit that depends on the completion
+	course_unit_dependency_type_id TEXT NOT NULL REFERENCES course_unit_dependency_type,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (determinant_course_unit_id, dependent_course_unit_id)
+);
 
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_unit_dependency FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Associate courses with institutions
 CREATE TABLE institution_course (
@@ -201,6 +250,10 @@ CREATE UNIQUE INDEX idx_institution_course_display_order ON institution_course (
 CREATE UNIQUE INDEX idx_institution_course_url_name ON institution_course (institution_id, url_name);
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_course FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Prepare screening sessions to support courses
+INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('COURSE_UNIT', 'Course Unit');
+ALTER TABLE screening_session ADD COLUMN course_session_id UUID REFERENCES course_session;
 
 -- *** Analytics updates to support courses ***
 
@@ -230,10 +283,18 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * eventPayload (any) - optional, a payload for the event specific to the type of video (Kaltura, YouTube, ...)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('EVENT_COURSE_UNIT_VIDEO', 'Event (Course Unit Video)');
 
--- TODO: clickthrough events, e.g. homework download
+-- When the user clicks to download a file that's part of a course unit.
+--
+-- Additional data:
+-- * courseUnitId (UUID)
+-- * courseSessionId (UUID) - optional, if a session has been started for this course
+-- * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE', 'Clickthrough (Course Unit Downloadable File)');
+
+-- TODO: any other events?
 
 -- Additional notes
 
--- * Completing a screening flow should return an optional set of notApplicableCourseUnitIds, so you can say "if user said their child doesn't have ADHD, hide the ADHD-related units"
+-- * Completing a screening flow should return an optional set of optionalCourseModuleIds, so you can say "if user said their child doesn't have ADHD, the ADHD-related units are optional"
 
 COMMIT;
