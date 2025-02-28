@@ -46,6 +46,9 @@ CREATE TABLE page_site_location (
     page_site_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_id UUID NOT NULL REFERENCES page,
     site_location_id TEXT REFERENCES site_location,
+    display_order SMALLINT NOT NULL,
+    publish_start_date timestamptz NULL,
+    publish_end_date timestamptz NULL,
     created_by_account_id UUID NOT NULL REFERENCES account(account_id),
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -128,7 +131,7 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_tag_group FO
 
 INSERT INTO site_location
 VALUES
-('TOPIC_CENTER', 'Topic Center', 'topic-center'),
+('FEATURED_TOPIC', 'Featured Topic', ''),
 ('COMMUNITY', 'Community', 'community');
 
 INSERT INTO page_status

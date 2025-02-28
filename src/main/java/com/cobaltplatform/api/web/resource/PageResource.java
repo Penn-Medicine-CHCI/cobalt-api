@@ -60,6 +60,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageSection;
+import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -204,7 +205,7 @@ public class PageResource {
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setInstitutionId(account.getInstitutionId());
 		UUID pageId = getPageService().createPage(request);
-		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -271,6 +272,38 @@ public class PageResource {
 		}});
 	}
 
+	@GET("/pages/site-location/{siteLocationId}")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse pages(@Nonnull @PathParameter("siteLocationId") SiteLocationId siteLocationId) {
+		requireNonNull(siteLocationId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		List<Page> pages = getPageService().findAllPagesBySiteLocation(siteLocationId, account.getInstitutionId());
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("pages", pages.stream()
+					.map(page -> getPageApiResponseFactory().create(page, true))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@GET("/pages/published/{pageIdentifier}")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse publishedPage(@Nonnull @PathParameter("pageIdentifier") String pageIdentifier) {
+		requireNonNull(pageIdentifier);
+
+		Account account = getCurrentContext().getAccount().get();
+		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), false);
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("page", getPageApiResponseFactory().create(page.get(), true));
+		}});
+	}
+
 	@GET("/pages/{pageIdentifier}")
 	@AuthenticationRequired
 	@ReadReplica
@@ -278,7 +311,7 @@ public class PageResource {
 		requireNonNull(pageIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
-		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -300,7 +333,7 @@ public class PageResource {
 		request.setPageId(pageId);
 		getPageService().updatePageSettings(request);
 
-		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -318,7 +351,7 @@ public class PageResource {
 
 		getPageService().publishPage(pageId, account.getInstitutionId());
 
-		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -340,7 +373,7 @@ public class PageResource {
 		request.setInstitutionId(account.getInstitutionId());
 
 		UUID newPageId = getPageService().duplicatePage(request);
-		Optional<Page> page = getPageService().findPageById(newPageId, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(newPageId, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -358,7 +391,7 @@ public class PageResource {
 
 		getPageService().unpublishPage(pageId, account.getInstitutionId());
 
-		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -380,7 +413,7 @@ public class PageResource {
 		request.setPageId(pageId);
 		getPageService().updatePageHero(request);
 
-		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId());
+		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();

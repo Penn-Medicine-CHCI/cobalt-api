@@ -58,6 +58,7 @@ import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -70,6 +71,7 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
+import org.apache.arrow.flatbuf.Null;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,9 +132,11 @@ public class PageService {
 
 	@Nonnull
 	public Optional<Page> findPageById(@Nullable Object pageIdentifier,
-																		 @Nullable InstitutionId institutionId) {
+																		 @Nullable InstitutionId institutionId,
+																		 @Nullable Boolean includeUnpublished) {
 		requireNonNull(pageIdentifier);
 		requireNonNull(institutionId);
+		requireNonNull(includeUnpublished);
 
 		if (pageIdentifier == null || institutionId == null)
 			return Optional.empty();
@@ -144,20 +148,24 @@ public class PageService {
 		else if (pageIdentifier instanceof String && ValidationUtility.isValidUUID((String) pageIdentifier))
 			pageId = UUID.fromString((String) pageIdentifier);
 
-		if (pageId != null)
-		page = getDatabase().queryForObject("""
-				SELECT *
-				FROM v_page
-				WHERE page_id = ?
-				AND institution_id = ?
-				""", Page.class, pageId, institutionId).orElse(null);
-		else if (pageIdentifier instanceof String)
-			page = getDatabase().queryForObject("""
-				SELECT *
-				FROM v_page
-				WHERE url_name = ?
-				AND institution_id = ?
-				""", Page.class, pageIdentifier, institutionId).orElse(null);
+		StringBuilder query = new StringBuilder("SELECT * FROM v_page WHERE institution_id =? ");
+		List<Object> parameters = new ArrayList<>();
+		parameters.add(institutionId);
+
+		if (!includeUnpublished) {
+			query.append("AND page_status_id = ? ");
+			parameters.add(PageStatusId.LIVE);
+		}
+
+		if (pageId != null) {
+			query.append("AND page_id = ? ");
+			parameters.add(pageId);
+		} else if (pageIdentifier instanceof String) {
+			query.append("AND url_name = ? ");
+			parameters.add(pageIdentifier);
+		}
+
+		page = getDatabase().queryForObject(query.toString(), Page.class, parameters.toArray()).orElse(null);
 
 		if (page == null)
 			return Optional.empty();
@@ -172,7 +180,7 @@ public class PageService {
 		requireNonNull(institutionId);
 
 		ValidationException validationException = new ValidationException();
-		Optional<Page> page = findPageById(pageId, institutionId);
+		Optional<Page> page = findPageById(pageId, institutionId, true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
@@ -376,7 +384,7 @@ public class PageService {
 		requireNonNull(pageId);
 		requireNonNull(institutionId);
 
-		Optional<Page> page = findPageById(pageId, institutionId);
+		Optional<Page> page = findPageById(pageId, institutionId, true);
 
 		validatePublishedPage(pageId, institutionId);
 
@@ -1596,6 +1604,21 @@ public class PageService {
 	}
 
 	@Nonnull
+	public List<Page> findAllPagesBySiteLocation(@Nonnull SiteLocationId siteLocationId,
+																							 @Nonnull InstitutionId institutionId) {
+		requireNonNull(siteLocationId);
+		requireNonNull(institutionId);
+
+		return getDatabase().queryForList("""
+				SELECT p.*
+				FROM v_page p, page_site_location psl
+				WHERE p.page_id = psl.page_id
+				AND p.institution_id = ?
+				AND NOW() BETWEEN psl.publish_start_date and psl.publish_end_date""", Page.class, institutionId);
+
+	}
+
+	@Nonnull
 	public FindResult<Page> findAllPagesByInstitutionId(@Nonnull FindPagesRequest request) {
 		requireNonNull(request);
 
@@ -1658,7 +1681,7 @@ public class PageService {
 		InstitutionId institutionId = request.getInstitutionId();
 		ValidationException validationException = new ValidationException();
 
-		Optional<Page> page = findPageById(pageId, institutionId);
+		Optional<Page> page = findPageById(pageId, institutionId, true);
 
 		if (!page.isPresent())
 			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));

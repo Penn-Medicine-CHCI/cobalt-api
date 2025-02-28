@@ -28,23 +28,23 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class SiteLocation {
 	@Nullable
-	private PageTypeId pageTypeId;
+	private SiteLocationId siteLocationId;
 	@Nullable
 	private String description;
 	@Nullable
 	private String relativeBaseUrl;
-	public enum PageTypeId {
-		TOPIC_CENTER,
+	public enum SiteLocationId {
+		FEATURED_TOPIC,
 		COMMUNITY
 	}
 
 	@Nullable
-	public PageTypeId getPageTypeId() {
-		return pageTypeId;
+	public SiteLocationId getSiteLocationId() {
+		return siteLocationId;
 	}
 
-	public void setPageTypeId(@Nullable PageTypeId pageTypeId) {
-		this.pageTypeId = pageTypeId;
+	public void setSiteLocationId(@Nullable SiteLocationId siteLocationId) {
+		this.siteLocationId = siteLocationId;
 	}
 
 	@Nullable
