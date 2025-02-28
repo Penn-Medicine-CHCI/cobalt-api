@@ -193,6 +193,7 @@ public class AuthorizationService {
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER));
 		accountCapabilityFlags.setCanViewStudyInsights(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.STUDY_ADMIN));
 		accountCapabilityFlags.setCanManageCareResources(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_RESOURCE_MANAGER));
+		accountCapabilityFlags.setCanCreatePages((accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PAGE_CREATOR)));
 
 		return accountCapabilityFlags;
 	}
