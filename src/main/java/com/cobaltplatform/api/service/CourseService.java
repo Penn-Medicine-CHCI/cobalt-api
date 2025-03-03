@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Course;
+import com.cobaltplatform.api.model.db.CourseModule;
+import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -115,6 +117,33 @@ public class CourseService {
 				WHERE institution_id=?
 				ORDER BY display_order
 				""", Course.class, institutionId);
+	}
+
+	@Nonnull
+	public List<CourseModule> findCourseModulesByCourseId(@Nullable UUID courseId) {
+		if (courseId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM course_module
+				WHERE course_id=?
+				ORDER BY display_order
+				""", CourseModule.class, courseId);
+	}
+
+	@Nonnull
+	public List<CourseUnit> findCourseUnitsByCourseId(@Nullable UUID courseId) {
+		if (courseId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT cu.*
+				FROM course_module cm, course_unit cu
+				WHERE cm.course_id=?
+				AND cu.course_module_id=cm.course_module_id
+				ORDER BY cu.display_order
+				""", CourseUnit.class, courseId);
 	}
 
 	@Nonnull

@@ -19,16 +19,23 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.api.response.CourseModuleApiResponse.CourseModuleApiResponseFactory;
 import com.cobaltplatform.api.model.db.Course;
+import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -58,6 +65,11 @@ public class CourseApiResponse {
 	@Nonnull
 	private final String lastUpdatedDescription;
 
+	// For DETAIL type:
+
+	@Nullable
+	private final List<CourseModuleApiResponse> courseModules;
+
 	public enum CourseApiResponseType {
 		LIST,
 		DETAIL
@@ -72,10 +84,14 @@ public class CourseApiResponse {
 	}
 
 	@AssistedInject
-	public CourseApiResponse(@Nonnull Formatter formatter,
+	public CourseApiResponse(@Nonnull CourseService courseService,
+													 @Nonnull CourseModuleApiResponseFactory courseModuleApiResponseFactory,
+													 @Nonnull Formatter formatter,
 													 @Nonnull Strings strings,
 													 @Assisted @Nonnull Course course,
 													 @Assisted @Nonnull CourseApiResponseType type) {
+		requireNonNull(courseService);
+		requireNonNull(courseModuleApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(course);
@@ -91,6 +107,26 @@ public class CourseApiResponse {
 		this.createdDescription = formatter.formatTimestamp(course.getCreated());
 		this.lastUpdated = course.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(course.getLastUpdated());
+
+		if (type == CourseApiResponseType.DETAIL) {
+			List<CourseUnit> courseUnits = courseService.findCourseUnitsByCourseId(course.getCourseId());
+
+			Map<UUID, List<CourseUnit>> courseUnitsByCourseModuleId = courseUnits.stream()
+					.collect(Collectors.groupingBy(CourseUnit::getCourseModuleId));
+
+			this.courseModules = courseService.findCourseModulesByCourseId(course.getCourseId()).stream()
+					.map(courseModule -> {
+						List<CourseUnit> courseUnitsForModule = courseUnitsByCourseModuleId.get(courseModule.getCourseModuleId());
+
+						if (courseUnitsForModule == null)
+							courseUnitsForModule = List.of();
+
+						return courseModuleApiResponseFactory.create(courseModule, courseUnitsForModule);
+					})
+					.collect(Collectors.toList());
+		} else {
+			this.courseModules = null;
+		}
 	}
 
 	@Nonnull
