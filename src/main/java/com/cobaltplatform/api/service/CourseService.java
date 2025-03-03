@@ -64,13 +64,14 @@ public class CourseService {
 	}
 
 	@Nonnull
-	public Optional<Course> findCourseById(@Nullable UUID courseId) {
-		if (courseId == null)
+	public Optional<Course> findCourseById(@Nullable UUID courseId,
+																				 @Nullable InstitutionId institutionId) {
+		if (courseId == null || institutionId == null)
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT *
-				FROM course
+				FROM v_course
 				WHERE course_id=?
 				""", Course.class, courseId);
 	}
@@ -84,11 +85,10 @@ public class CourseService {
 		urlName = urlName.trim();
 
 		return getDatabase().queryForObject("""
-				SELECT c.*
-				FROM course c, institution_course ic
-				WHERE c.course_id=ic.course_id 
-				AND ic.institution_id=?
-				AND ic.url_name=?
+				SELECT *
+				FROM v_course
+				WHERE institution_id=?
+				AND url_name=?
 				""", Course.class, institutionId, urlName);
 	}
 
@@ -99,7 +99,7 @@ public class CourseService {
 			return Optional.empty();
 
 		if (ValidationUtility.isValidUUID(courseIdentifier))
-			return findCourseById(UUID.fromString(courseIdentifier));
+			return findCourseById(UUID.fromString(courseIdentifier), institutionId);
 
 		return findCourseByInstitutionIdAndUrlName(institutionId, courseIdentifier);
 	}
@@ -110,11 +110,10 @@ public class CourseService {
 			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT c.*
-				FROM course c, institution_course ic
-				WHERE c.course_id=ic.course_id
-				AND ic.institution_id=?
-				ORDER BY ic.display_order
+				SELECT *
+				FROM v_course
+				WHERE institution_id=?
+				ORDER BY display_order
 				""", Course.class, institutionId);
 	}
 

@@ -243,6 +243,12 @@ CREATE TABLE institution_course (
 	PRIMARY KEY (course_id, institution_id)
 );
 
+-- Convenience view for including URL name and display order
+CREATE VIEW v_course AS
+SELECT c.*, ic.institution_id, ic.url_name, ic.display_order
+FROM course c, institution_course ic
+WHERE c.course_id=ic.course_id;
+
 -- Can't duplicate display orders per-institution
 CREATE UNIQUE INDEX idx_institution_course_display_order ON institution_course (institution_id, display_order);
 

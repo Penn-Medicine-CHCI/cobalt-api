@@ -48,6 +48,8 @@ public class CourseApiResponse {
 	@Nonnull
 	private final String imageUrl;
 	@Nonnull
+	private final String urlName;
+	@Nonnull
 	private final Instant created;
 	@Nonnull
 	private final String createdDescription;
@@ -84,6 +86,7 @@ public class CourseApiResponse {
 		this.description = course.getDescription();
 		this.focus = course.getFocus();
 		this.imageUrl = course.getImageUrl();
+		this.urlName = course.getUrlName();
 		this.created = course.getCreated();
 		this.createdDescription = formatter.formatTimestamp(course.getCreated());
 		this.lastUpdated = course.getLastUpdated();
@@ -113,6 +116,11 @@ public class CourseApiResponse {
 	@Nonnull
 	public String getImageUrl() {
 		return this.imageUrl;
+	}
+
+	@Nonnull
+	public String getUrlName() {
+		return this.urlName;
 	}
 
 	@Nonnull
