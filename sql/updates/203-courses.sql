@@ -26,6 +26,7 @@ CREATE TABLE course_module (
 	course_module_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	course_id UUID NOT NULL REFERENCES course,
 	title TEXT NOT NULL,
+	estimated_completion_time_in_minutes INTEGER,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -55,6 +56,9 @@ INSERT INTO course_unit_type VALUES ('REORDER', 'Reorder');
 -- In order to support card sort and reordering course units via screening questions, introduce new answer formats
 INSERT INTO screening_answer_format (screening_answer_format_id, description) VALUES ('CARD_SORT', 'Card Sort');
 INSERT INTO screening_answer_format (screening_answer_format_id, description) VALUES ('REORDER', 'Reorder');
+
+-- Indicates we want the UI to constrain `FREEFORM_TEXT` input to integer values
+INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('INTEGER', 'Integer');
 
 -- Video vendors, e.g. Kaltura or YouTube
 CREATE TABLE video_vendor (
@@ -99,9 +103,6 @@ AFTER INSERT OR UPDATE ON video
 FOR EACH ROW EXECUTE FUNCTION video_validation();
 
 -- A course unit is the component where the user performs meaningful action within a course - watches a video, takes a quiz, etc.
--- Note: we probably only need a few fields: title, description (html), video_url, file_url, screening_flow_id (for card sort/questionnaire/reorder).
--- We might need to introduce a video_embed concept and link to that instead, like to support Kaltura embeds
--- We can enforce fields being set via DB triggers
 CREATE TABLE course_unit (
 	course_unit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	course_module_id UUID NOT NULL REFERENCES course_module,
@@ -138,8 +139,8 @@ CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_unit_downloada
 CREATE OR REPLACE FUNCTION course_unit_validation()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.course_unit_type_id = 'VIDEO' AND NEW.video_url IS NULL THEN
-        RAISE EXCEPTION 'video_url must be set for VIDEO course unit types';
+    IF NEW.course_unit_type_id = 'VIDEO' AND NEW.video_id IS NULL THEN
+        RAISE EXCEPTION 'video_id must be set for VIDEO course unit types';
     END IF;
 
     RETURN NEW;
@@ -167,7 +168,6 @@ CREATE TABLE course_session (
 	course_session_id UUID NOT NULL PRIMARY KEY,
   account_id UUID NOT NULL REFERENCES account,
   course_session_status_id TEXT NOT NULL REFERENCES course_session_status,
-  -- TODO: other columns?
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -252,6 +252,8 @@ CREATE UNIQUE INDEX idx_institution_course_url_name ON institution_course (insti
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_course FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Prepare screening sessions to support courses
+INSERT INTO screening_type (screening_type_id, description) VALUES ('COURSE_UNIT', 'Course Unit');
+INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('ONBOARDING', 'Onboarding');
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('COURSE_UNIT', 'Course Unit');
 ALTER TABLE screening_session ADD COLUMN course_session_id UUID REFERENCES course_session;
 
@@ -290,11 +292,5 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * courseSessionId (UUID) - optional, if a session has been started for this course
 -- * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE', 'Clickthrough (Course Unit Downloadable File)');
-
--- TODO: any other events?
-
--- Additional notes
-
--- * Completing a screening flow should return an optional set of optionalCourseModuleIds, so you can say "if user said their child doesn't have ADHD, the ADHD-related units are optional"
 
 COMMIT;

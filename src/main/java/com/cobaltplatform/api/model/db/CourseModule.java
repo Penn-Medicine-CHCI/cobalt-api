@@ -36,6 +36,8 @@ public class CourseModule {
 	@Nullable
 	private String title;
 	@Nullable
+	private Integer estimatedCompletionTimeInMinutes;
+	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
@@ -67,6 +69,15 @@ public class CourseModule {
 
 	public void setTitle(@Nullable String title) {
 		this.title = title;
+	}
+
+	@Nullable
+	public Integer getEstimatedCompletionTimeInMinutes() {
+		return this.estimatedCompletionTimeInMinutes;
+	}
+
+	public void setEstimatedCompletionTimeInMinutes(@Nullable Integer estimatedCompletionTimeInMinutes) {
+		this.estimatedCompletionTimeInMinutes = estimatedCompletionTimeInMinutes;
 	}
 
 	@Nullable

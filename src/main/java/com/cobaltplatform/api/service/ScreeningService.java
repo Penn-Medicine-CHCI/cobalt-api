@@ -1822,6 +1822,22 @@ public class ScreeningService {
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
 
+			// If this orchestration function says that we have course modules to mark as optional for the current course session, then do so
+			if (screeningSession.getCourseSessionId() != null
+					&& orchestrationFunctionOutput.getOptionalCourseModuleIds() != null
+					&& orchestrationFunctionOutput.getOptionalCourseModuleIds().size() > 0) {
+
+				for (UUID optionalCourseModuleId : orchestrationFunctionOutput.getOptionalCourseModuleIds()) {
+					// TODO: need to create a savepoint and check for constraint violations to gracefully avoid duplicate inserts
+					getDatabase().execute("""
+							INSERT INTO course_session_optional_module (
+							  course_session_id,
+							  course_module_id,
+							) VALUES (?,?)
+							""", screeningSession.getCourseSessionId(), optionalCourseModuleId);
+				}
+			}
+
 			// Special case: if we have a pre-completion screening confirmation prompt for this flow AND request did not indicate that we
 			// should "force" the answer, throw a special exception that provides the confirmation prompt to display to the user
 			// (if user accepts, request should specify to "force" the answer to indicate confirmation and skip this check).
@@ -2830,6 +2846,8 @@ public class ScreeningService {
 		private UUID nextScreeningId;
 		@Nullable
 		private PatientOrderClosureReasonId patientOrderClosureReasonId;
+		@Nullable
+		private Set<UUID> optionalCourseModuleIds;
 
 		@Nullable
 		public Boolean getCrisisIndicated() {
@@ -2874,6 +2892,15 @@ public class ScreeningService {
 
 		public void setPatientOrderClosureReasonId(@Nullable PatientOrderClosureReasonId patientOrderClosureReasonId) {
 			this.patientOrderClosureReasonId = patientOrderClosureReasonId;
+		}
+
+		@Nullable
+		public Set<UUID> getOptionalCourseModuleIds() {
+			return this.optionalCourseModuleIds;
+		}
+
+		public void setOptionalCourseModuleIds(@Nullable Set<UUID> optionalCourseModuleIds) {
+			this.optionalCourseModuleIds = optionalCourseModuleIds;
 		}
 	}
 

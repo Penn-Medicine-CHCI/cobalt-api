@@ -44,6 +44,7 @@ public class ScreeningFlowType {
 		FEATURE,
 		GROUP_SESSION_INTAKE,
 		STUDY,
+		ONBOARDING,
 		COURSE_UNIT
 	}
 
