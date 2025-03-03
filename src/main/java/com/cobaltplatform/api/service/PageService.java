@@ -62,6 +62,7 @@ import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.model.service.PageWithTotalCount;
 import com.cobaltplatform.api.util.ValidationException;
@@ -1604,17 +1605,17 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<Page> findAllPagesBySiteLocation(@Nonnull SiteLocationId siteLocationId,
-																							 @Nonnull InstitutionId institutionId) {
+	public List<PageSiteLocation> findAllPagesBySiteLocation(@Nonnull SiteLocationId siteLocationId,
+																													 @Nonnull InstitutionId institutionId) {
 		requireNonNull(siteLocationId);
 		requireNonNull(institutionId);
 
 		return getDatabase().queryForList("""
-				SELECT p.*
+				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url 
 				FROM v_page p, page_site_location psl
 				WHERE p.page_id = psl.page_id
 				AND p.institution_id = ?
-				AND NOW() BETWEEN psl.publish_start_date and psl.publish_end_date""", Page.class, institutionId);
+				AND NOW() BETWEEN psl.publish_start_date and psl.publish_end_date""", PageSiteLocation.class, institutionId);
 
 	}
 

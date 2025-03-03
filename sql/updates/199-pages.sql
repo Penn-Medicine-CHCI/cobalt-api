@@ -48,7 +48,8 @@ CREATE TABLE page_site_location (
     site_location_id TEXT REFERENCES site_location,
     display_order SMALLINT NOT NULL,
     publish_start_date timestamptz NULL,
-    publish_end_date timestamptz NULL,
+    publish_end_date timestamptz NULL,        
+    call_to_action TEXT NOT NULL,
     created_by_account_id UUID NOT NULL REFERENCES account(account_id),
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()

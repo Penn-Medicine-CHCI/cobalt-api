@@ -53,6 +53,7 @@ import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.
 import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageSiteLocationApiResponse.PageSiteLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageUrlValidationResultApiResponse.PageAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FileUploadType;
@@ -64,6 +65,7 @@ import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PageService;
@@ -132,6 +134,8 @@ public class PageResource {
 	@Nonnull
 	private final PageAutocompleteResultApiResponseFactory pageAutocompleteResultApiResponseFactory;
 	@Nonnull
+	private  final PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory;
+	@Nonnull
 	private final PageService pageService;
 	@Nonnull
 	private final Formatter formatter;
@@ -155,6 +159,7 @@ public class PageResource {
 											@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory,
 											@Nonnull AuthorizationService authorizationService,
 											@Nonnull PageAutocompleteResultApiResponseFactory pageAutocompleteResultApiResponseFactory,
+											@Nonnull PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -173,6 +178,7 @@ public class PageResource {
 		requireNonNull(pageCustomThreeColumnApiResponseFactory);
 		requireNonNull(authorizationService);
 		requireNonNull(pageAutocompleteResultApiResponseFactory);
+		requireNonNull(pageSiteLocationApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -191,6 +197,7 @@ public class PageResource {
 		this.pageRowCustomThreeColumnApiResponseFactory = pageCustomThreeColumnApiResponseFactory;
 		this.authorizationService = authorizationService;
 		this.pageAutocompleteResultApiResponseFactory = pageAutocompleteResultApiResponseFactory;
+		this.pageSiteLocationApiResponseFactory = pageSiteLocationApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -275,15 +282,15 @@ public class PageResource {
 	@GET("/pages/site-location/{siteLocationId}")
 	@AuthenticationRequired
 	@ReadReplica
-	public ApiResponse pages(@Nonnull @PathParameter("siteLocationId") SiteLocationId siteLocationId) {
+	public ApiResponse pageSiteLocations(@Nonnull @PathParameter("siteLocationId") SiteLocationId siteLocationId) {
 		requireNonNull(siteLocationId);
 
 		Account account = getCurrentContext().getAccount().get();
 
-		List<Page> pages = getPageService().findAllPagesBySiteLocation(siteLocationId, account.getInstitutionId());
+		List<PageSiteLocation> pages = getPageService().findAllPagesBySiteLocation(siteLocationId, account.getInstitutionId());
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
-			put("pages", pages.stream()
-					.map(page -> getPageApiResponseFactory().create(page, true))
+			put("pageSiteLocations", pages.stream()
+					.map(page -> getPageSiteLocationApiResponseFactory().create(page))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -943,5 +950,10 @@ public class PageResource {
 	@Nonnull
 	public PageAutocompleteResultApiResponseFactory getPageAutocompleteResultApiResponseFactory() {
 		return pageAutocompleteResultApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageSiteLocationApiResponseFactory getPageSiteLocationApiResponseFactory() {
+		return pageSiteLocationApiResponseFactory;
 	}
 }
