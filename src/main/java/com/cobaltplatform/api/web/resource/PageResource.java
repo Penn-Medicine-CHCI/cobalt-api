@@ -57,10 +57,11 @@ import com.cobaltplatform.api.model.api.response.PageSiteLocationApiResponse.Pag
 import com.cobaltplatform.api.model.api.response.PageUrlValidationResultApiResponse.PageAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FileUploadType;
-import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageSection;
+import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FileUploadResult;
@@ -80,6 +81,7 @@ import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 
@@ -207,10 +209,14 @@ public class PageResource {
 		requireNonNull(requestBody);
 
 		CreatePageRequest request = getRequestBodyParser().parse(requestBody, CreatePageRequest.class);
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
 		Account account = getCurrentContext().getAccount().get();
 
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		request.setCreatedByAccountId(account.getAccountId());
-		request.setInstitutionId(account.getInstitutionId());
+		request.setInstitutionId(institutionId);
 		UUID pageId = getPageService().createPage(request);
 		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
 
@@ -229,9 +235,11 @@ public class PageResource {
 																			 @Nonnull @QueryParameter Optional<UUID> pageId) {
 		requireNonNull(searchQuery);
 
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
 		Account account = getCurrentContext().getAccount().get();
-		Institution.InstitutionId institutionId = account.getInstitutionId();
 
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 		PageUrlValidationResult result = getPageService().findPageUrlValidationResults(searchQuery, institutionId, pageId.orElse(null));
 
 		return new ApiResponse(new HashMap<>() {{
@@ -244,7 +252,13 @@ public class PageResource {
 	public ApiResponse deletePageRow(@Nonnull @PathParameter("pageRowId") UUID pageRowId) {
 		requireNonNull(pageRowId);
 
-		getPageService().deletePageRow(pageRowId);
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		getPageService().deletePageRow(pageRowId, institutionId);
 
 		return new ApiResponse();
 	}
@@ -313,17 +327,35 @@ public class PageResource {
 
 	@GET("/pages/{pageIdentifier}")
 	@AuthenticationRequired
-	@ReadReplica
 	public ApiResponse page(@Nonnull @PathParameter("pageIdentifier") String pageIdentifier) {
 		requireNonNull(pageIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
 			throw new NotFoundException();
+
+		if (page.get().getPageStatusId().equals(PageStatus.PageStatusId.LIVE)) {
+			DuplicatePageRequest request = new DuplicatePageRequest();
+			request.setCreatedByAccountId(account.getAccountId());
+			request.setPageId(page.get().getPageId());
+			request.setName(page.get().getName());
+			request.setUrlName(page.get().getUrlName());
+			request.setCopyForEditing(true);
+
+			UUID duplicatePageId = getPageService().duplicatePage(request, institutionId);
+			page = getPageService().findPageById(duplicatePageId, institutionId, true);
+		}
+
+		final Page finalPage = page.get();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("page", getPageApiResponseFactory().create(page.get(), true));
+			put("page", getPageApiResponseFactory().create(finalPage, true));
 		}});
 	}
 
@@ -336,8 +368,13 @@ public class PageResource {
 
 		UpdatePageSettingsRequest request = getRequestBodyParser().parse(requestBody, UpdatePageSettingsRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageId(pageId);
+		request.setInstitutionId(institutionId);
 		getPageService().updatePageSettings(request);
 
 		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
@@ -355,6 +392,10 @@ public class PageResource {
 		requireNonNull(pageId);
 
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		getPageService().publishPage(pageId, account.getInstitutionId());
 
@@ -374,12 +415,16 @@ public class PageResource {
 		requireNonNull(pageId);
 
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		DuplicatePageRequest request = getRequestBodyParser().parse(requestBody, DuplicatePageRequest.class);
 		request.setPageId(pageId);
 		request.setCreatedByAccountId(account.getAccountId());
-		request.setInstitutionId(account.getInstitutionId());
 
-		UUID newPageId = getPageService().duplicatePage(request);
+		UUID newPageId = getPageService().duplicatePage(request, institutionId);
 		Optional<Page> page = getPageService().findPageById(newPageId, account.getInstitutionId(), true);
 
 		if (!page.isPresent())
@@ -395,6 +440,10 @@ public class PageResource {
 		requireNonNull(pageId);
 
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		getPageService().unpublishPage(pageId, account.getInstitutionId());
 
@@ -416,8 +465,13 @@ public class PageResource {
 
 		UpdatePageHeroRequest request = getRequestBodyParser().parse(requestBody, UpdatePageHeroRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageId(pageId);
+		request.setInstitutionId(institutionId);
 		getPageService().updatePageHero(request);
 
 		Optional<Page> page = getPageService().findPageById(pageId, account.getInstitutionId(), true);
@@ -435,6 +489,11 @@ public class PageResource {
 		requireNonNull(pageId);
 
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		getPageService().deletePage(pageId, account.getInstitutionId());
 
 		return new ApiResponse();
@@ -449,12 +508,16 @@ public class PageResource {
 
 		CreatePageSectionRequest request = getRequestBodyParser().parse(requestBody, CreatePageSectionRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageId(pageId);
 		request.setInstitutionId(account.getInstitutionId());
 		UUID pageSectionId = getPageService().createPageSection(request);
-		Optional<PageSection> pageSection = getPageService().findPageSectionById(pageSectionId);
+		Optional<PageSection> pageSection = getPageService().findPageSectionById(pageSectionId, institutionId);
 
 		if (!pageSection.isPresent())
 			throw new NotFoundException();
@@ -468,7 +531,13 @@ public class PageResource {
 	public ApiResponse deletePageSection(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId) {
 		requireNonNull(pageSectionId);
 
-		getPageService().deletePageSection(pageSectionId);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		getPageService().deletePageSection(pageSectionId, institutionId);
 
 		return new ApiResponse();
 	}
@@ -482,12 +551,16 @@ public class PageResource {
 
 		UpdatePageSectionRequest request = getRequestBodyParser().parse(requestBody, UpdatePageSectionRequest.class);
 		Account account = getCurrentContext().getAccount().get();
-		//TODO: verify permission to update this page section
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageSectionId(pageSectionId);
+		request.setInstitutionId(institutionId);
 
 		getPageService().updatePageSection(request);
-		Optional<PageSection> pageSection = getPageService().findPageSectionById(pageSectionId);
+		Optional<PageSection> pageSection = getPageService().findPageSectionById(pageSectionId, institutionId);
 
 		if (!pageSection.isPresent())
 			throw new NotFoundException();
@@ -503,11 +576,18 @@ public class PageResource {
 		requireNonNull(pageId);
 		requireNonNull(requestBody);
 
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		UpdatePageSectionDisplayOrderRequest request = getRequestBodyParser().parse(requestBody, UpdatePageSectionDisplayOrderRequest.class);
+		request.setInstitutionId(institutionId);
 
 		getPageService().updatePageSectionDisplayOrder(request);
 
- 		List<PageSection> pageSections = getPageService().findPageSectionsByPageId(pageId);
+ 		List<PageSection> pageSections = getPageService().findPageSectionsByPageId(pageId, institutionId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageSections", pageSections.stream().map(pageSection -> getPageSectionApiResponseFactory().create(pageSection))
@@ -522,11 +602,17 @@ public class PageResource {
 		requireNonNull(pageId);
 		requireNonNull(requestBody);
 
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		UpdatePageRowDisplayOrderRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowDisplayOrderRequest.class);
 
 		getPageService().updatePageRowDisplayOrder(request);
 
-		List<PageRow> pageRows = getPageService().findPageRowsBySectionId(pageId);
+		List<PageRow> pageRows = getPageService().findPageRowsBySectionId(pageId, institutionId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageRows", pageRows.stream().map(pageRow -> getPageRowApiResponseFactory().create(pageRow))
@@ -543,13 +629,17 @@ public class PageResource {
 
 		CreatePageRowContentRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowContentRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
 
-		UUID pageRowId = getPageService().createPageRowContent(request);
+		UUID pageRowId = getPageService().createPageRowContent(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -567,12 +657,16 @@ public class PageResource {
 
 		UpdatePageRowContentRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowContentRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageRowId(pageRowId);
 
-		getPageService().updatePageRowContent(request);
+		getPageService().updatePageRowContent(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -588,9 +682,15 @@ public class PageResource {
 		requireNonNull(pageRowId);
 		requireNonNull(contentId);
 
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		getPageService().deletePageRowContent(pageRowId, contentId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -608,13 +708,17 @@ public class PageResource {
 
 		CreatePageRowTagGroupRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowTagGroupRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
 
-		UUID pageRowId = getPageService().createPageTagGroup(request);
+		UUID pageRowId = getPageService().createPageTagGroup(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -631,12 +735,16 @@ public class PageResource {
 
 		UpdatePageRowTagGroupRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowTagGroupRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageRowId(pageRowId);
 
-		getPageService().updatePageTagGroup(request);
+		getPageService().updatePageTagGroup(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -653,13 +761,17 @@ public class PageResource {
 
 		CreatePageRowGroupSessionRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowGroupSessionRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
 
-		UUID pageId = getPageService().createPageRowGroupSession(request);
+		UUID pageId = getPageService().createPageRowGroupSession(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -675,8 +787,14 @@ public class PageResource {
 		requireNonNull(pageRowId);
 		requireNonNull(groupSessionId);
 
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
 		getPageService().deletePageRowGroupSession(pageRowId, groupSessionId);
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -693,12 +811,16 @@ public class PageResource {
 
 		UpdatePageRowGroupSessionRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowGroupSessionRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageRowId(pageRowId);
 
-		getPageService().updatePageRowGroupSession(request);
+		getPageService().updatePageRowGroupSession(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -716,13 +838,17 @@ public class PageResource {
 
 		CreatePageRowCustomOneColumnRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCustomOneColumnRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
 
-		UUID pageId = getPageService().createPageRowOneColumn(request);
+		UUID pageId = getPageService().createPageRowOneColumn(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -740,12 +866,16 @@ public class PageResource {
 
 		UpdatePageRowCustomOneColumnRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowCustomOneColumnRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageRowId(pageRowId);
 
-		getPageService().updatePageRowOneColumn(request);
+		getPageService().updatePageRowOneColumn(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -763,12 +893,16 @@ public class PageResource {
 
 		UpdatePageRowCustomTwoColumnRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowCustomTwoColumnRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageRowId(pageRowId);
 
-		getPageService().updatePageRowTwoColumn(request);
+		getPageService().updatePageRowTwoColumn(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -786,12 +920,16 @@ public class PageResource {
 
 		UpdatePageRowCustomThreeColumnRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowCustomThreeColumnRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setPageRowId(pageRowId);
 
-		getPageService().updatePageRowThreeColumn(request);
+		getPageService().updatePageRowThreeColumn(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -809,13 +947,17 @@ public class PageResource {
 
 		CreatePageRowCustomTwoColumnRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCustomTwoColumnRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
 
-		UUID pageId = getPageService().createPageRowTwoColumn(request);
+		UUID pageId = getPageService().createPageRowTwoColumn(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -834,13 +976,17 @@ public class PageResource {
 
 		CreatePageRowCustomThreeColumnRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCustomThreeColumnRequest.class);
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
 
-		UUID pageId = getPageService().createPageRowThreeColumn(request);
+		UUID pageId = getPageService().createPageRowThreeColumn(request, institutionId);
 
-		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId);
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageId, institutionId);
 
 		if (!pageRow.isPresent())
 			throw new NotFoundException();
@@ -856,6 +1002,10 @@ public class PageResource {
 		requireNonNull(requestBody);
 
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
 
 		CreateFileUploadRequest request = getRequestBodyParser().parse(requestBody, CreateFileUploadRequest.class);
 		request.setAccountId(account.getAccountId());

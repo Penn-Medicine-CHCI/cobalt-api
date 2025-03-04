@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 
 import javax.annotation.Nullable;
@@ -39,7 +38,6 @@ public class CreatePageRowRequest {
 	private Integer displayOrder;
 	@Nullable
 	private UUID createdByAccountId;
-
 	@Nullable
 	public UUID getPageSectionId() {
 		return pageSectionId;

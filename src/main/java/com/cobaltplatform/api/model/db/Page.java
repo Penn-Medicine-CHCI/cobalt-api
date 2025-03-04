@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,7 +41,7 @@ public class Page {
 	@Nullable
 	private String urlName;
 	@Nullable
-	private String pageStatusId;
+	private PageStatusId pageStatusId;
 	@Nullable
 	private String headline;
 	@Nullable
@@ -94,11 +95,11 @@ public class Page {
 	}
 
 	@Nullable
-	public String getPageStatusId() {
+	public PageStatusId getPageStatusId() {
 		return pageStatusId;
 	}
 
-	public void setPageStatusId(@Nullable String pageStatusId) {
+	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
 		this.pageStatusId = pageStatusId;
 	}
 

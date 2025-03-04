@@ -173,6 +173,13 @@ public class PageService {
 
 		return Optional.of(page);
 	}
+	@Nonnull
+	private Boolean hasAccessToPage (@Nonnull UUID pageId,
+																	 @Nonnull InstitutionId institutionId){
+		Optional<Page> page = findPageById(pageId, institutionId, true);
+
+		return page.isPresent();
+	}
 
 	@Nonnull
 	private void validatePublishedPage(@Nonnull UUID pageId,
@@ -205,7 +212,7 @@ public class PageService {
 			metadata.put("pageId", pageId);
 		}
 
-		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
+		List<PageSection> pageSections = findPageSectionsByPageId(pageId, institutionId);
 
 		if (pageSections.size() == 0)
 			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get(format("At least one section is required for Page %s.\n", page.get().getName()))));
@@ -224,7 +231,7 @@ public class PageService {
 				metadata.put("sectionId", pageSection.getPageSectionId());
 			}
 
-			List<PageRow> pageRows = findPageRowsBySectionId(pageSection.getPageSectionId());
+			List<PageRow> pageRows = findPageRowsBySectionId(pageSection.getPageSectionId(), institutionId);
 
 			if (pageRows.size() == 0) {
 				validationException.add(new ValidationException.FieldError("pageRows", getStrings().get(format("At least one row is required for Section %s.\n", pageSection.getName()))));
@@ -365,7 +372,15 @@ public class PageService {
 		String imageFileUploadIdString = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
 		UUID pageId = request.getPageId();
+		InstitutionId institutionId = request.getInstitutionId();
 		UUID imageFileUploadId = null;
+		ValidationException validationException = new ValidationException();
+
+		if (!hasAccessToPage(pageId, institutionId))
+			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to update this page.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
 
 		if (isValidUUID(imageFileUploadIdString))
 			imageFileUploadId = UUID.fromString(imageFileUploadIdString);
@@ -386,6 +401,13 @@ public class PageService {
 		requireNonNull(institutionId);
 
 		Optional<Page> page = findPageById(pageId, institutionId, true);
+		ValidationException validationException = new ValidationException();
+
+		if (!page.isPresent())
+			validationException.add(new ValidationException.FieldError("page", getStrings().get("Could not find page to publish.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
 
 		validatePublishedPage(pageId, institutionId);
 
@@ -393,9 +415,9 @@ public class PageService {
 		if (page.get().getParentPageId() != null)
 			getDatabase().execute("""
 					UPDATE page 
-					SET page_status_id = ?, deleted_flag=true
-					WHERE page_id = ?""", PageStatusId.DRAFT, page.get().getParentPageId());
-
+					SET page_status_id = ?, deleted_flag=true, url_name=?
+					WHERE page_id = ?
+					AND institution_id = ?""", PageStatusId.DRAFT,  format("%s-%s", page.get().getUrlName(), UUID.randomUUID()), page.get().getParentPageId(), institutionId);
 
 		getDatabase().execute("""
 				UPDATE page SET
@@ -412,6 +434,14 @@ public class PageService {
 														@Nonnull InstitutionId institutionId) {
 		requireNonNull(pageId);
 		requireNonNull(institutionId);
+
+		ValidationException validationException = new ValidationException();
+
+		if (!hasAccessToPage(pageId, institutionId))
+			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to unpublish this page.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
 
 		getDatabase().execute("""
 				UPDATE page SET
@@ -531,10 +561,15 @@ public class PageService {
 
 		String name = trimToNull(request.getName());
 		UUID pageId = request.getPageId();
+		InstitutionId institutionId = request.getInstitutionId();
 		ValidationException validationException = new ValidationException();
 
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+		if (institutionId == null)
+			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution Id is required.")));
+		if (!hasAccessToPage(pageId, institutionId))
+			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to update this page.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -542,32 +577,39 @@ public class PageService {
 		getDatabase().execute("""
 				UPDATE page SET
 				name=?
-				WHERE page_id=?					   
-				""", name, pageId);
+				WHERE page_id=?	
+				AND institution_id = ?				   
+				""", name, pageId, institutionId);
 
 		return pageId;
 	}
 
 	@Nonnull
-	public Optional<PageSection> findPageSectionById(@Nullable UUID pageSectionId) {
+	public Optional<PageSection> findPageSectionById(@Nullable UUID pageSectionId,
+																									 @Nonnull InstitutionId institutionId) {
 		requireNonNull(pageSectionId);
+		requireNonNull(institutionId);
 
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM v_page_section
 				WHERE page_section_id = ?
-				""", PageSection.class, pageSectionId);
+				AND institution_id = ?
+				""", PageSection.class, pageSectionId, institutionId);
 	}
 
 	@Nonnull
-	public List<PageSection> findPageSectionsByPageId(@Nullable UUID pageId) {
+	public List<PageSection> findPageSectionsByPageId(@Nonnull UUID pageId,
+																										@Nonnull InstitutionId institutionId) {
 		requireNonNull(pageId);
+		requireNonNull(institutionId);
 
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM v_page_section
 				WHERE page_id = ?
-				""", PageSection.class, pageId);
+				AND institution_id=?
+				""", PageSection.class, pageId, institutionId);
 	}
 
 	@Nonnull
@@ -593,6 +635,8 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution ID is required.")));
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+		if (!hasAccessToPage(pageId, institutionId))
+			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to add a section to this page.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -618,6 +662,7 @@ public class PageService {
 		requireNonNull(request);
 
 		int displayOrder = 0;
+		// TODO: validate owner has permission to the list of page sections
 
 		for (UUID pageSectionId : request.getPageSectionIds()) {
 			getDatabase().execute("""
@@ -634,6 +679,7 @@ public class PageService {
 		requireNonNull(request);
 
 		int displayOrder = 0;
+		// TODO: validate owner has permission to the list of page rows
 
 		for (UUID pageRowId : request.getPageRowIds()) {
 			getDatabase().execute("""
@@ -655,13 +701,16 @@ public class PageService {
 		String description = trimToNull(request.getDescription());
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
 		Integer displayOrder = request.getDisplayOrder();
+		InstitutionId institutionId = request.getInstitutionId();
 
 		ValidationException validationException = new ValidationException();
 
-		Optional<PageSection> pageSection = findPageSectionById(pageSectionId);
+		Optional<PageSection> pageSection = findPageSectionById(pageSectionId, institutionId);
 
 		if (!pageSection.isPresent())
 			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+		else if (!hasAccessToPage(pageSection.get().getPageId(), institutionId))
+			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("You do not have permission to update this page section.")));
 		if (backgroundColorId == null)
 			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
 		if (name == null)
@@ -695,14 +744,18 @@ public class PageService {
 	}
 
 	@Nonnull
-	public void deletePageSection(@Nullable UUID pageSectionId) {
+	public void deletePageSection(@Nonnull UUID pageSectionId,
+																@Nonnull InstitutionId institutionId) {
 		requireNonNull(pageSectionId);
+		requireNonNull(institutionId);
 
 		ValidationException validationException = new ValidationException();
-		Optional<PageSection> pageSection = findPageSectionById(pageSectionId);
+		Optional<PageSection> pageSection = findPageSectionById(pageSectionId, institutionId);
 
 		if (!pageSection.isPresent())
 			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+		else if (!hasAccessToPage(pageSection.get().getPageId(), institutionId))
+			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to delete a section from this page.")));
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -767,14 +820,17 @@ public class PageService {
 	}
 
 	@Nonnull
-	public Optional<PageRow> findPageRowById(@Nullable UUID pageRowId) {
+	public Optional<PageRow> findPageRowById(@Nonnull UUID pageRowId,
+																					 @Nonnull InstitutionId institutionId) {
 		requireNonNull(pageRowId);
+		requireNonNull(institutionId);
 
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM v_page_row
 				WHERE page_row_id = ?
-				""", PageRow.class, pageRowId);
+				AND institution_id = ?
+				""", PageRow.class, pageRowId, institutionId);
 	}
 
 	@Nonnull
@@ -792,19 +848,24 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<PageRow> findPageRowsBySectionId(@Nullable UUID pageSectionId) {
+	public List<PageRow> findPageRowsBySectionId(@Nonnull UUID pageSectionId,
+																							 @Nonnull InstitutionId institutionId) {
 		requireNonNull(pageSectionId);
+		requireNonNull(institutionId);
 
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM v_page_row
 				WHERE page_section_id = ?
-				""", PageRow.class, pageSectionId);
+				AND institution_id = ?
+				""", PageRow.class, pageSectionId, institutionId);
 	}
 
 	@Nonnull
-	public UUID createPageRow(@Nonnull CreatePageRowRequest request) {
+	public UUID createPageRow(@Nonnull CreatePageRowRequest request,
+														@Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
+		requireNonNull(institutionId);
 
 		UUID pageSectionId = request.getPageSectionId();
 		UUID pageRowId = UUID.randomUUID();
@@ -812,10 +873,15 @@ public class PageService {
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		Integer displayOrder = request.getDisplayOrder();
 		ValidationException validationException = new ValidationException();
-		Optional<PageSection> pageSection = findPageSectionById(pageSectionId);
+		Optional<PageSection> pageSection = Optional.empty();
 
 		if (pageSectionId == null)
 			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Page is required.")));
+		else {
+			pageSection = findPageSectionById(pageSectionId, institutionId);
+			if (!pageSection.isPresent())
+				validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+		}
 		if (rowTypeId == null)
 			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings().get("Row Type is require.")));
 		if (pageSection == null)
@@ -842,18 +908,25 @@ public class PageService {
 	}
 
 	@Nonnull
-	public void deletePageRow(@Nullable UUID pageRowId) {
+	public void deletePageRow(@Nonnull UUID pageRowId,
+														@Nonnull InstitutionId institutionId) {
 		requireNonNull(pageRowId);
-		ValidationException validationException = new ValidationException();
 
-		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+		ValidationException validationException = new ValidationException();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+		UUID pageSectionId = null;
 
 		if (!pageRow.isPresent())
 			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Could not find page row.")));
+		else {
+			pageSectionId = pageRow.get().getPageSectionId();
+			Optional<PageSection> pageSection = findPageSectionById(pageSectionId, institutionId);
+			if (!hasAccessToPage(pageSection.get().getPageId(), institutionId))
+				validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("You do not have permission to delete this row.")));
+		}
+
 		if (validationException.hasErrors())
 			throw validationException;
-
-		UUID pageSectionId = pageRow.get().getPageSectionId();
 
 		getDatabase().execute("""
 				DELETE FROM page_row_column
@@ -911,7 +984,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID createPageRowOneColumn(@Nonnull CreatePageRowCustomOneColumnRequest request) {
+	public UUID createPageRowOneColumn(@Nonnull CreatePageRowCustomOneColumnRequest request,
+																		 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageSectionId = request.getPageSectionId();
@@ -933,7 +1007,7 @@ public class PageService {
 		createPageRowRequest.setDisplayOrder(displayOrder);
 		createPageRowRequest.setRowTypeId(RowTypeId.ONE_COLUMN_IMAGE);
 
-		UUID pageRowId = createPageRow(createPageRowRequest);
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
 
 		request.getColumnOne().setColumnDisplayOrder(0);
 		createPageRowColumn(request.getColumnOne(), pageRowId);
@@ -942,12 +1016,13 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID updatePageRowOneColumn(@Nonnull UpdatePageRowCustomOneColumnRequest request) {
+	public UUID updatePageRowOneColumn(@Nonnull UpdatePageRowCustomOneColumnRequest request,
+																		 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageRowId = request.getPageRowId();
 		CreatePageRowColumnRequest columnOne = request.getColumnOne();
-		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		ValidationException validationException = new ValidationException();
 
@@ -976,12 +1051,13 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID updatePageRowTwoColumn(@Nonnull UpdatePageRowCustomTwoColumnRequest request) {
+	public UUID updatePageRowTwoColumn(@Nonnull UpdatePageRowCustomTwoColumnRequest request,
+																		 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageRowId = request.getPageRowId();
 		CreatePageRowColumnRequest columnOne = request.getColumnOne();
-		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		ValidationException validationException = new ValidationException();
 
@@ -1020,12 +1096,13 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID updatePageRowThreeColumn(@Nonnull UpdatePageRowCustomThreeColumnRequest request) {
+	public UUID updatePageRowThreeColumn(@Nonnull UpdatePageRowCustomThreeColumnRequest request,
+																			 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageRowId = request.getPageRowId();
 		CreatePageRowColumnRequest columnOne = request.getColumnOne();
-		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		ValidationException validationException = new ValidationException();
 
@@ -1074,7 +1151,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID createPageRowTwoColumn(@Nonnull CreatePageRowCustomTwoColumnRequest request) {
+	public UUID createPageRowTwoColumn(@Nonnull CreatePageRowCustomTwoColumnRequest request,
+																		 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageSectionId = request.getPageSectionId();
@@ -1096,7 +1174,7 @@ public class PageService {
 		createPageRowRequest.setDisplayOrder(displayOrder);
 		createPageRowRequest.setRowTypeId(RowTypeId.TWO_COLUMN_IMAGE);
 
-		UUID pageRowId = createPageRow(createPageRowRequest);
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
 
 		request.getColumnOne().setColumnDisplayOrder(0);
 		request.getColumnTwo().setColumnDisplayOrder(1);
@@ -1107,7 +1185,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID createPageRowThreeColumn(@Nonnull CreatePageRowCustomThreeColumnRequest request) {
+	public UUID createPageRowThreeColumn(@Nonnull CreatePageRowCustomThreeColumnRequest request,
+																			 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageSectionId = request.getPageSectionId();
@@ -1129,7 +1208,7 @@ public class PageService {
 		createPageRowRequest.setDisplayOrder(displayOrder);
 		createPageRowRequest.setRowTypeId(RowTypeId.THREE_COLUMN_IMAGE);
 
-		UUID pageRowId = createPageRow(createPageRowRequest);
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
 
 		request.getColumnOne().setColumnDisplayOrder(0);
 		request.getColumnTwo().setColumnDisplayOrder(1);
@@ -1245,13 +1324,14 @@ public class PageService {
 	}
 
 	@Nonnull
-	public void updatePageRowContent(@Nonnull UpdatePageRowContentRequest request) {
+	public void updatePageRowContent(@Nonnull UpdatePageRowContentRequest request,
+																	 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageRowId = request.getPageRowId();
 		List<UUID> contentIds = request.getContentIds();
 
-		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		ValidationException validationException = new ValidationException();
 
@@ -1282,13 +1362,14 @@ public class PageService {
 	}
 
 	@Nonnull
-	public void updatePageRowGroupSession(@Nonnull UpdatePageRowGroupSessionRequest request) {
+	public void updatePageRowGroupSession(@Nonnull UpdatePageRowGroupSessionRequest request,
+																				@Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageRowId = request.getPageRowId();
 		List<UUID> groupSessionIds = request.getGroupSessionIds();
 
-		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		ValidationException validationException = new ValidationException();
 
@@ -1320,7 +1401,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID createPageRowContent(@Nonnull CreatePageRowContentRequest request) {
+	public UUID createPageRowContent(@Nonnull CreatePageRowContentRequest request,
+																	 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageSectionId = request.getPageSectionId();
@@ -1343,7 +1425,7 @@ public class PageService {
 		createPageRowRequest.setDisplayOrder(displayOrder);
 		createPageRowRequest.setRowTypeId(RowTypeId.RESOURCES);
 
-		UUID pageRowId = createPageRow(createPageRowRequest);
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
 		int contentDisplayOrder = 0;
 
 		for (UUID contentId : contentIds) {
@@ -1411,7 +1493,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID createPageTagGroup(@Nonnull CreatePageRowTagGroupRequest request) {
+	public UUID createPageTagGroup(@Nonnull CreatePageRowTagGroupRequest request,
+																 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageRowTagGroupId = UUID.randomUUID();
@@ -1443,7 +1526,7 @@ public class PageService {
 		createPageRowRequest.setDisplayOrder(displayOrder);
 		createPageRowRequest.setRowTypeId(RowTypeId.TAG_GROUP);
 
-		UUID pageRowId = createPageRow(createPageRowRequest);
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
 
 		getDatabase().execute("""
 				INSERT INTO page_row_tag_group
@@ -1456,7 +1539,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public void updatePageTagGroup(@Nonnull UpdatePageRowTagGroupRequest request) {
+	public void updatePageTagGroup(@Nonnull UpdatePageRowTagGroupRequest request,
+																 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageRowId = request.getPageRowId();
@@ -1464,7 +1548,7 @@ public class PageService {
 
 		ValidationException validationException = new ValidationException();
 
-		Optional<PageRow> pageRow = findPageRowById(pageRowId);
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
 			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Page not found.")));
@@ -1505,7 +1589,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID createPageRowGroupSession(@Nonnull CreatePageRowGroupSessionRequest request) {
+	public UUID createPageRowGroupSession(@Nonnull CreatePageRowGroupSessionRequest request,
+																				@Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID pageSectionId = request.getPageSectionId();
@@ -1528,7 +1613,7 @@ public class PageService {
 		createPageRowRequest.setDisplayOrder(displayOrder);
 		createPageRowRequest.setRowTypeId(RowTypeId.GROUP_SESSIONS);
 
-		UUID pageRowId = createPageRow(createPageRowRequest);
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
 		int groupSessionDisplayOrder = 0;
 
 		for (UUID groupSessionId : groupSessionIds) {
@@ -1644,8 +1729,9 @@ public class PageService {
 
 		StringBuilder query = new StringBuilder("SELECT vp.*, COUNT(vp.page_id) OVER() AS total_count FROM v_page vp ");
 
-		query.append("WHERE vp.institution_id = ? ");
+		query.append("WHERE vp.institution_id = ? AND vp.page_id NOT IN (SELECT vp2.page_id FROM v_page vp2 WHERE vp2.page_status_id = ? AND vp2.parent_page_id IS NOT NULL) ");
 		parameters.add(institutionId);
+		parameters.add(PageStatusId.DRAFT);
 
 		query.append("ORDER BY ");
 
@@ -1668,7 +1754,8 @@ public class PageService {
 	}
 
 	@Nonnull
-	public UUID duplicatePage(@Nonnull DuplicatePageRequest request) {
+	public UUID duplicatePage(@Nonnull DuplicatePageRequest request,
+														@Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
 
 		UUID newPageId = UUID.randomUUID();
@@ -1676,10 +1763,10 @@ public class PageService {
 		UUID newPageRowId;
 		UUID accountId = request.getCreatedByAccountId();
 		UUID pageId = request.getPageId();
+		UUID parentPageId = null;
 		String name =trimToNull(request.getName());
 		String urlName = trimToNull(request.getUrlName());
 		Boolean copyForEditing = request.getCopyForEditing();
-		InstitutionId institutionId = request.getInstitutionId();
 		ValidationException validationException = new ValidationException();
 
 		Optional<Page> page = findPageById(pageId, institutionId, true);
@@ -1708,19 +1795,20 @@ public class PageService {
 		if (copyForEditing) {
 			name = page.get().getName();
 			urlName = page.get().getUrlName();
+			parentPageId = page.get().getPageId();
 		}
 
 		getDatabase().execute("""
 				INSERT INTO page
 				(page_id,name,url_name,page_status_id,headline,description,image_file_upload_id,
 				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id)
-				SELECT ?,?,?,page_status_id,headline,description,image_file_upload_id,
+				SELECT ?,?,?,?,headline,description,image_file_upload_id,
 				       image_alt_text,published_date,deleted_flag,institution_id,?,?
 				FROM page 
 				WHERE page_id=?
-				""", newPageId, name, urlName, accountId, pageId, pageId);
+				""", newPageId, name, urlName, PageStatusId.DRAFT, accountId, parentPageId, pageId);
 
-		List<PageSection> pageSections = findPageSectionsByPageId(pageId);
+		List<PageSection> pageSections = findPageSectionsByPageId(pageId, institutionId);
 		List<PageRow> pageRows;
 
 		for (PageSection pageSection : pageSections) {
@@ -1736,7 +1824,7 @@ public class PageService {
 					 WHERE page_section_id=?					  					 
 					""", newPageSectionId, newPageId, accountId, pageSection.getPageSectionId());
 
-			pageRows = findPageRowsBySectionId(pageSection.getPageSectionId());
+			pageRows = findPageRowsBySectionId(pageSection.getPageSectionId(), institutionId);
 
 			for (PageRow pageRow : pageRows) {
 				newPageRowId = UUID.randomUUID();

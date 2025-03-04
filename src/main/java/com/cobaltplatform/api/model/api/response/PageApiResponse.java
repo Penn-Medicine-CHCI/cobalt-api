@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
+import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -56,7 +57,7 @@ public class PageApiResponse {
 	@Nullable
 	private final String relativeUrl;
 	@Nullable
-	private final String pageStatusId;
+	private final PageStatusId pageStatusId;
 	@Nullable
 	private final String headline;
 	@Nullable
@@ -122,7 +123,7 @@ public class PageApiResponse {
 		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
 		if (includeDetails)
-			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId())
+			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId(), page.getInstitutionId())
 					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).collect(Collectors.toList());
 		else
 			this.pageSections = new ArrayList<>();
@@ -144,7 +145,7 @@ public class PageApiResponse {
 	}
 
 	@Nullable
-	public String getPageStatusId() {
+	public PageStatusId getPageStatusId() {
 		return pageStatusId;
 	}
 

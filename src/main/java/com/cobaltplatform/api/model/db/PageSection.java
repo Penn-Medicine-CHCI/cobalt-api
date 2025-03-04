@@ -22,8 +22,9 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.UUID;
+
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 
@@ -54,6 +55,8 @@ public class PageSection {
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private InstitutionId institutionId;
 
 	@Nullable
 	public UUID getPageSectionId() {
@@ -152,5 +155,14 @@ public class PageSection {
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 }
