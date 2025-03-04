@@ -435,13 +435,21 @@ public class PageService {
 		requireNonNull(pageId);
 		requireNonNull(institutionId);
 
+		UUID pageIdToUpdate = pageId;
+		Optional<Page> page = findPageById(pageId, institutionId, true);
 		ValidationException validationException = new ValidationException();
 
 		if (!hasAccessToPage(pageId, institutionId))
 			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to unpublish this page.")));
 
+		if (!page.isPresent())
+			validationException.add(new ValidationException.FieldError("page", getStrings().get("Could not find published page to unpublish.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
+
+		if (page.get().getPageStatusId().equals(PageStatusId.COPY_FOR_EDITING))
+			pageIdToUpdate = page.get().getParentPageId();
 
 		getDatabase().execute("""
 				UPDATE page SET
@@ -449,7 +457,7 @@ public class PageService {
 				published_date=null
 				WHERE page_id=?					   
 				AND institution_id = ?
-				""", PageStatusId.DRAFT, pageId, institutionId);
+				""", PageStatusId.DRAFT, pageIdToUpdate, institutionId);
 
 		return pageId;
 	}
@@ -1729,9 +1737,9 @@ public class PageService {
 
 		StringBuilder query = new StringBuilder("SELECT vp.*, COUNT(vp.page_id) OVER() AS total_count FROM v_page vp ");
 
-		query.append("WHERE vp.institution_id = ? AND vp.page_id NOT IN (SELECT vp2.page_id FROM v_page vp2 WHERE vp2.page_status_id = ? AND vp2.parent_page_id IS NOT NULL) ");
+		query.append("WHERE vp.institution_id = ? AND vp.page_status_id != ? ");
 		parameters.add(institutionId);
-		parameters.add(PageStatusId.DRAFT);
+		parameters.add(PageStatusId.COPY_FOR_EDITING);
 
 		query.append("ORDER BY ");
 
@@ -1767,6 +1775,7 @@ public class PageService {
 		String name =trimToNull(request.getName());
 		String urlName = trimToNull(request.getUrlName());
 		Boolean copyForEditing = request.getCopyForEditing();
+		PageStatusId pageStatusId = request.getPageStatusId();
 		ValidationException validationException = new ValidationException();
 
 		Optional<Page> page = findPageById(pageId, institutionId, true);
@@ -1806,7 +1815,7 @@ public class PageService {
 				       image_alt_text,published_date,deleted_flag,institution_id,?,?
 				FROM page 
 				WHERE page_id=?
-				""", newPageId, name, urlName, PageStatusId.DRAFT, accountId, parentPageId, pageId);
+				""", newPageId, name, urlName, pageStatusId, accountId, parentPageId, pageId);
 
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId, institutionId);
 		List<PageRow> pageRows;

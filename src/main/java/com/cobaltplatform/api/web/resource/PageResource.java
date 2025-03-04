@@ -348,6 +348,7 @@ public class PageResource {
 			request.setName(page.get().getName());
 			request.setUrlName(page.get().getUrlName());
 			request.setCopyForEditing(true);
+			request.setPageStatusId(PageStatus.PageStatusId.COPY_FOR_EDITING);
 
 			UUID duplicatePageId = getPageService().duplicatePage(request, institutionId);
 			page = getPageService().findPageById(duplicatePageId, institutionId, true);
@@ -423,6 +424,7 @@ public class PageResource {
 		DuplicatePageRequest request = getRequestBodyParser().parse(requestBody, DuplicatePageRequest.class);
 		request.setPageId(pageId);
 		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageStatusId(PageStatus.PageStatusId.DRAFT);
 
 		UUID newPageId = getPageService().duplicatePage(request, institutionId);
 		Optional<Page> page = getPageService().findPageById(newPageId, account.getInstitutionId(), true);

@@ -40,7 +40,7 @@ CREATE TABLE page (
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
-CREATE UNIQUE INDEX unique_institution_url_active ON page (institution_id, url_name) WHERE deleted_flag = false;
+CREATE UNIQUE INDEX unique_institution_url_active ON page (institution_id, url_name) WHERE deleted_flag = false and page_status_id = 'LIVE';
 
 CREATE TABLE page_site_location (
     page_site_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -138,6 +138,7 @@ VALUES
 INSERT INTO page_status
 VALUES
 ('DRAFT', 'Draft'),
+('COPY_FOR_EDITING', 'Copy for Editing'),
 ('LIVE', 'Live');
 
 INSERT INTO background_color
@@ -169,15 +170,18 @@ WHERE p.deleted_flag = false;
 
 CREATE VIEW v_page_section
 AS 
-SELECT *
-FROM page_section
-WHERE deleted_flag = false;
+SELECT ps.*, p.institution_id
+FROM page_section ps, page p
+WHERE ps.page_id = p.page_id
+AND ps.deleted_flag = false;
 
 CREATE VIEW v_page_row
 AS 
-SELECT *
-FROM page_row
-WHERE deleted_flag = false;
+SELECT pr.*, p.institution_id
+FROM page_row pr, page_section ps, page p
+WHERE pr.page_section_id = ps.page_section_id
+AND ps.page_id = p.page_id 
+AND pr.deleted_flag = false;
 
 CREATE VIEW v_page_row_column
 AS 

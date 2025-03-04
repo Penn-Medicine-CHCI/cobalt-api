@@ -123,7 +123,7 @@ public class PageApiResponse {
 		this.createdDescription = formatter.formatTimestamp(page.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.lastUpdated = page.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
-		this.editingLivePage = page.getPageStatusId().equals(PageStatusId.DRAFT) && page.getParentPageId() != null;
+		this.editingLivePage = page.getPageStatusId().equals(PageStatusId.COPY_FOR_EDITING);
 
 		if (includeDetails)
 			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId(), page.getInstitutionId())

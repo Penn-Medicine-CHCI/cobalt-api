@@ -34,7 +34,8 @@ public class PageStatus {
 
 	public enum PageStatusId {
 		DRAFT,
-		LIVE
+		LIVE,
+		COPY_FOR_EDITING
 	}
 
 	@Nullable
