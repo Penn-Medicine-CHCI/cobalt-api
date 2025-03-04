@@ -81,6 +81,8 @@ public class PageApiResponse {
 	@Nullable
 	private final String lastUpdatedDescription;
 	@Nullable
+	private final Boolean editingLivePage;
+	@Nullable
 	private final List<PageSectionApiResponse> pageSections;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -121,6 +123,7 @@ public class PageApiResponse {
 		this.createdDescription = formatter.formatTimestamp(page.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.lastUpdated = page.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.editingLivePage = page.getPageStatusId().equals(PageStatusId.DRAFT) && page.getParentPageId() != null;
 
 		if (includeDetails)
 			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId(), page.getInstitutionId())
