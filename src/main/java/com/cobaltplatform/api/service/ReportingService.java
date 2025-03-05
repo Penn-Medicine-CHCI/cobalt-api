@@ -28,11 +28,13 @@ import com.cobaltplatform.api.model.db.AppointmentTypeAssessment;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
+import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScreeningStatus.PatientOrderScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageSource.PatientOrderTriageSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTriageStatusId;
@@ -65,9 +67,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
@@ -89,6 +93,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class ReportingService {
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Provider<GroupSessionService> groupSessionServiceProvider;
@@ -106,13 +112,15 @@ public class ReportingService {
 	private final Configuration configuration;
 
 	@Inject
-	public ReportingService(@Nonnull Provider<AccountService> accountServiceProvider,
+	public ReportingService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+													@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull DatabaseProvider databaseProvider,
 													@Nonnull Strings strings,
 													@Nonnull Formatter formatter,
 													@Nonnull Configuration configuration) {
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
 		requireNonNull(authorizationServiceProvider);
@@ -121,6 +129,7 @@ public class ReportingService {
 		requireNonNull(formatter);
 		requireNonNull(configuration);
 
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
@@ -169,7 +178,8 @@ public class ReportingService {
 
 					if (reportType.getReportTypeId() == ReportTypeId.IC_PIPELINE
 							|| reportType.getReportTypeId() == ReportTypeId.IC_OUTREACH
-							|| reportType.getReportTypeId() == ReportTypeId.IC_ASSESSMENT)
+							|| reportType.getReportTypeId() == ReportTypeId.IC_ASSESSMENT
+							|| reportType.getReportTypeId() == ReportTypeId.IC_SAFETY_PLANNING)
 						return accountCapabilityFlags.isCanViewIcReports();
 
 					if (reportType.getReportTypeId() == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
@@ -262,7 +272,7 @@ public class ReportingService {
 				AND app.start_time >= ?
 				AND app.start_time <= ?  
 				ORDER BY p.name, app.start_time
-								""", ProviderAppointmentReportRecord.class, institutionId, startDateTime, endDateTime);
+				""", ProviderAppointmentReportRecord.class, institutionId, startDateTime, endDateTime);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm").withLocale(reportLocale);
 		DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
@@ -331,7 +341,7 @@ public class ReportingService {
 				AND app.start_time >= ?
 				AND app.start_time <= ?
 				ORDER BY p.name, app.start_time
-								""", ProviderAppointmentEap.class, SupportRoleId.CARE_MANAGER, institutionId, startDateTime, endDateTime);
+				""", ProviderAppointmentEap.class, SupportRoleId.CARE_MANAGER, institutionId, startDateTime, endDateTime);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm").withLocale(reportLocale);
 		DateTimeFormatter instantFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd H:mm:ss")
@@ -1041,6 +1051,171 @@ public class ReportingService {
 		}
 	}
 
+	public void runIcSafetyPlanningReportCsv(@Nonnull InstitutionId institutionId,
+																					 @Nonnull LocalDateTime startDateTime,
+																					 @Nonnull LocalDateTime endDateTime,
+																					 @Nonnull ZoneId reportTimeZone,
+																					 @Nonnull Locale reportLocale,
+																					 @Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		List<IcSafetyPlanningReportRecord> records = getDatabase().queryForList("""
+				SELECT
+					po.reference_number as cobalt_reference_number,
+					ss.crisis_indicated_at,
+					po.most_recent_screening_session_created_by_account_role_id as assessment_performed_by,
+					po.patient_mrn as patient_mrn,
+					po.patient_unique_id as patient_uid,
+					po.patient_first_name,
+					po.patient_last_name,
+					po.patient_order_safety_planning_status_id
+				FROM
+				  v_all_patient_order po,
+				  screening_session ss
+				WHERE
+				  ss.patient_order_id=po.patient_order_id
+				  AND ss.crisis_indicated_at >= ?
+				  AND ss.crisis_indicated_at <= ?
+				  AND po.test_patient_order=FALSE
+				  AND ss.crisis_indicated=TRUE
+				ORDER BY
+				  ss.crisis_indicated_at
+				""", IcSafetyPlanningReportRecord.class, startDateTime.atZone(reportTimeZone).toInstant(), endDateTime.atZone(reportTimeZone).toInstant());
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+				.withZone(reportTimeZone)
+				.withLocale(reportLocale);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
+			csvPrinter.printRecord(
+					getStrings().get("Cobalt Reference Number"),
+					getStrings().get("Crisis Indicated At"),
+					getStrings().get("Assessment Performed By"),
+					getStrings().get("Patient {{mrnType}}", Map.of("mrnType", institution.getEpicPatientMrnTypeName())),
+					getStrings().get("Patient {{uidType}}", Map.of("uidType", institution.getEpicPatientUniqueIdType())),
+					getStrings().get("Patient First Name"),
+					getStrings().get("Patient Last Name"),
+					getStrings().get("Safety Planning Status")
+			);
+
+			for (IcSafetyPlanningReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(8);
+				recordElements.add(String.valueOf(record.getCobaltReferenceNumber()));
+				recordElements.add(dateTimeFormatter.format(record.getCrisisIndicatedAt()));
+				recordElements.add(record.getAssessmentPerformedBy());
+				recordElements.add(record.getPatientMrn());
+				recordElements.add(record.getPatientUid());
+				recordElements.add(record.getPatientFirstName());
+				recordElements.add(record.getPatientLastName());
+				recordElements.add(record.getPatientOrderSafetyPlanningStatusId().name());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@NotThreadSafe
+	protected static class IcSafetyPlanningReportRecord {
+		@Nullable
+		private Long cobaltReferenceNumber;
+		@Nullable
+		private Instant crisisIndicatedAt;
+		@Nullable
+		private String assessmentPerformedBy;
+		@Nullable
+		private String patientMrn;
+		@Nullable
+		private String patientUid;
+		@Nullable
+		private String patientFirstName;
+		@Nullable
+		private String patientLastName;
+		@Nullable
+		private PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId;
+
+		@Nullable
+		public Long getCobaltReferenceNumber() {
+			return this.cobaltReferenceNumber;
+		}
+
+		public void setCobaltReferenceNumber(@Nullable Long cobaltReferenceNumber) {
+			this.cobaltReferenceNumber = cobaltReferenceNumber;
+		}
+
+		@Nullable
+		public Instant getCrisisIndicatedAt() {
+			return this.crisisIndicatedAt;
+		}
+
+		public void setCrisisIndicatedAt(@Nullable Instant crisisIndicatedAt) {
+			this.crisisIndicatedAt = crisisIndicatedAt;
+		}
+
+		@Nullable
+		public String getAssessmentPerformedBy() {
+			return this.assessmentPerformedBy;
+		}
+
+		public void setAssessmentPerformedBy(@Nullable String assessmentPerformedBy) {
+			this.assessmentPerformedBy = assessmentPerformedBy;
+		}
+
+		@Nullable
+		public String getPatientMrn() {
+			return this.patientMrn;
+		}
+
+		public void setPatientMrn(@Nullable String patientMrn) {
+			this.patientMrn = patientMrn;
+		}
+
+		@Nullable
+		public String getPatientUid() {
+			return this.patientUid;
+		}
+
+		public void setPatientUid(@Nullable String patientUid) {
+			this.patientUid = patientUid;
+		}
+
+		@Nullable
+		public String getPatientFirstName() {
+			return this.patientFirstName;
+		}
+
+		public void setPatientFirstName(@Nullable String patientFirstName) {
+			this.patientFirstName = patientFirstName;
+		}
+
+		@Nullable
+		public String getPatientLastName() {
+			return this.patientLastName;
+		}
+
+		public void setPatientLastName(@Nullable String patientLastName) {
+			this.patientLastName = patientLastName;
+		}
+
+		@Nullable
+		public PatientOrderSafetyPlanningStatusId getPatientOrderSafetyPlanningStatusId() {
+			return this.patientOrderSafetyPlanningStatusId;
+		}
+
+		public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
+			this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
+		}
+	}
 
 	public void runGroupSessionReservationEmailsReportCsv(@Nonnull UUID groupSessionId,
 																												@Nonnull ZoneId reportTimeZone,
@@ -1518,6 +1693,11 @@ public class ReportingService {
 		public void setCount(@Nullable Integer count) {
 			this.count = count;
 		}
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull
