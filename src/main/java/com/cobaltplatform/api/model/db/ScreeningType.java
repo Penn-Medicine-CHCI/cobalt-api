@@ -69,7 +69,7 @@ public class ScreeningType {
 		UCLA_LONELINESS,
 		CONTENT_SATISFACTION,
 		SCREENING_READINESS,
-		COURSE_UNIT
+		CARD_SORT
 	}
 
 	@Override

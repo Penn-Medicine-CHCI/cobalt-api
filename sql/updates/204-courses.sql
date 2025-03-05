@@ -258,7 +258,7 @@ CREATE UNIQUE INDEX idx_institution_course_url_name ON institution_course (insti
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_course FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 -- Prepare screening sessions to support courses
-INSERT INTO screening_type (screening_type_id, description) VALUES ('COURSE_UNIT', 'Course Unit');
+INSERT INTO screening_type (screening_type_id, description) VALUES ('CARD_SORT', 'Card Sort');
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('ONBOARDING', 'Onboarding');
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('COURSE_UNIT', 'Course Unit');
 ALTER TABLE screening_session ADD COLUMN course_session_id UUID REFERENCES course_session;
