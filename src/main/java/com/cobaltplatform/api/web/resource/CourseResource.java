@@ -116,7 +116,7 @@ public class CourseResource {
 		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("course", courses.stream()
+			put("courses", courses.stream()
 					.map(course -> getCourseApiResponseFactory().create(course, CourseApiResponseType.LIST))
 					.collect(Collectors.toList()));
 		}});
