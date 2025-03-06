@@ -17,41 +17,21 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
-
-import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CourseSession {
-	@Nullable
-	private UUID courseSessionId;
+public class CreateCourseSessionRequest {
 	@Nullable
 	private UUID courseId;
 	@Nullable
 	private UUID accountId;
-	@Nullable
-	private CourseSessionStatusId courseSessionStatusId;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
-
-	@Nullable
-	public UUID getCourseSessionId() {
-		return this.courseSessionId;
-	}
-
-	public void setCourseSessionId(@Nullable UUID courseSessionId) {
-		this.courseSessionId = courseSessionId;
-	}
 
 	@Nullable
 	public UUID getCourseId() {
@@ -69,32 +49,5 @@ public class CourseSession {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
-	}
-
-	@Nullable
-	public CourseSessionStatusId getCourseSessionStatusId() {
-		return this.courseSessionStatusId;
-	}
-
-	public void setCourseSessionStatusId(@Nullable CourseSessionStatusId courseSessionStatusId) {
-		this.courseSessionStatusId = courseSessionStatusId;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
 	}
 }

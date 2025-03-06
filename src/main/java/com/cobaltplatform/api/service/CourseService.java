@@ -19,10 +19,14 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
+import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -144,6 +148,47 @@ public class CourseService {
 				AND cu.course_module_id=cm.course_module_id
 				ORDER BY cu.display_order
 				""", CourseUnit.class, courseId);
+	}
+
+	@Nonnull
+	public Optional<CourseSession> findCourseSessionById(@Nullable UUID courseSessionId) {
+		if (courseSessionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM course_session
+				WHERE course_session_id=?
+				""", CourseSession.class, courseSessionId);
+	}
+
+	@Nonnull
+	public UUID createCourseSession(@Nonnull CreateCourseSessionRequest request) {
+		requireNonNull(request);
+
+		UUID courseId = request.getCourseId();
+		UUID accountId = request.getAccountId();
+		UUID courseSessionId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (courseId == null)
+			validationException.add(new FieldError("courseId", getStrings().get("Course ID is required.")));
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				INSERT INTO course_session (
+				  course_session_id,
+				  course_id,
+				  account_id
+				) VALUES (?,?,?)
+				""", courseSessionId, courseId, accountId);
+
+		return courseSessionId;
 	}
 
 	@Nonnull

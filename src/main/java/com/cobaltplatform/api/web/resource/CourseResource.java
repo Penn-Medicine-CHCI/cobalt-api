@@ -20,15 +20,27 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.api.response.CourseApiResponse.CourseApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CourseApiResponse.CourseApiResponseType;
+import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.CourseSessionApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Course;
+import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CourseService;
+import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PathParameter;
+import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
+import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
@@ -41,6 +53,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -55,23 +68,43 @@ public class CourseResource {
 	@Nonnull
 	private final CourseService courseService;
 	@Nonnull
+	private final AuthorizationService authorizationService;
+	@Nonnull
+	private final RequestBodyParser requestBodyParser;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final CourseApiResponseFactory courseApiResponseFactory;
+	@Nonnull
+	private final CourseSessionApiResponseFactory courseSessionApiResponseFactory;
+	@Nonnull
+	private final Strings strings;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
 	public CourseResource(@Nonnull CourseService courseService,
+												@Nonnull AuthorizationService authorizationService,
+												@Nonnull RequestBodyParser requestBodyParser,
 												@Nonnull Provider<CurrentContext> currentContextProvider,
-												@Nonnull CourseApiResponseFactory courseApiResponseFactory) {
+												@Nonnull CourseApiResponseFactory courseApiResponseFactory,
+												@Nonnull CourseSessionApiResponseFactory courseSessionApiResponseFactory,
+												@Nonnull Strings strings) {
 		requireNonNull(courseService);
+		requireNonNull(authorizationService);
+		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(courseApiResponseFactory);
+		requireNonNull(courseSessionApiResponseFactory);
+		requireNonNull(strings);
 
 		this.courseService = courseService;
+		this.authorizationService = authorizationService;
+		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.courseApiResponseFactory = courseApiResponseFactory;
+		this.courseSessionApiResponseFactory = courseSessionApiResponseFactory;
+		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
@@ -107,8 +140,44 @@ public class CourseResource {
 	}
 
 	@Nonnull
+	@POST("/course-sessions")
+	@AuthenticationRequired
+	public ApiResponse createCourseSession(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CreateCourseSessionRequest request = getRequestBodyParser().parse(requestBody, CreateCourseSessionRequest.class);
+		request.setAccountId(account.getAccountId());
+
+		// Do a quick validation check here since we need to be able to perform an authorization check next
+		if (request.getCourseId() == null)
+			throw new ValidationException(new FieldError("courseId", getStrings().get("Course ID is required.")));
+
+		if (!getAuthorizationService().canCreateCourseSession(request.getCourseId(), account))
+			throw new AuthorizationException();
+
+		UUID courseSessionId = getCourseService().createCourseSession(request);
+		CourseSession courseSession = getCourseService().findCourseSessionById(courseSessionId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("courseSession", getCourseSessionApiResponseFactory().create(courseSession));
+		}});
+	}
+
+	@Nonnull
 	protected CourseService getCourseService() {
 		return this.courseService;
+	}
+
+	@Nonnull
+	protected AuthorizationService getAuthorizationService() {
+		return this.authorizationService;
+	}
+
+	@Nonnull
+	protected RequestBodyParser getRequestBodyParser() {
+		return this.requestBodyParser;
 	}
 
 	@Nonnull
@@ -119,6 +188,16 @@ public class CourseResource {
 	@Nonnull
 	protected CourseApiResponseFactory getCourseApiResponseFactory() {
 		return this.courseApiResponseFactory;
+	}
+
+	@Nonnull
+	protected CourseSessionApiResponseFactory getCourseSessionApiResponseFactory() {
+		return this.courseSessionApiResponseFactory;
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return this.strings;
 	}
 
 	@Nonnull

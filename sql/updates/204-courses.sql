@@ -166,8 +166,9 @@ INSERT INTO course_session_status VALUES ('CANCELED', 'Canceled');
 -- You might retake a course, for example, which would create a new session.
 CREATE TABLE course_session (
 	course_session_id UUID NOT NULL PRIMARY KEY,
+	course_id UUID NOT NULL REFERENCES course,
   account_id UUID NOT NULL REFERENCES account,
-  course_session_status_id TEXT NOT NULL REFERENCES course_session_status,
+  course_session_status_id TEXT NOT NULL REFERENCES course_session_status DEFAULT 'IN_PROGRESS',
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
