@@ -17,55 +17,37 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
+
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class CreatePageRowColumnRequest {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private String headline;
 	@Nullable
 	private String description;
-
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
-	}
-
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
-	}
+	@Nullable
+	private String imageFileUploadId;
+	@Nullable
+	private String imageAltText;
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	private Integer columnDisplayOrder;
+
+	@Nullable
+	public String getHeadline() {
+		return headline;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setHeadline(@Nullable String headline) {
+		this.headline = headline;
 	}
 
 	@Nullable
@@ -75,5 +57,32 @@ public class FileUploadType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable String imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
+	}
+
+	@Nullable
+	public String getImageAltText() {
+		return imageAltText;
+	}
+
+	public void setImageAltText(@Nullable String imageAltText) {
+		this.imageAltText = imageAltText;
+	}
+
+	@Nullable
+	public Integer getColumnDisplayOrder() {
+		return columnDisplayOrder;
+	}
+
+	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
+		this.columnDisplayOrder = columnDisplayOrder;
 	}
 }

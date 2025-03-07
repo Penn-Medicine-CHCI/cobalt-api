@@ -121,6 +121,18 @@ import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.In
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse;
+import com.cobaltplatform.api.model.api.response.PageSectionApiResponse;
+import com.cobaltplatform.api.model.api.response.PageSiteLocationApiResponse;
+import com.cobaltplatform.api.model.api.response.PageUrlValidationResultApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderDiagnosisApiResponse.PatientOrderDiagnosisApiResponseFactory;
@@ -363,6 +375,13 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(AccountStudyApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentAudienceTypeGroupApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageApiResponse.PageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageSectionApiResponse.PageSectionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowApiResponse.PageRowApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowContentApiResponse.PageRowContentApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowColumnApiResponse.PageRowImageApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionReferrerApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(InstitutionFeatureInstitutionReferrerApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CareResourceTagApiResponseFactory.class)));
@@ -370,6 +389,11 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(CareResourceLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ResourcePacketApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ResourcePacketCareResourceLocationApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageUrlValidationResultApiResponse.PageAutocompleteResultApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageSiteLocationApiResponse.PageSiteLocationApiResponseFactory.class)));
 	}
 
 	@Provides

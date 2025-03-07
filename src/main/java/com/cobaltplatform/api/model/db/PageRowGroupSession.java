@@ -21,59 +21,44 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class PageRowGroupSession {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private UUID pageRowGroupSessionId;
 	@Nullable
-	private String description;
+	private UUID groupSessionId;
+	@Nullable
+	private Integer groupSessionDisplayOrder;
 
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
+	@Nullable
+	public UUID getPageRowGroupSessionId() {
+		return pageRowGroupSessionId;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	public void setPageRowGroupSessionId(@Nullable UUID pageRowGroupSessionId) {
+		this.pageRowGroupSessionId = pageRowGroupSessionId;
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public UUID getGroupSessionId() {
+		return groupSessionId;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setGroupSessionId(@Nullable UUID groupSessionId) {
+		this.groupSessionId = groupSessionId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public Integer getGroupSessionDisplayOrder() {
+		return groupSessionDisplayOrder;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setGroupSessionDisplayOrder(@Nullable Integer groupSessionDisplayOrder) {
+		this.groupSessionDisplayOrder = groupSessionDisplayOrder;
 	}
 }

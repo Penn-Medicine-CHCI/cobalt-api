@@ -193,6 +193,7 @@ public class AuthorizationService {
 				|| accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PROVIDER_REPORT_APPOINTMENTS_EAP_VIEWER));
 		accountCapabilityFlags.setCanViewStudyInsights(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.STUDY_ADMIN));
 		accountCapabilityFlags.setCanManageCareResources(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_RESOURCE_MANAGER));
+		accountCapabilityFlags.setCanCreatePages((accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PAGE_CREATOR)));
 
 		return accountCapabilityFlags;
 	}
@@ -715,7 +716,7 @@ public class AuthorizationService {
 		requireNonNull(institutionId);
 		requireNonNull(account);
 
-		// An admin or MHIC with the MHIC_RESOURCE_MANAGER role can create and update resources
+		// An admin or a user with MHIC_RESOURCE_MANAGER capability can create and update resources
 		if (Objects.equals(account.getInstitutionId(), institutionId)
 				&& (account.getRoleId() == RoleId.ADMINISTRATOR ||
 				account.getAccountCapabilityTypeIds().contains(AccountCapabilityTypeId.MHIC_RESOURCE_MANAGER)))
@@ -724,7 +725,20 @@ public class AuthorizationService {
 		return false;
 	}
 
+	@Nonnull
+	public Boolean canManagePages(@Nonnull InstitutionId institutionId,
+																@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
 
+		// An admin or a user with PAGE_CREATOR capability can create and update pages
+		if (Objects.equals(account.getInstitutionId(), institutionId)
+				&& (account.getRoleId() == RoleId.ADMINISTRATOR ||
+				account.getAccountCapabilityTypeIds().contains(AccountCapabilityTypeId.PAGE_CREATOR)))
+			return true;
+
+		return false;
+	}
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();

@@ -26,46 +26,25 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class SiteLocation {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private SiteLocationId siteLocationId;
 	@Nullable
 	private String description;
-
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
-	}
-
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	@Nullable
+	private String relativeBaseUrl;
+	public enum SiteLocationId {
+		FEATURED_TOPIC,
+		COMMUNITY
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public SiteLocationId getSiteLocationId() {
+		return siteLocationId;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setSiteLocationId(@Nullable SiteLocationId siteLocationId) {
+		this.siteLocationId = siteLocationId;
 	}
 
 	@Nullable
@@ -75,5 +54,14 @@ public class FileUploadType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getRelativeBaseUrl() {
+		return relativeBaseUrl;
+	}
+
+	public void setRelativeBaseUrl(@Nullable String relativeBaseUrl) {
+		this.relativeBaseUrl = relativeBaseUrl;
 	}
 }
