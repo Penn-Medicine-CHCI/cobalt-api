@@ -21,6 +21,9 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
+import com.cobaltplatform.api.model.db.CourseSessionUnit;
+import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -29,6 +32,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -63,9 +67,11 @@ public class CourseSessionApiResponse {
 	}
 
 	@AssistedInject
-	public CourseSessionApiResponse(@Nonnull Formatter formatter,
+	public CourseSessionApiResponse(@Nonnull CourseService courseService,
+																	@Nonnull Formatter formatter,
 																	@Nonnull Strings strings,
 																	@Assisted @Nonnull CourseSession courseSession) {
+		requireNonNull(courseService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(courseSession);
@@ -78,6 +84,13 @@ public class CourseSessionApiResponse {
 		this.createdDescription = formatter.formatTimestamp(courseSession.getCreated());
 		this.lastUpdated = courseSession.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(courseSession.getLastUpdated());
+
+		// Show status for each course unit in the session.
+		// If we don't have status yet, create a synthetic "INCOMPLETE" record
+		List<CourseUnit> courseUnits = courseService.findCourseUnitsByCourseId(courseSession.getCourseId());
+		List<CourseSessionUnit> courseSessionUnits = courseService.findCourseSessionUnitsByCourseSessionId(courseSession.getCourseSessionId());
+
+
 	}
 
 	@Nonnull

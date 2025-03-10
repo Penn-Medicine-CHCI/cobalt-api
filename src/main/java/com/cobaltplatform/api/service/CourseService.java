@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
 import com.cobaltplatform.api.model.db.CourseSession;
+import com.cobaltplatform.api.model.db.CourseSessionUnit;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.ValidationException;
@@ -189,6 +190,20 @@ public class CourseService {
 				""", courseSessionId, courseId, accountId);
 
 		return courseSessionId;
+	}
+
+	@Nonnull
+	public List<CourseSessionUnit> findCourseSessionUnitsByCourseSessionId(@Nullable UUID courseSessionId) {
+		if (courseSessionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT csu.*
+				FROM course_session_unit csu, course_unit cu
+				WHERE csu.course_session_id=?
+				AND csu.course_unit_id=cu.course_unit_id
+				ORDER BY cu.display_order
+				""", CourseSessionUnit.class, courseSessionId);
 	}
 
 	@Nonnull
