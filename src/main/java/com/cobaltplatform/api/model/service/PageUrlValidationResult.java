@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.service;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -26,54 +26,27 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class PageUrlValidationResult {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private Boolean available;
 	@Nullable
-	private String description;
+	private String recommendation;
 
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
+	@Nullable
+	public Boolean getAvailable() {
+		return available;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	public void setAvailable(@Nullable Boolean available) {
+		this.available = available;
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public String getRecommendation() {
+		return recommendation;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setRecommendation(@Nullable String recommendation) {
+		this.recommendation = recommendation;
 	}
 }

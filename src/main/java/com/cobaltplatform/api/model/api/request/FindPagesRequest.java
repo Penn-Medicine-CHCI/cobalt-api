@@ -17,7 +17,9 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
+
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -26,54 +28,54 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class FindPagesRequest {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private InstitutionId institutionId;
 	@Nullable
-	private String description;
+	private Integer pageNumber;
+	@Nullable
+	private Integer pageSize;
+	@Nullable
+	private OrderBy orderBy;
 
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
-	}
-
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	public enum OrderBy {
+		CREATED_ASC,
+		CREATED_DESC
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public InstitutionId getInstitutionId() {
+		return institutionId;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public Integer getPageNumber() {
+		return pageNumber;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setPageNumber(@Nullable Integer pageNumber) {
+		this.pageNumber = pageNumber;
+	}
+
+	@Nullable
+	public Integer getPageSize() {
+		return pageSize;
+	}
+
+	public void setPageSize(@Nullable Integer pageSize) {
+		this.pageSize = pageSize;
+	}
+
+	@Nullable
+	public OrderBy getOrderBy() {
+		return orderBy;
+	}
+
+	public void setOrderBy(@Nullable OrderBy orderBy) {
+		this.orderBy = orderBy;
 	}
 }

@@ -21,6 +21,8 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.ContentDurationId;
 import com.cobaltplatform.api.model.service.ResourceLibrarySortColumnId;
@@ -57,6 +59,8 @@ public class FindResourceLibraryContentRequest {
 	private ResourceLibrarySortColumnId resourceLibrarySortColumnId;
 	@Nullable
 	private UUID prioritizeUnviewedForAccountId;
+	@Nullable
+	private ContentVisibilityTypeId contentVisibilityTypeId;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -155,5 +159,14 @@ public class FindResourceLibraryContentRequest {
 
 	public void setResourceLibrarySortColumnId(@Nullable ResourceLibrarySortColumnId resourceLibrarySortColumnId) {
 		this.resourceLibrarySortColumnId = resourceLibrarySortColumnId;
+	}
+
+	@Nullable
+	public ContentVisibilityTypeId getContentVisibilityTypeId() {
+		return this.contentVisibilityTypeId;
+	}
+
+	public void setContentVisibilityTypeId(@Nullable ContentVisibilityTypeId contentVisibilityTypeId) {
+		this.contentVisibilityTypeId = contentVisibilityTypeId;
 	}
 }

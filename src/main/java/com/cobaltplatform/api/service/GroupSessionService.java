@@ -88,6 +88,7 @@ import com.cobaltplatform.api.util.UploadManager;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -636,7 +637,7 @@ public class GroupSessionService implements AutoCloseable {
 		GroupSessionLocationTypeId groupSessionLocationTypeId = request.getGroupSessionLocationTypeId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
-		String urlName = request.getUrlName() == null ? null : normalizeUrlName(request.getUrlName()).orElse(null);
+		String urlName = request.getUrlName() == null ? null : WebUtility.normalizeUrlName(request.getUrlName()).orElse(null);
 		String inPersonLocation = trimToNull(request.getInPersonLocation());
 		UUID facilitatorAccountId = request.getFacilitatorAccountId();
 		String facilitatorName = trimToNull(request.getFacilitatorName());
@@ -948,8 +949,8 @@ public class GroupSessionService implements AutoCloseable {
 
 		GroupSessionUrlValidationResult result = new GroupSessionUrlValidationResult();
 
-		boolean urlNameContainsIllegalCharacters = urlNameContainsIllegalCharacters(urlName.trim());
-		urlName = normalizeUrlName(urlName).orElse("");
+		boolean urlNameContainsIllegalCharacters = WebUtility.urlNameContainsIllegalCharacters(urlName.trim());
+		urlName = WebUtility.normalizeUrlName(urlName).orElse("");
 
 		if (urlNameContainsIllegalCharacters) {
 			result.setAvailable(false);
@@ -986,34 +987,13 @@ public class GroupSessionService implements AutoCloseable {
 	}
 
 	@Nonnull
-	protected Optional<String> normalizeUrlName(@Nullable String urlName) {
-		urlName = trimToNull(urlName);
-
-		if (urlName == null)
-			return Optional.empty();
-
-		return Optional.ofNullable(urlName.toLowerCase(Locale.ENGLISH)
-				// All groups of whitespace characters are converted to a single '-'
-				.replaceAll("\\p{Zs}+", "-")
-				// Anything that's not alphanumeric or a hyphen is discarded
-				.replaceAll("[^-\\pL\\pN]", ""));
-	}
-
-	@Nonnull
-	protected Boolean urlNameContainsIllegalCharacters(@Nonnull String urlName) {
-		requireNonNull(urlName);
-		// Alphanumerics and hyphens only
-		return !urlName.matches("[-\\pL\\pN]+");
-	}
-
-	@Nonnull
 	protected Boolean urlNameExistsForInstitutionId(@Nonnull String urlName,
 																									@Nonnull InstitutionId institutionId,
 																									@Nullable UUID groupSessionId) {
 		requireNonNull(urlName);
 		requireNonNull(institutionId);
 
-		urlName = normalizeUrlName(urlName).orElse("");
+		urlName = WebUtility.normalizeUrlName(urlName).orElse("");
 
 		// If this is an illegal name, it already "exists"
 		if (getIllegalGroupSessionUrlNames().contains(urlName))
@@ -1049,7 +1029,7 @@ public class GroupSessionService implements AutoCloseable {
 		GroupSessionLocationTypeId groupSessionLocationTypeId = request.getGroupSessionLocationTypeId();
 		String title = trimToNull(request.getTitle());
 		String description = trimToNull(request.getDescription());
-		String urlName = request.getUrlName() == null ? null : normalizeUrlName(request.getUrlName()).orElse(null);
+		String urlName = request.getUrlName() == null ? null : WebUtility.normalizeUrlName(request.getUrlName()).orElse(null);
 		String inPersonLocation = trimToNull(request.getInPersonLocation());
 		UUID facilitatorAccountId = request.getFacilitatorAccountId();
 		String facilitatorName = trimToNull(request.getFacilitatorName());

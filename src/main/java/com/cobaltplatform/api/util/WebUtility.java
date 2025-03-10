@@ -304,4 +304,25 @@ public final class WebUtility {
 
 		return url;
 	}
+
+	@Nonnull
+	public static Boolean urlNameContainsIllegalCharacters(@Nonnull String urlName) {
+		requireNonNull(urlName);
+		// Alphanumerics and hyphens only
+		return !urlName.matches("[-\\pL\\pN]+");
+	}
+
+	@Nonnull
+	public static Optional<String> normalizeUrlName(@Nullable String urlName) {
+		urlName = trimToNull(urlName);
+
+		if (urlName == null)
+			return Optional.empty();
+
+		return Optional.ofNullable(urlName.toLowerCase(Locale.ENGLISH)
+				// All groups of whitespace characters are converted to a single '-'
+				.replaceAll("\\p{Zs}+", "-")
+				// Anything that's not alphanumeric or a hyphen is discarded
+				.replaceAll("[^-\\pL\\pN]", ""));
+	}
 }

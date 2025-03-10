@@ -21,59 +21,56 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class PageRowContent {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private UUID pageRowContentId;
 	@Nullable
-	private String description;
+	private UUID contentId;
+	@Nullable
+	private Integer contentDisplayOrder;
 
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
+	@Nullable
+	private String title;
+
+	@Nullable
+	public UUID getPageRowContentId() {
+		return pageRowContentId;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	public void setPageRowContentId(@Nullable UUID pageRowContentId) {
+		this.pageRowContentId = pageRowContentId;
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public UUID getContentId() {
+		return contentId;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setContentId(@Nullable UUID contentId) {
+		this.contentId = contentId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public Integer getContentDisplayOrder() {
+		return contentDisplayOrder;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setContentDisplayOrder(@Nullable Integer contentDisplayOrder) {
+		this.contentDisplayOrder = contentDisplayOrder;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 }

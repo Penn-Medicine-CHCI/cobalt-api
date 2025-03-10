@@ -21,59 +21,34 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class PageRowTagGroup {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private UUID pageRowTagGroupId;
 	@Nullable
-	private String description;
+	private String tagGroupId;
 
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
+	@Nullable
+	public UUID getPageRowTagGroupId() {
+		return pageRowTagGroupId;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	public void setPageRowTagGroupId(@Nullable UUID pageRowTagGroupId) {
+		this.pageRowTagGroupId = pageRowTagGroupId;
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public String getTagGroupId() {
+		return tagGroupId;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setTagGroupId(@Nullable String tagGroupId) {
+		this.tagGroupId = tagGroupId;
 	}
 
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
-	}
 }

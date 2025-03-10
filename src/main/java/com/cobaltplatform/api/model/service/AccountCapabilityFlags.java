@@ -43,6 +43,8 @@ public class AccountCapabilityFlags {
 	private boolean canViewStudyInsights;
 	private boolean canManageCareResources;
 
+	private boolean canCreatePages;
+
 	public boolean isCanServiceIcOrders() {
 		return this.canServiceIcOrders;
 	}
@@ -169,5 +171,13 @@ public class AccountCapabilityFlags {
 
 	public void setCanManageCareResources(boolean canManageCareResources) {
 		this.canManageCareResources = canManageCareResources;
+	}
+
+	public boolean isCanCreatePages() {
+		return canCreatePages;
+	}
+
+	public void setCanCreatePages(boolean canCreatePages) {
+		this.canCreatePages = canCreatePages;
 	}
 }

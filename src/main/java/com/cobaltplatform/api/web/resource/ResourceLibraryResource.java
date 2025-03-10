@@ -39,6 +39,8 @@ import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentAudienceType.ContentAudienceTypeId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
@@ -178,6 +180,7 @@ public class ResourceLibraryResource {
 					{
 						setInstitutionId(currentContext.getInstitutionId());
 						setTagGroupId(tagGroup.getTagGroupId());
+						setContentVisibilityTypeId(ContentVisibilityTypeId.PUBLIC);
 					}
 				});
 
@@ -310,6 +313,7 @@ public class ResourceLibraryResource {
 				setContentDurationIds(new HashSet<>(contentDurationIds.orElse(List.of())));
 				setContentAudienceTypeIds(new HashSet<>(contentAudienceTypeIds.orElse(List.of())));
 				setResourceLibrarySortColumnId(resourceLibrarySortColumnId.orElse(null));
+				setContentVisibilityTypeId(ContentVisibilityTypeId.PUBLIC);
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 			}
@@ -533,6 +537,7 @@ public class ResourceLibraryResource {
 					setPageSize(pageSize.orElse(0));
 					setTagGroupId(tagGroup.getTagGroupId());
 					setPrioritizeUnviewedForAccountId(account.getAccountId());
+					setContentVisibilityTypeId(ContentVisibilityTypeId.PUBLIC);
 				}
 			});
 
@@ -606,6 +611,7 @@ public class ResourceLibraryResource {
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 				setPrioritizeUnviewedForAccountId(account.getAccountId());
+				setContentVisibilityTypeId(ContentVisibilityTypeId.PUBLIC);
 			}
 		});
 

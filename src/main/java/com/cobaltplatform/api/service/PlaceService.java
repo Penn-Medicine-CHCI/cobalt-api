@@ -135,7 +135,7 @@ public class PlaceService {
 	public Optional<Place> findPlaceByPlaceAddress(@Nullable Address address) {
 		if (address == null)
 			return Optional.empty();
-
+		getLogger().debug(format("Looking for %s, %s, %s, %s", address.getStreetAddress1(), address.getLocality(), address.getRegion(), address.getPostalCode()));
 		SearchTextRequest searchTextRequest = SearchTextRequest.newBuilder()
 				.setTextQuery(format("%s, %s, %s, %s", address.getStreetAddress1(), address.getLocality(), address.getRegion(), address.getPostalCode()))
 				.setLanguageCode("en")

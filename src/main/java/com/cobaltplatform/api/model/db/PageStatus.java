@@ -26,46 +26,25 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class PageStatus {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private PageStatusId pageStatusId;
 	@Nullable
 	private String description;
 
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
-	}
-
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	public enum PageStatusId {
+		DRAFT,
+		LIVE,
+		COPY_FOR_EDITING
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public PageStatusId getPageStatusId() {
+		return pageStatusId;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
+	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
+		this.pageStatusId = pageStatusId;
 	}
 
 	@Nullable

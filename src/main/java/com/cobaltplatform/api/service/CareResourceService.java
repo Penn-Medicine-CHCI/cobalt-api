@@ -300,8 +300,10 @@ public class CareResourceService {
 				} else {
 					//Try to get the place from Google
 					place = getPlaceService().findPlaceByPlaceAddress(address.get()).orElse(null);
+					getLogger().debug(format("Looking for place with address %s ", address.get()));
 					if (place != null) {
 						NormalizedPlace normalizedPlace = new NormalizedPlace(place);
+						getLogger().debug(format("Found place ID %s", normalizedPlace.getGooglePlaceId()));
 
 						UpdateAddressRequest updateAddressRequest = new UpdateAddressRequest();
 						updateAddressRequest.setAddressId(address.get().getAddressId());

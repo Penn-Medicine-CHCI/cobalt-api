@@ -17,63 +17,38 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FileUploadType {
+public class UpdatePageRowDisplayOrderRequest {
 	@Nullable
-	private FileUploadTypeId fileUploadTypeId;
+	private UUID pageSectionId;
 	@Nullable
-	private String description;
+	private List<UUID> pageRowIds;
 
-	public enum FileUploadTypeId {
-		UNSPECIFIED,
-		CONTENT,
-		CONTENT_IMAGE,
-		GROUP_SESSION_IMAGE,
-		VIDEO,
-		AUDIO,
-		ACCELEROMETER,
-		GPS,
-		STEPS,
-		PHONE_CALL,
-		TEXT_MESSAGE,
-		PROXIMITY,
-		MAGNETOMETER,
-		DEVICE_MOTION,
-		REACHABILITY,
-		WIFI,
-		BLUETOOTH,
-		POWER_STATE,
-		PAGE_IMAGE
+	@Nullable
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("%s{fileUploadTypeId=%s, description=%s}", getClass().getSimpleName(), getFileUploadTypeId(), getDescription());
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
-	public FileUploadTypeId getFileUploadTypeId() {
-		return this.fileUploadTypeId;
+	public List<UUID> getPageRowIds() {
+		return pageRowIds;
 	}
 
-	public void setFileUploadTypeId(@Nullable FileUploadTypeId fileUploadTypeId) {
-		this.fileUploadTypeId = fileUploadTypeId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setPageRowIds(@Nullable List<UUID> pageRowIds) {
+		this.pageRowIds = pageRowIds;
 	}
 }
