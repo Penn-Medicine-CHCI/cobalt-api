@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.db.ContentFeedbackType.ContentFeedbackTypeId
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
+import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionContent;
 import com.cobaltplatform.api.model.db.Tag;
@@ -223,6 +224,7 @@ public class ContentService implements AutoCloseable {
 		Set<ContentDurationId> contentDurationIds = request.getContentDurationIds() == null ? Set.of() : request.getContentDurationIds();
 		Set<ContentAudienceTypeId> contentAudienceTypeIds = request.getContentAudienceTypeIds() == null ? Set.of() : request.getContentAudienceTypeIds();
 		ResourceLibrarySortColumnId resourceLibrarySortColumnId = request.getResourceLibrarySortColumnId() == null ? ResourceLibrarySortColumnId.MOST_RECENT : ResourceLibrarySortColumnId.MOST_VIEWED;
+		ContentVisibilityTypeId contentVisibilityTypeId = request.getContentVisibilityTypeId();
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		String tagGroupId = trimToNull(request.getTagGroupId());
@@ -301,6 +303,11 @@ public class ContentService implements AutoCloseable {
 			parameters.addAll(contentTypeIds);
 		}
 
+		if (contentVisibilityTypeId != null) {
+			whereClauseComponents.add("AND c.content_visibility_type_id=?");
+			parameters.add(contentVisibilityTypeId);
+		}
+
 		if (contentDurationIds.size() > 0) {
 			List<String> durationClauses = new ArrayList<>(contentDurationIds.size());
 
@@ -323,7 +330,7 @@ public class ContentService implements AutoCloseable {
 					 , content_viewed_query AS (
 					 SELECT CAST (context ->> 'contentId' AS UUID) AS content_id, MAX(created) AS last_viewed_at
 					 FROM activity_tracking
-					 WHERE activity_action_id=? 
+					 WHERE activity_action_id=?
 					 AND activity_type_id=?
 					 AND account_id=?
 					 GROUP BY content_id
@@ -359,8 +366,8 @@ public class ContentService implements AutoCloseable {
 				        {{fromClause}}
 				    WHERE 1=1
 				        {{whereClause}}
-				        AND c.institution_id = ?				   				        
-				        AND c.content_status_id = 'LIVE'				        
+				        AND c.institution_id = ?
+				        AND c.content_status_id = 'LIVE'
 				),
 				total_count_query AS (
 				    SELECT
@@ -373,7 +380,7 @@ public class ContentService implements AutoCloseable {
 				    bq.*,
 				    tcq.total_count
 				    {{contentViewedSelect}}
-				FROM				    
+				FROM
 				    total_count_query tcq,
 				    base_query bq
 				    {{contentViewedJoin}}
@@ -468,15 +475,16 @@ public class ContentService implements AutoCloseable {
 						       AND account_id=?
 						       GROUP BY content_id
 						     )
-						SELECT cvq.last_viewed_at, c.*    
+						SELECT cvq.last_viewed_at, c.*
 						FROM institution_content ic, v_admin_content c
 						LEFT OUTER JOIN content_viewed_query as cvq ON c.content_id=cvq.content_id
 						WHERE c.content_id=ic.content_id
 						AND ic.institution_id=?
 						AND c.content_status_id = ?
+						AND c.content_visibility_type_id=?
 						ORDER BY cvq.last_viewed_at ASC NULLS FIRST, ic.created DESC
 						""", Content.class, ActivityActionId.VIEW, ActivityTypeId.CONTENT, account.getAccountId(),
-				account.getInstitutionId(), ContentStatusId.LIVE);
+				account.getInstitutionId(), ContentStatusId.LIVE, ContentVisibilityTypeId.PUBLIC);
 
 		applyTagsToContents(contents, account.getInstitutionId());
 
