@@ -47,6 +47,7 @@ public class AccountSource {
 	public enum AccountSourceId {
 		COBALT_SSO,
 		ANONYMOUS,
+		ANONYMOUS_IMPLICIT,
 		EMAIL_PASSWORD,
 		MYCHART,
 		USERNAME

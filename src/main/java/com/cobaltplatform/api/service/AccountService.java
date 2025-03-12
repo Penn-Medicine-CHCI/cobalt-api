@@ -504,7 +504,7 @@ public class AccountService {
 
 		if (accountSourceId == null) {
 			validationException.add(new FieldError("accountSourceId", getStrings().get("Account source ID is required.")));
-		} else if (accountSourceId == AccountSourceId.ANONYMOUS) {
+		} else if (accountSourceId == AccountSourceId.ANONYMOUS || accountSourceId == AccountSourceId.ANONYMOUS_IMPLICIT) {
 			roleId = RoleId.PATIENT;
 			ssoId = null;
 			firstName = null;
@@ -1144,7 +1144,7 @@ public class AccountService {
 
 		if (account.getAccessTokenExpirationInMinutes() != null)
 			return account.getAccessTokenExpirationInMinutes();
-		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS) || account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS_IMPLICIT))
 			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
 					.getAnonAccessTokenExpirationInMinutes();
 
@@ -1163,7 +1163,7 @@ public class AccountService {
 
 		if (account.getAccessTokenShortExpirationInMinutes() != null)
 			return account.getAccessTokenShortExpirationInMinutes();
-		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS))
+		else if (account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS) || account.getAccountSourceId().equals(AccountSourceId.ANONYMOUS_IMPLICIT))
 			return getInstitutionService().findInstitutionById(account.getInstitutionId()).get()
 					.getAnonAccessTokenShortExpirationInMinutes();
 

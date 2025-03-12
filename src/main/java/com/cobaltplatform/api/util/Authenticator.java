@@ -188,7 +188,7 @@ public class Authenticator {
 			Account account = getAccountService().findAccountById(accessTokenClaims.getAccountId()).get();
 
 			// Anon accounts get fully expired, there is no concept of "reauth to refresh"
-			if (account.getAccountSourceId() == AccountSourceId.ANONYMOUS)
+			if (account.getAccountSourceId() == AccountSourceId.ANONYMOUS || account.getAccountSourceId() == AccountSourceId.ANONYMOUS_IMPLICIT)
 				return AccessTokenStatus.FULLY_EXPIRED;
 
 			return AccessTokenStatus.PARTIALLY_EXPIRED;
