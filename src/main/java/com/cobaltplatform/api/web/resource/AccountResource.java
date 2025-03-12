@@ -671,6 +671,10 @@ public class AccountResource {
 			request.setAccountSourceId(AccountSourceId.ANONYMOUS);
 		} else {
 			request = getRequestBodyParser().parse(requestBody, CreateAnonymousAccountRequest.class);
+
+			// Again, legacy support
+			if (request.getAccountSourceId() == null)
+				request.setAccountSourceId(AccountSourceId.ANONYMOUS);
 		}
 
 		InstitutionId institutionId = getCurrentContext().getInstitutionId();
@@ -690,8 +694,6 @@ public class AccountResource {
 
 		AccountSourceId accountSourceId = request.getAccountSourceId();
 
-		if (accountSourceId == null)
-			throw new ValidationException(getStrings().get("Account source ID is required."));
 		if (accountSourceId != AccountSourceId.ANONYMOUS && accountSourceId != AccountSourceId.ANONYMOUS_IMPLICIT)
 			throw new IllegalStateException(format("Illegal account source ID specified: %s", accountSourceId.name()));
 
