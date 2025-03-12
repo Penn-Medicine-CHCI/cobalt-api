@@ -394,6 +394,7 @@ public class AnalyticsResource {
 			activeUserCountsByAccountSourceId = new TreeMap<>(Map.of(
 					AccountSourceId.EMAIL_PASSWORD, 123L,
 					AccountSourceId.ANONYMOUS, 5000L,
+					AccountSourceId.ANONYMOUS_IMPLICIT, 200L,
 					AccountSourceId.COBALT_SSO, 1000L
 			));
 
