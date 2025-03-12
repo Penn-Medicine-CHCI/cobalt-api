@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountEmailVerificationRe
 import com.cobaltplatform.api.model.api.request.CreateAccountInviteRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
+import com.cobaltplatform.api.model.api.request.CreateAnonymousAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateOrUpdateMyChartAccountRequest;
 import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.api.request.FindGroupSessionRequestsRequest;
@@ -131,6 +132,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -657,17 +659,27 @@ public class AccountResource {
 		}});
 	}
 
-
 	@Nonnull
 	@POST("/accounts")
-	public ApiResponse createAccount() {
+	public ApiResponse createAnonymousAccount(@Nullable @RequestBody String requestBody) {
+		CreateAnonymousAccountRequest request;
+
+		// Backwards compatibility - older FE did not support a request body for anon accounts.
+		// Now we can accept an accountSourceId to distinguish between different kinds of anon accounts.
+		if (requestBody == null) {
+			request = new CreateAnonymousAccountRequest();
+			request.setAccountSourceId(AccountSourceId.ANONYMOUS);
+		} else {
+			request = getRequestBodyParser().parse(requestBody, CreateAnonymousAccountRequest.class);
+		}
+
 		InstitutionId institutionId = getCurrentContext().getInstitutionId();
 		List<AccountSourceForInstitution> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institutionId);
 
 		boolean supportsAnonymous = false;
 
 		for (AccountSourceForInstitution accountSource : accountSources) {
-			if (accountSource.getAccountSourceId() == AccountSourceId.ANONYMOUS) {
+			if (accountSource.getAccountSourceId() == AccountSourceId.ANONYMOUS || accountSource.getAccountSourceId() == AccountSourceId.ANONYMOUS_IMPLICIT) {
 				supportsAnonymous = true;
 				break;
 			}
@@ -676,13 +688,22 @@ public class AccountResource {
 		if (!supportsAnonymous)
 			throw new IllegalStateException(format("Not permitted to create anonymous accounts for institution ID %s", institutionId.name()));
 
-		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.ACCOUNT_CREATE_ANONYMOUS);
+		AccountSourceId accountSourceId = request.getAccountSourceId();
+
+		if (accountSourceId == null)
+			throw new ValidationException(getStrings().get("Account source ID is required."));
+		if (accountSourceId != AccountSourceId.ANONYMOUS && accountSourceId != AccountSourceId.ANONYMOUS_IMPLICIT)
+			throw new IllegalStateException(format("Illegal account source ID specified: %s", accountSourceId.name()));
+
+		FootprintEventGroupTypeId footprintEventGroupTypeId = accountSourceId == AccountSourceId.ANONYMOUS_IMPLICIT ? FootprintEventGroupTypeId.ACCOUNT_CREATE_ANONYMOUS_IMPLICIT : FootprintEventGroupTypeId.ACCOUNT_CREATE_ANONYMOUS;
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(footprintEventGroupTypeId);
 
 		// For now - this is only to generate anonymous accounts
 		UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
 			setRoleId(RoleId.PATIENT);
 			setInstitutionId(getCurrentContext().getInstitutionId());
-			setAccountSourceId(AccountSourceId.ANONYMOUS);
+			setAccountSourceId(accountSourceId);
 		}});
 
 		Account account = getAccountService().findAccountById(accountId).get();
