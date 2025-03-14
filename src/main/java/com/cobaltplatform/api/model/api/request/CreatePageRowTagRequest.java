@@ -28,27 +28,38 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePageRowTagGroupRequest {
+public class CreatePageRowTagRequest {
 	@Nullable
-	private UUID pageRowId;
+	private UUID pageSectionId;
 	@Nullable
-	private String tagGroupId;
+	private String tagId;
 	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
-	}
-
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
-	}
+	private UUID createdByAccountId;
 
 	@Nullable
-	public String getTagGroupId() {
-		return tagGroupId;
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	public void setTagGroupId(@Nullable String tagGroupId) {
-		this.tagGroupId = tagGroupId;
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
+	@Nullable
+	public UUID getCreatedByAccountId() {
+		return createdByAccountId;
+	}
+
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public String getTagId() {
+		return tagId;
+	}
+
+	public void setTagId(@Nullable String tagId) {
+		this.tagId = tagId;
+	}
 }

@@ -17,8 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -28,27 +27,27 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePageRowTagGroupRequest {
+public class PageRowTag {
 	@Nullable
-	private UUID pageRowId;
+	private UUID pageRowTagId;
 	@Nullable
-	private String tagGroupId;
-	@Nullable
-	public UUID getPageRowId() {
-		return pageRowId;
-	}
-
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
-	}
+	private String tagId;
 
 	@Nullable
-	public String getTagGroupId() {
-		return tagGroupId;
+	public UUID getPageRowTagId() {
+		return pageRowTagId;
 	}
 
-	public void setTagGroupId(@Nullable String tagGroupId) {
-		this.tagGroupId = tagGroupId;
+	public void setPageRowTagId(@Nullable UUID pageRowTagId) {
+		this.pageRowTagId = pageRowTagId;
 	}
 
+	@Nullable
+	public String getTagId() {
+		return tagId;
+	}
+
+	public void setTagId(@Nullable String tagId) {
+		this.tagId = tagId;
+	}
 }

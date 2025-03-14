@@ -129,6 +129,7 @@ import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResp
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse;
+import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse;
 import com.cobaltplatform.api.model.api.response.PageSiteLocationApiResponse;
@@ -394,6 +395,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageUrlValidationResultApiResponse.PageAutocompleteResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageSiteLocationApiResponse.PageSiteLocationApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowTagApiResponse.PageRowTagApiResponseFactory.class)));
 	}
 
 	@Provides

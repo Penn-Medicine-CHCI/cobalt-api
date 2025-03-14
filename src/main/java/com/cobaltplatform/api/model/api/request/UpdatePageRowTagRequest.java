@@ -28,11 +28,11 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePageRowTagGroupRequest {
+public class UpdatePageRowTagRequest {
 	@Nullable
 	private UUID pageRowId;
 	@Nullable
-	private String tagGroupId;
+	private String tagId;
 	@Nullable
 	public UUID getPageRowId() {
 		return pageRowId;
@@ -43,12 +43,11 @@ public class UpdatePageRowTagGroupRequest {
 	}
 
 	@Nullable
-	public String getTagGroupId() {
-		return tagGroupId;
+	public String getTagId() {
+		return tagId;
 	}
 
-	public void setTagGroupId(@Nullable String tagGroupId) {
-		this.tagGroupId = tagGroupId;
+	public void setTagId(@Nullable String tagId) {
+		this.tagId = tagId;
 	}
-
 }

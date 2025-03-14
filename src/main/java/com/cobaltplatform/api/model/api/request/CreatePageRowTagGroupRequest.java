@@ -34,8 +34,6 @@ public class CreatePageRowTagGroupRequest {
 	@Nullable
 	private String tagGroupId;
 	@Nullable
-	private String tagId;
-	@Nullable
 	private UUID createdByAccountId;
 
 	@Nullable
@@ -65,12 +63,4 @@ public class CreatePageRowTagGroupRequest {
 		this.createdByAccountId = createdByAccountId;
 	}
 
-	@Nullable
-	public String getTagId() {
-		return tagId;
-	}
-
-	public void setTagId(@Nullable String tagId) {
-		this.tagId = tagId;
-	}
 }
