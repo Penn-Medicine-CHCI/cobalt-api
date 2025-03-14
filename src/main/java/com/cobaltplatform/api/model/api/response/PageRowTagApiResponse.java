@@ -44,12 +44,6 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class PageRowTagApiResponse {
 	@Nonnull
-	private final UUID pageRowId;
-	@Nonnull
-	private Integer displayOrder;
-	@Nonnull
-	private final RowTypeId rowTypeId;
-	@Nonnull
 	private ColorId tagGroupColorId;
 	@Nonnull
 	private String tagId;
@@ -79,10 +73,8 @@ public class PageRowTagApiResponse {
 		requireNonNull(pageRowTag);
 		requireNonNull(tagService);
 
-		this.pageRowId = pageRow.getPageRowId();
-		this.displayOrder = pageRow.getDisplayOrder();
+
 		this.tagId = pageRowTag.getTagId();
-		this.rowTypeId = pageRow.getRowTypeId();
 
 		Optional<TagGroup> tagGroup = tagService.findUncachedTagGroupByTagId(tagId);
 
@@ -94,27 +86,22 @@ public class PageRowTagApiResponse {
 	}
 
 	@Nonnull
-	public UUID getPageRowId() {
-		return pageRowId;
+	public ColorId getTagGroupColorId() {
+		return tagGroupColorId;
 	}
 
-	@Nonnull
-	public Integer getDisplayOrder() {
-		return displayOrder;
+	public void setTagGroupColorId(@Nonnull ColorId tagGroupColorId) {
+		this.tagGroupColorId = tagGroupColorId;
 	}
-
 
 	@Nonnull
 	public String getTagId() {
 		return tagId;
 	}
 
-	@Nonnull
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public void setTagId(@Nonnull String tagId) {
+		this.tagId = tagId;
 	}
-
-
 }
 
 
