@@ -38,7 +38,8 @@ public class UpdatePageSettingsRequest {
 	private InstitutionId institutionId;
 	@Nullable
 	private String name;
-
+	@Nullable
+	private String urlName;
 	@Nullable
 	public UUID getPageId() {
 		return pageId;
@@ -64,5 +65,14 @@ public class UpdatePageSettingsRequest {
 
 	public void setInstitutionId(@Nullable InstitutionId institutionId) {
 		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
 	}
 }

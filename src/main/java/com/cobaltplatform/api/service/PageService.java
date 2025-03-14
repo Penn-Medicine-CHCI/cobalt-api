@@ -568,6 +568,7 @@ public class PageService {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
+		String urlName = trimToNull(request.getUrlName());
 		UUID pageId = request.getPageId();
 		InstitutionId institutionId = request.getInstitutionId();
 		ValidationException validationException = new ValidationException();
@@ -578,16 +579,22 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution Id is required.")));
 		if (!hasAccessToPage(pageId, institutionId))
 			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to update this page.")));
+		if (urlName == null)
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+		else if (!isValidUrlSubdirectory(urlName))
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
 				UPDATE page SET
-				name=?
+				name=?, url_name=?
 				WHERE page_id=?	
 				AND institution_id = ?				   
-				""", name, pageId, institutionId);
+				""", name, urlName, pageId, institutionId);
 
 		return pageId;
 	}
@@ -1508,6 +1515,7 @@ public class PageService {
 		UUID pageRowTagGroupId = UUID.randomUUID();
 		UUID pageSectionId = request.getPageSectionId();
 		String tagGroupId = trimToNull(request.getTagGroupId());
+		String tagId = trimToNull(request.getTagId());
 		UUID createdByAccountId = request.getCreatedByAccountId();
 
 		ValidationException validationException = new ValidationException();
@@ -1538,10 +1546,10 @@ public class PageService {
 
 		getDatabase().execute("""
 				INSERT INTO page_row_tag_group
-				  (page_row_tag_group_id, page_row_id, tag_group_id)
+				  (page_row_tag_group_id, page_row_id, tag_group_id, tag_id)
 				VALUES
-				  (?,?,?)   
-				""", pageRowTagGroupId, pageRowId, tagGroupId);
+				  (?,?,?,?)   
+				""", pageRowTagGroupId, pageRowId, tagGroupId, tagId);
 
 		return pageRowId;
 	}
@@ -1553,6 +1561,7 @@ public class PageService {
 
 		UUID pageRowId = request.getPageRowId();
 		String tagGroupId = trimToNull(request.getTagGroupId());
+		String tagId = trimToNull(request.getTagId());
 
 		ValidationException validationException = new ValidationException();
 
@@ -1567,9 +1576,9 @@ public class PageService {
 
 		getDatabase().execute("""
 				UPDATE page_row_tag_group
-				SET tag_group_id=?
+				SET tag_group_id=?, tag_id=?
 				WHERE page_row_id=?
-				""", tagGroupId, pageRowId);
+				""", tagGroupId, tagId, pageRowId);
 	}
 
 	@Nonnull
