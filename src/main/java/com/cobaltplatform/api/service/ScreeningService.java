@@ -870,6 +870,14 @@ public class ScreeningService {
 	@Nonnull
 	public void skipScreeningSession(@Nonnull SkipScreeningSessionRequest request) {
 		requireNonNull(request);
+		skipScreeningSession(request, false);
+	}
+
+	@Nonnull
+	public void skipScreeningSession(@Nonnull SkipScreeningSessionRequest request,
+																	 @Nonnull Boolean allowSkippingCompletedSessions) {
+		requireNonNull(request);
+		requireNonNull(allowSkippingCompletedSessions);
 
 		UUID screeningSessionId = request.getScreeningSessionId();
 		boolean forceSkip = request.getForceSkip() == null ? false : request.getForceSkip();
@@ -882,9 +890,10 @@ public class ScreeningService {
 
 			if (screeningSession == null) {
 				validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening Session ID is invalid.")));
-			} else if (screeningSession.getCompleted()) {
-				validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment because it has already been completed."));
 			} else {
+				if (screeningSession.getCompleted() && !allowSkippingCompletedSessions)
+					validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment because it has already been completed."));
+			
 				ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
 				if (!forceSkip && !screeningFlowVersion.getSkippable())
