@@ -33,7 +33,6 @@ public class UpdatePageRowTagGroupRequest {
 	private UUID pageRowId;
 	@Nullable
 	private String tagGroupId;
-
 	@Nullable
 	public UUID getPageRowId() {
 		return pageRowId;
@@ -51,4 +50,5 @@ public class UpdatePageRowTagGroupRequest {
 	public void setTagGroupId(@Nullable String tagGroupId) {
 		this.tagGroupId = tagGroupId;
 	}
+
 }

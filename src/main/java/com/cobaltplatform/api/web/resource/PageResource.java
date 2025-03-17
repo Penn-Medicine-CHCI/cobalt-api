@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequ
 import com.cobaltplatform.api.model.api.request.UpdatePageRowDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
@@ -51,6 +53,7 @@ import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResp
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSiteLocationApiResponse.PageSiteLocationApiResponseFactory;
@@ -60,6 +63,7 @@ import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
@@ -138,6 +142,8 @@ public class PageResource {
 	@Nonnull
 	private  final PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory;
 	@Nonnull
+	private  final PageRowTagApiResponseFactory pageRowTagApiResponseFactory;
+	@Nonnull
 	private final PageService pageService;
 	@Nonnull
 	private final Formatter formatter;
@@ -162,6 +168,7 @@ public class PageResource {
 											@Nonnull AuthorizationService authorizationService,
 											@Nonnull PageAutocompleteResultApiResponseFactory pageAutocompleteResultApiResponseFactory,
 											@Nonnull PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory,
+											@Nonnull PageRowTagApiResponseFactory pageRowTagApiResponseFactory,
 											@Nonnull Formatter formatter) {
 
 		requireNonNull(requestBodyParser);
@@ -181,6 +188,7 @@ public class PageResource {
 		requireNonNull(authorizationService);
 		requireNonNull(pageAutocompleteResultApiResponseFactory);
 		requireNonNull(pageSiteLocationApiResponseFactory);
+		requireNonNull(pageRowTagApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -200,6 +208,7 @@ public class PageResource {
 		this.authorizationService = authorizationService;
 		this.pageAutocompleteResultApiResponseFactory = pageAutocompleteResultApiResponseFactory;
 		this.pageSiteLocationApiResponseFactory = pageSiteLocationApiResponseFactory;
+		this.pageRowTagApiResponseFactory = pageRowTagApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -754,6 +763,62 @@ public class PageResource {
 			put("pageRow", getPageRowTagGroupApiResponseFactory().create(pageRow.get()));
 		}});
 	}
+
+	@POST("/pages/row/{pageSectionId}/tag")
+	@AuthenticationRequired
+	public ApiResponse createPageRowTag(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																			@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowTagRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowTagRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
+
+		UUID pageRowId = getPageService().createPageTag(request, institutionId);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+		Optional<PageRowTag> pageRowTag = getPageService().findPageRowTagByRowId(pageRowId);
+
+		if (!pageRow.isPresent() || !pageRowTag.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowTagApiResponseFactory().create(pageRow.get(), pageRowTag.get()));
+		}});
+	}
+	@PUT("/pages/row/{pageRowId}/tag")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowTag(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																			@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowTagRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowTagRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setPageRowId(pageRowId);
+
+		getPageService().updatePageTag(request, institutionId);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+		Optional<PageRowTag> pageRowTag = getPageService().findPageRowTagByRowId(pageRowId);
+
+		if (!pageRow.isPresent() || !pageRowTag.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowTagApiResponseFactory().create(pageRow.get(), pageRowTag.get()));
+		}});
+	}
 	@POST("/pages/row/{pageSectionId}/group-session")
 	@AuthenticationRequired
 	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -1107,5 +1172,10 @@ public class PageResource {
 	@Nonnull
 	public PageSiteLocationApiResponseFactory getPageSiteLocationApiResponseFactory() {
 		return pageSiteLocationApiResponseFactory;
+	}
+
+	@Nonnull
+	public PageRowTagApiResponseFactory getPageRowTagApiResponseFactory() {
+		return pageRowTagApiResponseFactory;
 	}
 }
