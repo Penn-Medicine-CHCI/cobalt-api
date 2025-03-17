@@ -1,14 +1,14 @@
 BEGIN;
 SELECT _v.register_patch('205-page-tag', NULL, NULL);
 
-CREATE TABLE page_row_tag_group (
+CREATE TABLE page_row_tag (
     page_row_tag_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_row_id UUID NOT NULL REFERENCES page_row,
     tag_id VARCHAR NOT NULL REFERENCES tag,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX idx_page_row_tag_row_tag ON page_row_tag(page_row_id, tag_group_id);
+CREATE UNIQUE INDEX idx_page_row_tag_row_tag ON page_row_tag(page_row_id, tag_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_tag FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 
