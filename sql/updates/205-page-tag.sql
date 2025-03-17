@@ -24,5 +24,43 @@ FROM page_row_tag prt, page_row pr
 WHERE prt.page_row_id = pr.page_row_id
 AND pr.deleted_flag = FALSE;
 
+-- // On the web, when a custom Page is rendered.
+-- // Additional data:
+-- // * pageId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_PAGE', 'Page View (Page)');
+-- // When a click occurs to access a custom Page.
+-- // Additional data:
+-- // * pageId (UUID)
+-- // * source (String)
+-- //    HOME_FEATURE: When clicked through from the homepage in one of the featured areas
+-- //    NAV_FEATURE: When clicked through from the navigation featured area
+-- //    NAV: When clicked through from the navigation (not in the featured area)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_PAGE', 'Clickthrough (Page)');
+-- // When a Page viewer clicks through on a group session to view its detail page.
+-- // Additional data:
+-- // * pageId (UUID)
+-- // * groupSessionId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_PAGE_GROUP_SESSION', 'Clickthrough (Page Group Session)');
+-- // When a Page viewer clicks through on a piece of content to view its detail page.
+-- // Additional data:
+-- // * pageId (UUID)
+-- // * contentId (UUID)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_PAGE_CONTENT', 'Clickthrough (Page Content)');
+-- // When a Page viewer clicks through on a tag group to view its Resource Library page.
+-- // Additional data:
+-- // * pageId (UUID)
+-- // * tagGroupId (String)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_PAGE_TAG_GROUP', 'Clickthrough (Page Tag Group)');
+-- // When a Page viewer clicks through on a tag to view its Resource Library page.
+-- // Additional data:
+-- // * pageId (UUID)
+-- // * tagId (String)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_PAGE_TAG', 'Clickthrough (Page Tag)');
+-- // When a Page viewer clicks through on a link contained within any WYSIWYG page component.
+-- // Additional data:
+-- // * pageId (UUID)
+-- // * linkUrl (String, the URL linked in the anchor tag)
+-- // * linkText (String, the text component of the anchor tag)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_PAGE_LINK', 'Clickthrough (Page Link)');
 
 COMMIT;
