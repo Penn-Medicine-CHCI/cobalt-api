@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -41,7 +42,7 @@ public class PageRowTagGroupApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
-	private Integer displayOrder;
+	private final Integer displayOrder;
 	@Nonnull
 	private final RowTypeId rowTypeId;
 	@Nonnull
@@ -58,7 +59,7 @@ public class PageRowTagGroupApiResponse {
 	public PageRowTagGroupApiResponse(@Nonnull Formatter formatter,
 																		@Nonnull Strings strings,
 																		@Assisted @Nonnull PageRow pageRow,
-																		@Nonnull TagGroupApiResponse.TagGroupApiResponseFactory tagGroupApiResponseFactory,
+																		@Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
 																		@Nonnull PageService pageService) {
 
 		requireNonNull(formatter);

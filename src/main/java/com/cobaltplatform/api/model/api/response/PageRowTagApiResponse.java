@@ -22,9 +22,10 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowTag;
+import com.cobaltplatform.api.model.db.RowType;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
-import com.cobaltplatform.api.service.PageService;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -34,6 +35,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -45,17 +47,14 @@ public class PageRowTagApiResponse {
 	@Nonnull
 	private final ColorId tagGroupColorId;
 	@Nonnull
-	private final String tagId;
+	private final UUID pageRowId;
 	@Nonnull
-	private final String tagGroupId;
+	private final Integer displayOrder;
 	@Nonnull
-	private final String name;
+	private final RowType.RowTypeId rowTypeId;
+
 	@Nonnull
-	private final String urlName;
-	@Nonnull
-	private final String description;
-	@Nonnull
-	private final Boolean deprecated;
+	private final TagApiResponse tag;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -70,28 +69,22 @@ public class PageRowTagApiResponse {
 															 @Nonnull Strings strings,
 															 @Assisted @Nonnull PageRow pageRow,
 															 @Assisted @Nonnull PageRowTag pageRowTag,
-															 @Nonnull TagGroupApiResponse.TagGroupApiResponseFactory tagGroupApiResponseFactory,
-															 @Nonnull PageService pageService,
-															 @Nonnull TagService tagService) {
+															 @Nonnull TagService tagService,
+															 @Nonnull TagApiResponseFactory tagApiResponseFactory) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(pageRow);
-		requireNonNull(pageService);
-		requireNonNull(tagGroupApiResponseFactory);
 		requireNonNull(pageRowTag);
 		requireNonNull(tagService);
+		requireNonNull(tagApiResponseFactory);
 
-		Tag tag = tagService.findTagById(pageRowTag.getTagId()).get();
+		Optional<TagGroup> tagGroup = tagService.findUncachedTagGroupByTagId(pageRowTag.getTagId());
 
-		this.tagId = tag.getTagId();
-		this.tagGroupId = tag.getTagGroupId();
-		this.name = tag.getName();
-		this.urlName = tag.getUrlName();
-		this.description = tag.getDescription();
-		this.deprecated = tag.getDeprecated();
-
-		Optional<TagGroup> tagGroup = tagService.findUncachedTagGroupByTagId(tagId);
+		this.pageRowId = pageRow.getPageRowId();
+		this.displayOrder = pageRow.getDisplayOrder();
+		this.rowTypeId = pageRow.getRowTypeId();
+		this.tag = tagApiResponseFactory.create(tagService.findTagById(pageRowTag.getTagId()).get());
 
 		if (tagGroup.isPresent())
 			this.tagGroupColorId = tagGroup.get().getColorId();
@@ -107,33 +100,23 @@ public class PageRowTagApiResponse {
 	}
 
 	@Nonnull
-	public String getTagId() {
-		return tagId;
+	public UUID getPageRowId() {
+		return pageRowId;
 	}
 
 	@Nonnull
-	public String getTagGroupId() {
-		return tagGroupId;
+	public Integer getDisplayOrder() {
+		return displayOrder;
 	}
 
 	@Nonnull
-	public String getName() {
-		return name;
+	public RowType.RowTypeId getRowTypeId() {
+		return rowTypeId;
 	}
 
 	@Nonnull
-	public String getUrlName() {
-		return urlName;
-	}
-
-	@Nonnull
-	public String getDescription() {
-		return description;
-	}
-
-	@Nonnull
-	public Boolean getDeprecated() {
-		return deprecated;
+	public TagApiResponse getTag() {
+		return tag;
 	}
 }
 
