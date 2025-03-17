@@ -22,7 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowTag;
-import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.service.TagService;
@@ -34,7 +34,6 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Optional;
-import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -44,9 +43,19 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class PageRowTagApiResponse {
 	@Nonnull
-	private ColorId tagGroupColorId;
+	private final ColorId tagGroupColorId;
 	@Nonnull
-	private String tagId;
+	private final String tagId;
+	@Nonnull
+	private final String tagGroupId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final String urlName;
+	@Nonnull
+	private final String description;
+	@Nonnull
+	private final Boolean deprecated;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -73,8 +82,14 @@ public class PageRowTagApiResponse {
 		requireNonNull(pageRowTag);
 		requireNonNull(tagService);
 
+		Tag tag = tagService.findTagById(pageRowTag.getTagId()).get();
 
-		this.tagId = pageRowTag.getTagId();
+		this.tagId = tag.getTagId();
+		this.tagGroupId = tag.getTagGroupId();
+		this.name = tag.getName();
+		this.urlName = tag.getUrlName();
+		this.description = tag.getDescription();
+		this.deprecated = tag.getDeprecated();
 
 		Optional<TagGroup> tagGroup = tagService.findUncachedTagGroupByTagId(tagId);
 
@@ -85,13 +100,10 @@ public class PageRowTagApiResponse {
 
 	}
 
+
 	@Nonnull
 	public ColorId getTagGroupColorId() {
 		return tagGroupColorId;
-	}
-
-	public void setTagGroupColorId(@Nonnull ColorId tagGroupColorId) {
-		this.tagGroupColorId = tagGroupColorId;
 	}
 
 	@Nonnull
@@ -99,8 +111,29 @@ public class PageRowTagApiResponse {
 		return tagId;
 	}
 
-	public void setTagId(@Nonnull String tagId) {
-		this.tagId = tagId;
+	@Nonnull
+	public String getTagGroupId() {
+		return tagGroupId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public String getUrlName() {
+		return urlName;
+	}
+
+	@Nonnull
+	public String getDescription() {
+		return description;
+	}
+
+	@Nonnull
+	public Boolean getDeprecated() {
+		return deprecated;
 	}
 }
 
