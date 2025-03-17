@@ -209,9 +209,7 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("pageDescription", getStrings().get(format("A Description is required for Page %s.\n", page.get().getName()))));
 		if (pageImageFileUploadId == null)
 			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("An Image is required for Page %s.\n", page.get().getName()))));
-		if (imageAltText == null)
-			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Page %s.\n", page.get().getName()))));
-
+		
 		if (validationException.hasErrors()) {
 			metadata.put("pageId", pageId);
 		}
