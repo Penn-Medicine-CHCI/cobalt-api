@@ -143,7 +143,12 @@ public class AnalyticsNativeEventType {
 		// On the web, when a "topic center" page is rendered.
 		// Additional data:
 		// * topicCenterId (UUID)
+		@Deprecated
 		PAGE_VIEW_TOPIC_CENTER,
+		// On the web, when a custom Page is rendered.
+		// Additional data:
+		// * pageId (UUID)
+		PAGE_VIEW_PAGE,
 		// On the web, when the toplevel Resource Library page is rendered.
 		// * mode: (String, one of DEFAULT, FILTERED, or RECOMMENDED based on how page is displayed)
 		// * searchQuery: (String, if in FILTERED mode, when the page is filtered by a search query)
@@ -215,7 +220,6 @@ public class AnalyticsNativeEventType {
 		// * courseUnitId (UUID)
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
 		PAGE_VIEW_COURSE_UNIT,
-
 		// On the web, when the MHIC "Priorities" page is rendered.
 		// If a priority group tab on the page is selected, another event should be fired.
 		// Additional data:
@@ -319,7 +323,16 @@ public class AnalyticsNativeEventType {
 		//    HOME_SECONDARY_FEATURE: When clicked through from the homepage in the secondary featured area
 		//    NAV_FEATURE: When clicked through from the navigation featured area
 		//    NAV: When clicked through from the navigation (not in the featured area)
+		@Deprecated
 		CLICKTHROUGH_TOPIC_CENTER,
+		// When a click occurs to access a custom Page.
+		// Additional data:
+		// * pageId (UUID)
+		// * source (String)
+		//    HOME_FEATURE: When clicked through from the homepage in one of the featured areas
+		//    NAV_FEATURE: When clicked through from the navigation featured area
+		//    NAV: When clicked through from the navigation (not in the featured area)
+		CLICKTHROUGH_PAGE,
 		// When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
 		// Additional data:
 		// * contentId (UUID)
@@ -351,21 +364,25 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * topicCenterId (UUID)
 		// * groupSessionId (UUID)
+		@Deprecated
 		CLICKTHROUGH_TOPIC_CENTER_GROUP_SESSION,
 		// When a Topic Center page viewer clicks through on a piece of content to view its detail page.
 		// Additional data:
 		// * topicCenterId (UUID)
 		// * contentId (UUID)
+		@Deprecated
 		CLICKTHROUGH_TOPIC_CENTER_CONTENT,
 		// When a Topic Center page viewer clicks through on a tag group to view its Resource Library page.
 		// Additional data:
 		// * topicCenterId (UUID)
 		// * tagGroupId (String)
+		@Deprecated
 		CLICKTHROUGH_TOPIC_CENTER_TAG_GROUP,
 		// When a Topic Center page viewer clicks through on a tag to view its Resource Library page.
 		// Additional data:
 		// * topicCenterId (UUID)
 		// * tagId (String)
+		@Deprecated
 		CLICKTHROUGH_TOPIC_CENTER_TAG,
 		// When a Topic Center page viewer clicks through on a link contained within a "pinboard note" component.
 		// Additional data:
@@ -373,13 +390,41 @@ public class AnalyticsNativeEventType {
 		// * pinboardNoteId (UUID)
 		// * linkUrl (String, the URL linked in the anchor tag)
 		// * linkText (String, the text component of the anchor tag)
+		@Deprecated
 		CLICKTHROUGH_TOPIC_CENTER_PINBOARD_NOTE_LINK,
+		// When a Page viewer clicks through on a group session to view its detail page.
+		// Additional data:
+		// * pageId (UUID)
+		// * groupSessionId (UUID)
+		CLICKTHROUGH_PAGE_GROUP_SESSION,
+		// When a Page viewer clicks through on a piece of content to view its detail page.
+		// Additional data:
+		// * pageId (UUID)
+		// * contentId (UUID)
+		CLICKTHROUGH_PAGE_CONTENT,
+		// When a Page viewer clicks through on a tag group to view its Resource Library page.
+		// Additional data:
+		// * pageId (UUID)
+		// * tagGroupId (String)
+		CLICKTHROUGH_PAGE_TAG_GROUP,
+		// When a Page viewer clicks through on a tag to view its Resource Library page.
+		// Additional data:
+		// * pageId (UUID)
+		// * tagId (String)
+		CLICKTHROUGH_PAGE_TAG,
+		// When a Page viewer clicks through on a link contained within any WYSIWYG page component.
+		// Additional data:
+		// * pageId (UUID)
+		// * linkUrl (String, the URL linked in the anchor tag)
+		// * linkText (String, the text component of the anchor tag)
+		CLICKTHROUGH_PAGE_LINK,
 		// When the user clicks to download a file that's part of a course unit.
 		// Additional data:
 		// * courseUnitId (UUID)
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
 		// * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
 		CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE,
+
 		// When a video that's part of a course unit fires off an event that we listen for, e.g. 'playerReady' or 'playerPaused'.
 		// Additional data:
 		// * courseUnitId (UUID)

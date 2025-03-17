@@ -17,9 +17,7 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -29,50 +27,27 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePageSettingsRequest {
+public class PageRowTag {
+	@Nullable
+	private UUID pageRowTagId;
+	@Nullable
+	private String tagId;
 
 	@Nullable
-	private UUID pageId;
-
-	@Nullable
-	private InstitutionId institutionId;
-	@Nullable
-	private String name;
-	@Nullable
-	private String urlName;
-	@Nullable
-	public UUID getPageId() {
-		return pageId;
+	public UUID getPageRowTagId() {
+		return pageRowTagId;
 	}
 
-	public void setPageId(@Nullable UUID pageId) {
-		this.pageId = pageId;
+	public void setPageRowTagId(@Nullable UUID pageRowTagId) {
+		this.pageRowTagId = pageRowTagId;
 	}
 
 	@Nullable
-	public String getName() {
-		return name;
+	public String getTagId() {
+		return tagId;
 	}
 
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
-
-	@Nullable
-	public InstitutionId getInstitutionId() {
-		return institutionId;
-	}
-
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
-	}
-
-	@Nullable
-	public String getUrlName() {
-		return urlName;
-	}
-
-	public void setUrlName(@Nullable String urlName) {
-		this.urlName = urlName;
+	public void setTagId(@Nullable String tagId) {
+		this.tagId = tagId;
 	}
 }
