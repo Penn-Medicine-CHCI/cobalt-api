@@ -798,6 +798,14 @@ public class PageService {
 				""", pageSectionId);
 
 		getDatabase().execute("""
+				DELETE FROM page_row_tag
+				WHERE page_row_id IN 
+				(SELECT pr.page_row_id
+				FROM page_row pr
+				WHERE pr.page_section_id =?) 
+				""", pageSectionId);
+
+		getDatabase().execute("""
 				DELETE FROM page_row
 				WHERE page_section_id=? 
 				""", pageSectionId);
@@ -949,6 +957,11 @@ public class PageService {
 
 		getDatabase().execute("""
 				DELETE FROM page_row_tag_group
+				WHERE page_row_id =? 
+				""", pageRowId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_tag
 				WHERE page_row_id =? 
 				""", pageRowId);
 
