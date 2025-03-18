@@ -23,6 +23,8 @@ import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseSessionUnit;
 import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.model.db.CourseUnitDependency;
+import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -33,7 +35,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -58,6 +63,11 @@ public class CourseSessionApiResponse {
 	private final Instant lastUpdated;
 	@Nonnull
 	private final String lastUpdatedDescription;
+
+	// Computed fields follow
+
+	@Nonnull
+	private final Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -89,8 +99,19 @@ public class CourseSessionApiResponse {
 		// If we don't have status yet, create a synthetic "INCOMPLETE" record
 		List<CourseUnit> courseUnits = courseService.findCourseUnitsByCourseId(courseSession.getCourseId());
 		List<CourseSessionUnit> courseSessionUnits = courseService.findCourseSessionUnitsByCourseSessionId(courseSession.getCourseSessionId());
+		List<CourseUnitDependency> courseUnitDependencies = courseService.findCourseUnitDependenciesByCourseId(courseSession.getCourseId());
 
+		Map<UUID, CourseSessionUnit> courseSessionUnitsByCourseUnitId = courseSessionUnits.stream()
+				.collect(Collectors.toMap(CourseSessionUnit::getCourseSessionId, Function.identity()));
 
+		// Calculate and expose our dependencies so we know which units are locked
+		this.courseUnitLockStatusesByCourseUnitId = courseService.determineCourseUnitLockStatusesByCourseUnitId(courseUnits, courseSessionUnits, courseUnitDependencies);
+
+		for (CourseUnit courseUnit : courseUnits) {
+
+		}
+
+		// TODO: fill in remaining fields
 	}
 
 	@Nonnull
@@ -131,5 +152,10 @@ public class CourseSessionApiResponse {
 	@Nonnull
 	public String getLastUpdatedDescription() {
 		return this.lastUpdatedDescription;
+	}
+
+	@Nonnull
+	public Map<UUID, CourseUnitLockStatus> getCourseUnitLockStatusesByCourseUnitId() {
+		return this.courseUnitLockStatusesByCourseUnitId;
 	}
 }

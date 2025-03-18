@@ -24,8 +24,12 @@ import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
 import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseSessionUnit;
+import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.model.db.CourseUnitDependency;
+import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDependencyTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -40,9 +44,14 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -164,6 +173,22 @@ public class CourseService {
 	}
 
 	@Nonnull
+	public Optional<CourseSession> findCurrentCourseSession(@Nullable UUID accountId,
+																													@Nullable UUID courseId) {
+		if (accountId == null || courseId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM course_session
+				WHERE account_id=?
+				AND course_id=?
+				ORDER BY created DESC
+				LIMIT 1
+				""", CourseSession.class, accountId, courseId);
+	}
+
+	@Nonnull
 	public UUID createCourseSession(@Nonnull CreateCourseSessionRequest request) {
 		requireNonNull(request);
 
@@ -204,6 +229,55 @@ public class CourseService {
 				AND csu.course_unit_id=cu.course_unit_id
 				ORDER BY cu.display_order
 				""", CourseSessionUnit.class, courseSessionId);
+	}
+
+	@Nonnull
+	public List<CourseUnitDependency> findCourseUnitDependenciesByCourseId(@Nullable UUID courseId) {
+		if (courseId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT cud.*
+				FROM course_unit_dependency cud, course_unit cu, course_module cm
+				WHERE cud.determinant_course_unit_id=cu.course_unit_id
+				AND cu.course_module_id=cm.course_module_id
+				AND cm.course_id=?
+				ORDER BY cud.determinant_course_unit_id, cud.dependent_course_unit_id
+				""", CourseUnitDependency.class, courseId);
+	}
+
+	@Nonnull
+	public Map<UUID, CourseUnitLockStatus> determineCourseUnitLockStatusesByCourseUnitId(@Nullable List<CourseUnit> courseUnits,
+																																											 @Nullable List<CourseSessionUnit> courseSessionUnits,
+																																											 @Nullable List<CourseUnitDependency> courseUnitDependencies) {
+		if (courseUnits == null)
+			return Map.of();
+
+		if (courseSessionUnits == null)
+			courseSessionUnits = List.of();
+
+		if (courseUnitDependencies == null)
+			courseUnitDependencies = List.of();
+
+		// Build a set of completed course unit IDs for this session
+		Set<UUID> completedCourseSessionUnitIds = courseSessionUnits.stream()
+				.filter(courseSessionUnit -> courseSessionUnit.getCourseSessionUnitStatusId() == CourseSessionUnitStatusId.COMPLETE)
+				.map(CourseSessionUnit::getCourseUnitId)
+				.collect(Collectors.toSet());
+
+		Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId = new HashMap<>();
+
+		for (CourseUnit unit : courseUnits) {
+			Map<CourseUnitDependencyTypeId, List<UUID>> determinantCourseUnitIdsByDependencyTypeIds = new HashMap<>();
+
+			for (CourseUnitDependency courseUnitDependency : courseUnitDependencies)
+				if (!completedCourseSessionUnitIds.contains(courseUnitDependency.getDeterminantCourseUnitId()))
+					determinantCourseUnitIdsByDependencyTypeIds.computeIfAbsent(courseUnitDependency.getCourseUnitDependencyTypeId(), cudti -> new ArrayList<>()).add(courseUnitDependency.getDeterminantCourseUnitId());
+
+			courseUnitLockStatusesByCourseUnitId.put(unit.getCourseUnitId(), new CourseUnitLockStatus(determinantCourseUnitIdsByDependencyTypeIds));
+		}
+
+		return courseUnitLockStatusesByCourseUnitId;
 	}
 
 	@Nonnull

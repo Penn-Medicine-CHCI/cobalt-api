@@ -19,11 +19,16 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.CourseModuleApiResponse.CourseModuleApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.CourseSessionApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Course;
+import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
@@ -34,6 +39,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -69,6 +75,8 @@ public class CourseApiResponse {
 
 	@Nullable
 	private final List<CourseModuleApiResponse> courseModules;
+	@Nullable
+	private final CourseSessionApiResponse currentCourseSession;
 
 	public enum CourseApiResponseType {
 		LIST,
@@ -86,12 +94,16 @@ public class CourseApiResponse {
 	@AssistedInject
 	public CourseApiResponse(@Nonnull CourseService courseService,
 													 @Nonnull CourseModuleApiResponseFactory courseModuleApiResponseFactory,
+													 @Nonnull CourseSessionApiResponseFactory courseSessionApiResponseFactory,
+													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Formatter formatter,
 													 @Nonnull Strings strings,
 													 @Assisted @Nonnull Course course,
 													 @Assisted @Nonnull CourseApiResponseType type) {
 		requireNonNull(courseService);
 		requireNonNull(courseModuleApiResponseFactory);
+		requireNonNull(courseSessionApiResponseFactory);
+		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(course);
@@ -124,8 +136,14 @@ public class CourseApiResponse {
 						return courseModuleApiResponseFactory.create(courseModule, courseUnitsForModule);
 					})
 					.collect(Collectors.toList());
+
+			Account account = currentContextProvider.get().getAccount().get();
+			CourseSession courseSession = courseService.findCurrentCourseSession(account.getAccountId(), course.getCourseId()).orElse(null);
+
+			this.currentCourseSession = courseSession == null ? null : courseSessionApiResponseFactory.create(courseSession);
 		} else {
 			this.courseModules = null;
+			this.currentCourseSession = null;
 		}
 	}
 
@@ -177,5 +195,15 @@ public class CourseApiResponse {
 	@Nonnull
 	public String getLastUpdatedDescription() {
 		return this.lastUpdatedDescription;
+	}
+
+	@Nonnull
+	public Optional<List<CourseModuleApiResponse>> getCourseModules() {
+		return Optional.ofNullable(this.courseModules);
+	}
+
+	@Nonnull
+	public Optional<CourseSessionApiResponse> getCurrentCourseSession() {
+		return Optional.ofNullable(this.currentCourseSession);
 	}
 }
