@@ -113,6 +113,7 @@ public class PageRowApiResponse {
 		requireNonNull(pageRowTagApiResponseFactory);
 		requireNonNull(tagService);
 		requireNonNull(tagApiResponseFactory);
+		requireNonNull(pageService);
 
 		this.pageRowId = pageRow.getPageRowId();
 		this.pageSectionId = pageRow.getPageSectionId();

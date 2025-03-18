@@ -1967,6 +1967,14 @@ public class PageService {
 						FROM page_row_tag_group
 						WHERE page_row_id=?
 						""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_tag
+						(page_row_id, tag_id)
+						SELECT ?, tag_id
+						FROM page_row_tag
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
 			}
 		}
 
