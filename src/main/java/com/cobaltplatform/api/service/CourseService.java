@@ -261,20 +261,20 @@ public class CourseService {
 
 		// Build a set of completed course unit IDs for this session
 		Set<UUID> completedCourseSessionUnitIds = courseSessionUnits.stream()
-				.filter(courseSessionUnit -> courseSessionUnit.getCourseSessionUnitStatusId() == CourseSessionUnitStatusId.COMPLETE)
+				.filter(courseSessionUnit -> courseSessionUnit.getCourseSessionUnitStatusId() == CourseSessionUnitStatusId.COMPLETED)
 				.map(CourseSessionUnit::getCourseUnitId)
 				.collect(Collectors.toSet());
 
 		Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId = new HashMap<>();
 
-		for (CourseUnit unit : courseUnits) {
+		for (CourseUnit courseUnit : courseUnits) {
 			Map<CourseUnitDependencyTypeId, List<UUID>> determinantCourseUnitIdsByDependencyTypeIds = new HashMap<>();
 
 			for (CourseUnitDependency courseUnitDependency : courseUnitDependencies)
 				if (!completedCourseSessionUnitIds.contains(courseUnitDependency.getDeterminantCourseUnitId()))
 					determinantCourseUnitIdsByDependencyTypeIds.computeIfAbsent(courseUnitDependency.getCourseUnitDependencyTypeId(), cudti -> new ArrayList<>()).add(courseUnitDependency.getDeterminantCourseUnitId());
 
-			courseUnitLockStatusesByCourseUnitId.put(unit.getCourseUnitId(), new CourseUnitLockStatus(determinantCourseUnitIdsByDependencyTypeIds));
+			courseUnitLockStatusesByCourseUnitId.put(courseUnit.getCourseUnitId(), new CourseUnitLockStatus(determinantCourseUnitIdsByDependencyTypeIds));
 		}
 
 		return courseUnitLockStatusesByCourseUnitId;

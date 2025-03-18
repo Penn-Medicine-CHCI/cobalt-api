@@ -194,7 +194,7 @@ CREATE TABLE course_session_unit_status (
 );
 
 -- User has explicitly completed the unit
-INSERT INTO course_session_unit_status VALUES ('COMPLETE', 'Complete');
+INSERT INTO course_session_unit_status VALUES ('COMPLETED', 'Completed');
 -- User has explicitly skipped the unit
 INSERT INTO course_session_unit_status VALUES ('SKIPPED', 'Skipped');
 

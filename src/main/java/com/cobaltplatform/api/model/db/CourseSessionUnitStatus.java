@@ -35,7 +35,7 @@ public class CourseSessionUnitStatus {
 	private String description;
 
 	public enum CourseSessionUnitStatusId {
-		COMPLETE,
+		COMPLETED,
 		SKIPPED
 	}
 

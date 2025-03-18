@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseSessionUnit;
+import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitDependency;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
@@ -34,6 +35,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -68,6 +70,8 @@ public class CourseSessionApiResponse {
 
 	@Nonnull
 	private final Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId;
+	@Nonnull
+	private final Map<UUID, CourseSessionUnitStatusId> courseSessionUnitStatusIdsByCourseUnitId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -107,9 +111,16 @@ public class CourseSessionApiResponse {
 		// Calculate and expose our dependencies so we know which units are locked
 		this.courseUnitLockStatusesByCourseUnitId = courseService.determineCourseUnitLockStatusesByCourseUnitId(courseUnits, courseSessionUnits, courseUnitDependencies);
 
-		for (CourseUnit courseUnit : courseUnits) {
+		Map<UUID, CourseSessionUnitStatusId> courseSessionUnitStatusIdsByCourseUnitId = new HashMap<>(courseUnits.size());
 
+		for (CourseUnit courseUnit : courseUnits) {
+			CourseSessionUnit courseSessionUnit = courseSessionUnitsByCourseUnitId.get(courseUnit.getCourseUnitId());
+
+			if (courseSessionUnit != null)
+				courseSessionUnitStatusIdsByCourseUnitId.put(courseUnit.getCourseUnitId(), courseSessionUnit.getCourseSessionUnitStatusId());
 		}
+
+		this.courseSessionUnitStatusIdsByCourseUnitId = courseSessionUnitStatusIdsByCourseUnitId;
 
 		// TODO: fill in remaining fields
 	}
@@ -157,5 +168,10 @@ public class CourseSessionApiResponse {
 	@Nonnull
 	public Map<UUID, CourseUnitLockStatus> getCourseUnitLockStatusesByCourseUnitId() {
 		return this.courseUnitLockStatusesByCourseUnitId;
+	}
+
+	@Nonnull
+	public Map<UUID, CourseSessionUnitStatusId> getCourseSessionUnitStatusIdsByCourseUnitId() {
+		return this.courseSessionUnitStatusIdsByCourseUnitId;
 	}
 }
