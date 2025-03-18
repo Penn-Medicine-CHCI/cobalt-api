@@ -216,4 +216,9 @@ public class CourseApiResponse {
 	public Optional<CourseSessionApiResponse> getCurrentCourseSession() {
 		return Optional.ofNullable(this.currentCourseSession);
 	}
+
+	@Nonnull
+	public Optional<List<VideoApiResponse>> getVideos() {
+		return Optional.ofNullable(this.videos);
+	}
 }
