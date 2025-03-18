@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
 import com.cobaltplatform.api.model.db.Course;
+import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
@@ -330,6 +331,18 @@ public class AuthorizationService {
 		// If this course is available for the account's institution, it's legal for the account to create a session for it
 		Course course = getCourseService().findCourseById(courseId, account.getInstitutionId()).orElse(null);
 		return course != null;
+	}
+
+	@Nonnull
+	public Boolean canModifyCourseSession(@Nonnull CourseSession courseSession,
+																				@Nonnull Account account) {
+		requireNonNull(courseSession);
+		requireNonNull(account);
+
+		// You must be the owner of the session to modify it
+		return account.getAccountId() != null
+				&& courseSession.getAccountId() != null
+				&& account.getAccountId().equals(courseSession.getAccountId());
 	}
 
 	@Nonnull
@@ -757,6 +770,7 @@ public class AuthorizationService {
 
 		return false;
 	}
+
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();

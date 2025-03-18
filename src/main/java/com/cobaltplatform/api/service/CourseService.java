@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.api.request.CompleteCourseUnitRequest;
 import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
@@ -148,6 +149,32 @@ public class CourseService {
 	}
 
 	@Nonnull
+	public Optional<CourseUnit> findCourseUnitById(@Nullable UUID courseUnitId) {
+		if (courseUnitId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM course_unit
+				WHERE course_unit_id=?
+				""", CourseUnit.class, courseUnitId);
+	}
+
+	@Nonnull
+	public Optional<Course> findCourseByCourseUnitId(@Nullable UUID courseUnitId) {
+		if (courseUnitId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT c.*
+				FROM course_unit cu, course_module cm, course c
+				WHERE cu.course_unit_id=?
+				AND cu.course_module_id=cm.course_module_id
+				AND cm.course_id=c.course_id
+				""", Course.class, courseUnitId);
+	}
+
+	@Nonnull
 	public List<CourseUnit> findCourseUnitsByCourseId(@Nullable UUID courseId) {
 		if (courseId == null)
 			return List.of();
@@ -234,6 +261,39 @@ public class CourseService {
 	}
 
 	@Nonnull
+	public Boolean completeCourseUnit(@Nonnull CompleteCourseUnitRequest request) {
+		requireNonNull(request);
+
+		UUID courseSessionId = request.getCourseSessionId();
+		UUID courseUnitId = request.getCourseUnitId();
+		UUID accountId = request.getAccountId();
+		ValidationException validationException = new ValidationException();
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Already completed for this session? No-op
+		CourseSessionUnit courseSessionUnit = findCourseSessionUnitByCourseSessionIdAndUnitId(courseSessionId, courseUnitId).orElse(null);
+
+		if (courseSessionUnit != null && courseSessionUnit.getCourseSessionUnitStatusId() == CourseSessionUnitStatusId.COMPLETED)
+			return false;
+
+		// Mark completed, supporting concurrent updates via ON CONFLICT DO UPDATE
+		boolean updated = getDatabase().execute("""
+				INSERT INTO course_session_unit (course_session_id, course_unit_id, course_session_unit_status_id)
+				VALUES (?,?,?)
+				ON CONFLICT (course_session_id, course_unit_id)
+				DO UPDATE SET course_session_unit_status_id = EXCLUDED.course_session_unit_status_id;
+				""", courseSessionId, courseUnitId, CourseSessionUnitStatusId.COMPLETED) > 0;
+
+		if (updated) {
+			// TODO: check and see if the entire course session is complete and set its overall status
+		}
+
+		return updated;
+	}
+
+	@Nonnull
 	public List<CourseSessionUnit> findCourseSessionUnitsByCourseSessionId(@Nullable UUID courseSessionId) {
 		if (courseSessionId == null)
 			return List.of();
@@ -245,6 +305,20 @@ public class CourseService {
 				AND csu.course_unit_id=cu.course_unit_id
 				ORDER BY cu.display_order
 				""", CourseSessionUnit.class, courseSessionId);
+	}
+
+	@Nonnull
+	public Optional<CourseSessionUnit> findCourseSessionUnitByCourseSessionIdAndUnitId(@Nullable UUID courseSessionId,
+																																										 @Nullable UUID courseUnitId) {
+		if (courseSessionId == null || courseUnitId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM course_session_unit
+				WHERE course_session_id=?
+				AND course_unit_id=?
+				""", CourseSessionUnit.class, courseSessionId, courseUnitId);
 	}
 
 	@Nonnull
@@ -308,10 +382,5 @@ public class CourseService {
 	@Nonnull
 	protected Strings getStrings() {
 		return this.strings;
-	}
-
-	@Nonnull
-	protected Logger getLogger() {
-		return this.logger;
 	}
 }

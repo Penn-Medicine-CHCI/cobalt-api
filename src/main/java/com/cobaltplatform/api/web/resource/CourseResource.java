@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.request.CompleteCourseUnitRequest;
 import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.api.response.CourseApiResponse.CourseApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CourseApiResponse.CourseApiResponseType;
@@ -27,6 +28,7 @@ import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.Course
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseSession;
+import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -159,6 +161,53 @@ public class CourseResource {
 
 		UUID courseSessionId = getCourseService().createCourseSession(request);
 		CourseSession courseSession = getCourseService().findCourseSessionById(courseSessionId).get();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("courseSession", getCourseSessionApiResponseFactory().create(courseSession));
+		}});
+	}
+
+	@Nonnull
+	@POST("/course-units/{courseUnitId}/complete")
+	@AuthenticationRequired
+	public ApiResponse completeCourseUnit(@Nonnull @PathParameter UUID courseUnitId) {
+		requireNonNull(courseUnitId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		CourseUnit courseUnit = getCourseService().findCourseUnitById(courseUnitId).orElse(null);
+
+		if (courseUnit == null)
+			throw new NotFoundException();
+
+		Course course = getCourseService().findCourseByCourseUnitId(courseUnitId).get();
+		CourseSession currentCourseSession = getCourseService().findCurrentCourseSession(account.getAccountId(), course.getCourseId()).orElse(null);
+
+		// If there is no current session active, an attempt to complete a unit will create a new session first
+		if (currentCourseSession == null) {
+			if (!getAuthorizationService().canCreateCourseSession(course.getCourseId(), account))
+				throw new AuthorizationException();
+
+			CreateCourseSessionRequest createCourseSessionRequest = new CreateCourseSessionRequest();
+			createCourseSessionRequest.setAccountId(account.getAccountId());
+			createCourseSessionRequest.setCourseId(course.getCourseId());
+
+			UUID currentCourseSessionId = getCourseService().createCourseSession(createCourseSessionRequest);
+			currentCourseSession = getCourseService().findCourseSessionById(currentCourseSessionId).get();
+		}
+
+		// Make sure we're allowed to do this
+		if (!getAuthorizationService().canModifyCourseSession(currentCourseSession, account))
+			throw new AuthorizationException();
+
+		CompleteCourseUnitRequest request = new CompleteCourseUnitRequest();
+		request.setCourseUnitId(courseUnitId);
+		request.setCourseSessionId(currentCourseSession.getCourseSessionId());
+		request.setAccountId(account.getAccountId());
+
+		getCourseService().completeCourseUnit(request);
+
+		CourseSession courseSession = getCourseService().findCourseSessionById(currentCourseSession.getCourseSessionId()).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("courseSession", getCourseSessionApiResponseFactory().create(courseSession));
