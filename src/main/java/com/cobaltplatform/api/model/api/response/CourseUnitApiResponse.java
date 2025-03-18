@@ -45,6 +45,8 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	private final CourseUnitTypeId courseUnitTypeId;
 	@Nonnull
+	private final UUID courseModuleId;
+	@Nonnull
 	private final String title;
 	@Nullable
 	private final String description;
@@ -80,6 +82,7 @@ public class CourseUnitApiResponse {
 
 		this.courseUnitId = courseUnit.getCourseUnitId();
 		this.courseUnitTypeId = courseUnit.getCourseUnitTypeId();
+		this.courseModuleId = courseUnit.getCourseModuleId();
 		this.title = courseUnit.getTitle();
 		this.description = courseUnit.getDescription();
 		this.videoId = courseUnit.getVideoId();
@@ -97,6 +100,11 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public UUID getCourseUnitId() {
 		return this.courseUnitId;
+	}
+
+	@Nonnull
+	public UUID getCourseModuleId() {
+		return this.courseModuleId;
 	}
 
 	@Nonnull
