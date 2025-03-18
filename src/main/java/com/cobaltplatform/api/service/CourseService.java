@@ -265,12 +265,16 @@ public class CourseService {
 				.map(CourseSessionUnit::getCourseUnitId)
 				.collect(Collectors.toSet());
 
+		// Determine locks per course unit based on dependencies + completion status
 		Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId = new HashMap<>();
 
 		for (CourseUnit courseUnit : courseUnits) {
 			Map<CourseUnitDependencyTypeId, List<UUID>> determinantCourseUnitIdsByDependencyTypeIds = new HashMap<>();
+			List<CourseUnitDependency> applicableCourseUnitDependencies = courseUnitDependencies.stream()
+					.filter(courseUnitDependency -> courseUnitDependency.getDependentCourseUnitId().equals(courseUnit.getCourseUnitId()))
+					.collect(Collectors.toUnmodifiableList());
 
-			for (CourseUnitDependency courseUnitDependency : courseUnitDependencies)
+			for (CourseUnitDependency courseUnitDependency : applicableCourseUnitDependencies)
 				if (!completedCourseSessionUnitIds.contains(courseUnitDependency.getDeterminantCourseUnitId()))
 					determinantCourseUnitIdsByDependencyTypeIds.computeIfAbsent(courseUnitDependency.getCourseUnitDependencyTypeId(), cudti -> new ArrayList<>()).add(courseUnitDependency.getDeterminantCourseUnitId());
 
