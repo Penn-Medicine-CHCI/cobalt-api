@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitDependency;
 import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDependencyTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Video;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -158,6 +159,21 @@ public class CourseService {
 				AND cu.course_module_id=cm.course_module_id
 				ORDER BY cu.display_order
 				""", CourseUnit.class, courseId);
+	}
+
+	@Nonnull
+	public List<Video> findVideosByCourseId(@Nullable UUID courseId) {
+		if (courseId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT v.*
+				FROM course_module cm, course_unit cu, video v
+				WHERE cm.course_id=?
+				AND cu.course_module_id=cm.course_module_id
+				AND cu.video_id=v.video_id
+				ORDER BY cu.display_order
+				""", Video.class, courseId);
 	}
 
 	@Nonnull

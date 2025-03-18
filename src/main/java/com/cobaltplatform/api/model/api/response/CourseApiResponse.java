@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.CourseModuleApiResponse.CourseModuleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.CourseSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.VideoApiResponse.VideoApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseSession;
@@ -77,6 +78,8 @@ public class CourseApiResponse {
 	private final List<CourseModuleApiResponse> courseModules;
 	@Nullable
 	private final CourseSessionApiResponse currentCourseSession;
+	@Nullable
+	private final List<VideoApiResponse> videos;
 
 	public enum CourseApiResponseType {
 		LIST,
@@ -95,6 +98,7 @@ public class CourseApiResponse {
 	public CourseApiResponse(@Nonnull CourseService courseService,
 													 @Nonnull CourseModuleApiResponseFactory courseModuleApiResponseFactory,
 													 @Nonnull CourseSessionApiResponseFactory courseSessionApiResponseFactory,
+													 @Nonnull VideoApiResponseFactory videoApiResponseFactory,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Formatter formatter,
 													 @Nonnull Strings strings,
@@ -103,6 +107,7 @@ public class CourseApiResponse {
 		requireNonNull(courseService);
 		requireNonNull(courseModuleApiResponseFactory);
 		requireNonNull(courseSessionApiResponseFactory);
+		requireNonNull(videoApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -141,9 +146,14 @@ public class CourseApiResponse {
 			CourseSession courseSession = courseService.findCurrentCourseSession(account.getAccountId(), course.getCourseId()).orElse(null);
 
 			this.currentCourseSession = courseSession == null ? null : courseSessionApiResponseFactory.create(courseSession);
+
+			this.videos = courseService.findVideosByCourseId(course.getCourseId()).stream()
+					.map(video -> videoApiResponseFactory.create(video))
+					.collect(Collectors.toList());
 		} else {
 			this.courseModules = null;
 			this.currentCourseSession = null;
+			this.videos = null;
 		}
 	}
 

@@ -19,8 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.CourseUnit;
-import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
+import com.cobaltplatform.api.model.db.Video;
+import com.cobaltplatform.api.model.db.VideoVendor.VideoVendorId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -39,21 +39,21 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
-public class CourseUnitApiResponse {
+public class VideoApiResponse {
 	@Nonnull
-	private final UUID courseUnitId;
-	@Nonnull
-	private final CourseUnitTypeId courseUnitTypeId;
-	@Nonnull
-	private final String title;
-	@Nullable
-	private final String description;
-	@Nullable
 	private final UUID videoId;
+	@Nonnull
+	private final VideoVendorId videoVendorId;
 	@Nullable
-	private final UUID screeningFlowId;
+	private final String youtubeId; // only applicable to YOUTUBE vendor type
 	@Nullable
-	private final String imageUrl;
+	private final String kalturaPartnerId; // only applicable to KALTURA vendor type
+	@Nullable
+	private final String kalturaUiconfId; // only applicable to KALTURA vendor type
+	@Nullable
+	private final String kalturaWid; // only applicable to KALTURA vendor type
+	@Nullable
+	private final String kalturaEntryId; // only applicable to KALTURA vendor type
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -65,63 +65,65 @@ public class CourseUnitApiResponse {
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface CourseUnitApiResponseFactory {
+	public interface VideoApiResponseFactory {
 		@Nonnull
-		CourseUnitApiResponse create(@Nonnull CourseUnit courseUnit);
+		VideoApiResponse create(@Nonnull Video video);
 	}
 
 	@AssistedInject
-	public CourseUnitApiResponse(@Nonnull Formatter formatter,
-															 @Nonnull Strings strings,
-															 @Assisted @Nonnull CourseUnit courseUnit) {
+	public VideoApiResponse(@Nonnull Formatter formatter,
+													@Nonnull Strings strings,
+													@Assisted @Nonnull Video video) {
 		requireNonNull(formatter);
 		requireNonNull(strings);
-		requireNonNull(courseUnit);
+		requireNonNull(video);
 
-		this.courseUnitId = courseUnit.getCourseUnitId();
-		this.courseUnitTypeId = courseUnit.getCourseUnitTypeId();
-		this.title = courseUnit.getTitle();
-		this.description = courseUnit.getDescription();
-		this.videoId = courseUnit.getVideoId();
-		this.screeningFlowId = courseUnit.getScreeningFlowId();
-		this.imageUrl = courseUnit.getImageUrl();
-
-		// TODO: include list of download IDs (actual downloads will be available on the main CourseApiResponse)
-
-		this.created = courseUnit.getCreated();
-		this.createdDescription = formatter.formatTimestamp(courseUnit.getCreated());
-		this.lastUpdated = courseUnit.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(courseUnit.getLastUpdated());
+		this.videoId = video.getVideoId();
+		this.videoVendorId = video.getVideoVendorId();
+		this.youtubeId = video.getYoutubeId();
+		this.kalturaPartnerId = video.getKalturaPartnerId();
+		this.kalturaUiconfId = video.getKalturaUiconfId();
+		this.kalturaWid = video.getKalturaWid();
+		this.kalturaEntryId = video.getKalturaEntryId();
+		this.created = video.getCreated();
+		this.createdDescription = formatter.formatTimestamp(video.getCreated());
+		this.lastUpdated = video.getLastUpdated();
+		this.lastUpdatedDescription = formatter.formatTimestamp(video.getLastUpdated());
 	}
 
 	@Nonnull
-	public UUID getCourseUnitId() {
-		return this.courseUnitId;
+	public UUID getVideoId() {
+		return this.videoId;
 	}
 
 	@Nonnull
-	public String getTitle() {
-		return this.title;
+	public VideoVendorId getVideoVendorId() {
+		return this.videoVendorId;
 	}
 
 	@Nonnull
-	public Optional<String> getDescription() {
-		return Optional.ofNullable(this.description);
+	public Optional<String> getYoutubeId() {
+		return Optional.ofNullable(this.youtubeId);
 	}
 
 	@Nonnull
-	public Optional<UUID> getVideoId() {
-		return Optional.ofNullable(this.videoId);
+	public Optional<String> getKalturaPartnerId() {
+		return Optional.ofNullable(this.kalturaPartnerId);
 	}
 
 	@Nonnull
-	public Optional<UUID> getScreeningFlowId() {
-		return Optional.ofNullable(this.screeningFlowId);
+	public Optional<String> getKalturaUiconfId() {
+		return Optional.ofNullable(this.kalturaUiconfId);
 	}
 
 	@Nonnull
-	public Optional<String> getImageUrl() {
-		return Optional.ofNullable(this.imageUrl);
+	public Optional<String> getKalturaWid() {
+		return Optional.ofNullable(this.kalturaWid);
+	}
+
+	@Nonnull
+	public Optional<String> getKalturaEntryId() {
+		return Optional.ofNullable(this.kalturaEntryId);
 	}
 
 	@Nonnull
@@ -142,10 +144,5 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public String getLastUpdatedDescription() {
 		return this.lastUpdatedDescription;
-	}
-
-	@Nonnull
-	public CourseUnitTypeId getCourseUnitTypeId() {
-		return this.courseUnitTypeId;
 	}
 }

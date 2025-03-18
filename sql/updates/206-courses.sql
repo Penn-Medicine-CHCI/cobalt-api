@@ -300,4 +300,9 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE', 'Clickthrough (Course Unit Downloadable File)');
 
+-- Performance indices
+CREATE INDEX idx_course_session_course_id ON course_session (course_id);
+CREATE INDEX idx_course_session_account_id ON course_session (account_id);
+CREATE INDEX idx_course_session_created_desc ON course_session (created DESC);
+
 COMMIT;
