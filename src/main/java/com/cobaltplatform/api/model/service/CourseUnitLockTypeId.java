@@ -25,5 +25,5 @@ package com.cobaltplatform.api.model.service;
 public enum CourseUnitLockTypeId {
 	UNLOCKED,
 	WEAKLY_LOCKED,
-	LOCKED
+	STRONGLY_LOCKED
 }

@@ -49,8 +49,8 @@ public class CourseUnitLockStatus {
 		CourseUnitLockTypeId courseUnitLockTypeId = CourseUnitLockTypeId.UNLOCKED;
 
 		if (determinantCourseUnitIdsByDependencyTypeIds.containsKey(CourseUnitDependencyTypeId.STRONG))
-			courseUnitLockTypeId = CourseUnitLockTypeId.LOCKED;
-		else if (determinantCourseUnitIdsByDependencyTypeIds.containsKey(CourseUnitDependencyTypeId.STRONG))
+			courseUnitLockTypeId = CourseUnitLockTypeId.STRONGLY_LOCKED;
+		else if (determinantCourseUnitIdsByDependencyTypeIds.containsKey(CourseUnitDependencyTypeId.WEAK))
 			courseUnitLockTypeId = CourseUnitLockTypeId.WEAKLY_LOCKED;
 
 		this.courseUnitLockTypeId = courseUnitLockTypeId;
