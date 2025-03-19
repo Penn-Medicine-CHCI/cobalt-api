@@ -875,9 +875,9 @@ public class ScreeningService {
 
 	@Nonnull
 	public void skipScreeningSession(@Nonnull SkipScreeningSessionRequest request,
-																	 @Nonnull Boolean allowSkippingCompletedSessions) {
+																	 @Nonnull Boolean forceSkipNoMatterWhat) {
 		requireNonNull(request);
-		requireNonNull(allowSkippingCompletedSessions);
+		requireNonNull(forceSkipNoMatterWhat);
 
 		UUID screeningSessionId = request.getScreeningSessionId();
 		boolean forceSkip = request.getForceSkip() == null ? false : request.getForceSkip();
@@ -891,13 +891,18 @@ public class ScreeningService {
 			if (screeningSession == null) {
 				validationException.add(new FieldError("screeningSessionId", getStrings().get("Screening Session ID is invalid.")));
 			} else {
-				if (screeningSession.getCompleted() && !allowSkippingCompletedSessions) {
-					validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment because it has already been completed."));
+				if (forceSkipNoMatterWhat) {
+					// No further validation is necessary; we know what we're doing, force a skip no matter what
 				} else {
-					ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
+					// Default skip checks: can't skip completed screening sessions, and can't skip unskippable sessions unless forced to
+					if (screeningSession.getCompleted()) {
+						validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment because it has already been completed."));
+					} else {
+						ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
 
-					if (!forceSkip && !screeningFlowVersion.getSkippable())
-						validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment."));
+						if (!forceSkip && !screeningFlowVersion.getSkippable())
+							validationException.add(getStrings().get("Sorry, you are not permitted to skip this assessment."));
+					}
 				}
 			}
 		}
