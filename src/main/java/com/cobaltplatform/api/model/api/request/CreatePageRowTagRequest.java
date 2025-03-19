@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -29,50 +28,38 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePageSettingsRequest {
+public class CreatePageRowTagRequest {
+	@Nullable
+	private UUID pageSectionId;
+	@Nullable
+	private String tagId;
+	@Nullable
+	private UUID createdByAccountId;
 
 	@Nullable
-	private UUID pageId;
-
-	@Nullable
-	private InstitutionId institutionId;
-	@Nullable
-	private String name;
-	@Nullable
-	private String urlName;
-	@Nullable
-	public UUID getPageId() {
-		return pageId;
+	public UUID getPageSectionId() {
+		return pageSectionId;
 	}
 
-	public void setPageId(@Nullable UUID pageId) {
-		this.pageId = pageId;
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
-	public String getName() {
-		return name;
+	public UUID getCreatedByAccountId() {
+		return createdByAccountId;
 	}
 
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
-
-	@Nullable
-	public InstitutionId getInstitutionId() {
-		return institutionId;
-	}
-
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
 	}
 
 	@Nullable
-	public String getUrlName() {
-		return urlName;
+	public String getTagId() {
+		return tagId;
 	}
 
-	public void setUrlName(@Nullable String urlName) {
-		this.urlName = urlName;
+	public void setTagId(@Nullable String tagId) {
+		this.tagId = tagId;
 	}
 }

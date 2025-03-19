@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('205-ic-march-2025-enhancements', NULL, NULL);
+SELECT _v.register_patch('206-ic-march-2025-enhancements', NULL, NULL);
 
 -- New IC Triage report
 insert into report_type (report_type_id, description, display_order) values ('IC_TRIAGE', 'Triage', 27);

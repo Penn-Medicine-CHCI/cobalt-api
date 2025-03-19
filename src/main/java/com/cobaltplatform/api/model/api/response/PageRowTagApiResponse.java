@@ -19,10 +19,14 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.PageRow;
-import com.cobaltplatform.api.model.db.RowType.RowTypeId;
-import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
-import com.cobaltplatform.api.service.PageService;
+import com.cobaltplatform.api.model.db.PageRowTag;
+import com.cobaltplatform.api.model.db.RowType;
+import com.cobaltplatform.api.model.db.Tag;
+import com.cobaltplatform.api.model.db.TagGroup;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
+import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -30,6 +34,7 @@ import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -38,40 +43,60 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 @ThreadSafe
-public class PageRowTagGroupApiResponse {
+public class PageRowTagApiResponse {
+	@Nonnull
+	private final ColorId tagGroupColorId;
 	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
-	private final RowTypeId rowTypeId;
+	private final RowType.RowTypeId rowTypeId;
+
 	@Nonnull
-	private final TagGroupApiResponse tagGroup;
+	private final TagApiResponse tag;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
-	public interface PageRowTagGroupApiResponseFactory {
+	public interface PageRowTagApiResponseFactory {
 		@Nonnull
-		PageRowTagGroupApiResponse create(@Nonnull PageRow pageRow);
+		PageRowTagApiResponse create(@Nonnull PageRow pageRow,
+																 @Nonnull PageRowTag pageRowTag);
 	}
 
 	@AssistedInject
-	public PageRowTagGroupApiResponse(@Nonnull Formatter formatter,
-																		@Nonnull Strings strings,
-																		@Assisted @Nonnull PageRow pageRow,
-																		@Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
-																		@Nonnull PageService pageService) {
+	public PageRowTagApiResponse(@Nonnull Formatter formatter,
+															 @Nonnull Strings strings,
+															 @Assisted @Nonnull PageRow pageRow,
+															 @Assisted @Nonnull PageRowTag pageRowTag,
+															 @Nonnull TagService tagService,
+															 @Nonnull TagApiResponseFactory tagApiResponseFactory) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(pageRow);
-		requireNonNull(pageService);
-		requireNonNull(tagGroupApiResponseFactory);
+		requireNonNull(pageRowTag);
+		requireNonNull(tagService);
+		requireNonNull(tagApiResponseFactory);
+
+		Optional<TagGroup> tagGroup = tagService.findUncachedTagGroupByTagId(pageRowTag.getTagId());
 
 		this.pageRowId = pageRow.getPageRowId();
 		this.displayOrder = pageRow.getDisplayOrder();
-		this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));
 		this.rowTypeId = pageRow.getRowTypeId();
+		this.tag = tagApiResponseFactory.create(tagService.findTagById(pageRowTag.getTagId()).get());
+
+		if (tagGroup.isPresent())
+			this.tagGroupColorId = tagGroup.get().getColorId();
+		else
+			this.tagGroupColorId = ColorId.NEUTRAL;
+
+	}
+
+
+	@Nonnull
+	public ColorId getTagGroupColorId() {
+		return tagGroupColorId;
 	}
 
 	@Nonnull
@@ -85,13 +110,13 @@ public class PageRowTagGroupApiResponse {
 	}
 
 	@Nonnull
-	public TagGroupApiResponse getTagGroup() {
-		return tagGroup;
+	public RowType.RowTypeId getRowTypeId() {
+		return rowTypeId;
 	}
 
 	@Nonnull
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public TagApiResponse getTag() {
+		return tag;
 	}
 }
 

@@ -19,17 +19,22 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Color;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
-import com.cobaltplatform.api.model.db.PageRowTagGroup;
+import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
+import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.service.PageService;
+import com.cobaltplatform.api.service.TagService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -69,6 +74,10 @@ public class PageRowApiResponse {
 	private PageRowColumn columnThree;
 	@Nonnull
 	private  TagGroupApiResponse tagGroup;
+	@Nonnull
+	private TagApiResponse tag;
+	@Nonnull
+	private Color.ColorId tagGroupColorId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -86,8 +95,11 @@ public class PageRowApiResponse {
 														@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
 														@Nonnull ContentApiResponseFactory contentApiResponseFactory,
 														@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
-														@Nonnull TagGroupApiResponse.TagGroupApiResponseFactory tagGroupApiResponseFactory,
-														@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory) {
+														@Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
+														@Nonnull PageRowTagApiResponseFactory pageRowTagApiResponseFactory,
+														@Nonnull PageCustomThreeColumnApiResponseFactory pageCustomThreeColumnApiResponseFactory,
+														@Nonnull TagService tagService,
+														@Nonnull TagApiResponseFactory tagApiResponseFactory) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -98,11 +110,16 @@ public class PageRowApiResponse {
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(tagGroupApiResponseFactory);
+		requireNonNull(pageRowTagApiResponseFactory);
+		requireNonNull(tagService);
+		requireNonNull(tagApiResponseFactory);
+		requireNonNull(pageService);
 
 		this.pageRowId = pageRow.getPageRowId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.displayOrder = pageRow.getDisplayOrder();
+		this.tagGroupColorId = null;
 
 		if (this.rowTypeId.equals(RowTypeId.RESOURCES))
 			this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId()).stream()
@@ -112,7 +129,12 @@ public class PageRowApiResponse {
 					.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));
-		else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
+		else if (this.rowTypeId.equals(RowTypeId.TAG)) {
+			PageRowTag pageRowTag = pageService.findPageRowTagByRowId(pageRow.getPageRowId()).get();
+			TagGroup tagGroup = tagService.findUncachedTagGroupByTagId(pageRowTag.getTagId()).get();
+			this.tagGroupColorId = tagGroup.getColorId();
+			this.tag = tagApiResponseFactory.create(tagService.findTagById(pageRowTag.getTagId()).get());
+		} else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)) {
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
@@ -172,6 +194,16 @@ public class PageRowApiResponse {
 	@Nonnull
 	public PageRowColumn getColumnThree() {
 		return columnThree;
+	}
+
+	@Nonnull
+	public TagApiResponse getTag() {
+		return tag;
+	}
+
+	@Nonnull
+	public Color.ColorId getTagGroupColorId() {
+		return tagGroupColorId;
 	}
 }
 

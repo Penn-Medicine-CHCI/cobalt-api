@@ -210,8 +210,9 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/200-self-refer
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/201-account-source-messages.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/202-ic-config.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/203-ic-safety-planning-report.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/204-implicit-anon-accounts.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/205-ic-march-2025-enhancements.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/204-implict-anon-accounts.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/205-page-tag.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/206-ic-march-2025-enhancements.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

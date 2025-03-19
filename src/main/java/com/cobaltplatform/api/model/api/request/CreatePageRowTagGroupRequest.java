@@ -62,4 +62,5 @@ public class CreatePageRowTagGroupRequest {
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
 	}
+
 }

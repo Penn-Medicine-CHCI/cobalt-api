@@ -141,6 +141,19 @@ public class TagService {
 	}
 
 	@Nonnull
+	public Optional<TagGroup> findUncachedTagGroupByTagId(@Nullable String tagId) {
+		if (tagId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+    		SELECT tg.* 
+    		FROM tag_group tg, tag t 
+    		WHERE tg.tag_group_id=t.tag_group_id
+    		AND t.tag_id=?
+				""", TagGroup.class, tagId);
+
+	}
+	@Nonnull
 	protected List<TagGroup> findUncachedTagGroupsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();

@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
@@ -42,6 +43,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequ
 import com.cobaltplatform.api.model.api.request.UpdatePageRowDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
@@ -54,6 +56,7 @@ import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
@@ -173,9 +176,10 @@ public class PageService {
 
 		return Optional.of(page);
 	}
+
 	@Nonnull
-	private Boolean hasAccessToPage (@Nonnull UUID pageId,
-																	 @Nonnull InstitutionId institutionId){
+	private Boolean hasAccessToPage(@Nonnull UUID pageId,
+																	@Nonnull InstitutionId institutionId) {
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 
 		return page.isPresent();
@@ -205,8 +209,6 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("pageDescription", getStrings().get(format("A Description is required for Page %s.\n", page.get().getName()))));
 		if (pageImageFileUploadId == null)
 			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("An Image is required for Page %s.\n", page.get().getName()))));
-		if (imageAltText == null)
-			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Page %s.\n", page.get().getName()))));
 
 		if (validationException.hasErrors()) {
 			metadata.put("pageId", pageId);
@@ -219,18 +221,6 @@ public class PageService {
 
 		for (PageSection pageSection : pageSections) {
 			//Name and background color are required when creating or updating a page section so no need to validate them
-			String headline = trimToNull(pageSection.getHeadline());
-			String description = trimToNull(pageSection.getDescription());
-
-			if (headline == null)
-				validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A headline is required for Section %s.\n", pageSection.getName()))));
-			if (description == null)
-				validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A description is required for Section %s.\n", pageSection.getName()))));
-
-			if (validationException.hasErrors() && metadata.isEmpty()) {
-				metadata.put("sectionId", pageSection.getPageSectionId());
-			}
-
 			List<PageRow> pageRows = findPageRowsBySectionId(pageSection.getPageSectionId(), institutionId);
 
 			if (pageRows.size() == 0) {
@@ -302,7 +292,6 @@ public class PageService {
 
 		String headline = trimToNull(pageRowColumn.getHeadline());
 		String description = trimToNull(pageRowColumn.getDescription());
-		String imageAltText = trimToNull(pageRowColumn.getImageAltText());
 		UUID imageFileUploadId = pageRowColumn.getImageFileUploadId();
 		String pageSectionName = pageSection.getName();
 		Integer itemNumber = pageRowColumn.getColumnDisplayOrder() + 1;
@@ -311,8 +300,6 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A Headline is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (description == null)
 			validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A Description is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
-		if (imageAltText == null)
-			validationException.add(new ValidationException.FieldError("imageAltText", getStrings().get(format("Image Alt Text is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (imageFileUploadId == null)
 			validationException.add(new ValidationException.FieldError("imageFileUploadId", getStrings().get(format("Image is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 	}
@@ -417,7 +404,7 @@ public class PageService {
 					UPDATE page 
 					SET page_status_id = ?, deleted_flag=true, url_name=?
 					WHERE page_id = ?
-					AND institution_id = ?""", PageStatusId.DRAFT,  format("%s-%s", page.get().getUrlName(), UUID.randomUUID()), page.get().getParentPageId(), institutionId);
+					AND institution_id = ?""", PageStatusId.DRAFT, format("%s-%s", page.get().getUrlName(), UUID.randomUUID()), page.get().getParentPageId(), institutionId);
 
 		getDatabase().execute("""
 				UPDATE page SET
@@ -568,6 +555,7 @@ public class PageService {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
+		String urlName = trimToNull(request.getUrlName());
 		UUID pageId = request.getPageId();
 		InstitutionId institutionId = request.getInstitutionId();
 		ValidationException validationException = new ValidationException();
@@ -578,16 +566,22 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution Id is required.")));
 		if (!hasAccessToPage(pageId, institutionId))
 			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to update this page.")));
+		if (urlName == null)
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+		else if (!isValidUrlSubdirectory(urlName))
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
+			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
 				UPDATE page SET
-				name=?
+				name=?, url_name=?
 				WHERE page_id=?	
 				AND institution_id = ?				   
-				""", name, pageId, institutionId);
+				""", name, urlName, pageId, institutionId);
 
 		return pageId;
 	}
@@ -802,6 +796,14 @@ public class PageService {
 				""", pageSectionId);
 
 		getDatabase().execute("""
+				DELETE FROM page_row_tag
+				WHERE page_row_id IN 
+				(SELECT pr.page_row_id
+				FROM page_row pr
+				WHERE pr.page_section_id =?) 
+				""", pageSectionId);
+
+		getDatabase().execute("""
 				DELETE FROM page_row
 				WHERE page_section_id=? 
 				""", pageSectionId);
@@ -953,6 +955,11 @@ public class PageService {
 
 		getDatabase().execute("""
 				DELETE FROM page_row_tag_group
+				WHERE page_row_id =? 
+				""", pageRowId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_tag
 				WHERE page_row_id =? 
 				""", pageRowId);
 
@@ -1489,6 +1496,17 @@ public class PageService {
 	}
 
 	@Nonnull
+	public Optional<PageRowTag> findPageRowTagByRowId(@Nullable UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_tag
+				WHERE page_row_id = ?
+				""", PageRowTag.class, pageRowId);
+	}
+
+	@Nonnull
 	public Optional<TagGroup> findTagGroupByRowId(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
@@ -1561,15 +1579,88 @@ public class PageService {
 		if (!pageRow.isPresent())
 			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Page not found.")));
 		if (tagGroupId == null)
+			validationException.add(new ValidationException.FieldError("tagGroupId", getStrings().get("Tag Group not found.")));
 
-			if (validationException.hasErrors())
-				throw validationException;
+		if (validationException.hasErrors())
+			throw validationException;
 
 		getDatabase().execute("""
 				UPDATE page_row_tag_group
 				SET tag_group_id=?
 				WHERE page_row_id=?
 				""", tagGroupId, pageRowId);
+	}
+
+	public UUID createPageTag(@Nonnull CreatePageRowTagRequest request,
+														@Nonnull InstitutionId institutionId) {
+		requireNonNull(request);
+
+		UUID pageRowTagGroupId = UUID.randomUUID();
+		UUID pageSectionId = request.getPageSectionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		String tagId = trimToNull(request.getTagId());
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageSectionId == null)
+			validationException.add(new ValidationException.FieldError("pageSectionId", getStrings().get("Page Section is required.")));
+		if (tagId == null)
+			validationException.add(new ValidationException.FieldError("tagId", getStrings().get("Tag is required.")));
+		if (createdByAccountId == null)
+			validationException.add(new ValidationException.FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer displayOrder = getDatabase().queryForObject("""
+				SELECT COALESCE(MAX(display_order) + 1, 0)
+				FROM v_page_row
+				WHERE page_section_id = ?
+				""", Integer.class, pageSectionId).get();
+
+		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
+		createPageRowRequest.setPageSectionId(pageSectionId);
+		createPageRowRequest.setCreatedByAccountId(createdByAccountId);
+		createPageRowRequest.setDisplayOrder(displayOrder);
+		createPageRowRequest.setRowTypeId(RowTypeId.TAG);
+
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_tag
+				  (page_row_tag_id, page_row_id, tag_id)
+				VALUES
+				  (?,?,?)   
+				""", pageRowTagGroupId, pageRowId, tagId);
+
+		return pageRowId;
+	}
+
+	@Nonnull
+	public void updatePageTag(@Nonnull UpdatePageRowTagRequest request,
+														@Nonnull InstitutionId institutionId) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		String tagId = trimToNull(request.getTagId());
+
+		ValidationException validationException = new ValidationException();
+
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Page not found.")));
+		if (tagId == null)
+			validationException.add(new ValidationException.FieldError("tagId", getStrings().get("Tag not found.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE page_row_tag
+				SET tag_id=?
+				WHERE page_row_id=?
+				""", tagId, pageRowId);
 	}
 
 	@Nonnull
@@ -1772,7 +1863,7 @@ public class PageService {
 		UUID accountId = request.getCreatedByAccountId();
 		UUID pageId = request.getPageId();
 		UUID parentPageId = null;
-		String name =trimToNull(request.getName());
+		String name = trimToNull(request.getName());
 		String urlName = trimToNull(request.getUrlName());
 		Boolean copyForEditing = request.getCopyForEditing();
 		PageStatusId pageStatusId = request.getPageStatusId();
@@ -1783,7 +1874,7 @@ public class PageService {
 		if (!page.isPresent())
 			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
 
-		if (!copyForEditing){
+		if (!copyForEditing) {
 			if (name == null)
 				validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
 			else if (nameExistsForInstitutionId(name, institutionId, null))
@@ -1874,6 +1965,14 @@ public class PageService {
 						(page_row_id, tag_group_id)
 						SELECT ?, tag_group_id
 						FROM page_row_tag_group
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_tag
+						(page_row_id, tag_id)
+						SELECT ?, tag_id
+						FROM page_row_tag
 						WHERE page_row_id=?
 						""", newPageRowId, pageRow.getPageRowId());
 			}
