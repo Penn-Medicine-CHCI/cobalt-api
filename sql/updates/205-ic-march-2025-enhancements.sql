@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('205-ic-march-2025-enhancements', NULL, NULL);
 
+-- New IC Triage report
+insert into report_type (report_type_id, description, display_order) values ('IC_TRIAGE', 'Triage', 27);
+
 -- We now permit MHICs to "reset" orders, which allows patients to self-service re-take if needed (for example)
 INSERT INTO footprint_event_group_type VALUES ('PATIENT_ORDER_RESET', 'Patient Order Reset');
 
