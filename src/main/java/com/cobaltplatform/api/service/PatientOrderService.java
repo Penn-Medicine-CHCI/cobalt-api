@@ -78,6 +78,7 @@ import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.Patient
 import com.cobaltplatform.api.model.api.request.FindPatientOrdersRequest.PatientOrderSortRule;
 import com.cobaltplatform.api.model.api.request.OpenPatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.PatchPatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderEncounterCsnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
@@ -2692,6 +2693,59 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		return deleted;
+	}
+
+	@Nonnull
+	public Boolean resetPatientOrder(@Nonnull UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		PatientOrder patientOrder = findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			return false;
+
+		// Mark the intake and clinical IC screening sessions as skipped, which means their screening flows must be re-taken
+		if (patientOrder.getMostRecentIntakeScreeningSessionId() != null) {
+			getScreeningService().skipScreeningSession(new SkipScreeningSessionRequest() {{
+				setScreeningSessionId(patientOrder.getMostRecentIntakeScreeningSessionId());
+				setForceSkip(true);
+			}}, true);
+		}
+
+		if (patientOrder.getMostRecentScreeningSessionId() != null) {
+			getScreeningService().skipScreeningSession(new SkipScreeningSessionRequest() {{
+				setScreeningSessionId(patientOrder.getMostRecentScreeningSessionId());
+				setForceSkip(true);
+			}}, true);
+		}
+
+		// Undo any existing triages
+		getDatabase().execute("""
+				UPDATE patient_order_triage_group
+				SET active=FALSE
+				WHERE patient_order_id=?
+				""", patientOrder.getPatientOrderId());
+
+		// Flip back some flags to a default state
+		getDatabase().execute("""
+						UPDATE patient_order
+						SET patient_order_resourcing_status_id=?,
+						patient_order_resourcing_type_id=?,
+						patient_order_consent_status_id=?,
+						patient_order_intake_wants_services_status_id=?,
+						patient_order_intake_location_status_id=?,
+						patient_order_intake_insurance_status_id=?
+						WHERE patient_order_id=?
+						""",
+				PatientOrderResourcingStatusId.UNKNOWN,
+				PatientOrderResourcingTypeId.NONE,
+				PatientOrderConsentStatusId.UNKNOWN,
+				PatientOrderIntakeWantsServicesStatusId.UNKNOWN,
+				PatientOrderIntakeLocationStatusId.UNKNOWN,
+				PatientOrderIntakeInsuranceStatusId.UNKNOWN,
+				patientOrderId);
+
+		return true;
 	}
 
 	@Nonnull

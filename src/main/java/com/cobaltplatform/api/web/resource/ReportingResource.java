@@ -202,6 +202,8 @@ public class ReportingResource {
 						reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.IC_SAFETY_PLANNING)
 				getReportingService().runIcSafetyPlanningReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.IC_TRIAGE)
+				getReportingService().runIcTriageReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
 				getReportingService().runGroupSessionReservationEmailsReportCsv(groupSessionId.get(), reportTimeZone, reportLocale, printWriter);
 			else

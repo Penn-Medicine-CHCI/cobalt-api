@@ -682,6 +682,35 @@ public class PatientOrderResource {
 		}});
 	}
 
+
+	@Nonnull
+	@PUT("/patient-orders/{patientOrderId}/reset")
+	@AuthenticationRequired
+	public ApiResponse resetPatientOrder(@Nonnull @PathParameter UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.PATIENT_ORDER_RESET);
+
+		Account account = getCurrentContext().getAccount().get();
+		RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canResetPatientOrder(account, patientOrder))
+			throw new AuthorizationException();
+
+		getPatientOrderService().resetPatientOrder(patientOrderId);
+
+		PatientOrder updatedPatientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+		PatientOrderApiResponseFormat responseFormat = PatientOrderApiResponseFormat.fromRoleId(account.getRoleId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("patientOrder", getPatientOrderApiResponseFactory().create(updatedPatientOrder, responseFormat,
+					Set.of(PatientOrderApiResponseSupplement.EVERYTHING)));
+		}});
+	}
+
 	@Nonnull
 	@GET("/patient-orders")
 	@AuthenticationRequired

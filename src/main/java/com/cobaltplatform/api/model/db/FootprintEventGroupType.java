@@ -90,6 +90,8 @@ public class FootprintEventGroupType {
 		// Patient Order Triage Groups
 		PATIENT_ORDER_TRIAGE_GROUP_CREATE,
 		PATIENT_ORDER_TRIAGE_GROUP_RESET,
+		// Patient Order Overall Reset
+		PATIENT_ORDER_RESET,
 		// Epic Departments
 		EPIC_DEPARTMENT_UPDATE,
 		// Screening Answers
