@@ -523,6 +523,20 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canResetPatientOrder(@Nonnull Account performingAccount,
+																					 @Nonnull RawPatientOrder patientOrder) {
+		requireNonNull(performingAccount);
+		requireNonNull(patientOrder);
+
+		// An admin or MHIC at the same institution is able to reset orders for others at that institution
+		if (Objects.equals(performingAccount.getInstitutionId(), patientOrder.getInstitutionId())
+				&& (performingAccount.getRoleId() == RoleId.ADMINISTRATOR || performingAccount.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
 	public Boolean canViewTopicCenter(@Nonnull TopicCenter topicCenter,
 																		@Nonnull Account account) {
 		requireNonNull(topicCenter);
@@ -712,7 +726,7 @@ public class AuthorizationService {
 
 	@Nonnull
 	public Boolean canManageCareResources(@Nonnull InstitutionId institutionId,
-																			  @Nonnull Account account) {
+																				@Nonnull Account account) {
 		requireNonNull(institutionId);
 		requireNonNull(account);
 
@@ -739,6 +753,7 @@ public class AuthorizationService {
 
 		return false;
 	}
+
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
@@ -775,7 +790,9 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
-	protected StudyService getStudyService() { return this.studyServiceProvider.get(); }
+	protected StudyService getStudyService() {
+		return this.studyServiceProvider.get();
+	}
 
 	@Nonnull
 	protected Normalizer getNormalizer() {

@@ -179,7 +179,8 @@ public class ReportingService {
 					if (reportType.getReportTypeId() == ReportTypeId.IC_PIPELINE
 							|| reportType.getReportTypeId() == ReportTypeId.IC_OUTREACH
 							|| reportType.getReportTypeId() == ReportTypeId.IC_ASSESSMENT
-							|| reportType.getReportTypeId() == ReportTypeId.IC_SAFETY_PLANNING)
+							|| reportType.getReportTypeId() == ReportTypeId.IC_SAFETY_PLANNING
+							|| reportType.getReportTypeId() == ReportTypeId.IC_TRIAGE)
 						return accountCapabilityFlags.isCanViewIcReports();
 
 					if (reportType.getReportTypeId() == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
@@ -1079,13 +1080,14 @@ public class ReportingService {
 				  screening_session ss
 				WHERE
 				  ss.patient_order_id=po.patient_order_id
+				  AND po.institution_id=?
 				  AND ss.crisis_indicated_at >= ?
 				  AND ss.crisis_indicated_at <= ?
 				  AND po.test_patient_order=FALSE
 				  AND ss.crisis_indicated=TRUE
 				ORDER BY
 				  ss.crisis_indicated_at
-				""", IcSafetyPlanningReportRecord.class, startDateTime.atZone(reportTimeZone).toInstant(), endDateTime.atZone(reportTimeZone).toInstant());
+				""", IcSafetyPlanningReportRecord.class, institutionId, startDateTime.atZone(reportTimeZone).toInstant(), endDateTime.atZone(reportTimeZone).toInstant());
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(reportTimeZone)
@@ -1214,6 +1216,212 @@ public class ReportingService {
 
 		public void setPatientOrderSafetyPlanningStatusId(@Nullable PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId) {
 			this.patientOrderSafetyPlanningStatusId = patientOrderSafetyPlanningStatusId;
+		}
+	}
+
+	public void runIcTriageReportCsv(@Nonnull InstitutionId institutionId,
+																	 @Nonnull LocalDateTime startDateTime,
+																	 @Nonnull LocalDateTime endDateTime,
+																	 @Nonnull ZoneId reportTimeZone,
+																	 @Nonnull Locale reportLocale,
+																	 @Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		List<IcTriageReportRecord> records = getDatabase().queryForList("""
+				SELECT
+				  po.reference_number as cobalt_reference_number,
+				  po.patient_mrn as patient_mrn,
+				  po.patient_unique_id as patient_uid,
+				  po.patient_first_name,
+				  po.patient_last_name,
+				  po.most_recent_intake_screening_session_created_by_account_role_id as assessments_performed_by,
+				  po.most_recent_intake_screening_session_created_at as intake_assessment_started_at,
+				  po.most_recent_intake_screening_session_completed_at as intake_assessment_completed_at,
+				  po.most_recent_screening_session_created_at as clinical_assessment_started_at,
+				  po.most_recent_screening_session_completed_at as clinical_assessment_completed_at,
+				  po.patient_order_triage_status_id as triage
+				FROM
+				  v_all_patient_order po
+				WHERE
+				  po.institution_id=?
+				  AND po.most_recent_intake_and_clinical_screenings_satisfied=TRUE
+				  AND po.most_recent_intake_screening_session_created_at >= ?
+				  AND po.most_recent_intake_screening_session_created_at <= ?
+				  AND po.test_patient_order=FALSE
+				ORDER BY po.most_recent_intake_screening_session_created_at
+				""", IcTriageReportRecord.class, institutionId, startDateTime.atZone(reportTimeZone).toInstant(), endDateTime.atZone(reportTimeZone).toInstant());
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+				.withZone(reportTimeZone)
+				.withLocale(reportLocale);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
+			csvPrinter.printRecord(
+					getStrings().get("Cobalt Reference Number"),
+					getStrings().get("Patient {{mrnType}}", Map.of("mrnType", institution.getEpicPatientMrnTypeName())),
+					getStrings().get("Patient {{uidType}}", Map.of("uidType", institution.getEpicPatientUniqueIdType())),
+					getStrings().get("Patient First Name"),
+					getStrings().get("Patient Last Name"),
+					getStrings().get("Assessments Performed By"),
+					getStrings().get("Intake Assessment Started At"),
+					getStrings().get("Intake Assessment Completed At"),
+					getStrings().get("Clinical Assessment Started At"),
+					getStrings().get("Clinical Assessment Completed At"),
+					getStrings().get("Triage")
+			);
+
+			for (IcTriageReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(11);
+				recordElements.add(String.valueOf(record.getCobaltReferenceNumber()));
+				recordElements.add(record.getPatientMrn());
+				recordElements.add(record.getPatientUid());
+				recordElements.add(record.getPatientFirstName());
+				recordElements.add(record.getPatientLastName());
+				recordElements.add(record.getAssessmentsPerformedBy());
+				recordElements.add(record.getIntakeAssessmentStartedAt() == null ? "" : dateTimeFormatter.format(record.getIntakeAssessmentStartedAt()));
+				recordElements.add(record.getIntakeAssessmentCompletedAt() == null ? "" : dateTimeFormatter.format(record.getIntakeAssessmentCompletedAt()));
+				recordElements.add(record.getClinicalAssessmentStartedAt() == null ? "" : dateTimeFormatter.format(record.getClinicalAssessmentStartedAt()));
+				recordElements.add(record.getClinicalAssessmentCompletedAt() == null ? "" : dateTimeFormatter.format(record.getClinicalAssessmentCompletedAt()));
+				recordElements.add(record.getTriage());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@NotThreadSafe
+	protected static class IcTriageReportRecord {
+		@Nullable
+		private Long cobaltReferenceNumber;
+		@Nullable
+		private String patientMrn;
+		@Nullable
+		private String patientUid;
+		@Nullable
+		private String patientFirstName;
+		@Nullable
+		private String patientLastName;
+		@Nullable
+		private String assessmentsPerformedBy;
+		@Nullable
+		private Instant intakeAssessmentStartedAt;
+		@Nullable
+		private Instant intakeAssessmentCompletedAt;
+		@Nullable
+		private Instant clinicalAssessmentStartedAt;
+		@Nullable
+		private Instant clinicalAssessmentCompletedAt;
+		@Nullable
+		private String triage;
+
+		@Nullable
+		public Long getCobaltReferenceNumber() {
+			return this.cobaltReferenceNumber;
+		}
+
+		public void setCobaltReferenceNumber(@Nullable Long cobaltReferenceNumber) {
+			this.cobaltReferenceNumber = cobaltReferenceNumber;
+		}
+
+		@Nullable
+		public String getPatientMrn() {
+			return this.patientMrn;
+		}
+
+		public void setPatientMrn(@Nullable String patientMrn) {
+			this.patientMrn = patientMrn;
+		}
+
+		@Nullable
+		public String getPatientUid() {
+			return this.patientUid;
+		}
+
+		public void setPatientUid(@Nullable String patientUid) {
+			this.patientUid = patientUid;
+		}
+
+		@Nullable
+		public String getPatientFirstName() {
+			return this.patientFirstName;
+		}
+
+		public void setPatientFirstName(@Nullable String patientFirstName) {
+			this.patientFirstName = patientFirstName;
+		}
+
+		@Nullable
+		public String getPatientLastName() {
+			return this.patientLastName;
+		}
+
+		public void setPatientLastName(@Nullable String patientLastName) {
+			this.patientLastName = patientLastName;
+		}
+
+		@Nullable
+		public String getAssessmentsPerformedBy() {
+			return this.assessmentsPerformedBy;
+		}
+
+		public void setAssessmentsPerformedBy(@Nullable String assessmentsPerformedBy) {
+			this.assessmentsPerformedBy = assessmentsPerformedBy;
+		}
+
+		@Nullable
+		public Instant getIntakeAssessmentStartedAt() {
+			return this.intakeAssessmentStartedAt;
+		}
+
+		public void setIntakeAssessmentStartedAt(@Nullable Instant intakeAssessmentStartedAt) {
+			this.intakeAssessmentStartedAt = intakeAssessmentStartedAt;
+		}
+
+		@Nullable
+		public Instant getIntakeAssessmentCompletedAt() {
+			return this.intakeAssessmentCompletedAt;
+		}
+
+		public void setIntakeAssessmentCompletedAt(@Nullable Instant intakeAssessmentCompletedAt) {
+			this.intakeAssessmentCompletedAt = intakeAssessmentCompletedAt;
+		}
+
+		@Nullable
+		public Instant getClinicalAssessmentStartedAt() {
+			return this.clinicalAssessmentStartedAt;
+		}
+
+		public void setClinicalAssessmentStartedAt(@Nullable Instant clinicalAssessmentStartedAt) {
+			this.clinicalAssessmentStartedAt = clinicalAssessmentStartedAt;
+		}
+
+		@Nullable
+		public Instant getClinicalAssessmentCompletedAt() {
+			return this.clinicalAssessmentCompletedAt;
+		}
+
+		public void setClinicalAssessmentCompletedAt(@Nullable Instant clinicalAssessmentCompletedAt) {
+			this.clinicalAssessmentCompletedAt = clinicalAssessmentCompletedAt;
+		}
+
+		@Nullable
+		public String getTriage() {
+			return this.triage;
+		}
+
+		public void setTriage(@Nullable String triage) {
+			this.triage = triage;
 		}
 	}
 
