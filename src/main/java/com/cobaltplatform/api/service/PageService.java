@@ -209,7 +209,7 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("pageDescription", getStrings().get(format("A Description is required for Page %s.\n", page.get().getName()))));
 		if (pageImageFileUploadId == null)
 			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("An Image is required for Page %s.\n", page.get().getName()))));
-		
+
 		if (validationException.hasErrors()) {
 			metadata.put("pageId", pageId);
 		}
@@ -1965,6 +1965,14 @@ public class PageService {
 						(page_row_id, tag_group_id)
 						SELECT ?, tag_group_id
 						FROM page_row_tag_group
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_tag
+						(page_row_id, tag_id)
+						SELECT ?, tag_id
+						FROM page_row_tag
 						WHERE page_row_id=?
 						""", newPageRowId, pageRow.getPageRowId());
 			}
