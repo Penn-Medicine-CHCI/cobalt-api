@@ -337,6 +337,32 @@ public class CourseService {
 	}
 
 	@Nonnull
+	public Map<UUID, CourseUnitLockStatus> determineDefaultCourseUnitLockStatusesByCourseUnitId(@Nullable UUID courseId) {
+		if (courseId == null)
+			return Map.of();
+
+		List<CourseUnit> courseUnits = findCourseUnitsByCourseId(courseId);
+		List<CourseUnitDependency> courseUnitDependencies = findCourseUnitDependenciesByCourseId(courseId);
+
+		// Determine locks per course unit based on dependencies + completion status
+		Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId = new HashMap<>();
+
+		for (CourseUnit courseUnit : courseUnits) {
+			Map<CourseUnitDependencyTypeId, List<UUID>> determinantCourseUnitIdsByDependencyTypeIds = new HashMap<>();
+			List<CourseUnitDependency> applicableCourseUnitDependencies = courseUnitDependencies.stream()
+					.filter(courseUnitDependency -> courseUnitDependency.getDependentCourseUnitId().equals(courseUnit.getCourseUnitId()))
+					.collect(Collectors.toUnmodifiableList());
+
+			for (CourseUnitDependency courseUnitDependency : applicableCourseUnitDependencies)
+				determinantCourseUnitIdsByDependencyTypeIds.computeIfAbsent(courseUnitDependency.getCourseUnitDependencyTypeId(), cudti -> new ArrayList<>()).add(courseUnitDependency.getDeterminantCourseUnitId());
+
+			courseUnitLockStatusesByCourseUnitId.put(courseUnit.getCourseUnitId(), new CourseUnitLockStatus(determinantCourseUnitIdsByDependencyTypeIds));
+		}
+
+		return courseUnitLockStatusesByCourseUnitId;
+	}
+
+	@Nonnull
 	public Map<UUID, CourseUnitLockStatus> determineCourseUnitLockStatusesByCourseUnitId(@Nullable List<CourseUnit> courseUnits,
 																																											 @Nullable List<CourseSessionUnit> courseSessionUnits,
 																																											 @Nullable List<CourseUnitDependency> courseUnitDependencies) {

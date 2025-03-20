@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
@@ -80,6 +81,8 @@ public class CourseApiResponse {
 	private final CourseSessionApiResponse currentCourseSession;
 	@Nullable
 	private final List<VideoApiResponse> videos;
+	@Nullable
+	private final Map<UUID, CourseUnitLockStatus> defaultCourseUnitLockStatusesByCourseUnitId;
 
 	public enum CourseApiResponseType {
 		LIST,
@@ -150,10 +153,13 @@ public class CourseApiResponse {
 			this.videos = courseService.findVideosByCourseId(course.getCourseId()).stream()
 					.map(video -> videoApiResponseFactory.create(video))
 					.collect(Collectors.toList());
+
+			this.defaultCourseUnitLockStatusesByCourseUnitId = courseService.determineDefaultCourseUnitLockStatusesByCourseUnitId(course.getCourseId());
 		} else {
 			this.courseModules = null;
 			this.currentCourseSession = null;
 			this.videos = null;
+			this.defaultCourseUnitLockStatusesByCourseUnitId = null;
 		}
 	}
 
@@ -220,5 +226,10 @@ public class CourseApiResponse {
 	@Nonnull
 	public Optional<List<VideoApiResponse>> getVideos() {
 		return Optional.ofNullable(this.videos);
+	}
+
+	@Nonnull
+	public Optional<Map<UUID, CourseUnitLockStatus>> getDefaultCourseUnitLockStatusesByCourseUnitId() {
+		return Optional.ofNullable(this.defaultCourseUnitLockStatusesByCourseUnitId);
 	}
 }
