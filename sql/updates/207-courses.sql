@@ -26,7 +26,6 @@ CREATE TABLE course_module (
 	course_module_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	course_id UUID NOT NULL REFERENCES course,
 	title TEXT NOT NULL,
-	estimated_completion_time_in_minutes INTEGER,
 	display_order INTEGER NOT NULL,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -109,6 +108,7 @@ CREATE TABLE course_unit (
 	course_unit_type_id TEXT NOT NULL REFERENCES course_unit_type,
 	title TEXT NOT NULL,
 	description TEXT, -- Can include HTML
+	estimated_completion_time_in_minutes INTEGER,
 	display_order INTEGER NOT NULL, -- Order within the module
 	video_id UUID REFERENCES video, -- Only applies to VIDEO course_unit_type_id
 	screening_flow_id UUID REFERENCES screening_flow, -- Only applies to units that include questions and answers, e.g. QUIZ course_unit_type_id

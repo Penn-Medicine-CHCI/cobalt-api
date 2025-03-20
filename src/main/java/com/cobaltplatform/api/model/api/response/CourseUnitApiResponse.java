@@ -30,6 +30,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,6 +51,10 @@ public class CourseUnitApiResponse {
 	private final String title;
 	@Nullable
 	private final String description;
+	@Nullable
+	private final Integer estimatedCompletionTimeInMinutes;
+	@Nullable
+	private final String estimatedCompletionTimeInMinutesDescription;
 	@Nullable
 	private final UUID videoId;
 	@Nullable
@@ -85,6 +90,9 @@ public class CourseUnitApiResponse {
 		this.courseModuleId = courseUnit.getCourseModuleId();
 		this.title = courseUnit.getTitle();
 		this.description = courseUnit.getDescription();
+		this.estimatedCompletionTimeInMinutes = courseUnit.getEstimatedCompletionTimeInMinutes();
+		this.estimatedCompletionTimeInMinutesDescription = this.estimatedCompletionTimeInMinutes == null ? null
+				: strings.get("{{duration}} minutes", Map.of("duration", this.estimatedCompletionTimeInMinutes));
 		this.videoId = courseUnit.getVideoId();
 		this.screeningFlowId = courseUnit.getScreeningFlowId();
 		this.imageUrl = courseUnit.getImageUrl();
@@ -115,6 +123,16 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public Optional<String> getDescription() {
 		return Optional.ofNullable(this.description);
+	}
+
+	@Nonnull
+	public Optional<Integer> getEstimatedCompletionTimeInMinutes() {
+		return Optional.ofNullable(this.estimatedCompletionTimeInMinutes);
+	}
+
+	@Nonnull
+	public Optional<String> getEstimatedCompletionTimeInMinutesDescription() {
+		return Optional.ofNullable(this.estimatedCompletionTimeInMinutesDescription);
 	}
 
 	@Nonnull

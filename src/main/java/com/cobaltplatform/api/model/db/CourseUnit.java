@@ -42,6 +42,8 @@ public class CourseUnit {
 	@Nullable
 	private String description;
 	@Nullable
+	private Integer estimatedCompletionTimeInMinutes;
+	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private UUID videoId; // Only applies to VIDEO course_unit_type_id
@@ -97,6 +99,15 @@ public class CourseUnit {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public Integer getEstimatedCompletionTimeInMinutes() {
+		return this.estimatedCompletionTimeInMinutes;
+	}
+
+	public void setEstimatedCompletionTimeInMinutes(@Nullable Integer estimatedCompletionTimeInMinutes) {
+		this.estimatedCompletionTimeInMinutes = estimatedCompletionTimeInMinutes;
 	}
 
 	@Nullable

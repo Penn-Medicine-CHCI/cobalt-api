@@ -83,11 +83,21 @@ public class CourseModuleApiResponse {
 		requireNonNull(courseModule);
 		requireNonNull(courseUnits);
 
+		// Sum each unit's estimated completion time to determine overall module completion time
+		Integer estimatedCompletionTimeInMinutes = 0;
+
+		for (CourseUnit courseUnit : courseUnits)
+			if (courseUnit.getEstimatedCompletionTimeInMinutes() != null)
+				estimatedCompletionTimeInMinutes += courseUnit.getEstimatedCompletionTimeInMinutes();
+
+		if (estimatedCompletionTimeInMinutes == 0)
+			estimatedCompletionTimeInMinutes = null;
+
 		this.courseModuleId = courseModule.getCourseModuleId();
 		this.title = courseModule.getTitle();
-		this.estimatedCompletionTimeInMinutes = courseModule.getEstimatedCompletionTimeInMinutes();
-		this.estimatedCompletionTimeInMinutesDescription = this.estimatedCompletionTimeInMinutes == null ? null
-				: strings.get("{{duration}} minutes", Map.of("duration", this.estimatedCompletionTimeInMinutes));
+		this.estimatedCompletionTimeInMinutes = estimatedCompletionTimeInMinutes;
+		this.estimatedCompletionTimeInMinutesDescription = estimatedCompletionTimeInMinutes == null ? null
+				: strings.get("{{duration}} minutes", Map.of("duration", estimatedCompletionTimeInMinutes));
 		this.created = courseModule.getCreated();
 		this.createdDescription = formatter.formatTimestamp(courseModule.getCreated());
 		this.lastUpdated = courseModule.getLastUpdated();
