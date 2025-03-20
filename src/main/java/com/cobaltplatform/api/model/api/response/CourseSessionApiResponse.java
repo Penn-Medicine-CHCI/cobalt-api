@@ -106,7 +106,7 @@ public class CourseSessionApiResponse {
 		List<CourseUnitDependency> courseUnitDependencies = courseService.findCourseUnitDependenciesByCourseId(courseSession.getCourseId());
 
 		Map<UUID, CourseSessionUnit> courseSessionUnitsByCourseUnitId = courseSessionUnits.stream()
-				.collect(Collectors.toMap(CourseSessionUnit::getCourseSessionId, Function.identity()));
+				.collect(Collectors.toMap(CourseSessionUnit::getCourseUnitId, Function.identity()));
 
 		// Calculate and expose our dependencies so we know which units are locked
 		this.courseUnitLockStatusesByCourseUnitId = courseService.determineCourseUnitLockStatusesByCourseUnitId(courseUnits, courseSessionUnits, courseUnitDependencies);
