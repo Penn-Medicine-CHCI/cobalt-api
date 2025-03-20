@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnit
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitDependency;
 import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDependencyTypeId;
+import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Video;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
@@ -55,6 +56,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -398,6 +400,25 @@ public class CourseService {
 		}
 
 		return courseUnitLockStatusesByCourseUnitId;
+	}
+
+	@Nonnull
+	public String determineCourseUnitTypeIdDescription(@Nonnull CourseUnitTypeId courseUnitTypeId) {
+		requireNonNull(courseUnitTypeId);
+
+		if (courseUnitTypeId == CourseUnitTypeId.QUIZ
+				|| courseUnitTypeId == CourseUnitTypeId.CARD_SORT
+				|| courseUnitTypeId == CourseUnitTypeId.REORDER)
+			return getStrings().get("Activity");
+
+		if (courseUnitTypeId == CourseUnitTypeId.VIDEO)
+			return getStrings().get("Video");
+
+		if (courseUnitTypeId == CourseUnitTypeId.INFOGRAPHIC
+				|| courseUnitTypeId == CourseUnitTypeId.HOMEWORK)
+			return getStrings().get("Info");
+
+		throw new UnsupportedOperationException(format("Unexpected value: %s.%s", CourseUnitTypeId.class.getSimpleName(), courseUnitTypeId.name()));
 	}
 
 	@Nonnull

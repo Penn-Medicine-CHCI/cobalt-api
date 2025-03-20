@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
+import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -45,6 +46,8 @@ public class CourseUnitApiResponse {
 	private final UUID courseUnitId;
 	@Nonnull
 	private final CourseUnitTypeId courseUnitTypeId;
+	@Nonnull
+	private final String courseUnitTypeIdDescription;
 	@Nonnull
 	private final UUID courseModuleId;
 	@Nonnull
@@ -78,15 +81,18 @@ public class CourseUnitApiResponse {
 	}
 
 	@AssistedInject
-	public CourseUnitApiResponse(@Nonnull Formatter formatter,
+	public CourseUnitApiResponse(@Nonnull CourseService courseService,
+															 @Nonnull Formatter formatter,
 															 @Nonnull Strings strings,
 															 @Assisted @Nonnull CourseUnit courseUnit) {
+		requireNonNull(courseService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(courseUnit);
 
 		this.courseUnitId = courseUnit.getCourseUnitId();
 		this.courseUnitTypeId = courseUnit.getCourseUnitTypeId();
+		this.courseUnitTypeIdDescription = courseService.determineCourseUnitTypeIdDescription(courseUnit.getCourseUnitTypeId());
 		this.courseModuleId = courseUnit.getCourseModuleId();
 		this.title = courseUnit.getTitle();
 		this.description = courseUnit.getDescription();
@@ -113,6 +119,16 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public UUID getCourseModuleId() {
 		return this.courseModuleId;
+	}
+
+	@Nonnull
+	public CourseUnitTypeId getCourseUnitTypeId() {
+		return this.courseUnitTypeId;
+	}
+	
+	@Nonnull
+	public String getCourseUnitTypeIdDescription() {
+		return this.courseUnitTypeIdDescription;
 	}
 
 	@Nonnull
@@ -168,10 +184,5 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public String getLastUpdatedDescription() {
 		return this.lastUpdatedDescription;
-	}
-
-	@Nonnull
-	public CourseUnitTypeId getCourseUnitTypeId() {
-		return this.courseUnitTypeId;
 	}
 }
