@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.service.FeedbackTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -28,9 +30,20 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class FeedbackRequest {
 	@Nullable
+	private FeedbackTypeId feedbackTypeId;
+	@Nullable
 	private String feedback;
 	@Nullable
 	private String emailAddress;
+
+	@Nullable
+	public FeedbackTypeId getFeedbackTypeId() {
+		return this.feedbackTypeId;
+	}
+
+	public void setFeedbackTypeId(@Nullable FeedbackTypeId feedbackTypeId) {
+		this.feedbackTypeId = feedbackTypeId;
+	}
 
 	public String getFeedback() {
 		return feedback;

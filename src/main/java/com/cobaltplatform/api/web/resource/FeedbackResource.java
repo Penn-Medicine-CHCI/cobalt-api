@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.FeedbackRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FeedbackContact;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FeedbackTypeId;
 import com.cobaltplatform.api.service.MessageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
@@ -94,6 +95,7 @@ public class FeedbackResource {
 		FeedbackRequest feedbackRequest = getRequestBodyParser().parse(body, FeedbackRequest.class);
 		Account account = getCurrentContext().getAccount().get();
 
+		FeedbackTypeId feedbackTypeId = feedbackRequest.getFeedbackTypeId();
 		String feedback = trimToNull(feedbackRequest.getFeedback());
 		String emailAddress = trimToNull(feedbackRequest.getEmailAddress());
 
@@ -107,6 +109,11 @@ public class FeedbackResource {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		if(feedbackTypeId == null)
+			feedbackTypeId = FeedbackTypeId.OTHER;
+
+		feedback = format("Reason for contacting: %s\n\n%s", feedbackTypeId.name(), feedback);
 
 		List<FeedbackContact> contacts = getDatabase().queryForList("SELECT * from feedback_contact WHERE institution_id = ? AND active = ?",
 				FeedbackContact.class, account.getInstitutionId(), true);
