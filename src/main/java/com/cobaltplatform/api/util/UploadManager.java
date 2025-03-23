@@ -161,7 +161,7 @@ public class UploadManager {
 				.getObjectRequest(getObjectRequest)
 				.build();
 
-		PresignedGetObjectRequest presignedGetObjectRequest = s3Presigner.presignGetObject(getObjectPresignRequest);
+		PresignedGetObjectRequest presignedGetObjectRequest = getS3Presigner().presignGetObject(getObjectPresignRequest);
 		return presignedGetObjectRequest.url().toString();
 	}
 
