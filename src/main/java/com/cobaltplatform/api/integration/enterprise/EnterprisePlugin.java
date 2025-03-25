@@ -50,6 +50,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.CallToAction;
 import com.cobaltplatform.api.model.service.CallToActionDisplayAreaId;
 
@@ -244,5 +245,13 @@ public interface EnterprisePlugin {
 		// This method gives you a hook to perform any customization needed.
 		//
 		// No-op by default.
+	}
+
+	// Institutions might want to tweak how a tag is displayed, e.g. change its name.
+	// We support that here instead of data-driving.
+	// If this is a more common scenario we might want to data-drive (e.g. a v_tag concept) in the future.
+	default Tag applyCustomizationsToTag(@Nonnull Tag tag) {
+		requireNonNull(tag);
+		return tag;
 	}
 }
