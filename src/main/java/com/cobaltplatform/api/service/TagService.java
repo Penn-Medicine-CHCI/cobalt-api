@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.db.TagContent;
@@ -36,15 +39,19 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.text.Collator;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -54,6 +61,10 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class TagService {
+	@Nonnull
+	private final Provider<CurrentContext> currentContextProvider;
+	@Nonnull
+	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
@@ -66,11 +77,17 @@ public class TagService {
 	private final Logger logger;
 
 	@Inject
-	public TagService(@Nonnull DatabaseProvider databaseProvider,
+	public TagService(@Nonnull Provider<CurrentContext> currentContextProvider,
+										@Nonnull EnterprisePluginProvider enterprisePluginProvider,
+										@Nonnull DatabaseProvider databaseProvider,
 										@Nonnull Strings strings) {
+		requireNonNull(currentContextProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 
+		this.currentContextProvider = currentContextProvider;
+		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
@@ -93,12 +110,12 @@ public class TagService {
 		if (tagId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM tag WHERE tag_id=?", Tag.class, tagId);
+		return applyCustomizationToTag(getDatabase().queryForObject("SELECT * FROM tag WHERE tag_id=?", Tag.class, tagId).orElse(null));
 	}
 
 	@Nonnull
 	public List<Tag> findTags() {
-		return getDatabase().queryForList("SELECT * FROM tag ORDER BY name", Tag.class);
+		return applyCustomizationToTags(getDatabase().queryForList("SELECT * FROM tag ORDER BY name", Tag.class));
 	}
 
 	@Nonnull
@@ -106,12 +123,12 @@ public class TagService {
 		if (tagGroupId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("""
+		return applyCustomizationToTags(getDatabase().queryForList("""
 				SELECT *
 				FROM tag
 				WHERE tag_group_id=?
 				ORDER BY tag.name
-				""", Tag.class, tagGroupId);
+				""", Tag.class, tagGroupId));
 	}
 
 	@Nonnull
@@ -129,7 +146,7 @@ public class TagService {
 
 		// Currently we don't have institution-specific tags.
 		// But this method accepts an institution ID in case we do in the future...
-		return getDatabase().queryForList("SELECT * FROM tag ORDER BY name", Tag.class);
+		return applyCustomizationToTags(getDatabase().queryForList("SELECT * FROM tag ORDER BY name", Tag.class));
 	}
 
 	@Nonnull
@@ -146,13 +163,14 @@ public class TagService {
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
-    		SELECT tg.* 
-    		FROM tag_group tg, tag t 
-    		WHERE tg.tag_group_id=t.tag_group_id
-    		AND t.tag_id=?
+				SELECT tg.*
+				FROM tag_group tg, tag t
+				WHERE tg.tag_group_id=t.tag_group_id
+				AND t.tag_id=?
 				""", TagGroup.class, tagId);
 
 	}
+
 	@Nonnull
 	protected List<TagGroup> findUncachedTagGroupsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
@@ -191,7 +209,7 @@ public class TagService {
 		if (contentId == null || institutionId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("""
+		return applyCustomizationToTags(getDatabase().queryForList("""
 				    SELECT t.*
 				    FROM tag t, tag_content tc, institution_content ic
 				    WHERE tc.tag_id=t.tag_id
@@ -199,7 +217,7 @@ public class TagService {
 				    AND tc.content_id=?
 				    AND ic.institution_id=?
 				    ORDER BY t.name
-				""", Tag.class, contentId, institutionId);
+				""", Tag.class, contentId, institutionId));
 	}
 
 	@Nonnull
@@ -210,7 +228,7 @@ public class TagService {
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM tag_content tc, institution_content ic
-				WHERE tc.content_id = ic.content_id 
+				WHERE tc.content_id = ic.content_id
 				AND ic.institution_id=?
 				""", TagContent.class, institutionId);
 	}
@@ -221,14 +239,14 @@ public class TagService {
 		if (groupSessionId == null || institutionId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("""
+		return applyCustomizationToTags(getDatabase().queryForList("""
 				    SELECT t.*
 				    FROM tag t, tag_group_session tgs
 				    WHERE tgs.tag_id=t.tag_id
 				    AND tgs.group_session_id=?
 				    AND tgs.institution_id=?
 				    ORDER BY t.name
-				""", Tag.class, groupSessionId, institutionId);
+				""", Tag.class, groupSessionId, institutionId));
 	}
 
 	@Nonnull
@@ -248,12 +266,45 @@ public class TagService {
 		if (screeningSessionId == null)
 			return List.of();
 
-		return getDatabase().queryForList("""
+		return applyCustomizationToTags(getDatabase().queryForList("""
 				    SELECT t.*
 				    FROM tag t, tag_screening_session tss
 				    WHERE tss.tag_id=t.tag_id
 				    AND tss.screening_session_id=?
-				""", Tag.class, screeningSessionId);
+				""", Tag.class, screeningSessionId));
+	}
+
+	@Nonnull
+	protected Optional<Tag> applyCustomizationToTag(@Nullable Tag tag) {
+		if (tag == null)
+			return null;
+
+		return Optional.of(getEnterprisePluginProvider().enterprisePluginForCurrentInstitution().applyCustomizationsToTag(tag));
+	}
+
+	@Nonnull
+	protected List<Tag> applyCustomizationToTags(@Nullable Collection<Tag> tags) {
+		if (tags == null)
+			return List.of();
+
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
+		Collator collator = Collator.getInstance(getCurrentContext().getLocale());
+
+		// We need to apply our own sorting here; the tag's name might have been changed by the institution which would break "ORDER BY name"
+		return tags.stream()
+				.map(tag -> enterprisePlugin.applyCustomizationsToTag(tag))
+				.sorted((tag1, tag2) -> collator.compare(tag1.getName(), tag2.getName()))
+				.collect(Collectors.toList());
+	}
+
+	@Nonnull
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected EnterprisePluginProvider getEnterprisePluginProvider() {
+		return this.enterprisePluginProvider;
 	}
 
 	@Nonnull

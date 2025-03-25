@@ -22,6 +22,7 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
@@ -34,6 +35,8 @@ import javax.inject.Singleton;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -72,5 +75,18 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Nonnull
 	protected ContentService getContentService() {
 		return this.contentService;
+	}
+
+	@Override
+	public Tag applyCustomizationsToTag(@Nonnull Tag tag) {
+		requireNonNull(tag);
+
+		// Show how we might override tag display
+		if ("Physical Health".equals(tag.getName())) {
+			tag.setName("Example Tag Override");
+			tag.setDescription("Example Tag description override");
+		}
+
+		return tag;
 	}
 }
