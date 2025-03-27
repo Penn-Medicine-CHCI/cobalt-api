@@ -31,6 +31,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -54,6 +55,8 @@ public class ScreeningQuestionApiResponse {
 	private final String introText;
 	@Nonnull
 	private final String questionText;
+	@Nullable
+	private final String supplementText;
 	@Nullable
 	private final String footerText;
 	@Nonnull
@@ -90,6 +93,7 @@ public class ScreeningQuestionApiResponse {
 		this.screeningAnswerContentHintId = screeningQuestion.getScreeningAnswerContentHintId();
 		this.screeningQuestionSubmissionStyleId = screeningQuestion.getScreeningQuestionSubmissionStyleId();
 		this.questionText = screeningQuestion.getQuestionText();
+		this.supplementText = screeningQuestion.getSupplementText();
 		this.introText = screeningQuestion.getIntroText();
 		this.footerText = screeningQuestion.getFooterText();
 		this.minimumAnswerCount = screeningQuestion.getMinimumAnswerCount();
@@ -125,9 +129,9 @@ public class ScreeningQuestionApiResponse {
 		return this.screeningQuestionSubmissionStyleId;
 	}
 
-	@Nullable
-	public String getIntroText() {
-		return this.introText;
+	@Nonnull
+	public Optional<String> getIntroText() {
+		return Optional.ofNullable(this.introText);
 	}
 
 	@Nonnull
@@ -135,9 +139,14 @@ public class ScreeningQuestionApiResponse {
 		return this.questionText;
 	}
 
-	@Nullable
-	public String getFooterText() {
-		return this.footerText;
+	@Nonnull
+	public Optional<String> getSupplementText() {
+		return Optional.ofNullable(this.supplementText);
+	}
+
+	@Nonnull
+	public Optional<String> getFooterText() {
+		return Optional.ofNullable(this.footerText);
 	}
 
 	@Nonnull

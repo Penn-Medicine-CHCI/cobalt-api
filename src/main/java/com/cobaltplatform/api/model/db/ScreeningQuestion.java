@@ -68,6 +68,8 @@ public class ScreeningQuestion {
 	@Nullable
 	private String questionText;
 	@Nullable
+	private String supplementText;
+	@Nullable
 	private String footerText;
 	@Nullable
 	private Integer minimumAnswerCount;
@@ -180,6 +182,15 @@ public class ScreeningQuestion {
 
 	public void setQuestionText(@Nullable String questionText) {
 		this.questionText = questionText;
+	}
+
+	@Nullable
+	public String getSupplementText() {
+		return this.supplementText;
+	}
+
+	public void setSupplementText(@Nullable String supplementText) {
+		this.supplementText = supplementText;
 	}
 
 	@Nullable

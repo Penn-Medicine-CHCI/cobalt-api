@@ -74,6 +74,9 @@ INSERT INTO screening_question_submission_style VALUES ('SUBMIT', 'Submit');
 
 ALTER TABLE screening_question ADD COLUMN screening_question_submission_style_id TEXT NOT NULL REFERENCES screening_question_submission_style DEFAULT 'NEXT';
 
+-- For optional display under the question text, e.g. "Pick 3"
+ALTER TABLE screening_question ADD COLUMN supplement_text TEXT;
+
 -- Video vendors, e.g. Kaltura or YouTube
 CREATE TABLE video_vendor (
 	video_vendor_id TEXT PRIMARY KEY,

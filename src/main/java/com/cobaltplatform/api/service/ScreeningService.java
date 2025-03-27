@@ -1248,6 +1248,9 @@ public class ScreeningService {
 			this.questionResultsByScreeningAnswerOptionId = Collections.unmodifiableMap(new HashMap<>(questionResultsByScreeningAnswerOptionId));
 		}
 
+		// Color of the border to draw around the answer option.
+		// "DEFAULT" means the user didn't answer.
+		// Other values mean that the user answered.
 		public enum CreateScreeningAnswersDisplayTypeId {
 			DEFAULT,
 			PRIMARY,
@@ -1260,6 +1263,7 @@ public class ScreeningService {
 			LIGHT
 		}
 
+		// Correctness is independent of what the user answered - an answer option is either correct or not.
 		public enum CreateScreeningAnswersCorrectnessIndicatorId {
 			CORRECT,
 			INCORRECT
@@ -1878,9 +1882,6 @@ public class ScreeningService {
 
 			// Course session specific completion handling
 			if (screeningSession.getCourseSessionId() != null) {
-				System.out.println("getOptionalCourseModuleIdsToSet: " + orchestrationFunctionOutput.getOptionalCourseModuleIdsToSet());
-				System.out.println("getOptionalCourseModuleIdsToClear: " + orchestrationFunctionOutput.getOptionalCourseModuleIdsToClear());
-
 				// If the orchestration function says that we have course modules to mark as optional for the current course session, then do so
 				if (orchestrationFunctionOutput.getOptionalCourseModuleIdsToSet() != null
 						&& orchestrationFunctionOutput.getOptionalCourseModuleIdsToSet().size() > 0) {
