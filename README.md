@@ -30,7 +30,7 @@ This script creates and runs transient Docker containers that stand up Localstac
 
 You will first need to download the [cobalt-local-configuration](https://drive.google.com/file/d/1Aq-Pbskogp7Chrmvvjis9KTovfHxFYTU/view?usp=sharing) file and place it in the `localstack/secrets` directory.
 
-To get the full seed dataset, you'll want to download the latest `bootstrap.sql` file from [Google Drive](https://drive.google.com/file/d/18E1lzCzJO-O0winObqKYom3L1v2qWm6b/view?usp=drive_link) and place it in `sql/initial/bootstrap.sql`.  This is helpful but not strictly required to run the backend.
+To get the full seed dataset, you'll want to download the latest `bootstrap.sql` file from [Google Drive](https://drive.google.com/file/d/1KFeZrvowjUIKzKjLZDB4wiNrpY2HSQ2j/view?usp=drive_link) and place it in `sql/initial/bootstrap.sql`.  This is helpful but not strictly required to run the backend.
 
 ```
 cobalt-api$ ./bootstrap

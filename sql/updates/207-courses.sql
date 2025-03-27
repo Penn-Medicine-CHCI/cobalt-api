@@ -59,6 +59,21 @@ INSERT INTO screening_answer_format (screening_answer_format_id, description) VA
 -- Indicates we want the UI to constrain `FREEFORM_TEXT` input to integer values
 INSERT INTO screening_answer_content_hint (screening_answer_content_hint_id, description) VALUES ('INTEGER', 'Integer');
 
+-- Give a hint to the UI that if possible, we'd like to autosubmit the answer[s] to this screening question
+-- as soon as they are valid (e.g. for SINGLE_SELECT where maximum_answer_count=1, submit as soon as there is 1 answer)
+ALTER TABLE screening_question ADD COLUMN prefer_autosubmit BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Some screening questions have a "next" button, some have a "submit" button (and styling differences in the UI)
+CREATE TABLE screening_question_submission_style (
+	screening_question_submission_style_id TEXT PRIMARY KEY,
+  description VARCHAR NOT NULL
+);
+
+INSERT INTO screening_question_submission_style VALUES ('NEXT', 'Next');
+INSERT INTO screening_question_submission_style VALUES ('SUBMIT', 'Submit');
+
+ALTER TABLE screening_question ADD COLUMN screening_question_submission_style_id TEXT NOT NULL REFERENCES screening_question_submission_style DEFAULT 'NEXT';
+
 -- Video vendors, e.g. Kaltura or YouTube
 CREATE TABLE video_vendor (
 	video_vendor_id TEXT PRIMARY KEY,

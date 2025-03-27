@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
+import com.cobaltplatform.api.model.db.ScreeningQuestionSubmissionStyle.ScreeningQuestionSubmissionStyleId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -47,6 +48,8 @@ public class ScreeningQuestionApiResponse {
 	private final ScreeningAnswerFormatId screeningAnswerFormatId;
 	@Nonnull
 	private final ScreeningAnswerContentHintId screeningAnswerContentHintId;
+	@Nonnull
+	private final ScreeningQuestionSubmissionStyleId screeningQuestionSubmissionStyleId;
 	@Nullable
 	private final String introText;
 	@Nonnull
@@ -61,6 +64,8 @@ public class ScreeningQuestionApiResponse {
 	private final Integer maximumAnswerCount;
 	@Nonnull
 	private final String maximumAnswerCountDescription;
+	@Nonnull
+	private final Boolean preferAutosubmit;
 	@Nonnull
 	private final Integer displayOrder;
 
@@ -83,6 +88,7 @@ public class ScreeningQuestionApiResponse {
 		this.screeningVersionId = screeningQuestion.getScreeningVersionId();
 		this.screeningAnswerFormatId = screeningQuestion.getScreeningAnswerFormatId();
 		this.screeningAnswerContentHintId = screeningQuestion.getScreeningAnswerContentHintId();
+		this.screeningQuestionSubmissionStyleId = screeningQuestion.getScreeningQuestionSubmissionStyleId();
 		this.questionText = screeningQuestion.getQuestionText();
 		this.introText = screeningQuestion.getIntroText();
 		this.footerText = screeningQuestion.getFooterText();
@@ -90,6 +96,7 @@ public class ScreeningQuestionApiResponse {
 		this.minimumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMinimumAnswerCount());
 		this.maximumAnswerCount = screeningQuestion.getMaximumAnswerCount();
 		this.maximumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMaximumAnswerCount());
+		this.preferAutosubmit = screeningQuestion.getPreferAutosubmit();
 		this.displayOrder = screeningQuestion.getDisplayOrder();
 	}
 
@@ -111,6 +118,11 @@ public class ScreeningQuestionApiResponse {
 	@Nonnull
 	public ScreeningAnswerContentHintId getScreeningAnswerContentHintId() {
 		return this.screeningAnswerContentHintId;
+	}
+
+	@Nonnull
+	public ScreeningQuestionSubmissionStyleId getScreeningQuestionSubmissionStyleId() {
+		return this.screeningQuestionSubmissionStyleId;
 	}
 
 	@Nullable
@@ -146,6 +158,11 @@ public class ScreeningQuestionApiResponse {
 	@Nonnull
 	public String getMaximumAnswerCountDescription() {
 		return this.maximumAnswerCountDescription;
+	}
+
+	@Nonnull
+	public Boolean getPreferAutosubmit() {
+		return this.preferAutosubmit;
 	}
 
 	@Nonnull

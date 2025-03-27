@@ -45,6 +45,10 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
+import com.cobaltplatform.api.model.db.CourseSession;
+import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
+import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
+import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
@@ -98,6 +102,8 @@ import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnsw
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionScreeningWithType;
+import com.cobaltplatform.api.service.ScreeningService.CreateScreeningAnswersResult.CreateScreeningAnswersMessage;
+import com.cobaltplatform.api.service.ScreeningService.CreateScreeningAnswersResult.CreateScreeningAnswersQuestionResult;
 import com.cobaltplatform.api.service.ScreeningService.ResultsFunctionOutput.SupportRoleRecommendation;
 import com.cobaltplatform.api.util.JavascriptExecutionException;
 import com.cobaltplatform.api.util.JavascriptExecutor;
@@ -108,6 +114,7 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.pyranid.DatabaseException;
+import com.pyranid.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,6 +125,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.sql.Savepoint;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -161,6 +169,8 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<GroupSessionService> groupSessionServiceProvider;
 	@Nonnull
+	private final Provider<CourseService> courseServiceProvider;
+	@Nonnull
 	private final Provider<AuthorizationService> authorizationServiceProvider;
 	@Nonnull
 	private final Provider<MessageService> messageServiceProvider;
@@ -193,6 +203,7 @@ public class ScreeningService {
 													@Nonnull Provider<AccountService> accountServiceProvider,
 													@Nonnull Provider<PatientOrderService> patientOrderServiceProvider,
 													@Nonnull Provider<GroupSessionService> groupSessionServiceProvider,
+													@Nonnull Provider<CourseService> courseServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Provider<MessageService> messageServiceProvider,
 													@Nonnull Provider<CurrentContext> currentContextProvider,
@@ -210,6 +221,7 @@ public class ScreeningService {
 		requireNonNull(accountServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
+		requireNonNull(courseServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(messageServiceProvider);
 		requireNonNull(currentContextProvider);
@@ -228,6 +240,7 @@ public class ScreeningService {
 		this.accountServiceProvider = accountServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.groupSessionServiceProvider = groupSessionServiceProvider;
+		this.courseServiceProvider = courseServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
 		this.currentContextProvider = currentContextProvider;
@@ -678,6 +691,7 @@ public class ScreeningService {
 		UUID screeningFlowVersionId = request.getScreeningFlowVersionId();
 		UUID patientOrderId = request.getPatientOrderId();
 		UUID groupSessionId = request.getGroupSessionId();
+		UUID courseSessionId = request.getCourseSessionId();
 		UUID accountCheckInActionId = request.getAccountCheckInActionId();
 		ScreeningFlowVersion screeningFlowVersion = null;
 		Account targetAccount = null;
@@ -802,12 +816,13 @@ public class ScreeningService {
 								created_by_account_id,
 								patient_order_id,
 								group_session_id,
+								course_session_id,
 								account_check_in_action_id,
 								metadata
 							)
-							VALUES (?,?,?,?,?,?,?,CAST(? AS JSONB))
+							VALUES (?,?,?,?,?,?,?,?,CAST(? AS JSONB))
 							""", screeningSessionId, screeningFlowVersion.getScreeningFlowVersionId(), targetAccountId, createdByAccountId,
-					patientOrderId, groupSessionId, accountCheckInActionId, metadataAsJson);
+					patientOrderId, groupSessionId, courseSessionId, accountCheckInActionId, metadataAsJson);
 		} catch (DatabaseException e) {
 			getErrorReporter().report(e);
 			getLogger().error(format("Unable to create screening session for screeningFlowVersion %s and accountCheckInActionId %s", screeningFlowVersion.getScreeningFlowVersionId(), accountCheckInActionId), e);
@@ -1219,18 +1234,18 @@ public class ScreeningService {
 		@Nonnull
 		private final List<CreateScreeningAnswersMessage> messages;
 		@Nonnull
-		private final Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningQuestionId;
+		private final Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningAnswerOptionId;
 
 		public CreateScreeningAnswersResult(@Nonnull List<UUID> screeningAnswerIds,
 																				@Nonnull List<CreateScreeningAnswersMessage> messages,
-																				@Nonnull Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningQuestionId) {
+																				@Nonnull Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningAnswerOptionId) {
 			requireNonNull(screeningAnswerIds);
 			requireNonNull(messages);
-			requireNonNull(questionResultsByScreeningQuestionId);
+			requireNonNull(questionResultsByScreeningAnswerOptionId);
 
 			this.screeningAnswerIds = Collections.unmodifiableList(new ArrayList<>(screeningAnswerIds));
 			this.messages = Collections.unmodifiableList(new ArrayList<>(messages));
-			this.questionResultsByScreeningQuestionId = Collections.unmodifiableMap(new HashMap<>(questionResultsByScreeningQuestionId));
+			this.questionResultsByScreeningAnswerOptionId = Collections.unmodifiableMap(new HashMap<>(questionResultsByScreeningAnswerOptionId));
 		}
 
 		public enum CreateScreeningAnswersDisplayTypeId {
@@ -1325,8 +1340,8 @@ public class ScreeningService {
 		}
 
 		@Nonnull
-		public Map<UUID, CreateScreeningAnswersQuestionResult> getQuestionResultsByScreeningQuestionId() {
-			return this.questionResultsByScreeningQuestionId;
+		public Map<UUID, CreateScreeningAnswersQuestionResult> getQuestionResultsByScreeningAnswerOptionId() {
+			return this.questionResultsByScreeningAnswerOptionId;
 		}
 	}
 
@@ -1472,6 +1487,8 @@ public class ScreeningService {
 
 		if (screeningSession.getCompleted())
 			throw new ValidationException(getStrings().get("This assessment is complete and cannot have its answers changed."));
+
+		UUID courseSessionId = screeningSession.getCourseSessionId();
 
 		ScreeningVersion screeningVersion = findScreeningVersionById(screeningSessionScreening.getScreeningVersionId()).get();
 		ScreeningFlowVersion screeningFlowVersion = findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).get();
@@ -1755,7 +1772,7 @@ public class ScreeningService {
 				if (patientOrder.getPatientOrderSafetyPlanningStatusId() != PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING) {
 					getLogger().info("Patient order ID {} will be marked as 'needs safety planning'.", patientOrder.getPatientOrderId());
 					getDatabase().execute("""
-							UPDATE patient_order 
+							UPDATE patient_order
 							SET patient_order_safety_planning_status_id=?
 							WHERE patient_order_id=?
 							""", PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING, patientOrder.getPatientOrderId());
@@ -1831,25 +1848,88 @@ public class ScreeningService {
 			}});
 		}
 
+		// Course session specific: find the course unit with which this screening session's screening flow is associated, and mark it as completed.
+		CourseUnit courseUnit = null;
+
+		if (screeningSession.getCourseSessionId() != null) {
+			CourseSession courseSession = getCourseService().findCourseSessionById(courseSessionId).orElse(null);
+
+			if (courseSession == null) {
+				getErrorReporter().report(format("Illegal Course Session ID %s was specified when attempting to answer a screening question", courseSessionId));
+				throw new ValidationException(getStrings().get("Sorry, we were unable to record your answer."));
+			}
+
+			if (courseSession.getCourseSessionStatusId() != CourseSessionStatusId.IN_PROGRESS) {
+				getErrorReporter().report(format("Course Session ID %s has status %s but attempted to answer a screening question", courseSessionId, courseSession.getCourseSessionStatusId().name()));
+				throw new ValidationException(getStrings().get("This course is complete - no further answers are accepted."));
+			}
+
+			// There must be exactly one corresponding course unit - it's illegal to re-use the same screening flow for multiple units in the same course.
+			courseUnit = getCourseService().findCourseUnitByCourseSessionIdAndScreeningQuestionId(courseSessionId, screeningQuestionId).get();
+
+			getLogger().info("Answer[s] are for course unit ID {} ({})", courseUnit.getCourseUnitId(), courseUnit.getTitle());
+		}
+
 		if (orchestrationFunctionOutput.getCompleted()) {
 			boolean skipped = orchestrationFunctionOutput.getSkipped() != null && orchestrationFunctionOutput.getSkipped();
 
 			getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated that screening session ID {} is now complete.", screeningSessionScreeningId,
 					screeningVersion.getScreeningTypeId().name(), screeningSession.getScreeningSessionId());
 
-			// If this orchestration function says that we have course modules to mark as optional for the current course session, then do so
-			if (screeningSession.getCourseSessionId() != null
-					&& orchestrationFunctionOutput.getOptionalCourseModuleIds() != null
-					&& orchestrationFunctionOutput.getOptionalCourseModuleIds().size() > 0) {
+			// Course session specific completion handling
+			if (screeningSession.getCourseSessionId() != null) {
+				System.out.println("getOptionalCourseModuleIdsToSet: " + orchestrationFunctionOutput.getOptionalCourseModuleIdsToSet());
+				System.out.println("getOptionalCourseModuleIdsToClear: " + orchestrationFunctionOutput.getOptionalCourseModuleIdsToClear());
 
-				for (UUID optionalCourseModuleId : orchestrationFunctionOutput.getOptionalCourseModuleIds()) {
-					// TODO: need to create a savepoint and check for constraint violations to gracefully avoid duplicate inserts
+				// If the orchestration function says that we have course modules to mark as optional for the current course session, then do so
+				if (orchestrationFunctionOutput.getOptionalCourseModuleIdsToSet() != null
+						&& orchestrationFunctionOutput.getOptionalCourseModuleIdsToSet().size() > 0) {
+					for (UUID optionalCourseModuleId : orchestrationFunctionOutput.getOptionalCourseModuleIdsToSet()) {
+
+						// Use a savepoint to safely avoid duplicate inserts and continue on with our txn
+						Transaction transaction = getDatabase().currentTransaction().get();
+						Savepoint savepoint = transaction.createSavepoint();
+
+						try {
+							getDatabase().execute("""
+									INSERT INTO course_session_optional_module (
+									  course_session_id,
+									  course_module_id
+									) VALUES (?,?)
+									""", screeningSession.getCourseSessionId(), optionalCourseModuleId);
+						} catch (DatabaseException e) {
+							if ("course_session_optional_module_pkey".equals(e.constraint().orElse(null))) {
+								getLogger().debug("Course session ID {} already has optional course module ID {}, no need to re-mark as optional.",
+										screeningSession.getCourseSessionId(), optionalCourseModuleId);
+								transaction.rollback(savepoint);
+							} else {
+								throw e;
+							}
+						}
+					}
+				}
+
+				// If the orchestration function says that we have course modules to *un*mark as optional for the current course session, then do so
+				if (orchestrationFunctionOutput.getOptionalCourseModuleIdsToClear() != null
+						&& orchestrationFunctionOutput.getOptionalCourseModuleIdsToClear().size() > 0) {
+					for (UUID optionalCourseModuleId : orchestrationFunctionOutput.getOptionalCourseModuleIdsToClear())
+						getDatabase().execute("""
+								DELETE FROM course_session_optional_module WHERE course_session_id=? AND course_module_id=?
+								""", screeningSession.getCourseSessionId(), optionalCourseModuleId);
+				}
+
+				// Mark the unit as completed
+				try {
 					getDatabase().execute("""
-							INSERT INTO course_session_optional_module (
+							INSERT INTO course_session_unit (
 							  course_session_id,
-							  course_module_id,
-							) VALUES (?,?)
-							""", screeningSession.getCourseSessionId(), optionalCourseModuleId);
+							  course_unit_id,
+							  course_session_unit_status_id
+							) VALUES (?,?,?)
+							""", courseSessionId, courseUnit.getCourseUnitId(), CourseSessionUnitStatusId.COMPLETED);
+				} catch (DatabaseException e) {
+					if ("course_session_unit_pkey".equals(e.constraint().orElse(null)))
+						throw new ValidationException(getStrings().get("Sorry, you cannot re-take this unit."));
 				}
 			}
 
@@ -2076,8 +2156,7 @@ public class ScreeningService {
 			}
 		}
 
-		// TODO: drive messages and feedback off of data returned in JS
-		return new CreateScreeningAnswersResult(screeningAnswerIds, List.of(), Map.of());
+		return new CreateScreeningAnswersResult(screeningAnswerIds, screeningScoringFunctionOutput.getMessages(), screeningScoringFunctionOutput.getQuestionResultsByScreeningAnswerOptionId());
 	}
 
 	@Nonnull
@@ -2289,9 +2368,14 @@ public class ScreeningService {
 		if (screeningScoringFunctionOutput.getCompleted() == null && screeningScoringFunctionOutput.getNextScreeningQuestionId() != null)
 			throw new IllegalStateException("Screening scoring function must cannot indicate it is complete and indicate a 'next question' at the same time");
 
+		if (screeningScoringFunctionOutput.getMessages() == null)
+			screeningScoringFunctionOutput.setMessages(List.of());
+
+		if (screeningScoringFunctionOutput.getQuestionResultsByScreeningAnswerOptionId() == null)
+			screeningScoringFunctionOutput.setQuestionResultsByScreeningAnswerOptionId(Map.of());
+
 		return screeningScoringFunctionOutput;
 	}
-
 
 	@Nonnull
 	protected Optional<OrchestrationFunctionOutput> executeScreeningFlowOrchestrationFunction(@Nonnull String screeningFlowOrchestrationFunctionJavascript,
@@ -2811,6 +2895,10 @@ public class ScreeningService {
 		private Boolean belowScoringThreshold;
 		@Nullable
 		private UUID nextScreeningQuestionId; // Entirely optional; if not specified the next question in the progression is picked
+		@Nullable
+		private List<CreateScreeningAnswersMessage> messages; // Optional
+		@Nonnull
+		private Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningAnswerOptionId; // Optional
 
 		@Nullable
 		public Boolean getCompleted() {
@@ -2847,6 +2935,24 @@ public class ScreeningService {
 		public void setNextScreeningQuestionId(@Nullable UUID nextScreeningQuestionId) {
 			this.nextScreeningQuestionId = nextScreeningQuestionId;
 		}
+
+		@Nullable
+		public List<CreateScreeningAnswersMessage> getMessages() {
+			return this.messages;
+		}
+
+		public void setMessages(@Nullable List<CreateScreeningAnswersMessage> messages) {
+			this.messages = messages;
+		}
+
+		@Nonnull
+		public Map<UUID, CreateScreeningAnswersQuestionResult> getQuestionResultsByScreeningAnswerOptionId() {
+			return this.questionResultsByScreeningAnswerOptionId;
+		}
+
+		public void setQuestionResultsByScreeningAnswerOptionId(@Nonnull Map<UUID, CreateScreeningAnswersQuestionResult> questionResultsByScreeningAnswerOptionId) {
+			this.questionResultsByScreeningAnswerOptionId = questionResultsByScreeningAnswerOptionId;
+		}
 	}
 
 	@NotThreadSafe
@@ -2862,7 +2968,9 @@ public class ScreeningService {
 		@Nullable
 		private PatientOrderClosureReasonId patientOrderClosureReasonId;
 		@Nullable
-		private Set<UUID> optionalCourseModuleIds;
+		private Set<UUID> optionalCourseModuleIdsToSet;
+		@Nullable
+		private Set<UUID> optionalCourseModuleIdsToClear;
 
 		@Nullable
 		public Boolean getCrisisIndicated() {
@@ -2910,12 +3018,21 @@ public class ScreeningService {
 		}
 
 		@Nullable
-		public Set<UUID> getOptionalCourseModuleIds() {
-			return this.optionalCourseModuleIds;
+		public Set<UUID> getOptionalCourseModuleIdsToSet() {
+			return this.optionalCourseModuleIdsToSet;
 		}
 
-		public void setOptionalCourseModuleIds(@Nullable Set<UUID> optionalCourseModuleIds) {
-			this.optionalCourseModuleIds = optionalCourseModuleIds;
+		public void setOptionalCourseModuleIdsToSet(@Nullable Set<UUID> optionalCourseModuleIdsToSet) {
+			this.optionalCourseModuleIdsToSet = optionalCourseModuleIdsToSet;
+		}
+
+		@Nullable
+		public Set<UUID> getOptionalCourseModuleIdsToClear() {
+			return this.optionalCourseModuleIdsToClear;
+		}
+
+		public void setOptionalCourseModuleIdsToClear(@Nullable Set<UUID> optionalCourseModuleIdsToClear) {
+			this.optionalCourseModuleIdsToClear = optionalCourseModuleIdsToClear;
 		}
 	}
 
@@ -3176,6 +3293,11 @@ public class ScreeningService {
 	@Nonnull
 	protected GroupSessionService getGroupSessionService() {
 		return this.groupSessionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected CourseService getCourseService() {
+		return this.courseServiceProvider.get();
 	}
 
 	@Nonnull

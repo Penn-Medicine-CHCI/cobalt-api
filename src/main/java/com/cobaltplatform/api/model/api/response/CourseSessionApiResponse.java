@@ -33,6 +33,7 @@ import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.util.HashMap;
@@ -72,6 +73,8 @@ public class CourseSessionApiResponse {
 	private final Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId;
 	@Nonnull
 	private final Map<UUID, CourseSessionUnitStatusId> courseSessionUnitStatusIdsByCourseUnitId;
+	@Nonnull
+	private final List<UUID> optionalCourseModuleIds;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -121,6 +124,8 @@ public class CourseSessionApiResponse {
 		}
 
 		this.courseSessionUnitStatusIdsByCourseUnitId = courseSessionUnitStatusIdsByCourseUnitId;
+
+		this.optionalCourseModuleIds = courseService.findOptionalCourseModuleIdsByCourseSessionId(courseSession.getCourseSessionId());
 
 		// TODO: fill in remaining fields
 	}
@@ -173,5 +178,10 @@ public class CourseSessionApiResponse {
 	@Nonnull
 	public Map<UUID, CourseSessionUnitStatusId> getCourseSessionUnitStatusIdsByCourseUnitId() {
 		return this.courseSessionUnitStatusIdsByCourseUnitId;
+	}
+
+	@Nonnull
+	public List<UUID> getOptionalCourseModuleIds() {
+		return this.optionalCourseModuleIds;
 	}
 }

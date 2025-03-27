@@ -581,6 +581,8 @@ public class ScreeningResource {
 			put("nextScreeningQuestionContextId", nextScreeningQuestionContext == null ? null : nextScreeningQuestionContext.getScreeningQuestionContextId());
 			put("screeningSessionDestination", screeningSessionDestination);
 			put("screeningSession", getScreeningSessionApiResponseFactory().create(updatedScreeningSession));
+			put("messages", result.getMessages());
+			put("questionResultsByScreeningAnswerOptionId", result.getQuestionResultsByScreeningAnswerOptionId());
 		}});
 	}
 

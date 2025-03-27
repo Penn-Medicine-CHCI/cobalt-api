@@ -151,6 +151,20 @@ public class CourseService {
 	}
 
 	@Nonnull
+	public List<UUID> findOptionalCourseModuleIdsByCourseSessionId(@Nullable UUID courseSessionId) {
+		if (courseSessionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT cm.course_module_id
+				FROM course_session_optional_module csom, course_module cm
+				WHERE csom.course_session_id=?
+				AND csom.course_module_id=cm.course_module_id
+				ORDER BY cm.display_order
+				""", UUID.class, courseSessionId);
+	}
+
+	@Nonnull
 	public Optional<CourseUnit> findCourseUnitById(@Nullable UUID courseUnitId) {
 		if (courseUnitId == null)
 			return Optional.empty();
@@ -260,6 +274,27 @@ public class CourseService {
 				""", courseSessionId, courseId, accountId);
 
 		return courseSessionId;
+	}
+
+	@Nonnull
+	public Optional<CourseUnit> findCourseUnitByCourseSessionIdAndScreeningQuestionId(@Nullable UUID courseSessionId,
+																																										@Nullable UUID screeningQuestionId) {
+		if (courseSessionId == null || screeningQuestionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT DISTINCT cu.*
+				FROM screening_question sq, screening_session ss, v_screening_session_screening sss, course_unit cu, course_session cs, course_module cm, screening_flow_version sfv
+				WHERE ss.course_session_id=?
+				AND ss.screening_session_id=sss.screening_session_id
+				AND sss.screening_version_id=sq.screening_version_id
+				AND sq.screening_question_id=?
+				AND cu.course_module_id=cm.course_module_id
+				AND cm.course_id=cs.course_id
+				AND cs.course_session_id=ss.course_session_id
+				AND ss.screening_flow_version_id=sfv.screening_flow_version_id
+				AND sfv.screening_flow_id=cu.screening_flow_id
+				""", CourseUnit.class, courseSessionId, screeningQuestionId);
 	}
 
 	@Nonnull
