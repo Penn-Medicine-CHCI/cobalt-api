@@ -491,6 +491,29 @@ public class ContentService implements AutoCloseable {
 		return contents;
 	}
 
+
+	@Nonnull
+	public List<Content> findContentByCourseId(@Nullable UUID courseId,
+																						 @Nullable InstitutionId institutionId) {
+		if (courseId == null || institutionId == null)
+			return List.of();
+
+		List<Content> contents = getDatabase().queryForList("""
+				SELECT c.*
+				FROM course_content cc, institution_content ic, v_admin_content c
+				WHERE cc.course_id=?
+				AND cc.content_id=ic.content_id
+				AND ic.institution_id=?
+				AND ic.content_id=c.content_id
+				AND c.content_status_id=?
+				ORDER BY cc.display_order
+				""", Content.class, courseId, institutionId, ContentStatusId.LIVE);
+
+		applyTagsToContents(contents, institutionId);
+
+		return contents;
+	}
+
 	@Nonnull
 	public Optional<ContentFeedback> findContentFeedbackById(@Nullable UUID contentFeedbackId) {
 		if (contentFeedbackId == null)

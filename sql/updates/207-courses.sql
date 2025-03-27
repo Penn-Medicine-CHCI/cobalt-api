@@ -279,6 +279,18 @@ INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('O
 INSERT INTO screening_flow_type (screening_flow_type_id, description) VALUES ('COURSE_UNIT', 'Course Unit');
 ALTER TABLE screening_session ADD COLUMN course_session_id UUID REFERENCES course_session;
 
+-- Ability to associate supplemental content with courses
+CREATE TABLE course_content (
+	course_id UUID NOT NULL REFERENCES course,
+	content_id UUID NOT NULL REFERENCES content,
+	display_order INTEGER NOT NULL,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (course_id, content_id)
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_content FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
 -- *** Analytics updates to support courses ***
 
 -- On the web, when the "courses" page is rendered.
@@ -289,6 +301,7 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- Additional data:
 -- * courseId (UUID)
 -- * courseSessionId (UUID) - optional, if a session has been started for this course
+-- * mode (String, one of OVERVIEW or ADDITIONAL_RESOURCES based on how page is displayed)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('PAGE_VIEW_COURSE_DETAIL', 'Page View (Course Detail)');
 
 -- On the web, when the "course unit" page is rendered.
@@ -314,6 +327,14 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * courseSessionId (UUID) - optional, if a session has been started for this course
 -- * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE', 'Clickthrough (Course Unit Downloadable File)');
+
+-- When the user clicks to view a piece of content associated with a course.
+--
+-- Additional data:
+-- * courseId (UUID)
+-- * courseSessionId (UUID) - optional, if a session has been started for this course
+-- * contentId (UUID) - the content that was clicked
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_CONTENT', 'Clickthrough (Course Content)');
 
 -- Performance indices
 CREATE INDEX idx_course_session_course_id ON course_session (course_id);

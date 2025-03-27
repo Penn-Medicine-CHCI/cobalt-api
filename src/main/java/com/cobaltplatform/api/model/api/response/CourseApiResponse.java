@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.CourseModuleApiResponse.CourseModuleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.CourseSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VideoApiResponse.VideoApiResponseFactory;
@@ -28,6 +30,7 @@ import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
+import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
@@ -42,6 +45,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -83,6 +87,8 @@ public class CourseApiResponse {
 	private final List<VideoApiResponse> videos;
 	@Nullable
 	private final Map<UUID, CourseUnitLockStatus> defaultCourseUnitLockStatusesByCourseUnitId;
+	@Nullable
+	private final List<ContentApiResponse> contents;
 
 	public enum CourseApiResponseType {
 		LIST,
@@ -99,18 +105,22 @@ public class CourseApiResponse {
 
 	@AssistedInject
 	public CourseApiResponse(@Nonnull CourseService courseService,
+													 @Nonnull ContentService contentService,
 													 @Nonnull CourseModuleApiResponseFactory courseModuleApiResponseFactory,
 													 @Nonnull CourseSessionApiResponseFactory courseSessionApiResponseFactory,
 													 @Nonnull VideoApiResponseFactory videoApiResponseFactory,
+													 @Nonnull ContentApiResponseFactory contentApiResponseFactory,
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull Formatter formatter,
 													 @Nonnull Strings strings,
 													 @Assisted @Nonnull Course course,
 													 @Assisted @Nonnull CourseApiResponseType type) {
 		requireNonNull(courseService);
+		requireNonNull(contentService);
 		requireNonNull(courseModuleApiResponseFactory);
 		requireNonNull(courseSessionApiResponseFactory);
 		requireNonNull(videoApiResponseFactory);
+		requireNonNull(contentApiResponseFactory);
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -155,11 +165,16 @@ public class CourseApiResponse {
 					.collect(Collectors.toList());
 
 			this.defaultCourseUnitLockStatusesByCourseUnitId = courseService.determineDefaultCourseUnitLockStatusesByCourseUnitId(course.getCourseId());
+
+			this.contents = contentService.findContentByCourseId(course.getCourseId(), account.getInstitutionId()).stream()
+					.map(content -> contentApiResponseFactory.create(content, Set.of(ContentApiResponseSupplement.TAGS)))
+					.collect(Collectors.toList());
 		} else {
 			this.courseModules = null;
 			this.currentCourseSession = null;
 			this.videos = null;
 			this.defaultCourseUnitLockStatusesByCourseUnitId = null;
+			this.contents = null;
 		}
 	}
 
@@ -231,5 +246,10 @@ public class CourseApiResponse {
 	@Nonnull
 	public Optional<Map<UUID, CourseUnitLockStatus>> getDefaultCourseUnitLockStatusesByCourseUnitId() {
 		return Optional.ofNullable(this.defaultCourseUnitLockStatusesByCourseUnitId);
+	}
+
+	@Nonnull
+	public Optional<List<ContentApiResponse>> getContents() {
+		return Optional.ofNullable(this.contents);
 	}
 }

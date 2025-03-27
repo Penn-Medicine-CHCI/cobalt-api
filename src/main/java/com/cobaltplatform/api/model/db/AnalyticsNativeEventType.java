@@ -214,6 +214,7 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * courseId (UUID)
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * mode (String, one of OVERVIEW or ADDITIONAL_RESOURCES based on how page is displayed)
 		PAGE_VIEW_COURSE_DETAIL,
 		// On the web, when the "course unit" page is rendered.
 		// Additional data:
@@ -424,6 +425,12 @@ public class AnalyticsNativeEventType {
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
 		// * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
 		CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE,
+		// When the user clicks to view a piece of content associated with a course.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * contentId (UUID) - the content that was clicked
+		CLICKTHROUGH_COURSE_CONTENT,
 
 		// When a video that's part of a course unit fires off an event that we listen for, e.g. 'playerReady' or 'playerPaused'.
 		// Additional data:
