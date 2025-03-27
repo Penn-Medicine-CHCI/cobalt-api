@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
@@ -68,6 +69,8 @@ public class TagService {
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
+	private final Configuration configuration;
+	@Nonnull
 	private final Strings strings;
 	@Nonnull
 	private final LoadingCache<InstitutionId, List<Tag>> tagsByInstitutionIdCache;
@@ -80,15 +83,18 @@ public class TagService {
 	public TagService(@Nonnull Provider<CurrentContext> currentContextProvider,
 										@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 										@Nonnull DatabaseProvider databaseProvider,
+										@Nonnull Configuration configuration,
 										@Nonnull Strings strings) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(databaseProvider);
+		requireNonNull(configuration);
 		requireNonNull(strings);
 
 		this.currentContextProvider = currentContextProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.databaseProvider = databaseProvider;
+		this.configuration = configuration;
 		this.strings = strings;
 		this.logger = LoggerFactory.getLogger(getClass());
 
@@ -288,7 +294,9 @@ public class TagService {
 			return List.of();
 
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
-		Collator collator = Collator.getInstance(getCurrentContext().getLocale());
+
+		// TODO: drive this off of current context in the future.  We might not always have current context if on background thread...
+		Collator collator = Collator.getInstance(getConfiguration().getDefaultLocale());
 
 		// We need to apply our own sorting here; the tag's name might have been changed by the institution which would break "ORDER BY name"
 		return tags.stream()
@@ -300,6 +308,11 @@ public class TagService {
 	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return this.configuration;
 	}
 
 	@Nonnull
