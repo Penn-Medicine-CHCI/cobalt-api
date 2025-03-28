@@ -1919,7 +1919,11 @@ public class ScreeningService {
 								""", screeningSession.getCourseSessionId(), optionalCourseModuleId);
 				}
 
-				// Mark the unit as completed
+				// Mark the unit as completed.
+				// Use a savepoint to prevent duplicate insertions (you can complete a unit exactly once, but you can keep re-taking its screening flow many times).
+				Transaction transaction = getDatabase().currentTransaction().get();
+				Savepoint savepoint = transaction.createSavepoint();
+
 				try {
 					getDatabase().execute("""
 							INSERT INTO course_session_unit (
@@ -1929,8 +1933,13 @@ public class ScreeningService {
 							) VALUES (?,?,?)
 							""", courseSessionId, courseUnit.getCourseUnitId(), CourseSessionUnitStatusId.COMPLETED);
 				} catch (DatabaseException e) {
-					if ("course_session_unit_pkey".equals(e.constraint().orElse(null)))
-						throw new ValidationException(getStrings().get("Sorry, you cannot re-take this unit."));
+					if ("course_session_unit_pkey".equals(e.constraint().orElse(null))) {
+						getLogger().debug("Course session ID {} is already completed, no need to re-mark as completed.",
+								screeningSession.getCourseSessionId());
+						transaction.rollback(savepoint);
+					} else {
+						throw e;
+					}
 				}
 			}
 
