@@ -197,9 +197,6 @@ public class InstitutionResource {
 
 		List<AccountSourceApiResponse> accountSources = getInstitutionService().findAccountSourcesByInstitutionId(institutionId).stream()
 				.filter(accountSource -> {
-					if (!accountSource.getVisible())
-						return false;
-
 					if (userExperienceTypeId != null && filterOnAccountSourceId != null) {
 						return (accountSource.getRequiresUserExperienceTypeId() == null || Objects.equals(accountSource.getRequiresUserExperienceTypeId(), userExperienceTypeId))
 								&& Objects.equals(accountSource.getAccountSourceId(), filterOnAccountSourceId);
