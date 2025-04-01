@@ -48,6 +48,8 @@ public class ScreeningAnswerApiResponse {
 	private final UUID createdByAccountId;
 	@Nullable
 	private final String text;
+	@Nullable
+	private final Integer answerOrder;
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -73,6 +75,7 @@ public class ScreeningAnswerApiResponse {
 		this.screeningSessionAnsweredScreeningQuestionId = screeningAnswer.getScreeningSessionAnsweredScreeningQuestionId();
 		this.createdByAccountId = screeningAnswer.getCreatedByAccountId();
 		this.text = screeningAnswer.getText();
+		this.answerOrder = screeningAnswer.getAnswerOrder();
 		this.created = screeningAnswer.getCreated();
 		this.createdDescription = formatter.formatTimestamp(screeningAnswer.getCreated());
 	}
@@ -110,5 +113,10 @@ public class ScreeningAnswerApiResponse {
 	@Nonnull
 	public String getCreatedDescription() {
 		return this.createdDescription;
+	}
+
+	@Nullable
+	public Integer getAnswerOrder() {
+		return answerOrder;
 	}
 }

@@ -40,6 +40,8 @@ public class ScreeningAnswer {
 	@Nullable
 	private String text;
 	@Nullable
+	private Integer answerOrder;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -105,5 +107,14 @@ public class ScreeningAnswer {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Integer getAnswerOrder() {
+		return answerOrder;
+	}
+
+	public void setAnswerOrder(@Nullable Integer answerOrder) {
+		this.answerOrder = answerOrder;
 	}
 }

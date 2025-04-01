@@ -145,6 +145,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
@@ -1605,31 +1606,35 @@ public class ScreeningService {
 		Instant now = Instant.now();
 
 		// Batch up the answers...
-		List<List<Object>> answerParameters = answers.stream()
-				.map(answer -> {
-					// Keep track of generated answer IDs for use later on
-					UUID screeningAnswerId = UUID.randomUUID();
-					screeningAnswerIds.add(screeningAnswerId);
+		List<List<Object>> answerParameters =
+				IntStream.range(0, answers.size())
+						.mapToObj(i -> {
+							CreateAnswerRequest answer = answers.get(i);
 
-					// Cannot use List.of(...) construct because answer.getText() can be null
-					List<Object> parameters = new ArrayList<>();
-					parameters.add(screeningAnswerId);
-					parameters.add(answer.getScreeningAnswerOptionId());
-					parameters.add(screeningSessionAnsweredScreeningQuestionId);
-					parameters.add(createdByAccountId);
-					parameters.add(answer.getText());
-					parameters.add(now);
+							// Generate a unique ID and record it for later use
+							UUID screeningAnswerId = UUID.randomUUID();
+							screeningAnswerIds.add(screeningAnswerId);
 
-					return parameters;
-				})
-				.collect(Collectors.toList());
+							// Create parameters list; note that answer.getText() might be null, so we can't use List.of(...)
+							List<Object> parameters = new ArrayList<>();
+							parameters.add(screeningAnswerId);
+							parameters.add(answer.getScreeningAnswerOptionId());
+							parameters.add(screeningSessionAnsweredScreeningQuestionId);
+							parameters.add(createdByAccountId);
+							parameters.add(answer.getText());
+							parameters.add(now);
+							parameters.add(i);
+
+							return parameters;
+						})
+						.collect(Collectors.toList());
 
 		try {
 			// ...for an efficient INSERT.
 			getDatabase().executeBatch("""
 					INSERT INTO
-					screening_answer(screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text, created)
-					VALUES(?,?,?,?,?,?)
+					screening_answer(screening_answer_id, screening_answer_option_id, screening_session_answered_screening_question_id, created_by_account_id, text, created, answer_order)
+					VALUES(?,?,?,?,?,?,?)
 					""", answerParameters);
 		} catch (DatabaseException e) {
 			// Unfortunately this is the best way to find the `screening_answer_option_id_unique` violation

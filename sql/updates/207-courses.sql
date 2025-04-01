@@ -344,4 +344,22 @@ CREATE INDEX idx_course_session_course_id ON course_session (course_id);
 CREATE INDEX idx_course_session_account_id ON course_session (account_id);
 CREATE INDEX idx_course_session_created_desc ON course_session (created DESC);
 
+--Add column answer_order to track the order that answers are provided
+ALTER TABLE screening_answer ADD COLUMN answer_order INTEGER;
+UPDATE screening_answer SET answer_order = 1;
+ALTER TABLE screening_answer ALTER COLUMN answer_order SET NOT NULL;
+
+CREATE OR REPLACE VIEW v_screening_answer
+AS
+SELECT screening_answer_id,
+    screening_answer_option_id,
+    screening_session_answered_screening_question_id,
+    created_by_account_id,
+    text,
+    valid,
+    created,
+    last_updated,
+    answer_order
+   FROM screening_answer
+  WHERE valid = true;
 COMMIT;
