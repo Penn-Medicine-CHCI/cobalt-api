@@ -29,9 +29,11 @@ import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnit
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitDependency;
 import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDependencyTypeId;
+import com.cobaltplatform.api.model.db.CourseUnitDownloadableFile;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Video;
+import com.cobaltplatform.api.model.service.CourseUnitDownloadableFileWithFileDetails;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -456,6 +458,18 @@ public class CourseService {
 		throw new UnsupportedOperationException(format("Unexpected value: %s.%s", CourseUnitTypeId.class.getSimpleName(), courseUnitTypeId.name()));
 	}
 
+	@Nonnull
+	public List<CourseUnitDownloadableFileWithFileDetails> findCourseUnitDownloadableFiles(@Nullable UUID courseUnitId) {
+		if (courseUnitId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT vcu.*
+				FROM v_course_unit_downloadable_file vcu
+				WHERE vcu.course_unit_id = ?
+				ORDER BY vcu.display_order
+				""", CourseUnitDownloadableFileWithFileDetails.class, courseUnitId);
+	}
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();

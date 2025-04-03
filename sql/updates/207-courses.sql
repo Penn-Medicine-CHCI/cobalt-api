@@ -362,4 +362,12 @@ SELECT screening_answer_id,
     answer_order
    FROM screening_answer
   WHERE valid = true;
+
+CREATE OR REPLACE VIEW v_course_unit_downloadable_file
+AS
+SELECT cu.*, fi.url, fi.filename, fi.content_type, fi.filesize
+FROM course_unit_downloadable_file cu, file_upload fi
+WHERE cu.file_upload_id = fi.file_upload_id;
+
 COMMIT;
+

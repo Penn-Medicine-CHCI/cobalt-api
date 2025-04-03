@@ -95,6 +95,7 @@ import com.cobaltplatform.api.model.api.response.CourseApiResponse.CourseApiResp
 import com.cobaltplatform.api.model.api.response.CourseModuleApiResponse.CourseModuleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.CourseSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CourseUnitApiResponse.CourseUnitApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CourseUnitDownloadableFileApiResponse.CourseUnitDownloadableFileApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.EncounterApiResponse.EncounterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.EpicDepartmentApiResponse.EpicDepartmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FaqApiResponse.FaqApiResponseFactory;
@@ -406,6 +407,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(CourseUnitApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseSessionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(VideoApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CourseUnitDownloadableFileApiResponseFactory.class)));
 	}
 
 	@Provides

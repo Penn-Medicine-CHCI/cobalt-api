@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
+import com.cobaltplatform.api.model.api.response.CourseUnitDownloadableFileApiResponse.CourseUnitDownloadableFileApiResponseFactory;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -31,9 +32,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -72,6 +75,8 @@ public class CourseUnitApiResponse {
 	private final Instant lastUpdated;
 	@Nonnull
 	private final String lastUpdatedDescription;
+	@Nonnull
+	private final List<CourseUnitDownloadableFileApiResponse> courseUnitDownloadableFiles;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -84,11 +89,13 @@ public class CourseUnitApiResponse {
 	public CourseUnitApiResponse(@Nonnull CourseService courseService,
 															 @Nonnull Formatter formatter,
 															 @Nonnull Strings strings,
+															 @Nonnull CourseUnitDownloadableFileApiResponseFactory courseUnitDownloadableFileApiResponseFactory,
 															 @Assisted @Nonnull CourseUnit courseUnit) {
 		requireNonNull(courseService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(courseUnit);
+		requireNonNull(courseUnitDownloadableFileApiResponseFactory);
 
 		this.courseUnitId = courseUnit.getCourseUnitId();
 		this.courseUnitTypeId = courseUnit.getCourseUnitTypeId();
@@ -102,9 +109,8 @@ public class CourseUnitApiResponse {
 		this.videoId = courseUnit.getVideoId();
 		this.screeningFlowId = courseUnit.getScreeningFlowId();
 		this.imageUrl = courseUnit.getImageUrl();
-
-		// TODO: include list of download IDs (actual downloads will be available on the main CourseApiResponse)
-
+		this.courseUnitDownloadableFiles = courseService.findCourseUnitDownloadableFiles(courseUnitId).stream()
+				.map(courseUnitDownloadableFile -> courseUnitDownloadableFileApiResponseFactory.create(courseUnitDownloadableFile)).collect(Collectors.toList());
 		this.created = courseUnit.getCreated();
 		this.createdDescription = formatter.formatTimestamp(courseUnit.getCreated());
 		this.lastUpdated = courseUnit.getLastUpdated();
@@ -184,5 +190,9 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public String getLastUpdatedDescription() {
 		return this.lastUpdatedDescription;
+	}
+	@Nonnull
+	public List<CourseUnitDownloadableFileApiResponse> getCourseUnitDownloadableFiles() {
+		return courseUnitDownloadableFiles;
 	}
 }
