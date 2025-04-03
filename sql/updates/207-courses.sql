@@ -320,6 +320,7 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * courseSessionId (UUID) - optional, if a session has been started for this course
 -- * videoId (UUID)
 -- * eventName (String) - the name of the event, e.g. 'playerReady', which is specific to the type of video (Kaltura, YouTube, ...)
+--     If the video fails to embed/load entirely, specify the special `eventName` INITIALIZATION_ERROR regardless of what type of video it is.
 -- * eventPayload (any) - optional, a payload for the event specific to the type of video (Kaltura, YouTube, ...)
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('EVENT_COURSE_UNIT_VIDEO', 'Event (Course Unit Video)');
 
@@ -338,6 +339,24 @@ INSERT INTO analytics_native_event_type (analytics_native_event_type_id, descrip
 -- * courseSessionId (UUID) - optional, if a session has been started for this course
 -- * contentId (UUID) - the content that was clicked
 INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_CONTENT', 'Clickthrough (Course Content)');
+
+-- When the user clicks directly on a course unit to access it, e.g. from the course detail page or from the the left nav when viewing another course unit.
+--
+-- Additional data:
+-- * courseId (UUID)
+-- * courseSessionId (UUID) - optional, if a session has been started for this course
+-- * courseUnitId (UUID) - the course unit that was clicked
+-- * source (String, one of COURSE_DETAIL or COURSE_UNIT based on where the click happened)
+-- * sourceCourseUnitId (UUID) - optional, only specified if source == COURSE_UNIT. This value is the course unit the user was currently viewing
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_UNIT', 'Clickthrough (Course Unit)');
+
+-- When the user clicks the button to skip a course unit.
+--
+-- Additional data:
+-- * courseId (UUID)
+-- * courseSessionId (UUID) - optional, if a session has been started for this course
+-- * courseUnitId (UUID) - the course unit that was skipped
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES ('CLICKTHROUGH_COURSE_UNIT_SKIP', 'Clickthrough (Course Unit Skip)');
 
 -- Performance indices
 CREATE INDEX idx_course_session_course_id ON course_session (course_id);
