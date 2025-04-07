@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
+import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -38,11 +39,15 @@ public class CourseUnit {
 	@Nullable
 	private CourseUnitTypeId courseUnitTypeId;
 	@Nullable
+	private UnitCompletionTypeId unitCompletionTypeId;
+	@Nullable
 	private String title;
 	@Nullable
 	private String description;
 	@Nullable
 	private Integer estimatedCompletionTimeInMinutes;
+	@Nullable
+	private Integer completionThresholdInSeconds;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -162,5 +167,23 @@ public class CourseUnit {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Integer getCompletionThresholdInSeconds() {
+		return completionThresholdInSeconds;
+	}
+
+	public void setCompletionThresholdInSeconds(@Nullable Integer completionThresholdInSeconds) {
+		this.completionThresholdInSeconds = completionThresholdInSeconds;
+	}
+
+	@Nullable
+	public UnitCompletionTypeId getUnitCompletionTypeId() {
+		return unitCompletionTypeId;
+	}
+
+	public void setUnitCompletionTypeId(@Nullable UnitCompletionTypeId unitCompletionTypeId) {
+		this.unitCompletionTypeId = unitCompletionTypeId;
 	}
 }

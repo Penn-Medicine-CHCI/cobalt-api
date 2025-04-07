@@ -29,9 +29,11 @@ import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnit
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitDependency;
 import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDependencyTypeId;
-import com.cobaltplatform.api.model.db.CourseUnitDownloadableFile;
+import com.cobaltplatform.api.model.db.CourseUnitType;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.UnitCompletionType;
+import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 import com.cobaltplatform.api.model.db.Video;
 import com.cobaltplatform.api.model.service.CourseUnitDownloadableFileWithFileDetails;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
@@ -469,6 +471,18 @@ public class CourseService {
 				WHERE vcu.course_unit_id = ?
 				ORDER BY vcu.display_order
 				""", CourseUnitDownloadableFileWithFileDetails.class, courseUnitId);
+	}
+
+	@Nonnull
+	public Optional<CourseUnitType> findCourseUnitTypeById(@Nullable CourseUnitTypeId courseUnitTypeId) {
+		if (courseUnitTypeId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM course_unit_type
+				WHERE course_unit_type_id=?
+				""", CourseUnitType.class, courseUnitTypeId);
 	}
 	@Nonnull
 	protected Database getDatabase() {

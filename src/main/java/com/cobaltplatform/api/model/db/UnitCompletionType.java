@@ -21,7 +21,6 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 
 import static java.lang.String.format;
 
@@ -29,45 +28,21 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class CourseUnitType {
+public class UnitCompletionType {
 	@Nullable
-	private CourseUnitTypeId courseUnitTypeId;
+	private UnitCompletionTypeId unitCompletionTypeId;
 	@Nullable
 	private String description;
 
-	@Nullable
-	private UnitCompletionTypeId unitCompletionTypeId;
-
-	public enum CourseUnitTypeId {
-		VIDEO,
-		INFOGRAPHIC,
-		HOMEWORK,
-		CARD_SORT,
-		QUIZ,
-		REORDER
+	public enum UnitCompletionTypeId {
+		IMMEDIATELY,
+		DO_NOT_MARK_COMPLETE,
+		COMPLETION_THRESHOLD_IN_SECONDS
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{courseUnitTypeId=%s, description=%s}", getClass().getSimpleName(), getCourseUnitTypeId().name(), getDescription());
-	}
-
-	@Nullable
-	public CourseUnitTypeId getCourseUnitTypeId() {
-		return this.courseUnitTypeId;
-	}
-
-	public void setCourseUnitTypeId(@Nullable CourseUnitTypeId courseUnitTypeId) {
-		this.courseUnitTypeId = courseUnitTypeId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+		return format("%s{courseUnitTypeId=%s, description=%s}", getClass().getSimpleName(), getUnitCompletionTypeId().name(), getDescription());
 	}
 
 	@Nullable
@@ -77,5 +52,14 @@ public class CourseUnitType {
 
 	public void setUnitCompletionTypeId(@Nullable UnitCompletionTypeId unitCompletionTypeId) {
 		this.unitCompletionTypeId = unitCompletionTypeId;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

@@ -33,24 +33,38 @@ CREATE TABLE course_module (
 
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON course_module FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- Unit completion types, e.g. "immediately" or "do not mark complete"
+CREATE TABLE unit_completion_type (
+	unit_completion_type_id TEXT PRIMARY KEY,
+    description VARCHAR NOT NULL    
+);
+
+-- Mark the unit complete as soon as theuser sees it
+INSERT INTO unit_completion_type (unit_completion_type_id, description) VALUES ('IMMEDIATELY', 'Immediately');
+-- Do not mark the unit complete becuase the backend already does it
+INSERT INTO unit_completion_type (unit_completion_type_id, description) VALUES ('DO_NOT_MARK_COMPLETE', 'Do not mark complete');
+-- Number of second the user must be on the page for the unit to be considered complete.
+INSERT INTO unit_completion_type VALUES ('COMPLETION_THRESHOLD_IN_SECONDS', 'Completion threshold in seconds');
+
 -- Course unit types, e.g. "video" or "card sort"
 CREATE TABLE course_unit_type (
 	course_unit_type_id TEXT PRIMARY KEY,
-  description VARCHAR NOT NULL
+    description VARCHAR NOT NULL,
+    unit_completion_type_id TEXT NOT NULL REFERENCES unit_completion_type
 );
 
 -- A video to play
-INSERT INTO course_unit_type VALUES ('VIDEO', 'Video');
+INSERT INTO course_unit_type VALUES ('VIDEO', 'Video', 'COMPLETION_THRESHOLD_IN_SECONDS');
 -- An infographic to view and optionally download
-INSERT INTO course_unit_type VALUES ('INFOGRAPHIC', 'Infographic');
+INSERT INTO course_unit_type VALUES ('INFOGRAPHIC', 'Infographic', 'IMMEDIATELY');
 -- Describes a homework assignment, with an optional download
-INSERT INTO course_unit_type VALUES ('HOMEWORK', 'Homework');
+INSERT INTO course_unit_type VALUES ('HOMEWORK', 'Homework', 'IMMEDIATELY');
 -- A "card sorting" exercise (given a prompt, decide which bucket it fits into)
-INSERT INTO course_unit_type VALUES ('CARD_SORT', 'Card Sort');
+INSERT INTO course_unit_type VALUES ('CARD_SORT', 'Card Sort', 'DO_NOT_MARK_COMPLETE');
 -- A set of questions to answer
-INSERT INTO course_unit_type VALUES ('QUIZ', 'Quiz');
+INSERT INTO course_unit_type VALUES ('QUIZ', 'Quiz', 'DO_NOT_MARK_COMPLETE');
 -- Given a set of statements, re-organize them into the correct order
-INSERT INTO course_unit_type VALUES ('REORDER', 'Reorder');
+INSERT INTO course_unit_type VALUES ('REORDER', 'Reorder', 'DO_NOT_MARK_COMPLETE');
 
 -- In order to support card sort and reordering course units via screening questions, introduce new answer formats
 INSERT INTO screening_answer_format (screening_answer_format_id, description) VALUES ('CARD_SORT', 'Card Sort');
@@ -127,6 +141,7 @@ CREATE TABLE course_unit (
 	title TEXT NOT NULL,
 	description TEXT, -- Can include HTML
 	estimated_completion_time_in_minutes INTEGER,
+	completion_threshold_in_seconds INTEGER,
 	display_order INTEGER NOT NULL, -- Order within the module
 	video_id UUID REFERENCES video, -- Only applies to VIDEO course_unit_type_id
 	screening_flow_id UUID REFERENCES screening_flow, -- Only applies to units that include questions and answers, e.g. QUIZ course_unit_type_id
@@ -368,6 +383,8 @@ AS
 SELECT cu.*, fi.url, fi.filename, fi.content_type, fi.filesize
 FROM course_unit_downloadable_file cu, file_upload fi
 WHERE cu.file_upload_id = fi.file_upload_id;
+
+
 
 COMMIT;
 

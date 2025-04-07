@@ -20,8 +20,10 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.model.db.CourseUnitType;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
 import com.cobaltplatform.api.model.api.response.CourseUnitDownloadableFileApiResponse.CourseUnitDownloadableFileApiResponseFactory;
+import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -50,6 +52,8 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	private final CourseUnitTypeId courseUnitTypeId;
 	@Nonnull
+	private final UnitCompletionTypeId unitCompletionTypeId;
+	@Nonnull
 	private final String courseUnitTypeIdDescription;
 	@Nonnull
 	private final UUID courseModuleId;
@@ -61,6 +65,8 @@ public class CourseUnitApiResponse {
 	private final Integer estimatedCompletionTimeInMinutes;
 	@Nullable
 	private final String estimatedCompletionTimeInMinutesDescription;
+	@Nullable
+	private final Integer completionThresholdInSeconds;
 	@Nullable
 	private final UUID videoId;
 	@Nullable
@@ -99,11 +105,14 @@ public class CourseUnitApiResponse {
 
 		this.courseUnitId = courseUnit.getCourseUnitId();
 		this.courseUnitTypeId = courseUnit.getCourseUnitTypeId();
+		Optional<CourseUnitType> courseUnitType = courseService.findCourseUnitTypeById(courseUnit.getCourseUnitTypeId());
+		this.unitCompletionTypeId = courseUnitType.isPresent() ? courseUnitType.get().getUnitCompletionTypeId() : null;
 		this.courseUnitTypeIdDescription = courseService.determineCourseUnitTypeIdDescription(courseUnit.getCourseUnitTypeId());
 		this.courseModuleId = courseUnit.getCourseModuleId();
 		this.title = courseUnit.getTitle();
 		this.description = courseUnit.getDescription();
 		this.estimatedCompletionTimeInMinutes = courseUnit.getEstimatedCompletionTimeInMinutes();
+		this.completionThresholdInSeconds = courseUnit.getCompletionThresholdInSeconds();
 		this.estimatedCompletionTimeInMinutesDescription = this.estimatedCompletionTimeInMinutes == null ? null
 				: strings.get("{{duration}} minutes", Map.of("duration", this.estimatedCompletionTimeInMinutes));
 		this.videoId = courseUnit.getVideoId();
@@ -194,5 +203,15 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public List<CourseUnitDownloadableFileApiResponse> getCourseUnitDownloadableFiles() {
 		return courseUnitDownloadableFiles;
+	}
+
+	@Nullable
+	public Integer getCompletionThresholdInSeconds() {
+		return completionThresholdInSeconds;
+	}
+
+	@Nonnull
+	public UnitCompletionTypeId getUnitCompletionTypeId() {
+		return unitCompletionTypeId;
 	}
 }
