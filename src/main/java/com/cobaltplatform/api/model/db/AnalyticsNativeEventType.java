@@ -431,6 +431,20 @@ public class AnalyticsNativeEventType {
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
 		// * contentId (UUID) - the content that was clicked
 		CLICKTHROUGH_COURSE_CONTENT,
+		// When the user clicks directly on a course unit to access it, e.g. from the course detail page or from the the left nav when viewing another course unit.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * courseUnitId (UUID) - the course unit that was clicked
+		// * source (String, one of COURSE_DETAIL or COURSE_UNIT based on where the click happened)
+		// * sourceCourseUnitId (UUID) - optional, only specified if source == COURSE_UNIT. This value is the course unit the user was currently viewing
+		CLICKTHROUGH_COURSE_UNIT,
+		// When the user clicks the button to skip a course unit.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * courseUnitId (UUID) - the course unit that was skipped
+		CLICKTHROUGH_COURSE_UNIT_SKIP,
 
 		// When a video that's part of a course unit fires off an event that we listen for, e.g. 'playerReady' or 'playerPaused'.
 		// Additional data:
@@ -438,6 +452,7 @@ public class AnalyticsNativeEventType {
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
 		// * videoId (UUID)
 		// * eventName (String) - the name of the event, e.g. 'playerReady', which is specific to the type of video (Kaltura, YouTube, ...)
+		//     If the video fails to embed/load entirely, specify the special `eventName` INITIALIZATION_ERROR regardless of what type of video it is.
 		// * eventPayload (any) - optional, a payload for the event specific to the type of video (Kaltura, YouTube, ...)
 		EVENT_COURSE_UNIT_VIDEO,
 	}
