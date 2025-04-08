@@ -296,6 +296,103 @@ public final class BusinessHoursCalculator {
 		}
 	}
 
+	/**
+	 * Returns the next business day after the given date.
+	 *
+	 * @param date                     the starting date
+	 * @param businessHoursByDayOfWeek a map containing business hours for each day-of-week
+	 * @param holidays                 a set of Holiday enums representing days off
+	 * @return the next LocalDate that is a business day
+	 */
+	@Nonnull
+	private static LocalDate determineNextBusinessDay(@Nonnull LocalDate date,
+																										@Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
+																										@Nonnull Set<Holiday> holidays) {
+		requireNonNull(date);
+		requireNonNull(businessHoursByDayOfWeek);
+		requireNonNull(holidays);
+
+		LocalDate candidate = date.plusDays(1);
+
+		while (!isBusinessDay(candidate, businessHoursByDayOfWeek, holidays))
+			candidate = candidate.plusDays(1);
+
+		return candidate;
+	}
+
+	/**
+	 * Returns the earliest LocalDateTime that meets the required booking window,
+	 * measured as a specified number of business hours from the given startDateTime.
+	 * <p>
+	 * This method advances through business days—taking into account the business operating hours and holidays—
+	 * accumulating available business hours. If the current day's available hours are insufficient,
+	 * the algorithm moves to the next business day, until the cumulative available business time is at least the specified threshold.
+	 *
+	 * @param startDateTime            the reference datetime (typically "now").
+	 * @param businessHoursByDayOfWeek a map where each DayOfWeek is associated with the corresponding BusinessHours.
+	 * @param holidays                 a set of Holiday enums representing days when the business is closed.
+	 * @param requiredBusinessHours    the minimum business hours from startDateTime that the booking time must be.
+	 * @return the earliest LocalDateTime at which the booking can be scheduled.
+	 */
+	@Nonnull
+	public static LocalDateTime determineEarliestBookingDateTime(@Nonnull LocalDateTime startDateTime,
+																															 @Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
+																															 @Nonnull Set<Holiday> holidays,
+																															 @Nonnull Integer requiredBusinessHours) {
+		requireNonNull(startDateTime);
+		requireNonNull(businessHoursByDayOfWeek);
+		requireNonNull(holidays);
+		requireNonNull(requiredBusinessHours);
+
+		double remainingBusinessHours = requiredBusinessHours;
+		LocalDateTime candidate = startDateTime;
+
+		// Continue until the accumulated available business hours meet the required threshold.
+		while (remainingBusinessHours > 0) {
+			// If the candidate day is not a business day, advance to the next business day at its opening time.
+			if (!isBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays)) {
+				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays);
+				candidate = LocalDateTime.of(nextBusinessDay, businessHoursByDayOfWeek.get(nextBusinessDay.getDayOfWeek()).getStartTime());
+				continue;
+			}
+
+			BusinessHours businessHours = businessHoursByDayOfWeek.get(candidate.getDayOfWeek());
+			LocalTime open = businessHours.getStartTime();
+			LocalTime close = businessHours.getEndTime();
+			LocalTime candidateTime = candidate.toLocalTime();
+
+			// Adjust candidate time if before open or after business hours.
+			if (candidateTime.isBefore(open)) {
+				candidate = LocalDateTime.of(candidate.toLocalDate(), open);
+				candidateTime = open;
+			}
+
+			if (!candidateTime.isBefore(close)) {
+				// Current day is done; move to the next available business day.
+				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays);
+				candidate = LocalDateTime.of(nextBusinessDay, businessHoursByDayOfWeek.get(nextBusinessDay.getDayOfWeek()).getStartTime());
+				continue;
+			}
+
+			// Calculate remaining business hours available on the candidate day.
+			double availableToday = Duration.between(candidateTime, close).toMinutes() / 60.0;
+
+			if (availableToday >= remainingBusinessHours) {
+				// The booking can be scheduled on the candidate day.
+				long minutesToAdd = (long) (remainingBusinessHours * 60);
+				candidate = candidate.plusMinutes(minutesToAdd);
+				remainingBusinessHours = 0;
+			} else {
+				// Use up the available hours today and move to the next business day.
+				remainingBusinessHours -= availableToday;
+				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays);
+				candidate = LocalDateTime.of(nextBusinessDay, businessHoursByDayOfWeek.get(nextBusinessDay.getDayOfWeek()).getStartTime());
+			}
+		}
+
+		return candidate;
+	}
+
 	// Helper methods for comparing times.
 	@Nonnull
 	private static LocalTime maxTime(@Nonnull LocalTime t1,
