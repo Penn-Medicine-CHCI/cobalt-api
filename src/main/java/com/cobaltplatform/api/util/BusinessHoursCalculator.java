@@ -131,20 +131,20 @@ public final class BusinessHoursCalculator {
 
 		// If source and target are on the same day, calculate directly.
 		if (startDate.equals(endDate)) {
-			totalHours += calculateBusinessHoursForDay(startDate, startDateTime.toLocalTime(), endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidays);
+			totalHours += calculateBusinessHoursForDate(startDate, startDateTime.toLocalTime(), endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidays);
 		} else {
 			// Process the first day: count from the source time until the end of business hours.
-			totalHours += calculateBusinessHoursForDay(startDate, startDateTime.toLocalTime(), null, businessHoursByDayOfWeek, holidays);
+			totalHours += calculateBusinessHoursForDate(startDate, startDateTime.toLocalTime(), null, businessHoursByDayOfWeek, holidays);
 
 			// Process the intermediate days.
 			LocalDate current = startDate.plusDays(1);
 			while (current.isBefore(endDate)) {
-				totalHours += calculateBusinessHoursForDay(current, null, null, businessHoursByDayOfWeek, holidays);
+				totalHours += calculateBusinessHoursForDate(current, null, null, businessHoursByDayOfWeek, holidays);
 				current = current.plusDays(1);
 			}
 
 			// Process the final day: count from the start of business hours until the target time.
-			totalHours += calculateBusinessHoursForDay(endDate, null, endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidays);
+			totalHours += calculateBusinessHoursForDate(endDate, null, endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidays);
 		}
 
 		return totalHours;
@@ -161,11 +161,11 @@ public final class BusinessHoursCalculator {
 	 * @return the number of business hours for the given day.
 	 */
 	@Nonnull
-	private static Double calculateBusinessHoursForDay(@Nonnull LocalDate date,
-																										 @Nullable LocalTime fromTime,
-																										 @Nullable LocalTime toTime,
-																										 @Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
-																										 @Nonnull Set<Holiday> holidays) {
+	private static Double calculateBusinessHoursForDate(@Nonnull LocalDate date,
+																											@Nullable LocalTime fromTime,
+																											@Nullable LocalTime toTime,
+																											@Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
+																											@Nonnull Set<Holiday> holidays) {
 		requireNonNull(date);
 		requireNonNull(businessHoursByDayOfWeek);
 		requireNonNull(holidays);
@@ -313,38 +313,5 @@ public final class BusinessHoursCalculator {
 		requireNonNull(t2);
 
 		return (t1.isBefore(t2)) ? t1 : t2;
-	}
-
-	// Optionally, you can add a main method or unit tests to demonstrate usage.
-	public static void main(String[] args) {
-		// Define business hours for weekdays.
-		Map<DayOfWeek, BusinessHours> openTimes = Map.of(
-				DayOfWeek.MONDAY, new BusinessHours(LocalTime.of(9, 0), LocalTime.of(17, 0)),
-				DayOfWeek.TUESDAY, new BusinessHours(LocalTime.of(9, 0), LocalTime.of(17, 0)),
-				DayOfWeek.WEDNESDAY, new BusinessHours(LocalTime.of(9, 0), LocalTime.of(17, 0)),
-				DayOfWeek.THURSDAY, new BusinessHours(LocalTime.of(9, 0), LocalTime.of(17, 0)),
-				DayOfWeek.FRIDAY, new BusinessHours(LocalTime.of(9, 0), LocalTime.of(17, 0))
-				// Weekends are omitted and thus considered closed.
-		);
-
-		// For demonstration, assume the business is closed on all holidays.
-		Set<Holiday> holidays = Set.of(
-				Holiday.US_NEW_YEARS_DAY,
-				Holiday.US_MLK_DAY,
-				Holiday.US_PRESIDENTS_DAY,
-				Holiday.US_MEMORIAL_DAY,
-				Holiday.US_INDEPENDENCE_DAY,
-				Holiday.US_LABOR_DAY,
-				Holiday.US_INDIGENOUS_PEOPLES_DAY,
-				Holiday.US_VETERANS_DAY,
-				Holiday.US_THANKSGIVING,
-				Holiday.US_CHRISTMAS
-		);
-
-		LocalDateTime source = LocalDateTime.of(2025, 4, 8, 15, 30);
-		LocalDateTime target = LocalDateTime.of(2025, 4, 10, 11, 0);
-
-		double businessHours = calculateBusinessHours(source, target, openTimes, holidays);
-		System.out.println("Business hours between " + source + " and " + target + ": " + businessHours);
 	}
 }
