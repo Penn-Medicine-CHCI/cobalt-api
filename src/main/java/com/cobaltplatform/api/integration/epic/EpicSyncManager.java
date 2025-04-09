@@ -46,6 +46,8 @@ import com.google.common.collect.Range;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -828,6 +830,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		@Nullable
 		private UUID epicDepartmentId;
 
+		@Override
+		public String toString() {
+			return ToStringBuilder.reflectionToString(this, ToStringStyle.JSON_STYLE);
+		}
+
 		@Nullable
 		public UUID getAppointmentTypeId() {
 			return appointmentTypeId;
@@ -866,6 +873,11 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 		private final ZoneId timeZone;
 		@Nonnull
 		private final List<ProviderAvailabilityDateInsertRow> rows;
+
+		@Override
+		public String toString() {
+			return ToStringBuilder.reflectionToString(this, ToStringStyle.JSON_STYLE);
+		}
 
 		public ProviderAvailabilityDateInsert(@Nonnull UUID providerId,
 																					@Nonnull LocalDate date,
