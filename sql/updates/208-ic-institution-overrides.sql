@@ -7,14 +7,22 @@ SELECT _v.register_patch('208-ic-institution-overrides', NULL, NULL);
 
 CREATE TYPE DAY_OF_WEEK AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY');
 
--- Currently business hours are institution-specific, but in the future we might have department/clinic-specific business hours
 CREATE TABLE business_hour (
   business_hour_id UUID NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
-  institution_id TEXT NOT NULL REFERENCES institution(institution_id),
   day_of_week DAY_OF_WEEK NOT NULL,
   open_time TIME NOT NULL,
   close_time TIME NOT NULL
 );
+
+-- Currently business hours are only tied to institutions, but in the future we might have department/clinic/etc.-specific business hours
+CREATE TABLE institution_business_hour (
+  institution_id TEXT NOT NULL REFERENCES institution(institution_id),
+  business_hour_id UUID NOT NULL REFERENCES business_hour(business_hour_id),
+  PRIMARY KEY (institution_id, business_hour_id)
+);
+
+CREATE INDEX idx_institution_business_hour_institution_id ON institution_business_hour (institution_id);
+CREATE INDEX idx_institution_business_hour_business_hour_id ON institution_business_hour (business_hour_id);
 
 CREATE OR REPLACE FUNCTION validate_business_hours()
 RETURNS trigger AS
@@ -43,8 +51,10 @@ CREATE TABLE business_hour_override (
   open_time TIME, -- Use NULL to indicate that we never open
   close_time TIME, -- Must use NULL if override_open_time is NULL (enforced by trigger below)
   description VARCHAR(255),
-  UNIQUE (business_hour_id, date) -- Can't have multiple overrides for the dame date
+  UNIQUE (business_hour_id, date) -- Can't have multiple overrides for the same date
 );
+
+CREATE INDEX idx_business_hour_override_business_hour_id ON business_hour_override (business_hour_id);
 
 -- Verify that open/close overrides are legal
 CREATE FUNCTION validate_business_hour_override()
@@ -101,5 +111,8 @@ CREATE TABLE institution_holiday (
   holiday_id TEXT NOT NULL REFERENCES holiday(holiday_id),
   PRIMARY KEY(institution_id, holiday_id)
 );
+
+CREATE INDEX idx_institution_holiday_institution_id ON institution_holiday (institution_id);
+CREATE INDEX idx_institution_holiday_holiday_id ON institution_holiday (holiday_id);
 
 COMMIT;
