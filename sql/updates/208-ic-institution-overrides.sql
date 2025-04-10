@@ -18,6 +18,7 @@ CREATE TABLE business_hour (
 CREATE TABLE institution_business_hour (
   institution_id TEXT NOT NULL REFERENCES institution(institution_id),
   business_hour_id UUID NOT NULL REFERENCES business_hour(business_hour_id),
+  display_order INTEGER NOT NULL,
   PRIMARY KEY (institution_id, business_hour_id)
 );
 
@@ -50,7 +51,7 @@ CREATE TABLE business_hour_override (
   date DATE NOT NULL,
   open_time TIME, -- Use NULL to indicate that we never open
   close_time TIME, -- Must use NULL if override_open_time is NULL (enforced by trigger below)
-  description VARCHAR(255),
+  description TEXT,
   UNIQUE (business_hour_id, date) -- Can't have multiple overrides for the same date
 );
 
@@ -86,7 +87,7 @@ FOR EACH ROW
 EXECUTE FUNCTION validate_business_hour_override();
 
 CREATE TABLE holiday (
-  holiday_id TEXT PRIMARY KEY,
+  holiday_id TEXT NOT NULL PRIMARY KEY,
   description VARCHAR(255) NOT NULL,
   country_code VARCHAR(2) NOT NULL, -- ISO 3166, e.g. 'US'
   display_order INTEGER NOT NULL
