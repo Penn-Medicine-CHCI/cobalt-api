@@ -357,6 +357,8 @@ public class Institution {
 	private String integratedCareMhpTriageOverviewOverride;
 	@Nullable
 	private String integratedCareBookingInsuranceRequirements;
+	@Nullable
+	private String landingPageTaglineOverride;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1694,5 +1696,14 @@ public class Institution {
 
 	public void setIntegratedCareBookingInsuranceRequirements(@Nullable String integratedCareBookingInsuranceRequirements) {
 		this.integratedCareBookingInsuranceRequirements = integratedCareBookingInsuranceRequirements;
+	}
+
+	@Nullable
+	public String getLandingPageTaglineOverride() {
+		return this.landingPageTaglineOverride;
+	}
+
+	public void setLandingPageTaglineOverride(@Nullable String landingPageTaglineOverride) {
+		this.landingPageTaglineOverride = landingPageTaglineOverride;
 	}
 }
