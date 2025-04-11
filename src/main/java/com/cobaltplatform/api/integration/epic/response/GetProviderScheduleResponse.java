@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.integration.epic.response;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
@@ -78,6 +81,11 @@ public class GetProviderScheduleResponse {
 		private String HeldTimeComment;
 		@Nullable
 		private Boolean HeldTimeAllDay;
+
+		@Override
+		public String toString() {
+			return ToStringBuilder.reflectionToString(this, ToStringStyle.JSON_STYLE);
+		}
 
 		@Nullable
 		public String getStartTime() {

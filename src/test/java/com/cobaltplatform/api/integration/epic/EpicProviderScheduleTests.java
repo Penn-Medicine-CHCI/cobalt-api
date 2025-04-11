@@ -22,14 +22,27 @@ package com.cobaltplatform.api.integration.epic;
 import com.cobaltplatform.api.integration.epic.EpicProviderScheduleTests.EpicProviderScheduleConfig.TestProvider;
 import com.cobaltplatform.api.integration.epic.EpicProviderScheduleTests.EpicProviderScheduleConfig.TestProvider.TestDepartment;
 import com.cobaltplatform.api.integration.epic.EpicProviderScheduleTests.EpicProviderScheduleConfig.TestProvider.TestVisitType;
+import com.cobaltplatform.api.integration.epic.EpicSyncManager.ProviderAvailabilityDateInsert;
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse.ScheduleSlot;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.EpicAppointmentFilter.EpicAppointmentFilterId;
+import com.cobaltplatform.api.model.db.EpicDepartment;
+import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.util.GsonUtility;
+import com.google.common.collect.Range;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.pyranid.Database;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -48,14 +61,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static com.soklet.util.LoggingUtils.initializeLogback;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -112,11 +134,7 @@ public class EpicProviderScheduleTests {
 
 							GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
-							for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
-								LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
-//								Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
-//								LocalDateTime dateTime = LocalDateTime.of(date, startTime);
-
+							for (ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
 								ScheduleCsvRow scheduleCsvRow = new ScheduleCsvRow();
 								scheduleCsvRow.setProviderId(testProvider.getProviderId());
 								scheduleCsvRow.setProviderName(testProvider.getName());
@@ -138,20 +156,6 @@ public class EpicProviderScheduleTests {
 								scheduleCsvRow.setHeldTimeAllDay(String.valueOf(scheduleSlot.getHeldTimeAllDay()));
 
 								scheduleCsvRows.add(scheduleCsvRow);
-
-//								if (availableOpenings > 0) {
-//								boolean held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
-//								boolean unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
-//								boolean available = !held && !unavailable;
-//
-//								if (!held && !unavailable) {
-//									EpicSyncManager.ProviderAvailabilityDateInsertRow row = new EpicSyncManager.ProviderAvailabilityDateInsertRow();
-//									row.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
-//									row.setDateTime(dateTime);
-//									row.setEpicDepartmentId(epicDepartment.getEpicDepartmentId());
-//									rows.add(row);
-//								}
-//								}
 							}
 						}
 					}
@@ -219,6 +223,220 @@ public class EpicProviderScheduleTests {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+
+		// Optionally dump out what we'd be inserting for provider availability (our slot calculations)
+		boolean debugInserts = false;
+
+		if (debugInserts) {
+			performOperationWithDatabase((database -> {
+				for (TestProvider testProvider : epicProviderScheduleConfig.getTestProviders()) {
+					if (testProvider.getIgnored() != null && testProvider.getIgnored())
+						continue;
+
+					LocalDate insertDate = epicProviderScheduleConfig.getStartDate();
+					LocalDate insertEndDate = epicProviderScheduleConfig.getEndDate();
+
+					logger.info("Performing provider availability insert calculations {} ({}) on {}...", testProvider.getName(), testProvider.getProviderId(), insertDate);
+
+					Provider provider = database.queryForObject("SELECT * FROM provider WHERE epic_provider_id=?", Provider.class, testProvider.getProviderId()).get();
+
+					while (!insertDate.isAfter(insertEndDate)) {
+						ProviderAvailabilityDateInsert providerAvailabilityDateInsert = generateProviderAvailabilityDateInsert(
+								database,
+								logger,
+								epicClient,
+								epicEmpCredentials,
+								provider,
+								insertDate
+						);
+
+						System.out.println("Availability INSERTs: " + providerAvailabilityDateInsert);
+
+						insertDate = insertDate.plusDays(1);
+					}
+				}
+			}));
+		}
+	}
+
+	protected void performOperationWithDatabase(@Nonnull Consumer<Database> databaseConsumer) throws IOException {
+		requireNonNull(databaseConsumer);
+
+		Path credentialsFile = Path.of("resources/test/epic-schedule-slot-db-credentials.json");
+		Map<String, String> credentials = new Gson().fromJson(Files.readString(credentialsFile, StandardCharsets.UTF_8), new TypeToken<Map<String, String>>() {
+		}.getType());
+
+		String jdbcUrl = requireNonNull(trimToNull(credentials.get("jdbcUrl")));
+		String jdbcUsername = requireNonNull(trimToNull(credentials.get("jdbcUsername")));
+		String jdbcPassword = requireNonNull(trimToNull(credentials.get("jdbcPassword")));
+
+		try (HikariDataSource dataSource = new HikariDataSource(new HikariConfig() {
+			{
+				setJdbcUrl(jdbcUrl);
+				setUsername(jdbcUsername);
+				setPassword(jdbcPassword);
+				setMaximumPoolSize(1);
+			}
+		})) {
+			Database database = Database.forDataSource(dataSource)
+					.timeZone(ZoneId.of("UTC"))
+					.build();
+
+			databaseConsumer.accept(database);
+		}
+	}
+
+	// Mirrors functionality in EpicSyncManager so we can test availability calculations per-provider
+	@Nonnull
+	protected ProviderAvailabilityDateInsert generateProviderAvailabilityDateInsert(@Nonnull Database database,
+																																									@Nonnull Logger logger,
+																																									@Nonnull EpicClient epicClient,
+																																									@Nonnull EpicEmpCredentials epicEmpCredentials,
+																																									@Nonnull Provider provider,
+																																									@Nonnull LocalDate date) {
+		requireNonNull(database);
+		requireNonNull(logger);
+		requireNonNull(epicClient);
+		requireNonNull(epicEmpCredentials);
+		requireNonNull(provider);
+		requireNonNull(date);
+
+		List<AppointmentType> appointmentTypes = database.queryForList("""
+						SELECT app_type.* FROM provider_appointment_type pat, v_appointment_type app_type
+						WHERE pat.provider_id=? AND pat.appointment_type_id=app_type.appointment_type_id
+						ORDER BY pat.display_order
+						""", AppointmentType.class, provider.getProviderId()).stream()
+				.filter(appointmentType -> appointmentType.getSchedulingSystemId().equals(SchedulingSystemId.EPIC) && provider.getActive())
+				.collect(Collectors.toList());
+
+		List<EpicDepartment> epicDepartments = database.queryForList("""
+				SELECT ed.*
+				FROM epic_department ed, provider_epic_department ped
+				WHERE ped.provider_id=?
+				AND ped.epic_department_id=ed.epic_department_id
+				ORDER BY ed.name
+				""", EpicDepartment.class, provider.getProviderId());
+
+		List<EpicSyncManager.ProviderAvailabilityDateInsertRow> rows = new ArrayList<>();
+
+		if (provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.VISIT_TYPE)) {
+			// This path is for providers that want explicit filtering on EPIC visit types (as opposed to us looking at any open slot regardless of visit type)
+			for (AppointmentType appointmentType : appointmentTypes) {
+				for (EpicDepartment epicDepartment : epicDepartments) {
+					GetProviderScheduleRequest request = new GetProviderScheduleRequest();
+					request.setDate(date);
+					request.setProviderID(provider.getEpicProviderId());
+					request.setProviderIDType(provider.getEpicProviderIdType());
+					request.setDepartmentID(epicDepartment.getDepartmentId());
+					request.setDepartmentIDType(epicDepartment.getDepartmentIdType());
+					request.setVisitTypeID(appointmentType.getEpicVisitTypeId());
+					request.setVisitTypeIDType(appointmentType.getEpicVisitTypeIdType());
+					request.setUserID(epicEmpCredentials.getUserId());
+					request.setUserIDType(epicEmpCredentials.getUserIdType());
+
+					GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
+
+					if (response.getScheduleSlots() == null)
+						throw new IllegalStateException(format("Unable to detect schedule slots in Epic response for provider %s (%s) " +
+										"in department ID %s and visit type ID %s on %s.  Epic response JSON follows:\n%s",
+								provider.getName(), provider.getEpicProviderId(), epicDepartment.getDepartmentId(), appointmentType.getEpicVisitTypeId(),
+								date, response.getRawJson()));
+
+					List<NormalizedScheduleSlot> availableScheduleSlots = response.getScheduleSlots().stream()
+							.map(scheduleSlot -> new NormalizedScheduleSlot(epicClient, date, scheduleSlot))
+							.filter(nss -> nss.getPotentiallyUsableForBooking())
+							.sorted((nss1, nss2) -> nss1.getDateTime().compareTo(nss2.getDateTime()))
+							.collect(Collectors.toUnmodifiableList());
+
+//					for (NormalizedScheduleSlot availableScheduleSlot : availableScheduleSlots)
+//						System.out.println("Available slot: " + availableScheduleSlot);
+
+					List<Range<LocalDateTime>> availableScheduleSlotRanges = availableScheduleSlots.stream()
+							.map(availableScheduleSlot -> availableScheduleSlot.getRange())
+							.collect(Collectors.toUnmodifiableList());
+
+					List<Range<LocalDateTime>> availableScheduleSlotContiguousRanges = mergeContiguousRanges(availableScheduleSlotRanges);
+
+//					for (Range<LocalDateTime> availableScheduleSlotContiguousRange : availableScheduleSlotContiguousRanges)
+//						System.out.println("Available contiguous range: " + availableScheduleSlotContiguousRange);
+
+					// Now that we know the contiguous availability ranges, we can see what slots fit in them.
+					// We need the contiguous ranges because the slots might be narrower than the visit type duration,
+					// e.g. 30 minute slot but 60 minute NPV.
+					for (NormalizedScheduleSlot availableScheduleSlot : availableScheduleSlots) {
+						LocalDateTime startDateTime = availableScheduleSlot.getDateTime();
+						LocalDateTime endDateTime = startDateTime.plusMinutes(appointmentType.getDurationInMinutes());
+						Range<LocalDateTime> proposedRange = Range.closedOpen(startDateTime, endDateTime);
+
+						if (proposedRangeFits(proposedRange, availableScheduleSlotContiguousRanges)) {
+							logger.debug("Proposed range {} fits within our contiguous ranges: {}", proposedRange, availableScheduleSlotContiguousRanges);
+
+							EpicSyncManager.ProviderAvailabilityDateInsertRow row = new EpicSyncManager.ProviderAvailabilityDateInsertRow();
+							row.setAppointmentTypeId(appointmentType.getAppointmentTypeId());
+							row.setDateTime(startDateTime);
+							row.setEpicDepartmentId(epicDepartment.getEpicDepartmentId());
+							rows.add(row);
+						} else {
+							logger.debug("Proposed range {} does not fit within our contiguous ranges: {}", proposedRange, availableScheduleSlotContiguousRanges);
+						}
+					}
+				}
+			}
+		} else {
+			// We look at appointment type durations to figure out NPVs/RPVs instead of filtering on visit type with EPIC
+			Map<Long, List<AppointmentType>> appointmentTypesByDurationInMinutes = new HashMap<>(appointmentTypes.size());
+
+			for (AppointmentType appointmentType : appointmentTypes) {
+				List<AppointmentType> currentAppointmentTypes = appointmentTypesByDurationInMinutes.get(appointmentType.getDurationInMinutes());
+
+				if (currentAppointmentTypes == null) {
+					currentAppointmentTypes = new ArrayList<>();
+					appointmentTypesByDurationInMinutes.put(appointmentType.getDurationInMinutes(), currentAppointmentTypes);
+				}
+
+				currentAppointmentTypes.add(appointmentType);
+			}
+
+			for (EpicDepartment epicDepartment : epicDepartments) {
+				GetProviderScheduleRequest request = new GetProviderScheduleRequest();
+				request.setDate(date);
+				request.setProviderID(provider.getEpicProviderId());
+				request.setProviderIDType(provider.getEpicProviderIdType());
+				request.setDepartmentID(epicDepartment.getDepartmentId());
+				request.setDepartmentIDType(epicDepartment.getDepartmentIdType());
+				request.setUserID(epicEmpCredentials.getUserId());
+				request.setUserIDType(epicEmpCredentials.getUserIdType());
+
+				GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
+
+				for (ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
+					LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
+					Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
+					Long length = Long.valueOf(scheduleSlot.getLength());
+					LocalDateTime dateTime = LocalDateTime.of(date, startTime);
+					List<AppointmentType> currentAppointmentTypes = appointmentTypesByDurationInMinutes.get(length);
+
+					if (currentAppointmentTypes == null || currentAppointmentTypes.size() == 0) {
+						logger.info("No appointment type found in Cobalt for the {}-minute appointment for {} in department {} on {}.", length, provider.getName(), epicDepartment.getDepartmentId(), dateTime);
+					} else if (availableOpenings > 0) {
+						boolean held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
+						boolean unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
+
+						if (!held && !unavailable) {
+							for (AppointmentType currentAppointmentType : currentAppointmentTypes) {
+								EpicSyncManager.ProviderAvailabilityDateInsertRow row = new EpicSyncManager.ProviderAvailabilityDateInsertRow();
+								row.setAppointmentTypeId(currentAppointmentType.getAppointmentTypeId());
+								row.setDateTime(dateTime);
+								row.setEpicDepartmentId(epicDepartment.getEpicDepartmentId());
+								rows.add(row);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return new ProviderAvailabilityDateInsert(provider.getProviderId(), date, provider.getTimeZone(), rows);
 	}
 
 	@Nonnull
@@ -238,6 +456,147 @@ public class EpicProviderScheduleTests {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	@ThreadSafe
+	private static class NormalizedScheduleSlot {
+		@Nonnull
+		private final LocalDateTime dateTime;
+		@Nonnull
+		private final Range<LocalDateTime> range;
+		@Nonnull
+		private final Integer availableOpenings;
+		@Nonnull
+		private final Long length;
+		@Nonnull
+		private final Boolean held;
+		@Nonnull
+		private final Boolean unavailable;
+		@Nonnull
+		private final Boolean potentiallyUsableForBooking;
+		@Nonnull
+		private final ScheduleSlot scheduleSlot;
+
+		public NormalizedScheduleSlot(@Nonnull EpicClient epicClient,
+																	@Nonnull LocalDate date,
+																	@Nonnull ScheduleSlot scheduleSlot) {
+			requireNonNull(epicClient);
+			requireNonNull(date);
+			requireNonNull(scheduleSlot);
+
+			String availableOpeningsAsString = trimToNull(scheduleSlot.getAvailableOpenings());
+			String lengthAsString = trimToNull(scheduleSlot.getLength());
+
+			if (lengthAsString == null)
+				throw new IllegalArgumentException(format("%s has invalid length: %s", ScheduleSlot.class, scheduleSlot));
+
+			this.availableOpenings = availableOpeningsAsString == null ? 0 : Integer.valueOf(availableOpeningsAsString);
+			this.length = Long.valueOf(lengthAsString);
+			this.dateTime = LocalDateTime.of(date, epicClient.parseTimeAmPm(scheduleSlot.getStartTime()));
+			this.range = Range.closedOpen(this.dateTime, this.dateTime.plusMinutes(this.length));
+			this.held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
+			this.unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
+			this.scheduleSlot = scheduleSlot;
+			this.potentiallyUsableForBooking = this.availableOpenings > 0 && !this.held && !this.unavailable;
+		}
+
+		@Override
+		public String toString() {
+			return ToStringBuilder.reflectionToString(this, ToStringStyle.JSON_STYLE);
+		}
+
+		@Nonnull
+		public LocalDateTime getDateTime() {
+			return this.dateTime;
+		}
+
+		@Nonnull
+		public Range<LocalDateTime> getRange() {
+			return this.range;
+		}
+
+		@Nonnull
+		public Integer getAvailableOpenings() {
+			return this.availableOpenings;
+		}
+
+		@Nonnull
+		public Long getLength() {
+			return this.length;
+		}
+
+		@Nonnull
+		public Boolean getHeld() {
+			return this.held;
+		}
+
+		@Nonnull
+		public Boolean getUnavailable() {
+			return this.unavailable;
+		}
+
+		@Nonnull
+		public Boolean getPotentiallyUsableForBooking() {
+			return this.potentiallyUsableForBooking;
+		}
+
+		@Nonnull
+		public ScheduleSlot getScheduleSlot() {
+			return this.scheduleSlot;
+		}
+	}
+
+	@Nonnull
+	private List<Range<LocalDateTime>> mergeContiguousRanges(@Nullable List<Range<LocalDateTime>> ranges) {
+		if (ranges == null || ranges.isEmpty())
+			return Collections.emptyList();
+
+		if (ranges.size() == 1)
+			return ranges;
+
+		// Create a copy of the list and sort it by the lower endpoint.
+		List<Range<LocalDateTime>> sortedRanges = new ArrayList<>(ranges);
+		sortedRanges.sort(Comparator.comparing(Range::lowerEndpoint));
+
+		List<Range<LocalDateTime>> mergedRanges = new ArrayList<>();
+		// Start with the first range
+		Range<LocalDateTime> currentRange = sortedRanges.get(0);
+
+		for (int i = 1; i < sortedRanges.size(); i++) {
+			Range<LocalDateTime> nextRange = sortedRanges.get(i);
+
+			// Check if the two ranges are contiguous.
+			// For closedOpen ranges, if the current range’s upper endpoint equals the next range’s lower endpoint,
+			// they are contiguous.
+			if (currentRange.upperEndpoint().equals(nextRange.lowerEndpoint())) {
+				// Merge the two ranges. Since they're contiguous, the new range spans from the
+				// current range's lower endpoint to the next range's upper endpoint.
+				currentRange = Range.closedOpen(currentRange.lowerEndpoint(), nextRange.upperEndpoint());
+			} else {
+				// Otherwise, add the currentRange to the result and move on.
+				mergedRanges.add(currentRange);
+				currentRange = nextRange;
+			}
+		}
+
+		// Add the final range
+		mergedRanges.add(currentRange);
+
+		return mergedRanges;
+	}
+
+	@Nonnull
+	private Boolean proposedRangeFits(@Nonnull Range<LocalDateTime> proposedRange,
+																		@Nonnull List<Range<LocalDateTime>> contiguousRanges) {
+		requireNonNull(proposedRange);
+		requireNonNull(contiguousRanges);
+
+		for (Range<LocalDateTime> contiguousRange : contiguousRanges)
+			if (contiguousRange.encloses(proposedRange))
+				// If the contiguousRange encloses proposedRange, it means proposedRange fits.
+				return true;
+
+		return false;
 	}
 
 	@Nonnull
