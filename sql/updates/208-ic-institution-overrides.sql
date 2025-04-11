@@ -1,8 +1,10 @@
 BEGIN;
 SELECT _v.register_patch('208-ic-institution-overrides', NULL, NULL);
 
+-- Additional overrides necessary for self-referring IC institutions
 ALTER TABLE institution ADD COLUMN integrated_care_call_center_name TEXT;
 ALTER TABLE institution ADD COLUMN integrated_care_mhp_triage_overview_override TEXT;
+ALTER TABLE institution ADD COLUMN integrated_care_booking_insurance_requirements TEXT;
 
 -- Introduce support for the concept of business hours, which enables fine-grained "opened/closed" calculations.
 -- For example, provider availability might be capped to anything at least 48 business hours out,

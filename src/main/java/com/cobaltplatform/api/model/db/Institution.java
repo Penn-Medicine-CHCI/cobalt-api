@@ -355,6 +355,8 @@ public class Institution {
 	private String integratedCareCallCenterName;
 	@Nullable
 	private String integratedCareMhpTriageOverviewOverride;
+	@Nullable
+	private String integratedCareBookingInsuranceRequirements;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1683,5 +1685,14 @@ public class Institution {
 
 	public void setIntegratedCareMhpTriageOverviewOverride(@Nullable String integratedCareMhpTriageOverviewOverride) {
 		this.integratedCareMhpTriageOverviewOverride = integratedCareMhpTriageOverviewOverride;
+	}
+
+	@Nullable
+	public String getIntegratedCareBookingInsuranceRequirements() {
+		return this.integratedCareBookingInsuranceRequirements;
+	}
+
+	public void setIntegratedCareBookingInsuranceRequirements(@Nullable String integratedCareBookingInsuranceRequirements) {
+		this.integratedCareBookingInsuranceRequirements = integratedCareBookingInsuranceRequirements;
 	}
 }

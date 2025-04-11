@@ -175,6 +175,8 @@ public class InstitutionApiResponse {
 	private final String integratedCareCallCenterName;
 	@Nullable
 	private final String integratedCareMhpTriageOverviewOverride;
+	@Nullable
+	private final String integratedCareBookingInsuranceRequirements;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -288,6 +290,7 @@ public class InstitutionApiResponse {
 		this.integratedCarePatientCarePreferenceVisible = institution.getIntegratedCarePatientCarePreferenceVisible();
 		this.integratedCareCallCenterName = institution.getIntegratedCareCallCenterName();
 		this.integratedCareMhpTriageOverviewOverride = institution.getIntegratedCareMhpTriageOverviewOverride();
+		this.integratedCareBookingInsuranceRequirements = institution.getIntegratedCareBookingInsuranceRequirements();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -593,5 +596,20 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getIntegratedCarePatientCarePreferenceVisible() {
 		return this.integratedCarePatientCarePreferenceVisible;
+	}
+
+	@Nonnull
+	public Optional<String> getIntegratedCareCallCenterName() {
+		return Optional.ofNullable(this.integratedCareCallCenterName);
+	}
+
+	@Nonnull
+	public Optional<String> getIntegratedCareMhpTriageOverviewOverride() {
+		return Optional.ofNullable(this.integratedCareMhpTriageOverviewOverride);
+	}
+
+	@Nonnull
+	public Optional<String> getIntegratedCareBookingInsuranceRequirements() {
+		return Optional.ofNullable(this.integratedCareBookingInsuranceRequirements);
 	}
 }
