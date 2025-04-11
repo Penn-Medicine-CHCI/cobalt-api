@@ -171,6 +171,10 @@ public class InstitutionApiResponse {
 	private final Boolean integratedCarePatientDemographicsRequired;
 	@Nonnull
 	private final Boolean integratedCarePatientCarePreferenceVisible;
+	@Nullable
+	private final String integratedCareCallCenterName;
+	@Nullable
+	private final String integratedCareMhpTriageOverviewOverride;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -282,6 +286,8 @@ public class InstitutionApiResponse {
 		this.resourcePacketsEnabled = institution.getResourcePacketsEnabled();
 		this.integratedCarePatientDemographicsRequired = institution.getIntegratedCarePatientDemographicsRequired();
 		this.integratedCarePatientCarePreferenceVisible = institution.getIntegratedCarePatientCarePreferenceVisible();
+		this.integratedCareCallCenterName = institution.getIntegratedCareCallCenterName();
+		this.integratedCareMhpTriageOverviewOverride = institution.getIntegratedCareMhpTriageOverviewOverride();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()

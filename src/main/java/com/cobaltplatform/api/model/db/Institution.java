@@ -351,6 +351,10 @@ public class Institution {
 	private Boolean integratedCarePatientDemographicsRequired;
 	@Nullable
 	private Boolean integratedCarePatientCarePreferenceVisible;
+	@Nullable
+	private String integratedCareCallCenterName;
+	@Nullable
+	private String integratedCareMhpTriageOverviewOverride;
 
 	public enum InstitutionId {
 		COBALT,
@@ -1661,5 +1665,23 @@ public class Institution {
 
 	public void setIntegratedCarePatientCarePreferenceVisible(@Nullable Boolean integratedCarePatientCarePreferenceVisible) {
 		this.integratedCarePatientCarePreferenceVisible = integratedCarePatientCarePreferenceVisible;
+	}
+
+	@Nullable
+	public String getIntegratedCareCallCenterName() {
+		return this.integratedCareCallCenterName;
+	}
+
+	public void setIntegratedCareCallCenterName(@Nullable String integratedCareCallCenterName) {
+		this.integratedCareCallCenterName = integratedCareCallCenterName;
+	}
+
+	@Nullable
+	public String getIntegratedCareMhpTriageOverviewOverride() {
+		return this.integratedCareMhpTriageOverviewOverride;
+	}
+
+	public void setIntegratedCareMhpTriageOverviewOverride(@Nullable String integratedCareMhpTriageOverviewOverride) {
+		this.integratedCareMhpTriageOverviewOverride = integratedCareMhpTriageOverviewOverride;
 	}
 }
