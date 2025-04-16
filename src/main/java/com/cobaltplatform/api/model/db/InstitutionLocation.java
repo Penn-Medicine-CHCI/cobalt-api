@@ -38,6 +38,8 @@ public class InstitutionLocation {
 	@Nullable
 	private String name;
 	@Nullable
+	private String shortName;
+	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
@@ -69,6 +71,15 @@ public class InstitutionLocation {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getShortName() {
+		return this.shortName;
+	}
+
+	public void setShortName(@Nullable String shortName) {
+		this.shortName = shortName;
 	}
 
 	@Nullable
