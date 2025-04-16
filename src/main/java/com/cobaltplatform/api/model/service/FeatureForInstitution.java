@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
+import com.cobaltplatform.api.model.db.DisplayType.DisplayTypeId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
@@ -58,7 +59,10 @@ public class FeatureForInstitution {
 	private Boolean locationPromptRequired;
 	@Nullable
 	private String treatmentDescription;
-
+	@Nullable
+	private String bannerMessage;
+	@Nullable
+	private DisplayTypeId bannerMessageDisplayTypeId;
 
 	@Nullable
 	public FeatureId getFeatureId() {
@@ -175,5 +179,23 @@ public class FeatureForInstitution {
 
 	public void setTreatmentDescription(@Nullable String treatmentDescription) {
 		this.treatmentDescription = treatmentDescription;
+	}
+
+	@Nullable
+	public String getBannerMessage() {
+		return this.bannerMessage;
+	}
+
+	public void setBannerMessage(@Nullable String bannerMessage) {
+		this.bannerMessage = bannerMessage;
+	}
+
+	@Nullable
+	public DisplayTypeId getBannerMessageDisplayTypeId() {
+		return this.bannerMessageDisplayTypeId;
+	}
+
+	public void setBannerMessageDisplayTypeId(@Nullable DisplayTypeId bannerMessageDisplayTypeId) {
+		this.bannerMessageDisplayTypeId = bannerMessageDisplayTypeId;
 	}
 }
