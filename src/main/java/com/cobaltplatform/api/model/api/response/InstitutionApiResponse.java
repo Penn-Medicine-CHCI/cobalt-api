@@ -172,6 +172,14 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final Boolean integratedCarePatientCarePreferenceVisible;
 	@Nullable
+	private final String integratedCareCallCenterName;
+	@Nullable
+	private final String integratedCareMhpTriageOverviewOverride;
+	@Nullable
+	private final String integratedCareBookingInsuranceRequirements;
+	@Nullable
+	private final String landingPageTaglineOverride;
+	@Nullable
 	private final UUID onboardingScreeningFlowId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -285,6 +293,10 @@ public class InstitutionApiResponse {
 
 		this.integratedCarePatientDemographicsRequired = institution.getIntegratedCarePatientDemographicsRequired();
 		this.integratedCarePatientCarePreferenceVisible = institution.getIntegratedCarePatientCarePreferenceVisible();
+		this.integratedCareCallCenterName = institution.getIntegratedCareCallCenterName();
+		this.integratedCareMhpTriageOverviewOverride = institution.getIntegratedCareMhpTriageOverviewOverride();
+		this.integratedCareBookingInsuranceRequirements = institution.getIntegratedCareBookingInsuranceRequirements();
+		this.landingPageTaglineOverride = institution.getLandingPageTaglineOverride();
 
 		this.onboardingScreeningFlowId = institution.getOnboardingScreeningFlowId();
 
@@ -594,8 +606,28 @@ public class InstitutionApiResponse {
 		return this.integratedCarePatientCarePreferenceVisible;
 	}
 
-	@Nullable
-	public UUID getOnboardingScreeningFlowId() {
-		return this.onboardingScreeningFlowId;
+	@Nonnull
+	public Optional<String> getIntegratedCareCallCenterName() {
+		return Optional.ofNullable(this.integratedCareCallCenterName);
+	}
+
+	@Nonnull
+	public Optional<String> getIntegratedCareMhpTriageOverviewOverride() {
+		return Optional.ofNullable(this.integratedCareMhpTriageOverviewOverride);
+	}
+
+	@Nonnull
+	public Optional<String> getIntegratedCareBookingInsuranceRequirements() {
+		return Optional.ofNullable(this.integratedCareBookingInsuranceRequirements);
+	}
+
+	@Nonnull
+	public Optional<String> getLandingPageTaglineOverride() {
+		return Optional.ofNullable(this.landingPageTaglineOverride);
+	}
+
+	@Nonnull
+	public Optional<UUID> getOnboardingScreeningFlowId() {
+		return Optional.ofNullable(this.onboardingScreeningFlowId);
 	}
 }

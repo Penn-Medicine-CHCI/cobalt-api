@@ -21,11 +21,14 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.BusinessHour;
+import com.cobaltplatform.api.model.db.BusinessHourOverride;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.EpicDepartmentSynonym;
 import com.cobaltplatform.api.model.db.EpicProviderSchedule;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
+import com.cobaltplatform.api.model.db.Holiday;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
@@ -364,7 +367,7 @@ public class InstitutionService {
 				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
 
 		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, COALESCE(if.name_override, f.name) AS name, COALESCE(if.subtitle_override, f.subtitle) AS subtitle, if.description, if.nav_description, if.nav_visible, if.landing_page_visible, if.treatment_description, " +
-				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id " +
+				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, if.banner_message, if.banner_message_display_type_id " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
 				"ON f.feature_id = ss.feature_id " +
@@ -562,6 +565,45 @@ public class InstitutionService {
 				AND ipors.institution_id=?
 				ORDER BY pors.patient_order_referral_source_id
 				""", PatientOrderReferralSource.class, institutionId);
+	}
+
+	@Nonnull
+	public List<BusinessHour> findBusinessHoursByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT bh.*
+				FROM business_hour bh, institution_business_hour ibh
+				WHERE bh.business_hour_id=ibh.business_hour_id
+				ORDER BY ibh.display_order
+				""", BusinessHour.class, institutionId);
+	}
+
+	@Nonnull
+	public List<BusinessHourOverride> findBusinessHourOverridesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT bho.*
+				FROM business_hour_override bho, institution_business_hour ibh
+				WHERE bho.business_hour_id=ibh.business_hour_id
+				ORDER BY bho.date
+				""", BusinessHourOverride.class, institutionId);
+	}
+
+	@Nonnull
+	public List<Holiday> findHolidaysByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT h.*
+				FROM holiday h, institution_holiday ih
+				WHERE h.holiday_id=ih.holiday_id
+				ORDER BY h.display_order
+				""", Holiday.class, institutionId);
 	}
 
 	@Immutable

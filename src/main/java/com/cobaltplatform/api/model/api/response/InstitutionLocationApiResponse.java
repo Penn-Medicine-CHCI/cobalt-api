@@ -25,7 +25,9 @@ import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -41,6 +43,8 @@ public class InstitutionLocationApiResponse {
 	private final InstitutionId institutionId;
 	@Nonnull
 	private final String name;
+	@Nullable
+	private final String shortName;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -56,20 +60,26 @@ public class InstitutionLocationApiResponse {
 		this.institutionLocationId = institutionLocation.getInstitutionLocationId();
 		this.institutionId = institutionLocation.getInstitutionId();
 		this.name = institutionLocation.getName();
+		this.shortName = institutionLocation.getShortName();
 	}
 
 	@Nonnull
 	public UUID getInstitutionLocationId() {
-		return institutionLocationId;
+		return this.institutionLocationId;
 	}
 
 	@Nonnull
 	public InstitutionId getInstitutionId() {
-		return institutionId;
+		return this.institutionId;
 	}
 
 	@Nonnull
 	public String getName() {
-		return name;
+		return this.name;
+	}
+
+	@Nonnull
+	public Optional<String> getShortName() {
+		return Optional.ofNullable(this.shortName);
 	}
 }
