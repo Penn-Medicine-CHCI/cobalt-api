@@ -127,8 +127,8 @@ public class EpicProviderScheduleTests {
 							request.setProviderIDType(testProvider.getProviderIdType());
 							request.setDepartmentID(testDepartment.getDepartmentId());
 							request.setDepartmentIDType(testDepartment.getDepartmentIdType());
-							request.setVisitTypeID(testVisitType.getVisitTypeId());
-							request.setVisitTypeIDType(testVisitType.getVisitTypeIdType());
+							//request.setVisitTypeID(testVisitType.getVisitTypeId());
+							//request.setVisitTypeIDType(testVisitType.getVisitTypeIdType());
 							request.setUserID(epicProviderScheduleConfig.getUserId());
 							request.setUserIDType(epicProviderScheduleConfig.getUserIdType());
 
