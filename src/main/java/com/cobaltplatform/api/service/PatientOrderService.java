@@ -883,12 +883,16 @@ public class PatientOrderService implements AutoCloseable {
 			return Map.of();
 
 		List<AccountIdWithCount> accountIdsWithCount = getDatabase().queryForList("""
-				SELECT a.account_id, COUNT(po.*)
-				FROM account a, patient_order po
-				WHERE a.account_id=po.panel_account_id
-				AND po.institution_id=?
-				AND po.patient_order_disposition_id=?
-				GROUP BY a.account_id
+				SELECT
+				  po.panel_account_id AS account_id,
+				  COUNT(*) AS count
+				FROM patient_order po
+				WHERE
+				  po.institution_id=?
+				  AND po.patient_order_disposition_id=?
+				  AND po.panel_account_id IS NOT NULL
+				GROUP BY
+				  po.panel_account_id
 				""", AccountIdWithCount.class, institutionId, PatientOrderDispositionId.OPEN);
 
 		return accountIdsWithCount.stream()
