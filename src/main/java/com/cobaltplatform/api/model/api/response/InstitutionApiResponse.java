@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.service.AlertService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
@@ -191,7 +192,7 @@ public class InstitutionApiResponse {
 	@AssistedInject
 	public InstitutionApiResponse(@Nonnull AlertApiResponseFactory alertApiResponseFactory,
 																@Nonnull AlertService alertService,
-																@Nonnull TopicCenterService topicCenterService,
+																@Nonnull PageService pageService,
 																@Nonnull InstitutionService institutionService,
 																@Nonnull ScreeningService screeningService,
 																@Nonnull Configuration configuration,
@@ -201,7 +202,7 @@ public class InstitutionApiResponse {
 																@Assisted @Nonnull CurrentContext currentContext) {
 		requireNonNull(alertApiResponseFactory);
 		requireNonNull(alertService);
-		requireNonNull(topicCenterService);
+		requireNonNull(pageService);
 		requireNonNull(institutionService);
 		requireNonNull(screeningService);
 		requireNonNull(configuration);
@@ -242,7 +243,7 @@ public class InstitutionApiResponse {
 		this.myChartName = institution.getMyChartName();
 		this.myChartDefaultUrl = institution.getMyChartDefaultUrl();
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
-		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
+		this.additionalNavigationItems = pageService.findPageNavigationItemsByInstitutionId(institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
