@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.SiteLocation;
+import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -39,6 +41,8 @@ import static java.util.Objects.requireNonNull;
 public class PageSiteLocationApiResponse {
 	@Nonnull
 	private final UUID pageId;
+	@Nonnull
+	private final SiteLocationId siteLocationId;
 	@Nullable
 	private final String relativeUrl;
 	@Nullable
@@ -66,6 +70,7 @@ public class PageSiteLocationApiResponse {
 		requireNonNull(pageSiteLocation);
 
 		this.pageId = pageSiteLocation.getPageId();
+		this.siteLocationId = pageSiteLocation.getSiteLocationId();
 		this.relativeUrl = format("/%s/%s", "pages", pageSiteLocation.getUrlName());
 		this.headline = pageSiteLocation.getHeadline();
 		this.description = pageSiteLocation.getDescription();
@@ -78,6 +83,11 @@ public class PageSiteLocationApiResponse {
 	@Nonnull
 	public UUID getPageId() {
 		return pageId;
+	}
+
+	@Nonnull
+	public SiteLocationId getSiteLocationId() {
+		return this.siteLocationId;
 	}
 
 	@Nullable

@@ -1789,18 +1789,37 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<PageSiteLocation> findAllPagesBySiteLocation(@Nonnull SiteLocationId siteLocationId,
-																													 @Nonnull InstitutionId institutionId) {
-		requireNonNull(siteLocationId);
-		requireNonNull(institutionId);
+	public List<PageSiteLocation> findAllPageSiteLocations(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url 
+				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url
 				FROM v_page p, page_site_location psl
 				WHERE p.page_id = psl.page_id
-				AND p.institution_id = ?
-				AND NOW() BETWEEN psl.publish_start_date and psl.publish_end_date""", PageSiteLocation.class, institutionId);
+				AND p.institution_id=?
+				AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
+				AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+				ORDER BY psl.site_location_id, psl.display_order
+				""", PageSiteLocation.class, institutionId);
+	}
 
+	@Nonnull
+	public List<PageSiteLocation> findAllPagesBySiteLocation(@Nullable SiteLocationId siteLocationId,
+																													 @Nullable InstitutionId institutionId) {
+		if (siteLocationId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url
+				FROM v_page p, page_site_location psl
+				WHERE p.page_id = psl.page_id
+				AND p.institution_id=?
+				AND psl.site_location_id=?
+				AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
+				AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+				ORDER BY psl.site_location_id, psl.display_order
+				""", PageSiteLocation.class, institutionId, siteLocationId);
 	}
 
 	@Nonnull
