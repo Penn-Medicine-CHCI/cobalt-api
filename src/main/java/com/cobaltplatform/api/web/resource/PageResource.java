@@ -20,8 +20,6 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
-import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
@@ -30,7 +28,9 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowCustomThreeColumnRe
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
+import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
@@ -47,12 +47,12 @@ import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse.PageRowContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
@@ -94,7 +94,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -140,9 +139,9 @@ public class PageResource {
 	@Nonnull
 	private final PageAutocompleteResultApiResponseFactory pageAutocompleteResultApiResponseFactory;
 	@Nonnull
-	private  final PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory;
+	private final PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory;
 	@Nonnull
-	private  final PageRowTagApiResponseFactory pageRowTagApiResponseFactory;
+	private final PageRowTagApiResponseFactory pageRowTagApiResponseFactory;
 	@Nonnull
 	private final PageService pageService;
 	@Nonnull
@@ -302,10 +301,25 @@ public class PageResource {
 		}});
 	}
 
-	@GET("/pages/site-location/{siteLocationId}")
+	@GET("/page-site-locations")
 	@AuthenticationRequired
 	@ReadReplica
-	public ApiResponse pageSiteLocations(@Nonnull @PathParameter("siteLocationId") SiteLocationId siteLocationId) {
+	public ApiResponse allPageSiteLocations() {
+		Account account = getCurrentContext().getAccount().get();
+
+		List<PageSiteLocation> pages = getPageService().findAllPageSiteLocations(account.getInstitutionId());
+
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("pageSiteLocations", pages.stream()
+					.map(page -> getPageSiteLocationApiResponseFactory().create(page))
+					.collect(Collectors.toList()));
+		}});
+	}
+
+	@GET("/page-site-locations/{siteLocationId}")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse specificPageSiteLocations(@Nonnull @PathParameter("siteLocationId") SiteLocationId siteLocationId) {
 		requireNonNull(siteLocationId);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -598,7 +612,7 @@ public class PageResource {
 
 		getPageService().updatePageSectionDisplayOrder(request);
 
- 		List<PageSection> pageSections = getPageService().findPageSectionsByPageId(pageId, institutionId);
+		List<PageSection> pageSections = getPageService().findPageSectionsByPageId(pageId, institutionId);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageSections", pageSections.stream().map(pageSection -> getPageSectionApiResponseFactory().create(pageSection))
@@ -737,6 +751,7 @@ public class PageResource {
 			put("pageRow", getPageRowTagGroupApiResponseFactory().create(pageRow.get()));
 		}});
 	}
+
 	@PUT("/pages/row/{pageRowId}/tag-group")
 	@AuthenticationRequired
 	public ApiResponse updatePageRowTagGroup(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
@@ -792,6 +807,7 @@ public class PageResource {
 			put("pageRow", getPageRowTagApiResponseFactory().create(pageRow.get(), pageRowTag.get()));
 		}});
 	}
+
 	@PUT("/pages/row/{pageRowId}/tag")
 	@AuthenticationRequired
 	public ApiResponse updatePageRowTag(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
@@ -819,6 +835,7 @@ public class PageResource {
 			put("pageRow", getPageRowTagApiResponseFactory().create(pageRow.get(), pageRowTag.get()));
 		}});
 	}
+
 	@POST("/pages/row/{pageSectionId}/group-session")
 	@AuthenticationRequired
 	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -867,7 +884,8 @@ public class PageResource {
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageRow", getPageRowGroupSessionApiResponseFactory().create(pageRow.get()));
-		}});	}
+		}});
+	}
 
 	@PUT("/pages/row/{pageRowId}/group-session")
 	@AuthenticationRequired

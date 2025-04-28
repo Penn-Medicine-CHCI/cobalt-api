@@ -150,6 +150,7 @@ public class TopicCenterService {
 	}
 
 	@Nonnull
+	@Deprecated // in favor of similar Page construct
 	public List<NavigationItem> findTopicCenterNavigationItemsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();

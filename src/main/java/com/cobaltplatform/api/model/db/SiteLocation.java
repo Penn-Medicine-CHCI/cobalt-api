@@ -33,6 +33,7 @@ public class SiteLocation {
 	private String description;
 	@Nullable
 	private String relativeBaseUrl;
+
 	public enum SiteLocationId {
 		FEATURED_TOPIC,
 		COMMUNITY

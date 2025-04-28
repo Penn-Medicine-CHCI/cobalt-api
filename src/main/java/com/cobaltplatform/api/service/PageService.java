@@ -20,19 +20,19 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
-import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
-import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
+import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
@@ -53,9 +53,9 @@ import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
-import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
@@ -65,6 +65,7 @@ import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.model.service.FileUploadResult;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.model.service.PageWithTotalCount;
@@ -75,7 +76,6 @@ import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
-import org.apache.arrow.flatbuf.Null;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,9 +85,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1789,18 +1789,64 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<PageSiteLocation> findAllPagesBySiteLocation(@Nonnull SiteLocationId siteLocationId,
-																													 @Nonnull InstitutionId institutionId) {
-		requireNonNull(siteLocationId);
-		requireNonNull(institutionId);
+	public List<PageSiteLocation> findAllPageSiteLocations(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
 
 		return getDatabase().queryForList("""
-				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url 
+				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url
 				FROM v_page p, page_site_location psl
 				WHERE p.page_id = psl.page_id
-				AND p.institution_id = ?
-				AND NOW() BETWEEN psl.publish_start_date and psl.publish_end_date""", PageSiteLocation.class, institutionId);
+				AND p.institution_id=?
+				AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
+				AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+				ORDER BY psl.site_location_id, psl.display_order
+				""", PageSiteLocation.class, institutionId);
+	}
 
+	@Nonnull
+	public List<PageSiteLocation> findAllPagesBySiteLocation(@Nullable SiteLocationId siteLocationId,
+																													 @Nullable InstitutionId institutionId) {
+		if (siteLocationId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url
+				FROM v_page p, page_site_location psl
+				WHERE p.page_id = psl.page_id
+				AND p.institution_id=?
+				AND psl.site_location_id=?
+				AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
+				AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+				ORDER BY psl.site_location_id, psl.display_order
+				""", PageSiteLocation.class, institutionId, siteLocationId);
+	}
+
+	@Nonnull
+	public List<NavigationItem> findPageNavigationItemsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+					SELECT
+					  ('/pages/' || p.url_name) as url,
+					  ifu.url AS image_url,
+					  p.name,
+					  p.page_id,
+					  p.url_name AS page_url_name
+					FROM
+					  page p, page_site_location psl, file_upload ifu
+					WHERE
+					  p.page_id=psl.page_id
+					  AND p.image_file_upload_id=ifu.file_upload_id
+					  AND p.deleted_flag = FALSE
+						AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
+						AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+					  AND p.institution_id=?
+					  AND psl.site_location_id=?
+					ORDER BY
+					  psl.display_order
+				""", NavigationItem.class, institutionId, SiteLocationId.COMMUNITY);
 	}
 
 	@Nonnull

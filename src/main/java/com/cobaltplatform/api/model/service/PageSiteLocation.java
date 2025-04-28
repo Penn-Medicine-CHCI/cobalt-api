@@ -20,6 +20,9 @@
 package com.cobaltplatform.api.model.service;
 
 
+import com.cobaltplatform.api.model.db.SiteLocation;
+import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
@@ -32,6 +35,8 @@ public class PageSiteLocation {
 	@Nullable
 	private UUID pageId;
 	@Nullable
+	private SiteLocationId siteLocationId;
+	@Nullable
 	private String name;
 	@Nullable
 	private String urlName;
@@ -40,11 +45,14 @@ public class PageSiteLocation {
 	@Nullable
 	private String description;
 	@Nullable
+	private String shortDescription;
+	@Nullable
 	private String imageAltText;
 	@Nullable
 	private String imageUrl;
 	@Nullable
 	private String callToAction;
+
 	@Nullable
 	public UUID getPageId() {
 		return pageId;
@@ -52,6 +60,15 @@ public class PageSiteLocation {
 
 	public void setPageId(@Nullable UUID pageId) {
 		this.pageId = pageId;
+	}
+
+	@Nullable
+	public SiteLocationId getSiteLocationId() {
+		return this.siteLocationId;
+	}
+
+	public void setSiteLocationId(@Nullable SiteLocationId siteLocationId) {
+		this.siteLocationId = siteLocationId;
 	}
 
 	@Nullable
@@ -88,6 +105,15 @@ public class PageSiteLocation {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getShortDescription() {
+		return this.shortDescription;
+	}
+
+	public void setShortDescription(@Nullable String shortDescription) {
+		this.shortDescription = shortDescription;
 	}
 
 	@Nullable

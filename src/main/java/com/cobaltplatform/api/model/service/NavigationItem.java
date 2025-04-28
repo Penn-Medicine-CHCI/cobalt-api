@@ -37,7 +37,12 @@ public class NavigationItem {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	@Deprecated
 	private UUID topicCenterId;
+	@Nullable
+	private UUID pageId;
+	@Nullable
+	private String pageUrlName;
 
 	@Nullable
 	public String getUrl() {
@@ -82,5 +87,23 @@ public class NavigationItem {
 
 	public void setTopicCenterId(@Nullable UUID topicCenterId) {
 		this.topicCenterId = topicCenterId;
+	}
+
+	@Nullable
+	public UUID getPageId() {
+		return this.pageId;
+	}
+
+	public void setPageId(@Nullable UUID pageId) {
+		this.pageId = pageId;
+	}
+
+	@Nullable
+	public String getPageUrlName() {
+		return this.pageUrlName;
+	}
+
+	public void setPageUrlName(@Nullable String pageUrlName) {
+		this.pageUrlName = pageUrlName;
 	}
 }
