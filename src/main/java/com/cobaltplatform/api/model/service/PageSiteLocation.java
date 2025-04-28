@@ -40,11 +40,14 @@ public class PageSiteLocation {
 	@Nullable
 	private String description;
 	@Nullable
+	private String shortDescription;
+	@Nullable
 	private String imageAltText;
 	@Nullable
 	private String imageUrl;
 	@Nullable
 	private String callToAction;
+
 	@Nullable
 	public UUID getPageId() {
 		return pageId;
@@ -88,6 +91,15 @@ public class PageSiteLocation {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getShortDescription() {
+		return this.shortDescription;
+	}
+
+	public void setShortDescription(@Nullable String shortDescription) {
+		this.shortDescription = shortDescription;
 	}
 
 	@Nullable

@@ -19,7 +19,6 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-
 import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -27,6 +26,7 @@ import com.google.inject.assistedinject.AssistedInject;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.lang.String.format;
@@ -46,6 +46,8 @@ public class PageSiteLocationApiResponse {
 	@Nullable
 	private final String description;
 	@Nullable
+	private final String shortDescription;
+	@Nullable
 	private final String imageAltText;
 	@Nullable
 	private final String imageUrl;
@@ -61,13 +63,13 @@ public class PageSiteLocationApiResponse {
 
 	@AssistedInject
 	public PageSiteLocationApiResponse(@Assisted @Nonnull PageSiteLocation pageSiteLocation) {
-
 		requireNonNull(pageSiteLocation);
 
 		this.pageId = pageSiteLocation.getPageId();
 		this.relativeUrl = format("/%s/%s", "pages", pageSiteLocation.getUrlName());
 		this.headline = pageSiteLocation.getHeadline();
 		this.description = pageSiteLocation.getDescription();
+		this.shortDescription = pageSiteLocation.getShortDescription();
 		this.imageAltText = pageSiteLocation.getImageAltText();
 		this.imageUrl = pageSiteLocation.getImageUrl();
 		this.callToAction = pageSiteLocation.getCallToAction();
@@ -93,6 +95,11 @@ public class PageSiteLocationApiResponse {
 		return description;
 	}
 
+	@Nonnull
+	public Optional<String> getShortDescription() {
+		return Optional.ofNullable(this.shortDescription);
+	}
+
 	@Nullable
 	public String getImageAltText() {
 		return imageAltText;
@@ -108,5 +115,3 @@ public class PageSiteLocationApiResponse {
 		return callToAction;
 	}
 }
-
-

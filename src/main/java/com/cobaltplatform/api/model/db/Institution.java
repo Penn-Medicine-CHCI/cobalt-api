@@ -360,6 +360,9 @@ public class Institution {
 	@Nullable
 	private String landingPageTaglineOverride;
 
+	@Nullable
+	private Boolean preferLegacyTopicCenters;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1705,5 +1708,14 @@ public class Institution {
 
 	public void setLandingPageTaglineOverride(@Nullable String landingPageTaglineOverride) {
 		this.landingPageTaglineOverride = landingPageTaglineOverride;
+	}
+
+	@Nullable
+	public Boolean getPreferLegacyTopicCenters() {
+		return this.preferLegacyTopicCenters;
+	}
+
+	public void setPreferLegacyTopicCenters(@Nullable Boolean preferLegacyTopicCenters) {
+		this.preferLegacyTopicCenters = preferLegacyTopicCenters;
 	}
 }
