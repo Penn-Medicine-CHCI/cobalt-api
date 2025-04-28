@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.service.AlertService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.service.TopicCenterService;
 import com.cobaltplatform.api.util.Formatter;
@@ -179,6 +180,8 @@ public class InstitutionApiResponse {
 	private final String integratedCareBookingInsuranceRequirements;
 	@Nullable
 	private final String landingPageTaglineOverride;
+	@Nonnull
+	private final Boolean preferLegacyTopicCenters;
 	@Nullable
 	private final UUID onboardingScreeningFlowId;
 
@@ -193,6 +196,7 @@ public class InstitutionApiResponse {
 	@AssistedInject
 	public InstitutionApiResponse(@Nonnull AlertApiResponseFactory alertApiResponseFactory,
 																@Nonnull AlertService alertService,
+																@Nonnull PageService pageService,
 																@Nonnull TopicCenterService topicCenterService,
 																@Nonnull InstitutionService institutionService,
 																@Nonnull ScreeningService screeningService,
@@ -203,6 +207,7 @@ public class InstitutionApiResponse {
 																@Assisted @Nonnull CurrentContext currentContext) {
 		requireNonNull(alertApiResponseFactory);
 		requireNonNull(alertService);
+		requireNonNull(pageService);
 		requireNonNull(topicCenterService);
 		requireNonNull(institutionService);
 		requireNonNull(screeningService);
@@ -244,7 +249,9 @@ public class InstitutionApiResponse {
 		this.myChartName = institution.getMyChartName();
 		this.myChartDefaultUrl = institution.getMyChartDefaultUrl();
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
-		this.additionalNavigationItems = topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId);
+		this.additionalNavigationItems = institution.getPreferLegacyTopicCenters()
+				? topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId)
+				: pageService.findPageNavigationItemsByInstitutionId(institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
@@ -297,6 +304,8 @@ public class InstitutionApiResponse {
 		this.integratedCareMhpTriageOverviewOverride = institution.getIntegratedCareMhpTriageOverviewOverride();
 		this.integratedCareBookingInsuranceRequirements = institution.getIntegratedCareBookingInsuranceRequirements();
 		this.landingPageTaglineOverride = institution.getLandingPageTaglineOverride();
+
+		this.preferLegacyTopicCenters = institution.getPreferLegacyTopicCenters();
 
 		this.onboardingScreeningFlowId = institution.getOnboardingScreeningFlowId();
 
@@ -624,6 +633,11 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Optional<String> getLandingPageTaglineOverride() {
 		return Optional.ofNullable(this.landingPageTaglineOverride);
+	}
+
+	@Nonnull
+	public Boolean getPreferLegacyTopicCenters() {
+		return this.preferLegacyTopicCenters;
 	}
 
 	@Nonnull

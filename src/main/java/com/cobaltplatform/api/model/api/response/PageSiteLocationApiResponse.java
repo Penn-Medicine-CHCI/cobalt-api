@@ -19,7 +19,8 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-
+import com.cobaltplatform.api.model.db.SiteLocation;
+import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -27,6 +28,7 @@ import com.google.inject.assistedinject.AssistedInject;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.lang.String.format;
@@ -39,12 +41,16 @@ import static java.util.Objects.requireNonNull;
 public class PageSiteLocationApiResponse {
 	@Nonnull
 	private final UUID pageId;
+	@Nonnull
+	private final SiteLocationId siteLocationId;
 	@Nullable
 	private final String relativeUrl;
 	@Nullable
 	private final String headline;
 	@Nullable
 	private final String description;
+	@Nullable
+	private final String shortDescription;
 	@Nullable
 	private final String imageAltText;
 	@Nullable
@@ -61,13 +67,14 @@ public class PageSiteLocationApiResponse {
 
 	@AssistedInject
 	public PageSiteLocationApiResponse(@Assisted @Nonnull PageSiteLocation pageSiteLocation) {
-
 		requireNonNull(pageSiteLocation);
 
 		this.pageId = pageSiteLocation.getPageId();
+		this.siteLocationId = pageSiteLocation.getSiteLocationId();
 		this.relativeUrl = format("/%s/%s", "pages", pageSiteLocation.getUrlName());
 		this.headline = pageSiteLocation.getHeadline();
 		this.description = pageSiteLocation.getDescription();
+		this.shortDescription = pageSiteLocation.getShortDescription();
 		this.imageAltText = pageSiteLocation.getImageAltText();
 		this.imageUrl = pageSiteLocation.getImageUrl();
 		this.callToAction = pageSiteLocation.getCallToAction();
@@ -76,6 +83,11 @@ public class PageSiteLocationApiResponse {
 	@Nonnull
 	public UUID getPageId() {
 		return pageId;
+	}
+
+	@Nonnull
+	public SiteLocationId getSiteLocationId() {
+		return this.siteLocationId;
 	}
 
 	@Nullable
@@ -93,6 +105,11 @@ public class PageSiteLocationApiResponse {
 		return description;
 	}
 
+	@Nonnull
+	public Optional<String> getShortDescription() {
+		return Optional.ofNullable(this.shortDescription);
+	}
+
 	@Nullable
 	public String getImageAltText() {
 		return imageAltText;
@@ -108,5 +125,3 @@ public class PageSiteLocationApiResponse {
 		return callToAction;
 	}
 }
-
-

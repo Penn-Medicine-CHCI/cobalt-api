@@ -358,6 +358,10 @@ public class Institution {
 	private String integratedCareBookingInsuranceRequirements;
 	@Nullable
 	private String landingPageTaglineOverride;
+
+	@Nullable
+	private Boolean preferLegacyTopicCenters;
+
 	@Nullable
 	private UUID onboardingScreeningFlowId;
 
@@ -1707,6 +1711,15 @@ public class Institution {
 
 	public void setLandingPageTaglineOverride(@Nullable String landingPageTaglineOverride) {
 		this.landingPageTaglineOverride = landingPageTaglineOverride;
+	}
+
+	@Nonnull
+	public Boolean getPreferLegacyTopicCenters() {
+		return this.preferLegacyTopicCenters;
+	}
+
+	public void setPreferLegacyTopicCenters(@Nullable Boolean preferLegacyTopicCenters) {
+		this.preferLegacyTopicCenters = preferLegacyTopicCenters;
 	}
 
 	@Nullable
