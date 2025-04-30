@@ -48,7 +48,7 @@ public class AppointmentTimeFormatter {
 		// Used to generate a string like "Thurs Aug 14 @ 12-12:30pm"
 		// Hardcode to US for MVP
 		// TODO: support other locales
-		SHARED_TIME_DESCRIPTION_DATE_FORMATTER = DateTimeFormatter.ofPattern("E MMM d", Locale.US);
+		SHARED_TIME_DESCRIPTION_DATE_FORMATTER = DateTimeFormatter.ofPattern("E, MMM d", Locale.US);
 		SHARED_TIME_DESCRIPTION_SHORT_TIME_FORMATTER = DateTimeFormatter.ofPattern("h", Locale.US);
 		SHARED_TIME_DESCRIPTION_LONG_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm", Locale.US);
 		SHARED_TIME_DESCRIPTION_AM_PM_FORMATTER = DateTimeFormatter.ofPattern("a", Locale.US);
@@ -80,9 +80,13 @@ public class AppointmentTimeFormatter {
 
 		// TODO: improve post-MVP
 		String startTimeFormatted = getSharedTimeDescriptionLongTimeFormatter().withZone(timeZone).format(startTime);
-		String startAmPm = getSharedTimeDescriptionAmPmFormatter().withZone(timeZone).format(startTime).toLowerCase(Locale.US);
+		String startAmPm = getSharedTimeDescriptionAmPmFormatter().withZone(timeZone).format(startTime).toLowerCase(Locale.US).toUpperCase(Locale.US);
 		String endTimeFormatted = getSharedTimeDescriptionLongTimeFormatter().withZone(timeZone).format(endTime);
-		String endAmPm = getSharedTimeDescriptionAmPmFormatter().withZone(timeZone).format(endTime).toLowerCase(Locale.US);
+		String endAmPm = getSharedTimeDescriptionAmPmFormatter().withZone(timeZone).format(endTime).toLowerCase(Locale.US).toUpperCase(Locale.US);
+
+		// Don't show the initial "AM" or "PM" if it's the same as the ending one
+		if (startAmPm.equals(endAmPm))
+			startAmPm = "";
 
 		return format("%s @ %s%s-%s%s", date, startTimeFormatted, startAmPm, endTimeFormatted, endAmPm);
 	}
