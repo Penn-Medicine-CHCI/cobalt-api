@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.api.response.ContentAudienceTypeApiResponse.ContentAudienceTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.ContentType.ContentTypeId;
 import com.cobaltplatform.api.model.db.ContentVisibilityType.ContentVisibilityTypeId;
 import com.cobaltplatform.api.service.ContentService;
@@ -94,6 +95,9 @@ public class ContentApiResponse {
 	private final List<TagApiResponse> tags;
 	@Nullable
 	private List<ContentAudienceTypeApiResponse> contentAudienceTypes;
+
+	@Nullable
+	private ContentStatusId contentStatusId;
 
 	public enum ContentApiResponseSupplement {
 		TAGS,
@@ -183,6 +187,8 @@ public class ContentApiResponse {
 					.collect(Collectors.toList());
 
 		this.tags = tags;
+
+		this.contentStatusId =content.getContentStatusId();
 	}
 
 	@Nonnull
@@ -297,5 +303,10 @@ public class ContentApiResponse {
 	@Nonnull
 	public Optional<List<ContentAudienceTypeApiResponse>> getContentAudienceTypes() {
 		return Optional.ofNullable(this.contentAudienceTypes);
+	}
+
+	@Nullable
+	public ContentStatusId getContentStatusId() {
+		return contentStatusId;
 	}
 }
