@@ -20,9 +20,12 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Color;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowTag;
+import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
@@ -115,6 +118,8 @@ public class PageRowApiResponse {
 		requireNonNull(tagApiResponseFactory);
 		requireNonNull(pageService);
 
+		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
+
 		this.pageRowId = pageRow.getPageRowId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
@@ -122,10 +127,12 @@ public class PageRowApiResponse {
 		this.tagGroupColorId = null;
 
 		if (this.rowTypeId.equals(RowTypeId.RESOURCES))
-			this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId()).stream()
+			//If this page is published only show LIVE content
+			this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId(),page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 					.map(content -> contentApiResponseFactory.create(content)).collect(Collectors.toList());
 		else if (this.rowTypeId.equals(RowTypeId.GROUP_SESSIONS))
-			this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId()).stream()
+			//If this page is published only show ADDED group sessions
+			this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 					.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));

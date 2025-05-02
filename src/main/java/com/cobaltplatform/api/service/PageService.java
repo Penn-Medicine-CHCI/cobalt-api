@@ -49,7 +49,9 @@ import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
 import com.cobaltplatform.api.model.db.GroupSession;
+import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
@@ -132,6 +134,20 @@ public class PageService {
 		this.strings = strings;
 		this.systemServiceProvider = systemServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
+	}
+
+	@Nonnull
+	public Optional<Page> findPageByPageRowId(@Nonnull UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page vp
+				WHERE vp.page_id = 
+				(SELECT ps.page_id
+				FROM page_section ps, page_row pr
+				WHERE ps.page_section_id = pr.page_section_id
+				AND pr.page_row_id = ?)""", Page.class, pageRowId);
 	}
 
 	@Nonnull
@@ -1326,16 +1342,28 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<Content> findContentByPageRowId(@Nullable UUID pageRowId) {
+	public List<Content> findContentByPageRowId(@Nonnull UUID pageRowId,
+																							@Nonnull Boolean includeOnlyLive) {
 		requireNonNull(pageRowId);
+		requireNonNull(includeOnlyLive);
 
-		return getDatabase().queryForList("""
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
 				SELECT va.*
 				FROM v_admin_content va, v_page_row_content vp
 				WHERE va.content_id = vp.content_id
 				AND vp.page_row_id = ?
-				ORDER BY vp.content_display_order
-				""", Content.class, pageRowId);
+				""");
+		parameters.add(pageRowId);
+
+		if (includeOnlyLive) {
+			query.append(" AND content_status_id = ? ");
+			parameters.add(ContentStatusId.LIVE);
+		}
+
+		query.append(" ORDER BY vp.content_display_order");
+
+		return getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 	}
 
 	@Nonnull
@@ -1675,16 +1703,29 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<GroupSession> findGroupSessionsByPageRowId(@Nullable UUID pageRowId) {
+	public List<GroupSession> findGroupSessionsByPageRowId(@Nullable UUID pageRowId,
+																												 @Nullable Boolean includeOnlyAdded) {
 		requireNonNull(pageRowId);
+		requireNonNull(includeOnlyAdded);
 
-		return getDatabase().queryForList("""
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
 				SELECT vgs.*
 				FROM v_page_row_group_session vp, v_group_session vgs
 				WHERE vp.group_session_id = vgs.group_session_id
-				AND page_row_id = ?
-				ORDER BY vp.group_session_display_order
-				""", GroupSession.class, pageRowId);
+				AND page_row_id = ? """);
+
+		parameters.add(pageRowId);
+
+		if (includeOnlyAdded) {
+			query.append(" AND group_session_status_id = ? ");
+			parameters.add(GroupSessionStatusId.ADDED);
+		}
+
+		query.append(" ORDER BY vp.group_session_display_order");
+
+		return getDatabase().queryForList(query.toString(), GroupSession.class, parameters.toArray());
+
 	}
 
 	@Nonnull

@@ -20,8 +20,10 @@
 package com.cobaltplatform.api.model.api.response;
 
 
+import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowContent;
+import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
@@ -74,8 +76,11 @@ public class PageRowContentApiResponse {
 		requireNonNull(pageService);
 		requireNonNull(contentApiResponseFactory);
 
+		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
+
 		this.pageRowId = pageRow.getPageRowId();
-		this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId()).stream()
+		//If this page is published only show LIVE content
+		this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 				.map(content -> contentApiResponseFactory.create(content)).collect(Collectors.toList());
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();

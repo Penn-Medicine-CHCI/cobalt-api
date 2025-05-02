@@ -19,7 +19,9 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
@@ -73,8 +75,11 @@ public class PageRowGroupSessionApiResponse {
 		requireNonNull(pageService);
 		requireNonNull(groupSessionApiResponseFactory);
 
+		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
+
 		this.pageRowId = pageRow.getPageRowId();
-		this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId()).stream()
+		//If this page is published only show ADDED group sessions
+		this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 				.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
