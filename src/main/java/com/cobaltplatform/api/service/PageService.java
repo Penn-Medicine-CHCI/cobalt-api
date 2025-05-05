@@ -1841,8 +1841,9 @@ public class PageService {
 				AND p.institution_id=?
 				AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
 				AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+				AND p.page_status_id = ?
 				ORDER BY psl.site_location_id, psl.display_order
-				""", PageSiteLocation.class, institutionId);
+				""", PageSiteLocation.class, institutionId, PageStatusId.LIVE);
 	}
 
 	@Nonnull
@@ -1859,8 +1860,9 @@ public class PageService {
 				AND psl.site_location_id=?
 				AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
 				AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+				AND p.page_status_id = ?
 				ORDER BY psl.site_location_id, psl.display_order
-				""", PageSiteLocation.class, institutionId, siteLocationId);
+				""", PageSiteLocation.class, institutionId, siteLocationId, PageStatusId.LIVE);
 	}
 
 	@Nonnull
@@ -1997,6 +1999,14 @@ public class PageService {
 
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId, institutionId);
 		List<PageRow> pageRows;
+
+		getDatabase().execute("""
+				INSERT INTO page_site_location
+				(page_id, site_location_id, display_order, publish_start_date, publish_end_date, call_to_action, created_by_account_id, short_description)
+				SELECT ?, site_location_id, display_order, publish_start_date, publish_end_date, call_to_action, ?, short_description
+				FROM page_site_location
+				WHERE page_id = ?
+				""", newPageId, accountId, pageId);
 
 		for (PageSection pageSection : pageSections) {
 			newPageSectionId = UUID.randomUUID();
