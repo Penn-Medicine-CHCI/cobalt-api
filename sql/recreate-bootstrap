@@ -217,6 +217,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/207-ic-p
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/208-ic-institution-overrides.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/209-support-banner.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/210-page-migration.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/211-provider-triage-recommended-feature-overrides.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

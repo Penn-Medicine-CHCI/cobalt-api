@@ -63,6 +63,10 @@ public class FeatureForInstitution {
 	private String bannerMessage;
 	@Nullable
 	private DisplayTypeId bannerMessageDisplayTypeId;
+	@Nullable
+	private String recommendationTitleOverride;
+	@Nullable
+	private String recommendationDescriptionOverride;
 
 	@Nullable
 	public FeatureId getFeatureId() {
@@ -197,5 +201,23 @@ public class FeatureForInstitution {
 
 	public void setBannerMessageDisplayTypeId(@Nullable DisplayTypeId bannerMessageDisplayTypeId) {
 		this.bannerMessageDisplayTypeId = bannerMessageDisplayTypeId;
+	}
+
+	@Nullable
+	public String getRecommendationTitleOverride() {
+		return this.recommendationTitleOverride;
+	}
+
+	public void setRecommendationTitleOverride(@Nullable String recommendationTitleOverride) {
+		this.recommendationTitleOverride = recommendationTitleOverride;
+	}
+
+	@Nullable
+	public String getRecommendationDescriptionOverride() {
+		return this.recommendationDescriptionOverride;
+	}
+
+	public void setRecommendationDescriptionOverride(@Nullable String recommendationDescriptionOverride) {
+		this.recommendationDescriptionOverride = recommendationDescriptionOverride;
 	}
 }
