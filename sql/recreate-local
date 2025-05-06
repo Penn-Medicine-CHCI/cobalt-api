@@ -217,7 +217,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/207-ic-patient
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/208-ic-institution-overrides.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/209-support-banner.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/210-page-migration.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/211-courses.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/211-provider-triage-recommended-feature-overrides.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/212-courses.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
