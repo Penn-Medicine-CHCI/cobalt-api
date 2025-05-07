@@ -59,6 +59,9 @@ public class PageSectionApiResponse {
 	@Nonnull
 	private List<PageRowApiResponse> pageRows;
 
+	@Nonnull
+	private Boolean displaySection;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageSectionApiResponseFactory {
@@ -80,8 +83,8 @@ public class PageSectionApiResponse {
 		requireNonNull(pageRowApiResponseFactory);
 
 		this.pageRows = pageService.findPageRowsBySectionId(pageSection.getPageSectionId(), pageSection.getInstitutionId())
-				.stream().map(pageRow -> pageRowApiResponseFactory.create(pageRow)).collect(Collectors.toList());
-
+				.stream().map(pageRow -> pageRowApiResponseFactory.create(pageRow)).filter(apiResp -> apiResp.getDisplayRow()).collect(Collectors.toList());
+		this.displaySection = this.pageRows.size() > 0;
 		this.pageSectionId = pageSection.getPageSectionId();
 		this.pageId = pageSection.getPageId();
 		this.name = pageSection.getName();
@@ -129,6 +132,11 @@ public class PageSectionApiResponse {
 	@Nonnull
 	public List<PageRowApiResponse> getPageRows() {
 		return pageRows;
+	}
+
+	@Nonnull
+	public Boolean getDisplaySection() {
+		return displaySection;
 	}
 }
 
