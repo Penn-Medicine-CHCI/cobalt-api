@@ -102,7 +102,7 @@ public class InstitutionService {
 	@Nonnull
 	private final Provider<FeatureService> featureServiceProvider;
 	@Nonnull
-	private final LoadingCache<WebappBaseUrlCacheKey, Optional<String>> webappBaseUrlCache;
+	private final LoadingCache<InstitutionUrlCacheKey, Optional<InstitutionUrl>> institutionUrlCache;
 
 	@Inject
 	public InstitutionService(@Nonnull DatabaseProvider databaseProvider,
@@ -125,11 +125,11 @@ public class InstitutionService {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.screeningServiceProvider = screeningServiceProvider;
 		this.featureServiceProvider = featureServiceProvider;
-		this.webappBaseUrlCache = Caffeine.newBuilder()
+		this.institutionUrlCache = Caffeine.newBuilder()
 				.maximumSize(100)
 				.refreshAfterWrite(Duration.ofMinutes(5))
 				.expireAfterWrite(Duration.ofMinutes(10))
-				.build(key -> findUncachedWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(key));
+				.build(key -> findUncachedInstitutionUrlByInstitutionIdAndUserExperienceTypeId(key));
 	}
 
 	@Nonnull
@@ -141,19 +141,45 @@ public class InstitutionService {
 				Institution.class, institutionId);
 	}
 
+	// Shorthand for getting access to webapp base URL (as opposed to full InstitutionUrl) since this is a common operation
 	@Nonnull
 	public Optional<String> findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(@Nullable InstitutionId institutionId,
 																																									@Nullable UserExperienceTypeId userExperienceTypeId) {
 		if (institutionId == null || userExperienceTypeId == null)
 			return Optional.empty();
 
-		WebappBaseUrlCacheKey webappBaseUrlCacheKey = new WebappBaseUrlCacheKey(institutionId, userExperienceTypeId);
-		return getWebappBaseUrlCache().get(webappBaseUrlCacheKey);
+		InstitutionUrl institutionUrl = findInstitutionUrlByInstitutionIdAndUserExperienceTypeId(institutionId, userExperienceTypeId).orElse(null);
+		String webappBaseUrl = institutionUrl == null ? null : institutionUrl.getUrl();
+
+		return Optional.ofNullable(webappBaseUrl);
+	}
+
+	// Shorthand for getting access to message base URL (as opposed to full InstitutionUrl) since this is a common operation
+	@Nonnull
+	public Optional<String> findMessageBaseUrlByInstitutionIdAndUserExperienceTypeId(@Nullable InstitutionId institutionId,
+																																									 @Nullable UserExperienceTypeId userExperienceTypeId) {
+		if (institutionId == null || userExperienceTypeId == null)
+			return Optional.empty();
+
+		InstitutionUrl institutionUrl = findInstitutionUrlByInstitutionIdAndUserExperienceTypeId(institutionId, userExperienceTypeId).orElse(null);
+		String messageBaseUrl = institutionUrl == null ? null : institutionUrl.getMessageBaseUrl();
+
+		return Optional.ofNullable(messageBaseUrl);
 	}
 
 	@Nonnull
-	protected Optional<String> findUncachedWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(@Nullable WebappBaseUrlCacheKey webappBaseUrlCacheKey) {
-		if (webappBaseUrlCacheKey == null)
+	public Optional<InstitutionUrl> findInstitutionUrlByInstitutionIdAndUserExperienceTypeId(@Nullable InstitutionId institutionId,
+																																													 @Nullable UserExperienceTypeId userExperienceTypeId) {
+		if (institutionId == null || userExperienceTypeId == null)
+			return Optional.empty();
+
+		InstitutionUrlCacheKey institutionUrlCacheKey = new InstitutionUrlCacheKey(institutionId, userExperienceTypeId);
+		return getInstitutionUrlCache().get(institutionUrlCacheKey);
+	}
+
+	@Nonnull
+	protected Optional<InstitutionUrl> findUncachedInstitutionUrlByInstitutionIdAndUserExperienceTypeId(@Nullable InstitutionUrlCacheKey institutionUrlCacheKey) {
+		if (institutionUrlCacheKey == null)
 			return Optional.empty();
 
 		// First, see if we have a URL matching the user experience type for the institution
@@ -163,7 +189,7 @@ public class InstitutionService {
 				    WHERE institution_id=?
 				    AND preferred=TRUE
 				    AND user_experience_type_id=?
-				""", InstitutionUrl.class, webappBaseUrlCacheKey.getInstitutionId(), webappBaseUrlCacheKey.getUserExperienceTypeId()).orElse(null);
+				""", InstitutionUrl.class, institutionUrlCacheKey.getInstitutionId(), institutionUrlCacheKey.getUserExperienceTypeId()).orElse(null);
 
 		// ...if not, just pick the URL regardless of user experience type (perhaps institution does not have
 		// multiple user experience types)
@@ -173,12 +199,9 @@ public class InstitutionService {
 					    FROM institution_url
 					    WHERE institution_id=?
 					    AND preferred=TRUE
-					""", InstitutionUrl.class, webappBaseUrlCacheKey.getInstitutionId()).orElse(null);
+					""", InstitutionUrl.class, institutionUrlCacheKey.getInstitutionId()).orElse(null);
 
-		if (institutionUrl == null)
-			return Optional.empty();
-
-		return Optional.of(institutionUrl.getUrl());
+		return Optional.ofNullable(institutionUrl);
 	}
 
 	@Nonnull
@@ -607,14 +630,14 @@ public class InstitutionService {
 	}
 
 	@Immutable
-	private static final class WebappBaseUrlCacheKey {
+	private static final class InstitutionUrlCacheKey {
 		@Nonnull
 		private final InstitutionId institutionId;
 		@Nonnull
 		private final UserExperienceTypeId userExperienceTypeId;
 
-		public WebappBaseUrlCacheKey(@Nonnull InstitutionId institutionId,
-																 @Nonnull UserExperienceTypeId userExperienceTypeId) {
+		public InstitutionUrlCacheKey(@Nonnull InstitutionId institutionId,
+																	@Nonnull UserExperienceTypeId userExperienceTypeId) {
 			requireNonNull(institutionId);
 			requireNonNull(userExperienceTypeId);
 
@@ -626,7 +649,7 @@ public class InstitutionService {
 		public boolean equals(Object o) {
 			if (this == o) return true;
 			if (o == null || getClass() != o.getClass()) return false;
-			WebappBaseUrlCacheKey that = (WebappBaseUrlCacheKey) o;
+			InstitutionUrlCacheKey that = (InstitutionUrlCacheKey) o;
 			return getInstitutionId() == that.getInstitutionId() && getUserExperienceTypeId() == that.getUserExperienceTypeId();
 		}
 
@@ -682,7 +705,7 @@ public class InstitutionService {
 	}
 
 	@Nonnull
-	protected LoadingCache<WebappBaseUrlCacheKey, Optional<String>> getWebappBaseUrlCache() {
-		return this.webappBaseUrlCache;
+	protected LoadingCache<InstitutionUrlCacheKey, Optional<InstitutionUrl>> getInstitutionUrlCache() {
+		return this.institutionUrlCache;
 	}
 }

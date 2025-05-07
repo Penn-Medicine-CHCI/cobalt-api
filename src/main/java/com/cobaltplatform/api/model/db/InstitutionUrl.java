@@ -40,6 +40,8 @@ public class InstitutionUrl {
 	private String hostname;
 	@Nullable
 	private Boolean preferred;
+	@Nullable
+	private String messageBaseUrl;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -84,5 +86,14 @@ public class InstitutionUrl {
 
 	public void setPreferred(@Nullable Boolean preferred) {
 		this.preferred = preferred;
+	}
+
+	@Nullable
+	public String getMessageBaseUrl() {
+		return this.messageBaseUrl;
+	}
+
+	public void setMessageBaseUrl(@Nullable String messageBaseUrl) {
+		this.messageBaseUrl = messageBaseUrl;
 	}
 }

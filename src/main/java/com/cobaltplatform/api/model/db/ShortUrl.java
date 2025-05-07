@@ -19,29 +19,114 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
+import static com.cobaltplatform.api.util.WebUtility.urlEncode;
+import static java.lang.String.format;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class ShortUrl {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping()
+				.create();
+	}
+
 	@Nullable
 	private Long shortUrlId;
 	@Nullable
-	private String identifier;
+	private String shortCode;
 	@Nullable
-	private String url;
+	private String baseUrl;
+	@Nullable
+	@DatabaseColumn("query_parameters")
+	private String queryParametersAsString;
+	@Nullable
+	private Map<String, String> queryParameters;
+	@Nullable
+	private String fragment;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
+	@Nonnull
+	public static Gson getGson() {
+		return GSON;
+	}
+
+	@Nonnull
+	public String getFullUrl() {
+		if (trimToNull(getBaseUrl()) == null)
+			throw new IllegalStateException("Cannot compute full URL because base URL is not present");
+
+		StringBuilder fullUrl = new StringBuilder();
+
+		fullUrl.append(getBaseUrl());
+
+		if (getQueryParameters() != null && getQueryParameters().size() > 0) {
+			// TODO
+			fullUrl.append("?");
+
+			List<String> nameValuePairs = new ArrayList<>(getQueryParameters().size());
+
+			for (Entry<String, String> entry : getQueryParameters().entrySet()) {
+				String name = urlEncode(entry.getKey());
+				String value = urlEncode(entry.getValue());
+				nameValuePairs.add(format("%s=%s", name, value));
+			}
+
+			fullUrl.append(nameValuePairs.stream().collect(Collectors.joining("&")));
+		}
+
+		if (getFragment() != null)
+			fullUrl.append(format("#%s", urlEncode(getFragment())));
+
+		return fullUrl.toString();
+	}
+
+	@Nullable
+	public String getQueryParametersAsString() {
+		return this.queryParametersAsString;
+	}
+
+	public void setQueryParametersAsString(@Nullable String queryParametersAsString) {
+		this.queryParametersAsString = queryParametersAsString;
+
+		String queryParameters = trimToNull(queryParametersAsString);
+		this.queryParameters = queryParameters == null ? Map.of() : getGson().fromJson(queryParameters, new TypeToken<Map<String, String>>() {
+		}.getType());
+	}
+
+	@Nonnull
+	public Map<String, String> getQueryParameters() {
+		return this.queryParameters;
+	}
+
 	@Nullable
 	public Long getShortUrlId() {
-		return shortUrlId;
+		return this.shortUrlId;
 	}
 
 	public void setShortUrlId(@Nullable Long shortUrlId) {
@@ -49,26 +134,35 @@ public class ShortUrl {
 	}
 
 	@Nullable
-	public String getIdentifier() {
-		return identifier;
+	public String getShortCode() {
+		return this.shortCode;
 	}
 
-	public void setIdentifier(@Nullable String identifier) {
-		this.identifier = identifier;
+	public void setShortCode(@Nullable String shortCode) {
+		this.shortCode = shortCode;
 	}
 
 	@Nullable
-	public String getUrl() {
-		return url;
+	public String getBaseUrl() {
+		return this.baseUrl;
 	}
 
-	public void setUrl(@Nullable String url) {
-		this.url = url;
+	public void setBaseUrl(@Nullable String baseUrl) {
+		this.baseUrl = baseUrl;
+	}
+
+	@Nullable
+	public String getFragment() {
+		return this.fragment;
+	}
+
+	public void setFragment(@Nullable String fragment) {
+		this.fragment = fragment;
 	}
 
 	@Nullable
 	public Instant getCreated() {
-		return created;
+		return this.created;
 	}
 
 	public void setCreated(@Nullable Instant created) {
@@ -77,7 +171,7 @@ public class ShortUrl {
 
 	@Nullable
 	public Instant getLastUpdated() {
-		return lastUpdated;
+		return this.lastUpdated;
 	}
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
