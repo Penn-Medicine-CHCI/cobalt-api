@@ -1887,9 +1887,10 @@ public class PageService {
 						AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
 					  AND p.institution_id=?
 					  AND psl.site_location_id=?
+					  AND p.page_status_id=?
 					ORDER BY
 					  psl.display_order
-				""", NavigationItem.class, institutionId, SiteLocationId.COMMUNITY);
+				""", NavigationItem.class, institutionId, SiteLocationId.COMMUNITY, PageStatusId.LIVE);
 	}
 
 	@Nonnull

@@ -82,6 +82,9 @@ public class PageRowApiResponse {
 	@Nonnull
 	private Color.ColorId tagGroupColorId;
 
+	@Nonnull
+	private Boolean displayRow;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PageRowApiResponseFactory {
@@ -125,16 +128,21 @@ public class PageRowApiResponse {
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.tagGroupColorId = null;
+		this.displayRow = true;
 
-		if (this.rowTypeId.equals(RowTypeId.RESOURCES))
+		if (this.rowTypeId.equals(RowTypeId.RESOURCES)) {
 			//If this page is published only show LIVE content
-			this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId(),page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
+			this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true : false).stream()
 					.map(content -> contentApiResponseFactory.create(content)).collect(Collectors.toList());
-		else if (this.rowTypeId.equals(RowTypeId.GROUP_SESSIONS))
+			if (page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) && this.contents.size() == 0)
+				displayRow = false;
+		} else if (this.rowTypeId.equals(RowTypeId.GROUP_SESSIONS)) {
 			//If this page is published only show ADDED group sessions
-			this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
+			this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true : false).stream()
 					.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
-		else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
+			if (page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) && this.groupSessions.size() == 0)
+				displayRow = false;
+		} else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));
 		else if (this.rowTypeId.equals(RowTypeId.TAG)) {
 			PageRowTag pageRowTag = pageService.findPageRowTagByRowId(pageRow.getPageRowId()).get();
@@ -211,6 +219,11 @@ public class PageRowApiResponse {
 	@Nonnull
 	public Color.ColorId getTagGroupColorId() {
 		return tagGroupColorId;
+	}
+
+	@Nonnull
+	public Boolean getDisplayRow() {
+		return displayRow;
 	}
 }
 
