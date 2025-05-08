@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.Map;
 
 /**
  * @author Transmogrify, LLC.
@@ -28,14 +29,36 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class CreateShortUrlRequest {
 	@Nullable
-	private String url;
+	private String baseUrl;
+	@Nullable
+	private Map<String, String> queryParameters;
+	@Nullable
+	private String fragment;
 
 	@Nullable
-	public String getUrl() {
-		return url;
+	public String getBaseUrl() {
+		return this.baseUrl;
 	}
 
-	public void setUrl(@Nullable String url) {
-		this.url = url;
+	public void setBaseUrl(@Nullable String baseUrl) {
+		this.baseUrl = baseUrl;
+	}
+
+	@Nullable
+	public Map<String, String> getQueryParameters() {
+		return this.queryParameters;
+	}
+
+	public void setQueryParameters(@Nullable Map<String, String> queryParameters) {
+		this.queryParameters = queryParameters;
+	}
+
+	@Nullable
+	public String getFragment() {
+		return this.fragment;
+	}
+
+	public void setFragment(@Nullable String fragment) {
+		this.fragment = fragment;
 	}
 }
