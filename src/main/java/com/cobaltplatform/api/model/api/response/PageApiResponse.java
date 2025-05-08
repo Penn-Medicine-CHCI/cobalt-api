@@ -127,7 +127,7 @@ public class PageApiResponse {
 
 		if (includeDetails)
 			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId(), page.getInstitutionId())
-					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).collect(Collectors.toList());
+					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).filter(apiResp -> apiResp.getDisplaySection()).collect(Collectors.toList());
 		else
 			this.pageSections = new ArrayList<>();
 	}

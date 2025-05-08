@@ -21,14 +21,11 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.ShortUrl;
-import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.ShortUrlService;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
-import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.NotFoundException;
-import com.soklet.web.response.ApiResponse;
 import com.soklet.web.response.RedirectResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +35,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.util.HashMap;
-import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -69,25 +64,16 @@ public class ShortUrlResource {
 	}
 
 	@Nonnull
-	@GET("/short-urls/{identifier}")
-	@AuthenticationRequired
-	public Object shortUrl(@Nonnull @PathParameter String identifier,
-												 @Nonnull @QueryParameter Optional<Boolean> redirectImmediately) {
-		requireNonNull(identifier);
-		requireNonNull(redirectImmediately);
+	@GET("/short-urls/{shortCode}/redirect")
+	public RedirectResponse shortUrlRedirect(@Nonnull @PathParameter String shortCode) {
+		requireNonNull(shortCode);
 
-		boolean shouldRedirectImmediately = redirectImmediately.isEmpty() || redirectImmediately.get().equals(false);
-		ShortUrl shortUrl = getShortUrlService().findShortUrlByIdentifier(identifier).orElse(null);
+		ShortUrl shortUrl = getShortUrlService().findShortUrlByShortCode(shortCode).orElse(null);
 
 		if (shortUrl == null)
 			throw new NotFoundException();
 
-		if (shouldRedirectImmediately)
-			return new RedirectResponse(shortUrl.getUrl());
-
-		return new ApiResponse(new HashMap<String, Object>() {{
-			put("url", shortUrl.getUrl());
-		}});
+		return new RedirectResponse(shortUrl.getFullUrl());
 	}
 
 	@Nonnull

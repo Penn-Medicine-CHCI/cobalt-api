@@ -69,6 +69,7 @@ import com.cobaltplatform.api.model.api.request.CreatePatientOrderTriageGroupReq
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderVoicemailTaskRequest;
 import com.cobaltplatform.api.model.api.request.CreateResourcePacketRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
+import com.cobaltplatform.api.model.api.request.CreateShortUrlRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderOutreachRequest;
 import com.cobaltplatform.api.model.api.request.DeletePatientOrderScheduledMessageGroupRequest;
@@ -165,6 +166,7 @@ import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageSt
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
+import com.cobaltplatform.api.model.db.ShortUrl;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
@@ -301,6 +303,8 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	private final Provider<CareResourceService> careResourceServiceProvider;
 	@Nonnull
+	private final Provider<ShortUrlService> shortUrlServiceProvider;
+	@Nonnull
 	private final Provider<BackgroundTask> backgroundTaskProvider;
 	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
@@ -343,6 +347,7 @@ public class PatientOrderService implements AutoCloseable {
 														 @Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 														 @Nonnull Provider<SystemService> systemServiceProvider,
 														 @Nonnull Provider<CareResourceService> careResourceServiceProvider,
+														 @Nonnull Provider<ShortUrlService> shortUrlServiceProvider,
 														 @Nonnull Provider<BackgroundTask> backgroundTaskProvider,
 														 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
@@ -362,6 +367,7 @@ public class PatientOrderService implements AutoCloseable {
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(systemServiceProvider);
 		requireNonNull(careResourceServiceProvider);
+		requireNonNull(shortUrlServiceProvider);
 		requireNonNull(backgroundTaskProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(patientOrderScheduledMessageGroupApiResponseFactory);
@@ -382,6 +388,7 @@ public class PatientOrderService implements AutoCloseable {
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.careResourceServiceProvider = careResourceServiceProvider;
+		this.shortUrlServiceProvider = shortUrlServiceProvider;
 		this.backgroundTaskProvider = backgroundTaskProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.patientOrderScheduledMessageGroupApiResponseFactory = patientOrderScheduledMessageGroupApiResponseFactory;
@@ -4386,7 +4393,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).get();
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).get();
-
+		String messageBaseUrl = getInstitutionService().findMessageBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.PATIENT).orElse(null);
 		Set<UUID> scheduledMessageIds = new HashSet<>();
 
 		Map<String, Object> standardMessageContext = new HashMap<>();
@@ -4399,7 +4406,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (messageTypeIds.contains(MessageTypeId.EMAIL)) {
 			UUID messageId = UUID.randomUUID();
-			String targetUrl = format("%s?a.m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+			String targetUrl = generateMessageTargetUrl(messageId, webappBaseUrl, messageBaseUrl);
 
 			// Mutable copy of standard message context
 			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
@@ -4421,7 +4428,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (messageTypeIds.contains(MessageTypeId.SMS)) {
 			UUID messageId = UUID.randomUUID();
-			String targetUrl = format("%s?a.m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
+			String targetUrl = generateMessageTargetUrl(messageId, webappBaseUrl, messageBaseUrl);
 
 			// Mutable copy of standard message context
 			Map<String, Object> messageContext = new HashMap<>(standardMessageContext);
@@ -4447,6 +4454,34 @@ public class PatientOrderService implements AutoCloseable {
 					) VALUES (?,?)
 					""", patientOrderScheduledMessageGroupId, scheduledMessageId);
 		}
+	}
+
+	@Nonnull
+	protected String generateMessageTargetUrl(@Nonnull UUID messageId,
+																						@Nonnull String webappBaseUrl,
+																						@Nullable String messageBaseUrl) {
+		requireNonNull(messageId);
+		requireNonNull(webappBaseUrl);
+
+		// If a message base URL exists, that means we should use it instead of just using the webapp base URL.
+		// A message base URL is of the form `https://short.example.com` and then it's combined with
+		// a short code for a short URL (e.g. `abc123`) to form a full target URL like `https://short.example.com/abc123`.
+		// Clicks on that URL will ultimately be redirected back to `/short-urls/{shortCode}/redirect`
+		// which will then redirect again to the full URL stored in the corresponding `short_url` record.
+		if (messageBaseUrl != null) {
+			Long shortUrlId = getShortUrlService().createShortUrl(new CreateShortUrlRequest() {{
+				setBaseUrl(webappBaseUrl);
+				setQueryParameters(Map.of("a.m", FriendlyId.toFriendlyId(messageId)));
+			}});
+
+			ShortUrl shortUrl = getShortUrlService().findShortUrlById(shortUrlId).get();
+
+			// e.g. https://short.example.com/abc123
+			return format("%s/%s", messageBaseUrl, shortUrl.getShortCode());
+		}
+
+		// If no message base URL is configured, just link back to the webapp with the message tracking parameter
+		return format("%s?a.m=%s", webappBaseUrl, FriendlyId.toFriendlyId(messageId));
 	}
 
 	@Nonnull
@@ -6787,6 +6822,11 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	protected CareResourceService getCareResourceService() {
 		return this.careResourceServiceProvider.get();
+	}
+
+	@Nonnull
+	protected ShortUrlService getShortUrlService() {
+		return this.shortUrlServiceProvider.get();
 	}
 
 	@Nonnull
