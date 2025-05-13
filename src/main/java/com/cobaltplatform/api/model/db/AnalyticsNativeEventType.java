@@ -148,6 +148,9 @@ public class AnalyticsNativeEventType {
 		// On the web, when a custom Page is rendered.
 		// Additional data:
 		// * pageId (UUID)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
 		PAGE_VIEW_PAGE,
 		// On the web, when the toplevel Resource Library page is rendered.
 		// * mode: (String, one of DEFAULT, FILTERED, or RECOMMENDED based on how page is displayed)
