@@ -390,7 +390,7 @@ public class InstitutionService {
 				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
 
 		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, COALESCE(if.name_override, f.name) AS name, COALESCE(if.subtitle_override, f.subtitle) AS subtitle, if.description, if.nav_description, if.nav_visible, if.landing_page_visible, if.treatment_description, " +
-				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, if.banner_message, if.banner_message_display_type_id, if.recommendation_title_override, if.recommendation_description_override " +
+				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, if.banner_message, if.banner_message_display_type_id, if.recommendation_title_override, if.recommendation_description_override, if.recommendation_booking_title_override, if.recommendation_booking_url_override " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
 				"ON f.feature_id = ss.feature_id " +
