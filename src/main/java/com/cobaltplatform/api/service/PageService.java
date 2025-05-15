@@ -1866,6 +1866,25 @@ public class PageService {
 	}
 
 	@Nonnull
+	public List<PageSiteLocation> findLivePageSiteLocationsByPageId(@Nullable UUID pageId,
+																																	@Nullable InstitutionId institutionId) {
+		if (pageId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT psl.*, p.headline, p.description, p.url_name, p.image_file_upload_id, p.image_alt_text, p.image_url
+				FROM v_page p, page_site_location psl
+				WHERE p.page_id = psl.page_id
+				AND p.institution_id=?
+				AND NOW() >= COALESCE(psl.publish_start_date, '-infinity'::TIMESTAMPTZ)
+				AND NOW() < COALESCE(psl.publish_end_date, 'infinity'::TIMESTAMPTZ)
+				AND p.page_status_id=?
+				AND p.page_id=?
+				ORDER BY psl.site_location_id, psl.display_order
+				""", PageSiteLocation.class, institutionId, PageStatusId.LIVE, pageId);
+	}
+
+	@Nonnull
 	public List<NavigationItem> findPageNavigationItemsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();

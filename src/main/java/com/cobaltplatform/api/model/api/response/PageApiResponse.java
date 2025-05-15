@@ -20,8 +20,9 @@
 package com.cobaltplatform.api.model.api.response;
 
 
-import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageSiteLocationApiResponse.PageSiteLocationApiResponseFactory;
+import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
@@ -35,7 +36,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -84,6 +84,8 @@ public class PageApiResponse {
 	private final Boolean editingLivePage;
 	@Nullable
 	private final List<PageSectionApiResponse> pageSections;
+	@Nullable
+	private final List<PageSiteLocationApiResponse> livePageSiteLocations;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -99,13 +101,15 @@ public class PageApiResponse {
 												 @Assisted @Nonnull Page page,
 												 @Assisted @Nonnull Boolean includeDetails,
 												 @Nonnull PageService pageService,
-												 @Nonnull PageSectionApiResponseFactory pageSectionApiResponseFactory) {
+												 @Nonnull PageSectionApiResponseFactory pageSectionApiResponseFactory,
+												 @Nonnull PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory) {
 
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(page);
 		requireNonNull(pageService);
 		requireNonNull(pageSectionApiResponseFactory);
+		requireNonNull(pageSiteLocationApiResponseFactory);
 
 		this.pageId = page.getPageId();
 		this.name = page.getName();
@@ -125,11 +129,16 @@ public class PageApiResponse {
 		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.editingLivePage = page.getPageStatusId().equals(PageStatusId.COPY_FOR_EDITING);
 
-		if (includeDetails)
+		if (includeDetails) {
 			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId(), page.getInstitutionId())
 					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).filter(apiResp -> apiResp.getDisplaySection()).collect(Collectors.toList());
-		else
-			this.pageSections = new ArrayList<>();
+			this.livePageSiteLocations = pageService.findLivePageSiteLocationsByPageId(page.getPageId(), page.getInstitutionId()).stream()
+					.map(pageSiteLocation -> pageSiteLocationApiResponseFactory.create(pageSiteLocation))
+					.collect(Collectors.toList());
+		} else {
+			this.pageSections = List.of();
+			this.livePageSiteLocations = List.of();
+		}
 	}
 
 	@Nonnull
@@ -215,6 +224,16 @@ public class PageApiResponse {
 	@Nullable
 	public String getRelativeUrl() {
 		return relativeUrl;
+	}
+
+	@Nullable
+	public Boolean getEditingLivePage() {
+		return this.editingLivePage;
+	}
+
+	@Nullable
+	public List<PageSiteLocationApiResponse> getLivePageSiteLocations() {
+		return this.livePageSiteLocations;
 	}
 }
 

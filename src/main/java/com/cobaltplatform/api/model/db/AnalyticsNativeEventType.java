@@ -148,6 +148,9 @@ public class AnalyticsNativeEventType {
 		// On the web, when a custom Page is rendered.
 		// Additional data:
 		// * pageId (UUID)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
 		PAGE_VIEW_PAGE,
 		// On the web, when the toplevel Resource Library page is rendered.
 		// * mode: (String, one of DEFAULT, FILTERED, or RECOMMENDED based on how page is displayed)
@@ -329,6 +332,9 @@ public class AnalyticsNativeEventType {
 		// When a click occurs to access a custom Page.
 		// Additional data:
 		// * pageId (UUID)
+		// * siteLocationId (String, the context (featured or community) in which the clickthrough occurred. Values are defined by PK of site_location table, reproduced below)
+		//    FEATURED_TOPIC
+		//    COMMUNITY
 		// * source (String)
 		//    HOME_FEATURE: When clicked through from the homepage in one of the featured areas
 		//    NAV_FEATURE: When clicked through from the navigation featured area
@@ -397,27 +403,42 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * pageId (UUID)
 		// * groupSessionId (UUID)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
 		CLICKTHROUGH_PAGE_GROUP_SESSION,
 		// When a Page viewer clicks through on a piece of content to view its detail page.
 		// Additional data:
 		// * pageId (UUID)
 		// * contentId (UUID)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
 		CLICKTHROUGH_PAGE_CONTENT,
 		// When a Page viewer clicks through on a tag group to view its Resource Library page.
 		// Additional data:
 		// * pageId (UUID)
 		// * tagGroupId (String)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
 		CLICKTHROUGH_PAGE_TAG_GROUP,
 		// When a Page viewer clicks through on a tag to view its Resource Library page.
 		// Additional data:
 		// * pageId (UUID)
 		// * tagId (String)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
 		CLICKTHROUGH_PAGE_TAG,
 		// When a Page viewer clicks through on a link contained within any WYSIWYG page component.
 		// Additional data:
 		// * pageId (UUID)
 		// * linkUrl (String, the URL linked in the anchor tag)
 		// * linkText (String, the text component of the anchor tag)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
 		CLICKTHROUGH_PAGE_LINK,
 		// When the user clicks to download a file that's part of a course unit.
 		// Additional data:
