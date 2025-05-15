@@ -67,6 +67,10 @@ public class FeatureForInstitution {
 	private String recommendationTitleOverride;
 	@Nullable
 	private String recommendationDescriptionOverride;
+	@Nullable
+	private String recommendationBookingTitleOverride;
+	@Nullable
+	private String recommendationBookingUrlOverride;
 
 	@Nullable
 	public FeatureId getFeatureId() {
@@ -219,5 +223,23 @@ public class FeatureForInstitution {
 
 	public void setRecommendationDescriptionOverride(@Nullable String recommendationDescriptionOverride) {
 		this.recommendationDescriptionOverride = recommendationDescriptionOverride;
+	}
+
+	@Nullable
+	public String getRecommendationBookingTitleOverride() {
+		return this.recommendationBookingTitleOverride;
+	}
+
+	public void setRecommendationBookingTitleOverride(@Nullable String recommendationBookingTitleOverride) {
+		this.recommendationBookingTitleOverride = recommendationBookingTitleOverride;
+	}
+
+	@Nullable
+	public String getRecommendationBookingUrlOverride() {
+		return this.recommendationBookingUrlOverride;
+	}
+
+	public void setRecommendationBookingUrlOverride(@Nullable String recommendationBookingUrlOverride) {
+		this.recommendationBookingUrlOverride = recommendationBookingUrlOverride;
 	}
 }
