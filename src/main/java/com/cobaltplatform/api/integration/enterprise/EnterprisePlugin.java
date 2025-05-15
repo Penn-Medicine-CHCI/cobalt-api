@@ -46,6 +46,7 @@ import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.messaging.sms.ConsoleSmsMessageSender;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderRequest;
+import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.Content;
@@ -253,5 +254,10 @@ public interface EnterprisePlugin {
 	default Tag applyCustomizationsToTag(@Nonnull Tag tag) {
 		requireNonNull(tag);
 		return tag;
+	}
+
+	default void applyCustomProcessingForEmailPasswordAccessTokenRequest(@Nonnull EmailPasswordAccessTokenRequest request) {
+		requireNonNull(request);
+		// No-op by default
 	}
 }
