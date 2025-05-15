@@ -23,11 +23,16 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.request.AddFlowsheetValueRequest;
+import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
+import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.FlowsheetType.FlowsheetTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.ScreeningSession;
@@ -36,11 +41,14 @@ import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationUtility;
 import com.lokalized.Strings;
 import org.jetbrains.annotations.Nullable;
 
@@ -56,6 +64,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -68,6 +77,10 @@ public class CobaltIcSelfReferralEnterprisePlugin extends DefaultEnterprisePlugi
 	@Nonnull
 	private final PatientOrderService patientOrderService;
 	@Nonnull
+	private final AccountService accountService;
+	@Nonnull
+	private final Authenticator authenticator;
+	@Nonnull
 	private final ErrorReporter errorReporter;
 	@Nonnull
 	private final Strings strings;
@@ -78,16 +91,22 @@ public class CobaltIcSelfReferralEnterprisePlugin extends DefaultEnterprisePlugi
 																							@Nonnull Configuration configuration,
 																							@Nonnull ScreeningService screeningService,
 																							@Nonnull PatientOrderService patientOrderService,
+																							@Nonnull AccountService accountService,
+																							@Nonnull Authenticator authenticator,
 																							@Nonnull ErrorReporter errorReporter,
 																							@Nonnull Strings strings) {
 		super(institutionService, awsSecretManagerClient, configuration);
 
 		requireNonNull(screeningService);
 		requireNonNull(patientOrderService);
+		requireNonNull(accountService);
+		requireNonNull(authenticator);
 		requireNonNull(strings);
 
 		this.screeningService = screeningService;
 		this.patientOrderService = patientOrderService;
+		this.accountService = accountService;
+		this.authenticator = authenticator;
 		this.errorReporter = errorReporter;
 		this.strings = strings;
 	}
@@ -95,7 +114,40 @@ public class CobaltIcSelfReferralEnterprisePlugin extends DefaultEnterprisePlugi
 	@Nonnull
 	@Override
 	public InstitutionId getInstitutionId() {
-		return InstitutionId.COBALT_IC;
+		return InstitutionId.COBALT_IC_SELF_REFERRAL;
+	}
+
+	@Override
+	public void applyCustomProcessingForEmailPasswordAccessTokenRequest(@Nonnull EmailPasswordAccessTokenRequest request) {
+		requireNonNull(request);
+
+		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
+
+		// Special handling for the IC self-referring institution in non-production environments:
+		// If we authenticate with email/password, actually just create an account if one doesn't exist and create an order for it.
+		// This makes testing simple - you can spin up any account you like.
+		if (!getConfiguration().isProduction()
+				&& ValidationUtility.isValidEmailAddress(request.getEmailAddress())
+				&& trimToNull(request.getPassword()) != null
+				&& institution.getIntegratedCareEnabled()) {
+
+			// See if an account already exists for this email.  If not, we create one and self-refer an order for it.
+			Account existingAccount = getAccountService().findAccountByEmailAddressAndAccountSourceId(request.getEmailAddress(), AccountSourceId.EMAIL_PASSWORD, getInstitutionId()).orElse(null);
+
+			if (existingAccount == null) {
+				getLogger().info("An account with email address '{}' does not exist, creating and self-referring an order...", request.getEmailAddress());
+
+				UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
+					setRoleId(RoleId.PATIENT);
+					setInstitutionId(institution.getInstitutionId());
+					setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
+					setEmailAddress(request.getEmailAddress());
+					setPassword(getAuthenticator().hashPassword(request.getPassword()));
+				}});
+
+				getPatientOrderService().createPatientOrderForSelfReferral(accountId);
+			}
+		}
 	}
 
 	@Override
@@ -245,6 +297,16 @@ public class CobaltIcSelfReferralEnterprisePlugin extends DefaultEnterprisePlugi
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderService;
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return this.accountService;
+	}
+
+	@Nonnull
+	protected Authenticator getAuthenticator() {
+		return this.authenticator;
 	}
 
 	@Nonnull
