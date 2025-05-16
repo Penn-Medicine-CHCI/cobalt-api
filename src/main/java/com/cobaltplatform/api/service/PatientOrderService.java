@@ -5536,8 +5536,8 @@ public class PatientOrderService implements AutoCloseable {
 		request.setEncounterDepartmentId(epicDepartment.getDepartmentId());
 		request.setEncounterDepartmentIdType(epicDepartment.getDepartmentIdType());
 		request.setPatientOrderImportId(patientOrderImportId);
-		request.setPatientMrn(format("FAKE-MRN-%s", timestampIdentifier));
-		request.setPatientUniqueId(format("FAKE-%s-%s", institution.getEpicPatientUniqueIdType(), timestampIdentifier));
+		request.setPatientMrn(account.getEpicPatientMrn() != null ? account.getEpicPatientMrn() : format("FAKE-MRN-%s", timestampIdentifier));
+		request.setPatientUniqueId(account.getEpicPatientUniqueId() != null ? account.getEpicPatientUniqueId() : format("FAKE-%s-%s", institution.getEpicPatientUniqueIdType(), timestampIdentifier));
 		request.setPatientUniqueIdType(institution.getEpicPatientUniqueIdType());
 		request.setOrderAge("0d 00h 00m"); // Order Age example: "5d 05h 43m"
 		request.setPatientAddressLine1("123 Fake St");
