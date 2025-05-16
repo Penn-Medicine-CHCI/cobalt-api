@@ -5561,7 +5561,7 @@ public class PatientOrderService implements AutoCloseable {
 				epic_patient_unique_id=?,
 				epic_patient_unique_id_type=?
 				WHERE account_id=?
-				""", request.getPatientMrn(), request.getPatientMrn(), institution.getEpicPatientUniqueIdType(), accountId);
+				""", request.getPatientMrn(), request.getPatientUniqueId(), institution.getEpicPatientUniqueIdType(), accountId);
 
 		// Immediately set the order's account ID
 		getDatabase().execute("UPDATE patient_order SET patient_account_id=? WHERE patient_order_id=?", accountId, patientOrderId);
