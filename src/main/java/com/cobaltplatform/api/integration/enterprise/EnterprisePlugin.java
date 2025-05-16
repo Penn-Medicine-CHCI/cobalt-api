@@ -22,6 +22,8 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.integration.epic.MyChartAuthenticator;
+import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
+import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
 import com.cobaltplatform.api.integration.google.GoogleAnalyticsDataClient;
 import com.cobaltplatform.api.integration.google.GoogleBigQueryClient;
 import com.cobaltplatform.api.integration.google.GoogleGeoClient;
@@ -258,6 +260,20 @@ public interface EnterprisePlugin {
 
 	default void applyCustomProcessingForEmailPasswordAccessTokenRequest(@Nonnull EmailPasswordAccessTokenRequest request) {
 		requireNonNull(request);
+		// No-op by default
+	}
+
+	default void customizeScheduleAppointmentWithInsuranceRequest(@Nonnull ScheduleAppointmentWithInsuranceRequest request,
+																																@Nonnull Account account) {
+		requireNonNull(request);
+		requireNonNull(account);
+		// No-op by default
+	}
+
+	default void customizeCancelAppointmentRequest(@Nonnull CancelAppointmentRequest request,
+																								 @Nonnull Account account) {
+		requireNonNull(request);
+		requireNonNull(account);
 		// No-op by default
 	}
 }
