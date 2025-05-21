@@ -1166,6 +1166,9 @@ public class AppointmentService {
 				appointmentRequest.setIsReviewOnly(false);
 				appointmentRequest.setComments(List.of("Booked with Cobalt"));
 
+				// Perform any institution-specific customizations needed
+				enterprisePlugin.customizeScheduleAppointmentWithInsuranceRequest(appointmentRequest, account);
+
 				appointmentResponse = epicClient.performScheduleAppointmentWithInsurance(appointmentRequest);
 			} catch (Exception e) {
 				getLogger().info("An error occurred during appointment creation", e);
@@ -2066,7 +2069,8 @@ public class AppointmentService {
 					getLogger().warn("Unable to cancel appointment via Acuity, continuing on...", e);
 				}
 			} else if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
-				EpicClient epicClient = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId()).epicClientForBackendService().get();
+				EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(account.getInstitutionId());
+				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 
 				com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Patient patient = new com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest.Patient();
 				patient.setID(account.getEpicPatientUniqueId());
@@ -2080,6 +2084,9 @@ public class AppointmentService {
 				cancelRequest.setReason("Patient requested cancelation via Cobalt");
 				cancelRequest.setPatient(patient);
 				cancelRequest.setContact(contact);
+
+				// Perform any institution-specific customizations needed
+				enterprisePlugin.customizeCancelAppointmentRequest(cancelRequest, account);
 
 				epicClient.performCancelAppointment(cancelRequest);
 
