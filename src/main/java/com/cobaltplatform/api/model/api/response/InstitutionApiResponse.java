@@ -179,6 +179,8 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String integratedCareBookingInsuranceRequirements;
 	@Nullable
+	private final String integratedCarePatientIntroOverride;
+	@Nullable
 	private final String landingPageTaglineOverride;
 	@Nonnull
 	private final Boolean preferLegacyTopicCenters;
@@ -303,6 +305,7 @@ public class InstitutionApiResponse {
 		this.integratedCareCallCenterName = institution.getIntegratedCareCallCenterName();
 		this.integratedCareMhpTriageOverviewOverride = institution.getIntegratedCareMhpTriageOverviewOverride();
 		this.integratedCareBookingInsuranceRequirements = institution.getIntegratedCareBookingInsuranceRequirements();
+		this.integratedCarePatientIntroOverride = institution.getIntegratedCarePatientIntroOverride();
 		this.landingPageTaglineOverride = institution.getLandingPageTaglineOverride();
 
 		this.preferLegacyTopicCenters = institution.getPreferLegacyTopicCenters();
@@ -628,6 +631,11 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Optional<String> getIntegratedCareBookingInsuranceRequirements() {
 		return Optional.ofNullable(this.integratedCareBookingInsuranceRequirements);
+	}
+
+	@Nonnull
+	public Optional<String> getIntegratedCarePatientIntroOverride() {
+		return Optional.ofNullable(this.integratedCarePatientIntroOverride);
 	}
 
 	@Nonnull

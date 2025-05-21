@@ -357,6 +357,8 @@ public class Institution {
 	@Nullable
 	private String integratedCareBookingInsuranceRequirements;
 	@Nullable
+	private String integratedCarePatientIntroOverride;
+	@Nullable
 	private String landingPageTaglineOverride;
 
 	@Nullable
@@ -1702,6 +1704,15 @@ public class Institution {
 
 	public void setIntegratedCareBookingInsuranceRequirements(@Nullable String integratedCareBookingInsuranceRequirements) {
 		this.integratedCareBookingInsuranceRequirements = integratedCareBookingInsuranceRequirements;
+	}
+
+	@Nullable
+	public String getIntegratedCarePatientIntroOverride() {
+		return this.integratedCarePatientIntroOverride;
+	}
+
+	public void setIntegratedCarePatientIntroOverride(@Nullable String integratedCarePatientIntroOverride) {
+		this.integratedCarePatientIntroOverride = integratedCarePatientIntroOverride;
 	}
 
 	@Nullable
