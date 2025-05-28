@@ -123,8 +123,9 @@ public class PageApiResponse {
 		this.imageUrl = page.getImageUrl();
 		this.publishedDate = page.getPublishedDate();
 		this.publishedDateDescription = this.publishedDate == null ? "Not Published" : formatter.formatDate(this.publishedDate, FormatStyle.MEDIUM);
-		this.created = page.getCreated();
-		this.createdDescription = formatter.formatTimestamp(page.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		//Here we return the created date of the first "version" of this page
+		this.created = page.getOriginalCreateDate();
+		this.createdDescription = formatter.formatTimestamp(page.getOriginalCreateDate(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.lastUpdated = page.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.editingLivePage = page.getPageStatusId().equals(PageStatusId.COPY_FOR_EDITING);

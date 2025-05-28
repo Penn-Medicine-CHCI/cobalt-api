@@ -47,6 +47,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.ContentStatus.ContentStatusId;
@@ -71,6 +72,7 @@ import com.cobaltplatform.api.model.service.NavigationItem;
 import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.model.service.PageWithTotalCount;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
@@ -88,6 +90,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.Instant;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -117,23 +120,33 @@ public class PageService {
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
 	@Nonnull
+	private final AccountService accountService;
+	@Nonnull
 	private final Logger logger;
+	@Nonnull
+	private final Formatter formatter;
 
 	@Inject
 	public PageService(@Nonnull DatabaseProvider databaseProvider,
 										 @Nonnull Configuration configuration,
 										 @Nonnull Provider<SystemService> systemServiceProvider,
-										 @Nonnull Strings strings) {
+										 @Nonnull Strings strings,
+										 @Nonnull AccountService accountService,
+										 @Nonnull Formatter formatter) {
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(strings);
 		requireNonNull(systemServiceProvider);
+		requireNonNull(accountService);
+		requireNonNull(formatter);
 
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.strings = strings;
 		this.systemServiceProvider = systemServiceProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
+		this.accountService = accountService;
+		this.formatter = formatter;
 	}
 
 	@Nonnull
@@ -325,7 +338,7 @@ public class PageService {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
-		String urlName = request.getUrlName() == null ? null : WebUtility.normalizeUrlName(request.getUrlName()).orElse(null);
+		String urlName = request.getUrlName() == null ? null : WebUtility.normalizeUrlName(request.getUrlName().toLowerCase()).orElse(null);
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		UUID imageFileUploadId = request.getImageFileUploadId();
@@ -357,11 +370,11 @@ public class PageService {
 		getDatabase().execute("""
 						INSERT INTO page
 						  (page_id, name, url_name, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
-						  published_date, institution_id, created_by_account_id)
+						  published_date, institution_id, created_by_account_id, page_group_id)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?)   
+						  (?,?,?,?,?,?,?,?,?,?,?,?)   
 						""", pageId, name, urlName, PageStatusId.DRAFT, headline, description, imageFileUploadId, imageAltText,
-				publishedDate, institutionId, createdByAccountId);
+				publishedDate, institutionId, createdByAccountId, UUID.randomUUID());
 
 		return pageId;
 	}
@@ -408,6 +421,20 @@ public class PageService {
 
 		if (!page.isPresent())
 			validationException.add(new ValidationException.FieldError("page", getStrings().get("Could not find page to publish.")));
+		else {
+			Optional<Page> livePage = getDatabase().queryForObject("""
+					SELECT *
+					FROM v_page
+					WHERE page_group_id = ?
+					AND page_status_id = ? 
+					""", Page.class, page.get().getPageGroupId(), PageStatusId.LIVE);
+			if (livePage.isPresent() && livePage.get().getPageId().compareTo(page.get().getParentPageId()) != 0) {
+				Optional<Account> account = getAccountService().findAccountById(livePage.get().getCreatedByAccountId());
+				validationException.add(new ValidationException.FieldError("page", getStrings().get(
+						format("Could not publish this page because there is a more recent version of this page published by %s on %s. Please close this window and re-edit the page.", account.get().getDisplayName(),
+								formatter.formatTimestamp(livePage.get().getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT)))));
+			}
+		}
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -539,8 +566,12 @@ public class PageService {
 		parameters.add(urlName);
 
 		if (pageId != null) {
-			query.append(" AND p.page_id != ?");
-			parameters.add(pageId);
+			Optional<Page>  page = findPageById(pageId, institutionId, true);
+
+			if (page.isPresent()) {
+				query.append(" AND p.page_group_id != ?");
+				parameters.add(page.get().getPageGroupId());
+			}
 		}
 
 		return getDatabase().queryForObject(query.toString(), Boolean.class, parameters.toArray()).get();
@@ -597,7 +628,7 @@ public class PageService {
 				name=?, url_name=?
 				WHERE page_id=?	
 				AND institution_id = ?				   
-				""", name, urlName, pageId, institutionId);
+				""", name, urlName.toLowerCase(), pageId, institutionId);
 
 		return pageId;
 	}
@@ -627,6 +658,7 @@ public class PageService {
 				FROM v_page_section
 				WHERE page_id = ?
 				AND institution_id=?
+				ORDER BY display_order ASC
 				""", PageSection.class, pageId, institutionId);
 	}
 
@@ -884,6 +916,7 @@ public class PageService {
 				FROM v_page_row
 				WHERE page_section_id = ?
 				AND institution_id = ?
+				ORDER BY display_order ASC
 				""", PageRow.class, pageSectionId, institutionId);
 	}
 
@@ -1338,6 +1371,7 @@ public class PageService {
 				SELECT *
 				FROM v_page_row_content
 				WHERE page_row_id = ?
+				ORDER BY content_display_order ASC
 				""", PageRowContent.class, pageRowId);
 	}
 
@@ -1699,6 +1733,7 @@ public class PageService {
 				SELECT *
 				FROM v_page_row_group_session
 				WHERE page_row_id = ?
+				ORDER BY group_session_display_order ASC
 				""", PageRowGroupSession.class, pageRowId);
 	}
 
@@ -2010,9 +2045,9 @@ public class PageService {
 		getDatabase().execute("""
 				INSERT INTO page
 				(page_id,name,url_name,page_status_id,headline,description,image_file_upload_id,
-				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id)
+				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id, page_group_id)
 				SELECT ?,?,?,?,headline,description,image_file_upload_id,
-				       image_alt_text,published_date,deleted_flag,institution_id,?,?
+				       image_alt_text,published_date,deleted_flag,institution_id,?,?, page_group_id
 				FROM page 
 				WHERE page_id=?
 				""", newPageId, name, urlName, pageStatusId, accountId, parentPageId, pageId);
@@ -2121,5 +2156,10 @@ public class PageService {
 	@Nonnull
 	public SystemService getSystemService() {
 		return systemServiceProvider.get();
+	}
+
+	@Nonnull
+	public AccountService getAccountService() {
+		return accountService;
 	}
 }
