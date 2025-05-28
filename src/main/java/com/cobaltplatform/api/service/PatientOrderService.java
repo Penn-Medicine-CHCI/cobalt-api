@@ -95,6 +95,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGro
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse.PatientOrderScheduledMessageGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.AdministrativeGender.AdministrativeGenderId;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.ClinicalSex.ClinicalSexId;
@@ -4594,10 +4595,15 @@ public class PatientOrderService implements AutoCloseable {
 				)
 		));
 		lines.add("");
-		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{ageInYears}} year old patient completed the {{platform}} {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
+
+		String patientDescription = patientOrder.getPatientAgeOnOrderDate() == null
+				? getStrings().get("patient")
+				: getStrings().get("{{ageInYears}} year old patient", Map.of("ageInYears", patientOrder.getPatientAgeOnOrderDate()));
+
+		lines.add(getStrings().get("ASSESSMENT SUMMARY: {{patientDescription}} completed the {{platform}} {{integratedCareProgramName}} triage assessment on {{assessmentDate}} {{timeZone}}.",
 				Map.of(
 						"platform", selfAdministered ? getStrings().get("digital") : getStrings().get("phone"),
-						"ageInYears", patientOrder.getPatientAgeOnOrderDate(),
+						"patientDescription", patientDescription,
 						"integratedCareProgramName", institution.getIntegratedCareProgramName(),
 						"assessmentDate", getFormatter().formatTimestamp(completedScreeningSession.getCompletedAt(), FormatStyle.FULL, FormatStyle.SHORT, institution.getTimeZone()),
 						"timeZone", institution.getTimeZone().getDisplayName(TextStyle.FULL_STANDALONE, institution.getLocale())
@@ -5499,10 +5505,17 @@ public class PatientOrderService implements AutoCloseable {
 				""", PatientOrderImport.class, rawOrderChecksum, institutionId, patientOrderImportTypeId);
 	}
 
+	public enum CreatePatientOrderSelfReferralMode {
+		REAL_ORDER,
+		TEST_ORDER
+	}
+
 	// Shorthand to more easily create a self-referred order
 	@Nonnull
-	public UUID createPatientOrderForSelfReferral(@Nonnull UUID accountId) {
+	public UUID createPatientOrderForSelfReferral(@Nonnull UUID accountId,
+																								@Nonnull CreatePatientOrderSelfReferralMode mode) {
 		requireNonNull(accountId);
+		requireNonNull(mode);
 
 		Account account = getAccountService().findAccountById(accountId).orElse(null);
 
@@ -5511,7 +5524,16 @@ public class PatientOrderService implements AutoCloseable {
 
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 
+		boolean institutionSupportsSelfReferral = getInstitutionService().findPatientOrderReferralSourcesByInstitutionId(institution.getInstitutionId()).stream()
+				.filter(patientOrderReferralSource -> patientOrderReferralSource.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.SELF)
+				.collect(Collectors.toUnmodifiableList())
+				.size() > 0;
+
+		if (!institutionSupportsSelfReferral)
+			throw new IllegalStateException(format("Institution '%s' does not support self-referral orders", institution.getInstitutionId().name()));
+
 		// Arbitrarily pick the first Epic department for this institution
+		// TODO: revisit this if we have more than 1 self-referral department
 		EpicDepartment epicDepartment = findEpicDepartmentsByInstitutionId(institution.getInstitutionId()).stream().findFirst().get();
 
 		PatientOrderImportResult patientOrderImportResult = createPatientOrderImport(new CreatePatientOrderImportRequest() {{
@@ -5524,44 +5546,95 @@ public class PatientOrderService implements AutoCloseable {
 
 		String timestampIdentifier = LocalDateTime.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US));
 
+		// Patient values which might be overridden for test orders
+		String patientFirstName;
+		String patientLastName;
+		String patientMrn;
+		String patientUniqueId;
+		String patientAddressLine1 = null;
+		String patientLocality = null;
+		String patientRegion = null;
+		String patientPostalCode = null;
+		String patientCountryCode = null;
+		String primaryPayorName;
+		String primaryPlanName;
+		Boolean testPatientOrder;
+
+		if (mode == CreatePatientOrderSelfReferralMode.TEST_ORDER) {
+			patientFirstName = "FirstName";
+			patientLastName = "LastName";
+			patientMrn = account.getEpicPatientMrn() != null ? account.getEpicPatientMrn() : format("FAKE-MRN-%s", timestampIdentifier);
+			patientUniqueId = account.getEpicPatientUniqueId() != null ? account.getEpicPatientUniqueId() : format("FAKE-%s-%s", institution.getEpicPatientUniqueIdType(), timestampIdentifier);
+			patientAddressLine1 = "123 Fake St";
+			patientLocality = "Conshohocken";
+			patientRegion = "PA";
+			patientPostalCode = "19428";
+			patientCountryCode = "US";
+			primaryPayorName = "UNKNOWN";
+			primaryPlanName = "UNKNOWN";
+			testPatientOrder = true;
+		} else if (mode == CreatePatientOrderSelfReferralMode.REAL_ORDER) {
+			patientFirstName = account.getFirstName();
+			patientLastName = account.getLastName();
+			patientMrn = account.getEpicPatientMrn();
+			patientUniqueId = account.getEpicPatientUniqueId();
+
+			Address address = getAddressService().findActiveAddressByAccountId(accountId).orElse(null);
+
+			if (address != null) {
+				patientAddressLine1 = address.getStreetAddress1();
+				patientLocality = address.getLocality();
+				patientRegion = address.getRegion();
+				patientPostalCode = address.getPostalCode();
+				patientCountryCode = address.getCountryCode();
+			}
+
+			// TODO: revisit in the future if needed
+			primaryPayorName = "UNKNOWN";
+			primaryPlanName = "UNKNOWN";
+
+			testPatientOrder = false;
+		} else {
+			throw new IllegalStateException(format("Unexpected %s value: %s", CreatePatientOrderSelfReferralMode.class.getSimpleName(), mode.name()));
+		}
+
 		CreatePatientOrderRequest request = new CreatePatientOrderRequest();
 		request.setAccountId(accountId);
 		request.setOrderId(timestampIdentifier);
 		request.setOrderDate(LocalDate.now(institution.getTimeZone()).format(DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US)));
 		request.setInstitutionId(account.getInstitutionId());
-		// TODO: name could be pulled from source account
-		request.setPatientFirstName("FirstName");
-		request.setPatientLastName("LastName");
+		request.setPatientFirstName(patientFirstName);
+		request.setPatientLastName(patientLastName);
 		request.setPatientOrderReferralSourceId(PatientOrderReferralSourceId.SELF);
 		request.setEncounterDepartmentId(epicDepartment.getDepartmentId());
 		request.setEncounterDepartmentIdType(epicDepartment.getDepartmentIdType());
 		request.setPatientOrderImportId(patientOrderImportId);
-		request.setPatientMrn(account.getEpicPatientMrn() != null ? account.getEpicPatientMrn() : format("FAKE-MRN-%s", timestampIdentifier));
-		request.setPatientUniqueId(account.getEpicPatientUniqueId() != null ? account.getEpicPatientUniqueId() : format("FAKE-%s-%s", institution.getEpicPatientUniqueIdType(), timestampIdentifier));
+		request.setPatientMrn(patientMrn);
+		request.setPatientUniqueId(patientUniqueId);
 		request.setPatientUniqueIdType(institution.getEpicPatientUniqueIdType());
 		request.setOrderAge("0d 00h 00m"); // Order Age example: "5d 05h 43m"
-		request.setPatientAddressLine1("123 Fake St");
-		request.setPatientLocality("Conshohocken");
-		request.setPatientRegion("PA");
-		request.setPatientPostalCode("19428");
-		request.setPatientCountryCode("US");
-		request.setPrimaryPayorName("UNKNOWN");
-		request.setPrimaryPlanName("UNKNOWN");
+		request.setPatientAddressLine1(patientAddressLine1);
+		request.setPatientLocality(patientLocality);
+		request.setPatientRegion(patientRegion);
+		request.setPatientPostalCode(patientPostalCode);
+		request.setPatientCountryCode(patientCountryCode);
+		request.setPrimaryPayorName(primaryPayorName);
+		request.setPrimaryPlanName(primaryPlanName);
 		request.setReasonsForReferral(List.of(PatientOrderReferralReasonId.SELF.name()));
-
-		// TODO: remove this, it's to support test patients
-		request.setTestPatientOrder(true);
+		request.setTestPatientOrder(testPatientOrder);
 
 		UUID patientOrderId = createPatientOrder(request);
 
-		// TODO: remove this, it's to support test patients
-		getDatabase().execute("""
-				UPDATE account SET
-				epic_patient_mrn=?,
-				epic_patient_unique_id=?,
-				epic_patient_unique_id_type=?
-				WHERE account_id=?
-				""", request.getPatientMrn(), request.getPatientUniqueId(), institution.getEpicPatientUniqueIdType(), accountId);
+		// For test orders, update the test account
+		if (mode == CreatePatientOrderSelfReferralMode.TEST_ORDER) {
+			getDatabase().execute("""
+					UPDATE account SET
+					epic_patient_mrn=?,
+					epic_patient_unique_id=?,
+					epic_patient_unique_id_type=?
+					WHERE account_id=?
+					""", request.getPatientMrn(), request.getPatientUniqueId(), institution.getEpicPatientUniqueIdType(), accountId);
+		}
 
 		// Immediately set the order's account ID
 		getDatabase().execute("UPDATE patient_order SET patient_account_id=? WHERE patient_order_id=?", accountId, patientOrderId);
