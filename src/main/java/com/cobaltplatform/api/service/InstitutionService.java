@@ -141,6 +141,24 @@ public class InstitutionService {
 				Institution.class, institutionId);
 	}
 
+	@Nonnull
+	public Boolean isIntegratedCareForSelfReferralsOnly(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return false;
+
+		Institution institution = findInstitutionById(institutionId).get();
+		return isIntegratedCareForSelfReferralsOnly(institution);
+	}
+
+	@Nonnull
+	public Boolean isIntegratedCareForSelfReferralsOnly(@Nullable Institution institution) {
+		if (institution == null)
+			return false;
+
+		List<PatientOrderReferralSource> patientOrderReferralSources = findPatientOrderReferralSourcesByInstitutionId(institution.getInstitutionId());
+		return institution.getIntegratedCareEnabled() && patientOrderReferralSources.size() == 1 && patientOrderReferralSources.get(0).getPatientOrderReferralSourceId() == PatientOrderReferralSource.PatientOrderReferralSourceId.SELF;
+	}
+
 	// Shorthand for getting access to webapp base URL (as opposed to full InstitutionUrl) since this is a common operation
 	@Nonnull
 	public Optional<String> findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(@Nullable InstitutionId institutionId,
@@ -599,6 +617,7 @@ public class InstitutionService {
 				SELECT bh.*
 				FROM business_hour bh, institution_business_hour ibh
 				WHERE bh.business_hour_id=ibh.business_hour_id
+				AND ibh.institution_id=?
 				ORDER BY ibh.display_order
 				""", BusinessHour.class, institutionId);
 	}
@@ -612,6 +631,7 @@ public class InstitutionService {
 				SELECT bho.*
 				FROM business_hour_override bho, institution_business_hour ibh
 				WHERE bho.business_hour_id=ibh.business_hour_id
+				AND ibh.institution_id=?
 				ORDER BY bho.date
 				""", BusinessHourOverride.class, institutionId);
 	}
@@ -625,6 +645,7 @@ public class InstitutionService {
 				SELECT h.*
 				FROM holiday h, institution_holiday ih
 				WHERE h.holiday_id=ih.holiday_id
+				AND ih.institution_id=?
 				ORDER BY h.display_order
 				""", Holiday.class, institutionId);
 	}

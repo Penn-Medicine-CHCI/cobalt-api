@@ -8,7 +8,7 @@ ALTER TABLE institution ADD COLUMN integrated_care_booking_insurance_requirement
 ALTER TABLE institution ADD COLUMN landing_page_tagline_override TEXT;
 
 -- Introduce support for the concept of business hours, which enables fine-grained "opened/closed" calculations.
--- For example, provider availability might be capped to anything at least 48 business hours out,
+-- For example, provider availability might be capped to anything at least 16 business hours out (i.e. 2 business days),
 -- which means taking into account weekends, holidays, and special exceptions when performing the calculation
 
 CREATE TYPE DAY_OF_WEEK AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY');

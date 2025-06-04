@@ -20,8 +20,10 @@
 package com.cobaltplatform.api.integration.enterprise;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -88,5 +90,18 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 		}
 
 		return tag;
+	}
+
+	@Override
+	public List<InstitutionFeatureInstitutionReferrer> applyCustomizationsToInstitutionFeatureInstitutionReferrers(@Nonnull List<InstitutionFeatureInstitutionReferrer> institutionFeatureInstitutionReferrers,
+																																																								 @Nonnull Account account) {
+		requireNonNull(institutionFeatureInstitutionReferrers);
+		requireNonNull(account);
+
+		// Just for testing, if we don't know your location, we don't show referrers
+		if (account.getInstitutionLocationId() == null)
+			return List.of();
+
+		return institutionFeatureInstitutionReferrers;
 	}
 }

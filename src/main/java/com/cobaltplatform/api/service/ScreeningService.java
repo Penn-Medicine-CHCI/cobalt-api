@@ -61,6 +61,7 @@ import com.cobaltplatform.api.model.db.PatientOrderIntakeInsuranceStatus.Patient
 import com.cobaltplatform.api.model.db.PatientOrderIntakeLocationStatus.PatientOrderIntakeLocationStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderIntakeWantsServicesStatus.PatientOrderIntakeWantsServicesStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderReferralReason.PatientOrderReferralReasonId;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.PatientOrderResourcingStatus.PatientOrderResourcingStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderSafetyPlanningStatus.PatientOrderSafetyPlanningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType.PatientOrderScheduledMessageTypeId;
@@ -680,6 +681,7 @@ public class ScreeningService {
 		UUID groupSessionId = request.getGroupSessionId();
 		UUID accountCheckInActionId = request.getAccountCheckInActionId();
 		ScreeningFlowVersion screeningFlowVersion = null;
+		Institution institution = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
 		boolean immediatelySkip = request.getImmediatelySkip() == null ? false : request.getImmediatelySkip();
@@ -737,7 +739,7 @@ public class ScreeningService {
 			if (createdByAccount == null) {
 				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is invalid.")));
 			} else {
-				Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
+				institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
 				// Special behavior if we're IC and this is the special IC screening flow
 				creatingIntegratedCareScreeningSession = institution.getIntegratedCareEnabled()
@@ -820,6 +822,24 @@ public class ScreeningService {
 			getPatientOrderService().deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, createdByAccountId, Set.of(
 					PatientOrderScheduledMessageTypeId.WELCOME_REMINDER
 			));
+
+			// Special case: if we are creating an IC intake screening session and an IC clinical screening session already exists for
+			// this patient order, then mark the clinical screening session as "skipped" in order to invalidate it.
+			// If we did not do this, the clinical screening would still appear active even though it's no longer relevant.
+			// On this UI side, we get in this state if a patient completes the intake screening, starts the clinical screening,
+			// then returns to the homepage and chooses to restart the screenings from zero.  Old behavior was we would create a new intake
+			// screening but leave the clinical one hanging out, so the `mostRecentScreeningSession*` fields would be populated even though they should not have been.
+			if (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId())) {
+				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+				if (patientOrder.getMostRecentScreeningSessionId() != null) {
+					getLogger().info("Since we are starting an IC intake screening session and clinical screening session ID {} already exists, mark it as skipped.", patientOrder.getMostRecentScreeningSessionId());
+
+					skipScreeningSession(new SkipScreeningSessionRequest() {{
+						setScreeningSessionId(patientOrder.getMostRecentScreeningSessionId());
+						setForceSkip(true);
+					}}, true);
+				}
+			}
 		}
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
@@ -1906,8 +1926,10 @@ public class ScreeningService {
 							//   * the order is closed or archived
 							Account account = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get();
 							boolean selfAdministered = account.getRoleId() == RoleId.PATIENT;
+							// Prevent self-referral IC institutions from scheduling appointment booking reminder messages
+							boolean providerReferred = patientOrder.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.PROVIDER;
 
-							if (selfAdministered) {
+							if (selfAdministered && providerReferred) {
 								LocalDateTime currentDateTime = LocalDateTime.now(institution.getTimeZone());
 								LocalDate reminderScheduledAtDate = currentDateTime.toLocalDate().plusDays(1);
 								LocalTime reminderScheduledAtTime = currentDateTime.toLocalTime();

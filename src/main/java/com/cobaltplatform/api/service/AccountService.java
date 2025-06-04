@@ -625,8 +625,11 @@ public class AccountService {
 					""", accountId, addressId, true);
 		}
 
-		// If there are any patient orders to associate this account with, do it now
-		if (institution.getIntegratedCareEnabled())
+		boolean integratedCareForSelfReferralsOnly = getInstitutionService().isIntegratedCareForSelfReferralsOnly(institution);
+
+		// If there are any patient orders to associate this account with, do it now.
+		// Skip this step for self-referral-only institutions
+		if (institution.getIntegratedCareEnabled() && !integratedCareForSelfReferralsOnly)
 			getPatientOrderService().associatePatientAccountWithPatientOrders(accountId);
 
 		return accountId;

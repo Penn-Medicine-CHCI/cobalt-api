@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.PatientOrderService;
+import com.cobaltplatform.api.service.PatientOrderService.CreatePatientOrderSelfReferralMode;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
@@ -125,7 +126,7 @@ public class CobaltIcSelfReferralEnterprisePlugin extends DefaultEnterprisePlugi
 					setPassword(getAuthenticator().hashPassword(request.getPassword()));
 				}});
 
-				getPatientOrderService().createPatientOrderForSelfReferral(accountId);
+				getPatientOrderService().createPatientOrderForSelfReferral(accountId, CreatePatientOrderSelfReferralMode.TEST_ORDER);
 			}
 		}
 	}
