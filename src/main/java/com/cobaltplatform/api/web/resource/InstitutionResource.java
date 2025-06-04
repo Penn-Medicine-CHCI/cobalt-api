@@ -329,11 +329,13 @@ public class InstitutionResource {
 	public ApiResponse getInstitutionFeatureInstitutionReferrers(@Nonnull @PathParameter FeatureId featureId) {
 		requireNonNull(featureId);
 
-		// TODO: based on this account's institutionLocationId and accountSourceId, filter out referrers if restrictions exist
-		@SuppressWarnings("unused")
 		Account account = getCurrentContext().getAccount().get();
-
 		List<InstitutionFeatureInstitutionReferrer> institutionFeatureInstitutionReferrers = getInstitutionService().findInstitutionFeatureInstitutionReferrers(getCurrentContext().getInstitutionId(), featureId);
+
+		// Filter out via plugin (e.g. restrict referrals to only certain types of accounts, like only those accounts with a specific SSO type)
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
+		institutionFeatureInstitutionReferrers = enterprisePlugin.applyCustomizationsToInstitutionFeatureInstitutionReferrers(institutionFeatureInstitutionReferrers, account);
+
 		List<InstitutionReferrer> institutionReferrers = new ArrayList<>(institutionFeatureInstitutionReferrers.size());
 
 		for (InstitutionFeatureInstitutionReferrer ifir : institutionFeatureInstitutionReferrers)
