@@ -44,8 +44,6 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LegalSex.LegalSexId;
 import com.cobaltplatform.api.model.db.MyChartAuthenticationClaims;
-import com.cobaltplatform.api.model.db.PatientOrderReferralSource;
-import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
@@ -388,8 +386,7 @@ public class MyChartService {
 			throw validationException;
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
-		List<PatientOrderReferralSource> patientOrderReferralSources = getInstitutionService().findPatientOrderReferralSourcesByInstitutionId(institutionId);
-		boolean integratedCareForSelfReferralsOnly = institution.getIntegratedCareEnabled() && patientOrderReferralSources.size() == 1 && patientOrderReferralSources.get(0).getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.SELF;
+		boolean integratedCareForSelfReferralsOnly = getInstitutionService().isIntegratedCareForSelfReferralsOnly(institution);
 
 		String epicPatientMrn = institution.getEpicPatientMrnSystem() != null
 				? patient.extractIdentifierBySystem(institution.getEpicPatientMrnSystem()).orElse(null)

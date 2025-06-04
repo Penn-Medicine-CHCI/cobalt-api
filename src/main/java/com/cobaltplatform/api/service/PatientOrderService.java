@@ -3022,6 +3022,10 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderResourcingTypeId == null || patientOrderResourcingTypeId == PatientOrderResourcingTypeId.NONE)
 				throw new ValidationException(new FieldError("patientOrderResourcingTypeId", getStrings().get("You must specify how the resources were sent.")));
 
+			// Prevent self-referral IC institutions from performing resourcing (for now)
+			if (patientOrder.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.SELF)
+				throw new ValidationException(getStrings().get("Sending resources is not supported for self-referred orders."));
+
 			Map<PatientOrderScheduledMessageTypeId, List<PatientOrderScheduledMessageGroup>> futurePatientOrderScheduledMessageGroupsByTypeId = findFuturePatientOrderScheduledMessageGroupsByTypeIdForPatientOrderId(patientOrderId);
 
 			if (futurePatientOrderScheduledMessageGroupsByTypeId.get(PatientOrderScheduledMessageTypeId.RESOURCE_CHECK_IN).size() > 0) {

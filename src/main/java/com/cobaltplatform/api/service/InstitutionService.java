@@ -141,6 +141,24 @@ public class InstitutionService {
 				Institution.class, institutionId);
 	}
 
+	@Nonnull
+	public Boolean isIntegratedCareForSelfReferralsOnly(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return false;
+
+		Institution institution = findInstitutionById(institutionId).get();
+		return isIntegratedCareForSelfReferralsOnly(institution);
+	}
+
+	@Nonnull
+	public Boolean isIntegratedCareForSelfReferralsOnly(@Nullable Institution institution) {
+		if (institution == null)
+			return false;
+
+		List<PatientOrderReferralSource> patientOrderReferralSources = findPatientOrderReferralSourcesByInstitutionId(institution.getInstitutionId());
+		return institution.getIntegratedCareEnabled() && patientOrderReferralSources.size() == 1 && patientOrderReferralSources.get(0).getPatientOrderReferralSourceId() == PatientOrderReferralSource.PatientOrderReferralSourceId.SELF;
+	}
+
 	// Shorthand for getting access to webapp base URL (as opposed to full InstitutionUrl) since this is a common operation
 	@Nonnull
 	public Optional<String> findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(@Nullable InstitutionId institutionId,
