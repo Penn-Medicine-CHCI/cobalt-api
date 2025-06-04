@@ -681,6 +681,7 @@ public class ScreeningService {
 		UUID groupSessionId = request.getGroupSessionId();
 		UUID accountCheckInActionId = request.getAccountCheckInActionId();
 		ScreeningFlowVersion screeningFlowVersion = null;
+		Institution institution = null;
 		Account targetAccount = null;
 		Account createdByAccount = null;
 		boolean immediatelySkip = request.getImmediatelySkip() == null ? false : request.getImmediatelySkip();
@@ -738,7 +739,7 @@ public class ScreeningService {
 			if (createdByAccount == null) {
 				validationException.add(new FieldError("createdByAccountId", getStrings().get("Created-by account ID is invalid.")));
 			} else {
-				Institution institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
+				institution = getInstitutionService().findInstitutionById(createdByAccount.getInstitutionId()).get();
 
 				// Special behavior if we're IC and this is the special IC screening flow
 				creatingIntegratedCareScreeningSession = institution.getIntegratedCareEnabled()
@@ -821,6 +822,20 @@ public class ScreeningService {
 			getPatientOrderService().deleteFuturePatientOrderScheduledMessageGroupsForPatientOrderId(patientOrderId, createdByAccountId, Set.of(
 					PatientOrderScheduledMessageTypeId.WELCOME_REMINDER
 			));
+
+			// Special case: if we are creating an IC intake screening session and an IC clinical screening sessions already exists for
+			// this patient order, then mark the clinical screening session as "skipped" so it
+			if (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId())) {
+				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
+				if (patientOrder.getMostRecentScreeningSessionId() != null) {
+					getLogger().info("Since we are starting an IC intake screening session and clinical screening session ID {} already exists, mark it as skipped.", patientOrder.getMostRecentScreeningSessionId());
+
+					skipScreeningSession(new SkipScreeningSessionRequest() {{
+						setScreeningSessionId(patientOrder.getMostRecentScreeningSessionId());
+						setForceSkip(true);
+					}}, true);
+				}
+			}
 		}
 
 		// If we're immediately skipping, mark this session as completed/skipped and do nothing else.
