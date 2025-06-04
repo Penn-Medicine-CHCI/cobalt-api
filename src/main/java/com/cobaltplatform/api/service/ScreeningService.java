@@ -823,8 +823,12 @@ public class ScreeningService {
 					PatientOrderScheduledMessageTypeId.WELCOME_REMINDER
 			));
 
-			// Special case: if we are creating an IC intake screening session and an IC clinical screening sessions already exists for
-			// this patient order, then mark the clinical screening session as "skipped" so it
+			// Special case: if we are creating an IC intake screening session and an IC clinical screening session already exists for
+			// this patient order, then mark the clinical screening session as "skipped" in order to invalidate it.
+			// If we did not do this, the clinical screening would still appear active even though it's no longer relevant.
+			// On this UI side, we get in this state if a patient completes the intake screening, starts the clinical screening,
+			// then returns to the homepage and chooses to restart the screenings from zero.  Old behavior was we would create a new intake
+			// screening but leave the clinical one hanging out, so the `mostRecentScreeningSession*` fields would be populated even though they should not have been.
 			if (Objects.equals(screeningFlowVersion.getScreeningFlowId(), institution.getIntegratedCareIntakeScreeningFlowId())) {
 				PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).get();
 				if (patientOrder.getMostRecentScreeningSessionId() != null) {
