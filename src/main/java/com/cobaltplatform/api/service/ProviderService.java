@@ -35,11 +35,14 @@ import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
+import com.cobaltplatform.api.model.db.BusinessHour;
 import com.cobaltplatform.api.model.db.DepartmentAvailabilityStatus.DepartmentAvailabilityStatusId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.EpicFhirAppointmentFindCache;
 import com.cobaltplatform.api.model.db.EpicProviderSchedule;
 import com.cobaltplatform.api.model.db.EpicProviderSlotBooking;
+import com.cobaltplatform.api.model.db.Holiday;
+import com.cobaltplatform.api.model.db.Holiday.HolidayId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Interaction;
@@ -66,6 +69,8 @@ import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.util.BusinessHoursCalculator;
+import com.cobaltplatform.api.util.BusinessHoursCalculator.BusinessHours;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -445,7 +450,24 @@ public class ProviderService {
 			throw validationException;
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		List<BusinessHour> institutionBusinessHours = getInstitutionService().findBusinessHoursByInstitutionId(institutionId);
+		// TODO: incoporate business hour overrides
+		// List<BusinessHourOverride> institutionBusinessHourOverrides = getInstitutionService().findBusinessHourOverridesByInstitutionId(institutionId);
+		Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek = new HashMap<>(7);
+		Set<HolidayId> holidayIds = new HashSet<>(16);
+		boolean shouldUseInstitutionBusinessHours = institutionBusinessHours.size() > 0;
 		List<Provider> providers;
+
+		// If we use custom institution business hours, prepare data for that here.
+		if (shouldUseInstitutionBusinessHours) {
+			for (BusinessHour businessHour : institutionBusinessHours)
+				businessHoursByDayOfWeek.put(businessHour.getDayOfWeek(), BusinessHours.from(businessHour.getOpenTime(), businessHour.getCloseTime()));
+
+			List<Holiday> institutionHolidays = getInstitutionService().findHolidaysByInstitutionId(institutionId);
+
+			for (Holiday holiday : institutionHolidays)
+				holidayIds.add(holiday.getHolidayId());
+		}
 
 		// If provider ID is specified or clinic IDs are specified, ignore the rest of the filters
 		if (providerId != null) {
@@ -871,10 +893,10 @@ public class ProviderService {
 			providerFinds.add(providerFind);
 		}
 
-		// Special case for Cobalt-scheduled providers: filter out any availability that is
-		// too early for the provider's configured "lead time" (normally 24 to 48 hours)
+		// Special case for Cobalt-scheduled and EPIC (private API)-scheduled providers: filter out any availability that is
+		// too early for the provider's configured "lead time" (normally 24 to 48 hours), taking into account business hours if available
 		if (!includePastAvailability)
-			filterProviderFindsBySchedulingLeadTime(providerFinds, providers, currentDateTime);
+			filterProviderFindsBySchedulingLeadTime(providerFinds, providers, currentDateTime, businessHoursByDayOfWeek, holidayIds);
 
 		filterProviderFindsByEpicRules(institution, providerFinds);
 
@@ -1327,17 +1349,25 @@ public class ProviderService {
 	 */
 	protected void filterProviderFindsBySchedulingLeadTime(@Nonnull List<ProviderFind> providerFinds,
 																												 @Nonnull List<Provider> providers,
-																												 @Nonnull LocalDateTime currentDateTime) {
+																												 @Nonnull LocalDateTime currentDateTime,
+																												 @Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
+																												 @Nonnull Set<HolidayId> holidayIds) {
 		requireNonNull(providerFinds);
 		requireNonNull(providers);
 		requireNonNull(currentDateTime);
+		requireNonNull(businessHoursByDayOfWeek);
+		requireNonNull(holidayIds);
+
+		boolean shouldUseBusinessHoursForCalculation = businessHoursByDayOfWeek.size() > 0;
 
 		Map<UUID, LocalDateTime> earliestAllowedDateTimeByProviderId = providers.stream().collect(Collectors.toMap(
 				provider -> provider.getProviderId(),
-				provider -> currentDateTime.plusHours(provider.getSchedulingLeadTimeInHours())));
+				provider -> shouldUseBusinessHoursForCalculation
+						? BusinessHoursCalculator.determineEarliestBookingDateTime(currentDateTime, businessHoursByDayOfWeek, holidayIds, provider.getSchedulingLeadTimeInHours())
+						: currentDateTime.plusHours(provider.getSchedulingLeadTimeInHours())));
 
 		for (ProviderFind providerFind : providerFinds) {
-			if (providerFind.getSchedulingSystemId() != SchedulingSystemId.COBALT)
+			if (providerFind.getSchedulingSystemId() != SchedulingSystemId.COBALT && providerFind.getSchedulingSystemId() != SchedulingSystemId.EPIC)
 				continue;
 
 			List<AvailabilityDate> availabilityDatesToRemove = new ArrayList<>(providerFind.getDates().size());
