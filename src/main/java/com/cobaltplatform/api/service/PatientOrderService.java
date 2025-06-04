@@ -5988,9 +5988,15 @@ public class PatientOrderService implements AutoCloseable {
 						institutionId.name(), patientUniqueIdType, patientUniqueId), e);
 				getErrorReporter().report(e);
 
-				// Keep the status as pending if there was an error.
-				// Reason: the error might be transient, and the background task will try again later to perform the import.
-				patientOrderDemographicsImportStatusId = PatientOrderDemographicsImportStatusId.PENDING;
+				if (patientOrderReferralSourceId == PatientOrderReferralSourceId.SELF) {
+					// For self-referrals, mark demographics import as failed and don't try again.
+					// The patient will be forced to specify demographics anyway.
+					patientOrderDemographicsImportStatusId = PatientOrderDemographicsImportStatusId.IMPORT_FAILED;
+				} else {
+					// For non-self-referrals, keep the status as pending if there was an error.
+					// Reason: the error might be transient, and the background task will try again later to perform the import.
+					patientOrderDemographicsImportStatusId = PatientOrderDemographicsImportStatusId.PENDING;
+				}
 			}
 		}
 
