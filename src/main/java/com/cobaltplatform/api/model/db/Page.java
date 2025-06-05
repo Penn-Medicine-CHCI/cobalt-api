@@ -63,9 +63,13 @@ public class Page {
 	@Nullable
 	private UUID parentPageId;
 	@Nullable
+	private UUID pageGroupId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+	@Nullable
+	private Instant originalCreateDate;
 
 	@Nullable
 	public UUID getPageId() {
@@ -209,5 +213,23 @@ public class Page {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public UUID getPageGroupId() {
+		return pageGroupId;
+	}
+
+	public void setPageGroupId(@Nullable UUID pageGroupId) {
+		this.pageGroupId = pageGroupId;
+	}
+
+	@Nullable
+	public Instant getOriginalCreateDate() {
+		return originalCreateDate;
+	}
+
+	public void setOriginalCreateDate(@Nullable Instant originalCreateDate) {
+		this.originalCreateDate = originalCreateDate;
 	}
 }

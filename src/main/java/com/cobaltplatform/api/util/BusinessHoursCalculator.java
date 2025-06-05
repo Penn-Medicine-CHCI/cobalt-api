@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.util;
 
+import com.cobaltplatform.api.model.db.Holiday.HolidayId;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
@@ -75,6 +77,11 @@ public final class BusinessHoursCalculator {
 			this.endTime = endTime;
 		}
 
+		@Override
+		public String toString() {
+			return format("%s{startTime=%s, endTime=%s}", getClass().getSimpleName(), getStartTime(), getEndTime());
+		}
+
 		@Nonnull
 		public LocalTime getStartTime() {
 			return this.startTime;
@@ -87,40 +94,23 @@ public final class BusinessHoursCalculator {
 	}
 
 	/**
-	 * Enum representing holidays.
-	 */
-	public enum Holiday {
-		US_NEW_YEARS_DAY, // January 1
-		US_MLK_DAY, // Third Monday in January
-		US_PRESIDENTS_DAY, // Third Monday in February
-		US_MEMORIAL_DAY, // Last Monday in May
-		US_JUNETEENTH, // June 19
-		US_INDEPENDENCE_DAY, // July 4
-		US_LABOR_DAY, // First Monday in September
-		US_INDIGENOUS_PEOPLES_DAY, // Second Monday in October
-		US_VETERANS_DAY, // November 11
-		US_THANKSGIVING, // Fourth Thursday in November
-		US_CHRISTMAS // December 25
-	}
-
-	/**
 	 * Calculates the number of business hours between two LocalDateTime instances.
 	 *
 	 * @param startDateTime            the starting LocalDateTime
 	 * @param endDateTime              the ending LocalDateTime
 	 * @param businessHoursByDayOfWeek a map where each DayOfWeek is associated with the corresponding BusinessHours
-	 * @param holidays                 a set of Holiday enums representing days when the business is closed
+	 * @param holidayIds               a set of Holiday enums representing days when the business is closed
 	 * @return the total number of business hours (can be fractional)
 	 */
 	@Nonnull
 	public static Double calculateBusinessHours(@Nonnull LocalDateTime startDateTime,
 																							@Nonnull LocalDateTime endDateTime,
 																							@Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
-																							@Nonnull Set<Holiday> holidays) {
+																							@Nonnull Set<HolidayId> holidayIds) {
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(businessHoursByDayOfWeek);
-		requireNonNull(holidays);
+		requireNonNull(holidayIds);
 
 		if (!startDateTime.isBefore(endDateTime))
 			throw new IllegalArgumentException(format("Start datetime %s must be before end datetime %s", startDateTime, endDateTime));
@@ -131,20 +121,20 @@ public final class BusinessHoursCalculator {
 
 		// If source and target are on the same day, calculate directly.
 		if (startDate.equals(endDate)) {
-			totalHours += calculateBusinessHoursForDate(startDate, startDateTime.toLocalTime(), endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidays);
+			totalHours += calculateBusinessHoursForDate(startDate, startDateTime.toLocalTime(), endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidayIds);
 		} else {
 			// Process the first day: count from the source time until the end of business hours.
-			totalHours += calculateBusinessHoursForDate(startDate, startDateTime.toLocalTime(), null, businessHoursByDayOfWeek, holidays);
+			totalHours += calculateBusinessHoursForDate(startDate, startDateTime.toLocalTime(), null, businessHoursByDayOfWeek, holidayIds);
 
 			// Process the intermediate days.
 			LocalDate current = startDate.plusDays(1);
 			while (current.isBefore(endDate)) {
-				totalHours += calculateBusinessHoursForDate(current, null, null, businessHoursByDayOfWeek, holidays);
+				totalHours += calculateBusinessHoursForDate(current, null, null, businessHoursByDayOfWeek, holidayIds);
 				current = current.plusDays(1);
 			}
 
 			// Process the final day: count from the start of business hours until the target time.
-			totalHours += calculateBusinessHoursForDate(endDate, null, endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidays);
+			totalHours += calculateBusinessHoursForDate(endDate, null, endDateTime.toLocalTime(), businessHoursByDayOfWeek, holidayIds);
 		}
 
 		return totalHours;
@@ -157,7 +147,7 @@ public final class BusinessHoursCalculator {
 	 * @param fromTime                 an optional starting time for the day (if null, the business day’s start time is used)
 	 * @param toTime                   an optional ending time for the day (if null, the business day’s end time is used)
 	 * @param businessHoursByDayOfWeek a map of business hours by DayOfWeek
-	 * @param holidays                 a set of Holiday enums that mark when the business is closed.
+	 * @param holidayIds               a set of Holiday enums that mark when the business is closed.
 	 * @return the number of business hours for the given day.
 	 */
 	@Nonnull
@@ -165,13 +155,13 @@ public final class BusinessHoursCalculator {
 																											@Nullable LocalTime fromTime,
 																											@Nullable LocalTime toTime,
 																											@Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
-																											@Nonnull Set<Holiday> holidays) {
+																											@Nonnull Set<HolidayId> holidayIds) {
 		requireNonNull(date);
 		requireNonNull(businessHoursByDayOfWeek);
-		requireNonNull(holidays);
+		requireNonNull(holidayIds);
 
 		// If the day is not a business day (either no business hours defined or it is a holiday), return 0.
-		if (!isBusinessDay(date, businessHoursByDayOfWeek, holidays))
+		if (!isBusinessDay(date, businessHoursByDayOfWeek, holidayIds))
 			return 0.0;
 
 		BusinessHours businessHours = businessHoursByDayOfWeek.get(date.getDayOfWeek());
@@ -196,24 +186,24 @@ public final class BusinessHoursCalculator {
 	 *
 	 * @param date                     the date to check.
 	 * @param businessHoursByDayOfWeek a map containing business hours for each day-of-week.
-	 * @param holidays                 a set of Holiday enums representing days off.
+	 * @param holidayIds               a set of Holiday enums representing days off.
 	 * @return true if the date is a business day; false otherwise.
 	 */
 	@Nonnull
 	private static Boolean isBusinessDay(@Nonnull LocalDate date,
 																			 @Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
-																			 @Nonnull Set<Holiday> holidays) {
+																			 @Nonnull Set<HolidayId> holidayIds) {
 		requireNonNull(date);
 		requireNonNull(businessHoursByDayOfWeek);
-		requireNonNull(holidays);
+		requireNonNull(holidayIds);
 
 		// If no business hours are defined for the day.
 		if (!businessHoursByDayOfWeek.containsKey(date.getDayOfWeek()))
 			return false;
 
 		// Check if the date matches any holiday.
-		for (Holiday holiday : holidays)
-			if (holidayMatchesDate(holiday, date))
+		for (HolidayId holidayId : holidayIds)
+			if (holidayIdMatchesDate(holidayId, date))
 				return false;
 
 		return true;
@@ -228,15 +218,15 @@ public final class BusinessHoursCalculator {
 	 * @return true if the holiday falls on the given date; otherwise false.
 	 */
 	@Nonnull
-	private static Boolean holidayMatchesDate(@Nonnull Holiday holiday,
-																						@Nonnull LocalDate date) {
-		requireNonNull(holiday);
+	private static Boolean holidayIdMatchesDate(@Nonnull HolidayId holidayId,
+																							@Nonnull LocalDate date) {
+		requireNonNull(holidayId);
 		requireNonNull(date);
 
-		switch (holiday) {
-			case US_NEW_YEARS_DAY:
+		switch (holidayId) {
+			case NEW_YEARS_DAY:
 				return MonthDay.from(date).equals(MonthDay.of(1, 1));
-			case US_MLK_DAY: {
+			case MLK_DAY: {
 				// Third Monday in January.
 				LocalDate firstJanuary = LocalDate.of(date.getYear(), 1, 1);
 				int adjustment = (DayOfWeek.MONDAY.getValue() - firstJanuary.getDayOfWeek().getValue() + 7) % 7;
@@ -244,7 +234,7 @@ public final class BusinessHoursCalculator {
 				LocalDate mlkDay = firstMonday.plusDays(14); // third Monday
 				return date.equals(mlkDay);
 			}
-			case US_PRESIDENTS_DAY: {
+			case PRESIDENTS_DAY: {
 				// Third Monday in February.
 				LocalDate firstFebruary = LocalDate.of(date.getYear(), 2, 1);
 				int adjustment = (DayOfWeek.MONDAY.getValue() - firstFebruary.getDayOfWeek().getValue() + 7) % 7;
@@ -252,7 +242,7 @@ public final class BusinessHoursCalculator {
 				LocalDate presidentsDay = firstMonday.plusDays(14); // third Monday
 				return date.equals(presidentsDay);
 			}
-			case US_MEMORIAL_DAY: {
+			case MEMORIAL_DAY: {
 				// Memorial Day: Last Monday in May.
 				LocalDate lastMay = LocalDate.of(date.getYear(), 5, 31);
 				while (lastMay.getDayOfWeek() != DayOfWeek.MONDAY)
@@ -260,18 +250,18 @@ public final class BusinessHoursCalculator {
 
 				return date.equals(lastMay);
 			}
-			case US_JUNETEENTH:
+			case JUNETEENTH:
 				return MonthDay.from(date).equals(MonthDay.of(6, 19));
-			case US_INDEPENDENCE_DAY:
+			case INDEPENDENCE_DAY:
 				return MonthDay.from(date).equals(MonthDay.of(7, 4));
-			case US_LABOR_DAY: {
+			case LABOR_DAY: {
 				// Labor Day: First Monday in September.
 				LocalDate firstSeptember = LocalDate.of(date.getYear(), 9, 1);
 				int adjustment = (DayOfWeek.MONDAY.getValue() - firstSeptember.getDayOfWeek().getValue() + 7) % 7;
 				LocalDate laborDay = firstSeptember.plusDays(adjustment);
 				return date.equals(laborDay);
 			}
-			case US_INDIGENOUS_PEOPLES_DAY: {
+			case INDIGENOUS_PEOPLES_DAY: {
 				// Columbus Day: Second Monday in October.
 				LocalDate firstOctober = LocalDate.of(date.getYear(), 10, 1);
 				int adjustment = (DayOfWeek.MONDAY.getValue() - firstOctober.getDayOfWeek().getValue() + 7) % 7;
@@ -279,9 +269,9 @@ public final class BusinessHoursCalculator {
 				LocalDate columbusDay = firstMonday.plusDays(7);
 				return date.equals(columbusDay);
 			}
-			case US_VETERANS_DAY:
+			case VETERANS_DAY:
 				return MonthDay.from(date).equals(MonthDay.of(11, 11));
-			case US_THANKSGIVING: {
+			case THANKSGIVING: {
 				// Thanksgiving: Fourth Thursday in November.
 				LocalDate firstNovember = LocalDate.of(date.getYear(), 11, 1);
 				int daysToThursday = (DayOfWeek.THURSDAY.getValue() - firstNovember.getDayOfWeek().getValue() + 7) % 7;
@@ -289,10 +279,10 @@ public final class BusinessHoursCalculator {
 				LocalDate thanksgiving = firstThursday.plusDays(21); // fourth Thursday
 				return date.equals(thanksgiving);
 			}
-			case US_CHRISTMAS:
+			case CHRISTMAS:
 				return MonthDay.from(date).equals(MonthDay.of(12, 25));
 			default:
-				throw new IllegalArgumentException(format("Unsupported value: %s.%s", Holiday.class.getSimpleName(), holiday.name()));
+				throw new IllegalArgumentException(format("Unsupported value: %s.%s", HolidayId.class.getSimpleName(), holidayId.name()));
 		}
 	}
 
@@ -301,20 +291,20 @@ public final class BusinessHoursCalculator {
 	 *
 	 * @param date                     the starting date
 	 * @param businessHoursByDayOfWeek a map containing business hours for each day-of-week
-	 * @param holidays                 a set of Holiday enums representing days off
+	 * @param holidayIds               a set of Holiday enums representing days off
 	 * @return the next LocalDate that is a business day
 	 */
 	@Nonnull
 	private static LocalDate determineNextBusinessDay(@Nonnull LocalDate date,
 																										@Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
-																										@Nonnull Set<Holiday> holidays) {
+																										@Nonnull Set<HolidayId> holidayIds) {
 		requireNonNull(date);
 		requireNonNull(businessHoursByDayOfWeek);
-		requireNonNull(holidays);
+		requireNonNull(holidayIds);
 
 		LocalDate candidate = date.plusDays(1);
 
-		while (!isBusinessDay(candidate, businessHoursByDayOfWeek, holidays))
+		while (!isBusinessDay(candidate, businessHoursByDayOfWeek, holidayIds))
 			candidate = candidate.plusDays(1);
 
 		return candidate;
@@ -330,18 +320,18 @@ public final class BusinessHoursCalculator {
 	 *
 	 * @param startDateTime            the reference datetime (typically "now").
 	 * @param businessHoursByDayOfWeek a map where each DayOfWeek is associated with the corresponding BusinessHours.
-	 * @param holidays                 a set of Holiday enums representing days when the business is closed.
+	 * @param holidayIds               a set of Holiday enums representing days when the business is closed.
 	 * @param requiredBusinessHours    the minimum business hours from startDateTime that the booking time must be.
 	 * @return the earliest LocalDateTime at which the booking can be scheduled.
 	 */
 	@Nonnull
 	public static LocalDateTime determineEarliestBookingDateTime(@Nonnull LocalDateTime startDateTime,
 																															 @Nonnull Map<DayOfWeek, BusinessHours> businessHoursByDayOfWeek,
-																															 @Nonnull Set<Holiday> holidays,
+																															 @Nonnull Set<HolidayId> holidayIds,
 																															 @Nonnull Integer requiredBusinessHours) {
 		requireNonNull(startDateTime);
 		requireNonNull(businessHoursByDayOfWeek);
-		requireNonNull(holidays);
+		requireNonNull(holidayIds);
 		requireNonNull(requiredBusinessHours);
 
 		double remainingBusinessHours = requiredBusinessHours;
@@ -350,8 +340,8 @@ public final class BusinessHoursCalculator {
 		// Continue until the accumulated available business hours meet the required threshold.
 		while (remainingBusinessHours > 0) {
 			// If the candidate day is not a business day, advance to the next business day at its opening time.
-			if (!isBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays)) {
-				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays);
+			if (!isBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidayIds)) {
+				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidayIds);
 				candidate = LocalDateTime.of(nextBusinessDay, businessHoursByDayOfWeek.get(nextBusinessDay.getDayOfWeek()).getStartTime());
 				continue;
 			}
@@ -369,7 +359,7 @@ public final class BusinessHoursCalculator {
 
 			if (!candidateTime.isBefore(close)) {
 				// Current day is done; move to the next available business day.
-				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays);
+				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidayIds);
 				candidate = LocalDateTime.of(nextBusinessDay, businessHoursByDayOfWeek.get(nextBusinessDay.getDayOfWeek()).getStartTime());
 				continue;
 			}
@@ -385,7 +375,7 @@ public final class BusinessHoursCalculator {
 			} else {
 				// Use up the available hours today and move to the next business day.
 				remainingBusinessHours -= availableToday;
-				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidays);
+				LocalDate nextBusinessDay = determineNextBusinessDay(candidate.toLocalDate(), businessHoursByDayOfWeek, holidayIds);
 				candidate = LocalDateTime.of(nextBusinessDay, businessHoursByDayOfWeek.get(nextBusinessDay.getDayOfWeek()).getStartTime());
 			}
 		}

@@ -49,6 +49,7 @@ import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.SigningTokenClaims;
 import com.cobaltplatform.api.model.service.MyChartAccessTokenWithClaims;
+import com.cobaltplatform.api.service.PatientOrderService.CreatePatientOrderSelfReferralMode;
 import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
@@ -72,6 +73,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -217,12 +219,21 @@ public class MyChartService {
 	}
 
 	@Nonnull
-	public MyChartAuthenticationClaims extractAndValidateClaimsFromMyChartState(@Nonnull InstitutionId institutionId,
+	public MyChartAuthenticationClaims extractAndValidateClaimsFromMyChartState(@Nonnull InstitutionId permittedInstitutionId,
 																																							@Nonnull String state) {
-		requireNonNull(institutionId);
+		requireNonNull(permittedInstitutionId);
 		requireNonNull(state);
 
-		SigningTokenClaims stateClaims = null;
+		return extractAndValidateClaimsFromMyChartState(Set.of(permittedInstitutionId), state);
+	}
+
+	@Nonnull
+	public MyChartAuthenticationClaims extractAndValidateClaimsFromMyChartState(@Nonnull Set<InstitutionId> permittedInstitutionIds,
+																																							@Nonnull String state) {
+		requireNonNull(permittedInstitutionIds);
+		requireNonNull(state);
+
+		SigningTokenClaims stateClaims;
 
 		try {
 			stateClaims = getAuthenticator().validateSigningToken(state);
@@ -256,9 +267,9 @@ public class MyChartService {
 		InstitutionId claimsInstitutionId = InstitutionId.valueOf((String) myChartAuthenticationClaims.getClaims().get(getInstitutionIdClaimsName()));
 
 		// This suggests something is pretty wrong and needs further investigation
-		if (myChartAuthenticationClaims.getInstitutionId() != institutionId)
-			throw new IllegalStateException(format("Institution ID %s in MyChart state claims doesn't match expected institution %s.",
-					claimsInstitutionId == null ? "[null]" : claimsInstitutionId.name(), institutionId.name()));
+		if (!permittedInstitutionIds.contains(myChartAuthenticationClaims.getInstitutionId()))
+			throw new IllegalStateException(format("Institution ID %s in MyChart state claims doesn't match expected institution[s]: %s.",
+					claimsInstitutionId == null ? "[null]" : claimsInstitutionId.name(), permittedInstitutionIds));
 
 		return myChartAuthenticationClaims;
 	}
@@ -375,6 +386,7 @@ public class MyChartService {
 			throw validationException;
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		boolean integratedCareForSelfReferralsOnly = getInstitutionService().isIntegratedCareForSelfReferralsOnly(institution);
 
 		String epicPatientMrn = institution.getEpicPatientMrnSystem() != null
 				? patient.extractIdentifierBySystem(institution.getEpicPatientMrnSystem()).orElse(null)
@@ -408,7 +420,7 @@ public class MyChartService {
 		// Account already exists for this account source/SSO ID/institution, return it instead of creating another
 		if (existingAccount != null) {
 			// If there are any patient orders to associate this account with, do it now
-			if (institution.getIntegratedCareEnabled())
+			if (institution.getIntegratedCareEnabled() && !integratedCareForSelfReferralsOnly)
 				getPatientOrderService().associatePatientAccountWithPatientOrders(existingAccount.getAccountId());
 
 			return existingAccount.getAccountId();
@@ -485,7 +497,7 @@ public class MyChartService {
 		String pinnedEpicPatientUniqueIdType = epicPatientUniqueIdType;
 		String pinnedSsoId = ssoId;
 
-		return getAccountService().createAccount(new CreateAccountRequest() {{
+		UUID accountId = getAccountService().createAccount(new CreateAccountRequest() {{
 			setEpicPatientMrn(pinnedEpicPatientMrn);
 			setEpicPatientFhirId(pinnedEpicPatientFhirId);
 			setEpicPatientUniqueId(pinnedEpicPatientUniqueId);
@@ -511,6 +523,11 @@ public class MyChartService {
 			setPhoneNumber(normalizedPhoneNumber);
 			setAddress(pinnedAddressRequest);
 		}});
+
+		if (integratedCareForSelfReferralsOnly)
+			getPatientOrderService().createPatientOrderForSelfReferral(accountId, CreatePatientOrderSelfReferralMode.REAL_ORDER);
+
+		return accountId;
 	}
 
 	@Nonnull

@@ -53,6 +53,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.CallToAction;
 import com.cobaltplatform.api.model.service.CallToActionDisplayAreaId;
@@ -275,5 +276,14 @@ public interface EnterprisePlugin {
 		requireNonNull(request);
 		requireNonNull(account);
 		// No-op by default
+	}
+
+	default List<InstitutionFeatureInstitutionReferrer> applyCustomizationsToInstitutionFeatureInstitutionReferrers(@Nonnull List<InstitutionFeatureInstitutionReferrer> institutionFeatureInstitutionReferrers,
+																																																									@Nonnull Account account) {
+		requireNonNull(institutionFeatureInstitutionReferrers);
+		requireNonNull(account);
+
+		// No-op by default
+		return institutionFeatureInstitutionReferrers;
 	}
 }
