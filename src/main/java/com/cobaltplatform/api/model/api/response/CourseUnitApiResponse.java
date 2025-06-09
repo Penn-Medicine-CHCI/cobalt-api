@@ -84,6 +84,9 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	private final List<CourseUnitDownloadableFileApiResponse> courseUnitDownloadableFiles;
 
+	@Nonnull
+	private final Boolean showRestartActivityWhenComplete;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface CourseUnitApiResponseFactory {
@@ -106,6 +109,7 @@ public class CourseUnitApiResponse {
 		this.courseUnitId = courseUnit.getCourseUnitId();
 		this.courseUnitTypeId = courseUnit.getCourseUnitTypeId();
 		Optional<CourseUnitType> courseUnitType = courseService.findCourseUnitTypeById(courseUnit.getCourseUnitTypeId());
+		this.showRestartActivityWhenComplete = courseUnitType.isPresent() ? courseUnitType.get().getShowRestartActivityWhenComplete() : null;
 		this.unitCompletionTypeId = courseUnitType.isPresent() ? courseUnitType.get().getUnitCompletionTypeId() : null;
 		this.courseUnitTypeIdDescription = courseService.determineCourseUnitTypeIdDescription(courseUnit.getCourseUnitTypeId());
 		this.courseModuleId = courseUnit.getCourseModuleId();
@@ -213,5 +217,10 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public UnitCompletionTypeId getUnitCompletionTypeId() {
 		return unitCompletionTypeId;
+	}
+
+	@Nonnull
+	public Boolean getShowRestartActivityWhenComplete() {
+		return showRestartActivityWhenComplete;
 	}
 }

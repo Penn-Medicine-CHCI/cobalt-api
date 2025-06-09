@@ -50,21 +50,22 @@ INSERT INTO unit_completion_type VALUES ('COMPLETION_THRESHOLD_IN_SECONDS', 'Com
 CREATE TABLE course_unit_type (
 	course_unit_type_id TEXT PRIMARY KEY,
     description VARCHAR NOT NULL,
-    unit_completion_type_id TEXT NOT NULL REFERENCES unit_completion_type
+    unit_completion_type_id TEXT NOT NULL REFERENCES unit_completion_type,
+    show_restart_activity_when_complete BOOLEAN NOT NULL
 );
 
 -- A video to play
-INSERT INTO course_unit_type VALUES ('VIDEO', 'Video', 'COMPLETION_THRESHOLD_IN_SECONDS');
+INSERT INTO course_unit_type VALUES ('VIDEO', 'Video', 'COMPLETION_THRESHOLD_IN_SECONDS', FALSE);
 -- An infographic to view and optionally download
-INSERT INTO course_unit_type VALUES ('INFOGRAPHIC', 'Infographic', 'IMMEDIATELY');
+INSERT INTO course_unit_type VALUES ('INFOGRAPHIC', 'Infographic', 'IMMEDIATELY', FALSE);
 -- Describes a homework assignment, with an optional download
-INSERT INTO course_unit_type VALUES ('HOMEWORK', 'Homework', 'IMMEDIATELY');
+INSERT INTO course_unit_type VALUES ('HOMEWORK', 'Homework', 'IMMEDIATELY', FALSE);
 -- A "card sorting" exercise (given a prompt, decide which bucket it fits into)
-INSERT INTO course_unit_type VALUES ('CARD_SORT', 'Card Sort', 'DO_NOT_MARK_COMPLETE');
+INSERT INTO course_unit_type VALUES ('CARD_SORT', 'Card Sort', 'DO_NOT_MARK_COMPLETE', TRUE);
 -- A set of questions to answer
-INSERT INTO course_unit_type VALUES ('QUIZ', 'Quiz', 'DO_NOT_MARK_COMPLETE');
+INSERT INTO course_unit_type VALUES ('QUIZ', 'Quiz', 'DO_NOT_MARK_COMPLETE', TRUE);
 -- Given a set of statements, re-organize them into the correct order
-INSERT INTO course_unit_type VALUES ('REORDER', 'Reorder', 'DO_NOT_MARK_COMPLETE');
+INSERT INTO course_unit_type VALUES ('REORDER', 'Reorder', 'DO_NOT_MARK_COMPLETE', TRUE);
 
 -- In order to support card sort and reordering course units via screening questions, introduce new answer formats
 INSERT INTO screening_answer_format (screening_answer_format_id, description) VALUES ('CARD_SORT', 'Card Sort');

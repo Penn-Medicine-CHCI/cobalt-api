@@ -38,6 +38,9 @@ public class CourseUnitType {
 	@Nullable
 	private UnitCompletionTypeId unitCompletionTypeId;
 
+	@Nullable
+	private Boolean showRestartActivityWhenComplete;
+
 	public enum CourseUnitTypeId {
 		VIDEO,
 		INFOGRAPHIC,
@@ -77,5 +80,14 @@ public class CourseUnitType {
 
 	public void setUnitCompletionTypeId(@Nullable UnitCompletionTypeId unitCompletionTypeId) {
 		this.unitCompletionTypeId = unitCompletionTypeId;
+	}
+
+	@Nullable
+	public Boolean getShowRestartActivityWhenComplete() {
+		return showRestartActivityWhenComplete;
+	}
+
+	public void setShowRestartActivityWhenComplete(@Nullable Boolean showRestartActivityWhenComplete) {
+		this.showRestartActivityWhenComplete = showRestartActivityWhenComplete;
 	}
 }
