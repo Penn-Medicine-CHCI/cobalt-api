@@ -17,47 +17,49 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
-import com.cobaltplatform.api.model.service.FeedbackTypeId;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+
+import static java.lang.String.format;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class FeedbackRequest {
+public class UnitCompletionType {
 	@Nullable
-	private FeedbackTypeId feedbackTypeId;
+	private UnitCompletionTypeId unitCompletionTypeId;
 	@Nullable
-	private String feedback;
+	private String description;
+
+	public enum UnitCompletionTypeId {
+		IMMEDIATELY,
+		DO_NOT_MARK_COMPLETE,
+		COMPLETION_THRESHOLD_IN_SECONDS
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{courseUnitTypeId=%s, description=%s}", getClass().getSimpleName(), getUnitCompletionTypeId().name(), getDescription());
+	}
+
 	@Nullable
-	private String emailAddress;
+	public UnitCompletionTypeId getUnitCompletionTypeId() {
+		return unitCompletionTypeId;
+	}
+
+	public void setUnitCompletionTypeId(@Nullable UnitCompletionTypeId unitCompletionTypeId) {
+		this.unitCompletionTypeId = unitCompletionTypeId;
+	}
 
 	@Nullable
-	public FeedbackTypeId getFeedbackTypeId() {
-		return this.feedbackTypeId;
+	public String getDescription() {
+		return description;
 	}
 
-	public void setFeedbackTypeId(@Nullable FeedbackTypeId feedbackTypeId) {
-		this.feedbackTypeId = feedbackTypeId;
-	}
-
-	public String getFeedback() {
-		return feedback;
-	}
-
-	public void setFeedback(String feedback) {
-		this.feedback = feedback;
-	}
-
-	public String getEmailAddress() {
-		return emailAddress;
-	}
-
-	public void setEmailAddress(String emailAddress) {
-		this.emailAddress = emailAddress;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

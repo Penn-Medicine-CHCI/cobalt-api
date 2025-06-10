@@ -59,6 +59,7 @@ import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.service.ScreeningService.CreateScreeningAnswersResult;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -561,16 +562,16 @@ public class ScreeningResource {
 				throw new AuthorizationException();
 		}
 
-		List<UUID> screeningAnswerIds = getScreeningService().createScreeningAnswers(request);
-		List<ScreeningAnswer> screeningAnswers = screeningAnswerIds.stream()
+		// Persist the answers and run all the logic associated with them (complete screening session etc.)
+		CreateScreeningAnswersResult result = getScreeningService().createScreeningAnswers(request);
+
+		// Provide UI with everything needed to take the next step
+		List<ScreeningAnswer> screeningAnswers = result.getScreeningAnswerIds().stream()
 				.map(screeningAnswerId -> getScreeningService().findScreeningAnswerById(screeningAnswerId).get())
 				.collect(Collectors.toList());
-
 		ScreeningQuestionContext nextScreeningQuestionContext =
 				getScreeningService().findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSession.getScreeningSessionId()).orElse(null);
-
 		ScreeningSessionDestination screeningSessionDestination = getScreeningService().determineDestinationForScreeningSessionId(screeningSession.getScreeningSessionId(), true).orElse(null);
-
 		ScreeningSession updatedScreeningSession = getScreeningService().findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -580,6 +581,8 @@ public class ScreeningResource {
 			put("nextScreeningQuestionContextId", nextScreeningQuestionContext == null ? null : nextScreeningQuestionContext.getScreeningQuestionContextId());
 			put("screeningSessionDestination", screeningSessionDestination);
 			put("screeningSession", getScreeningSessionApiResponseFactory().create(updatedScreeningSession));
+			put("messages", result.getMessages());
+			put("questionResultsByScreeningAnswerOptionId", result.getQuestionResultsByScreeningAnswerOptionId());
 		}});
 	}
 

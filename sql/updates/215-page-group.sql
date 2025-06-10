@@ -1,4 +1,5 @@
 BEGIN;
+SELECT _v.register_patch('215-page-group', NULL, NULL);
 
 ALTER TABLE page ADD COLUMN page_group_id UUID NULL;
 

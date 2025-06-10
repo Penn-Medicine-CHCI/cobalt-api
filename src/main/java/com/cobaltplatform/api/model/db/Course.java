@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -28,67 +30,74 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningAnswer {
+public class Course {
 	@Nullable
-	private UUID screeningAnswerId;
+	private UUID courseId;
 	@Nullable
-	private UUID screeningAnswerOptionId;
+	private String title;
 	@Nullable
-	private UUID screeningSessionAnsweredScreeningQuestionId;
+	private String description;
 	@Nullable
-	private UUID createdByAccountId;
+	private String focus;
 	@Nullable
-	private String text;
-	@Nullable
-	private Integer answerOrder;
+	private String imageUrl;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
-	@Nullable
-	public UUID getScreeningAnswerId() {
-		return this.screeningAnswerId;
-	}
-
-	public void setScreeningAnswerId(@Nullable UUID screeningAnswerId) {
-		this.screeningAnswerId = screeningAnswerId;
-	}
+	// Fields from v_course:
 
 	@Nullable
-	public UUID getScreeningAnswerOptionId() {
-		return this.screeningAnswerOptionId;
-	}
-
-	public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
-		this.screeningAnswerOptionId = screeningAnswerOptionId;
-	}
+	private InstitutionId institutionId;
+	@Nullable
+	private Integer displayOrder;
+	@Nullable
+	private String urlName;
 
 	@Nullable
-	public UUID getScreeningSessionAnsweredScreeningQuestionId() {
-		return this.screeningSessionAnsweredScreeningQuestionId;
+	public UUID getCourseId() {
+		return this.courseId;
 	}
 
-	public void setScreeningSessionAnsweredScreeningQuestionId(@Nullable UUID screeningSessionAnsweredScreeningQuestionId) {
-		this.screeningSessionAnsweredScreeningQuestionId = screeningSessionAnsweredScreeningQuestionId;
+	public void setCourseId(@Nullable UUID courseId) {
+		this.courseId = courseId;
 	}
 
 	@Nullable
-	public UUID getCreatedByAccountId() {
-		return this.createdByAccountId;
+	public String getTitle() {
+		return this.title;
 	}
 
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 
 	@Nullable
-	public String getText() {
-		return this.text;
+	public String getDescription() {
+		return this.description;
 	}
 
-	public void setText(@Nullable String text) {
-		this.text = text;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
+	}
+
+	@Nullable
+	public String getFocus() {
+		return this.focus;
+	}
+
+	public void setFocus(@Nullable String focus) {
+		this.focus = focus;
+	}
+
+	@Nullable
+	public String getImageUrl() {
+		return this.imageUrl;
+	}
+
+	public void setImageUrl(@Nullable String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 
 	@Nullable
@@ -110,11 +119,29 @@ public class ScreeningAnswer {
 	}
 
 	@Nullable
-	public Integer getAnswerOrder() {
-		return answerOrder;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setAnswerOrder(@Nullable Integer answerOrder) {
-		this.answerOrder = answerOrder;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public String getUrlName() {
+		return this.urlName;
+	}
+
+	public void setUrlName(@Nullable String urlName) {
+		this.urlName = urlName;
 	}
 }

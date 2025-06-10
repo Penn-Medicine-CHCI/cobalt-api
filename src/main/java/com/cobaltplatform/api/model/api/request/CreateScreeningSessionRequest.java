@@ -40,6 +40,8 @@ public class CreateScreeningSessionRequest {
 	@Nullable
 	private UUID groupSessionId;
 	@Nullable
+	private UUID courseSessionId;
+	@Nullable
 	private UUID accountCheckInActionId;
 	@Nullable
 	private UUID createdByAccountId;
@@ -100,6 +102,15 @@ public class CreateScreeningSessionRequest {
 
 	public void setGroupSessionId(@Nullable UUID groupSessionId) {
 		this.groupSessionId = groupSessionId;
+	}
+
+	@Nullable
+	public UUID getCourseSessionId() {
+		return this.courseSessionId;
+	}
+
+	public void setCourseSessionId(@Nullable UUID courseSessionId) {
+		this.courseSessionId = courseSessionId;
 	}
 
 	@Nullable

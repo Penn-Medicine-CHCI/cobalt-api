@@ -40,7 +40,8 @@ public class ScreeningAnswerContentHint {
 		LAST_NAME,
 		FULL_NAME,
 		PHONE_NUMBER,
-		EMAIL_ADDRESS
+		EMAIL_ADDRESS,
+		INTEGER
 	}
 
 	@Override

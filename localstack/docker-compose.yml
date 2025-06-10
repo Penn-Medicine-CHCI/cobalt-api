@@ -9,6 +9,7 @@ services:
       - EXTERNAL_SERVICE_PORTS_START=4710
       - EXTERNAL_SERVICE_PORTS_END=4759
       - MAIN_CONTAINER_NAME=localstack-main-1
+      - PERSISTENCE=1 # Don't "forget" secretsmanager/S3/etc. values when localstack is shut down
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"

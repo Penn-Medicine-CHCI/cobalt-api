@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
+import com.cobaltplatform.api.model.db.ScreeningQuestionSubmissionStyle.ScreeningQuestionSubmissionStyleId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -61,15 +62,21 @@ public class ScreeningQuestion {
 	@Nullable
 	private ScreeningAnswerContentHintId screeningAnswerContentHintId;
 	@Nullable
+	private ScreeningQuestionSubmissionStyleId screeningQuestionSubmissionStyleId;
+	@Nullable
 	private String introText;
 	@Nullable
 	private String questionText;
+	@Nullable
+	private String supplementText;
 	@Nullable
 	private String footerText;
 	@Nullable
 	private Integer minimumAnswerCount;
 	@Nullable
 	private Integer maximumAnswerCount;
+	@Nullable
+	private Boolean preferAutosubmit;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -151,6 +158,15 @@ public class ScreeningQuestion {
 	}
 
 	@Nullable
+	public ScreeningQuestionSubmissionStyleId getScreeningQuestionSubmissionStyleId() {
+		return this.screeningQuestionSubmissionStyleId;
+	}
+
+	public void setScreeningQuestionSubmissionStyleId(@Nullable ScreeningQuestionSubmissionStyleId screeningQuestionSubmissionStyleId) {
+		this.screeningQuestionSubmissionStyleId = screeningQuestionSubmissionStyleId;
+	}
+
+	@Nullable
 	public String getIntroText() {
 		return this.introText;
 	}
@@ -166,6 +182,15 @@ public class ScreeningQuestion {
 
 	public void setQuestionText(@Nullable String questionText) {
 		this.questionText = questionText;
+	}
+
+	@Nullable
+	public String getSupplementText() {
+		return this.supplementText;
+	}
+
+	public void setSupplementText(@Nullable String supplementText) {
+		this.supplementText = supplementText;
 	}
 
 	@Nullable
@@ -193,6 +218,15 @@ public class ScreeningQuestion {
 
 	public void setMaximumAnswerCount(@Nullable Integer maximumAnswerCount) {
 		this.maximumAnswerCount = maximumAnswerCount;
+	}
+
+	@Nullable
+	public Boolean getPreferAutosubmit() {
+		return this.preferAutosubmit;
+	}
+
+	public void setPreferAutosubmit(@Nullable Boolean preferAutosubmit) {
+		this.preferAutosubmit = preferAutosubmit;
 	}
 
 	@Nullable

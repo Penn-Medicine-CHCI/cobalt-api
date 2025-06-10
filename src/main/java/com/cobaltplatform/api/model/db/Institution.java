@@ -346,7 +346,6 @@ public class Institution {
 	private Boolean contentAudiencesEnabled;
 	@Nullable
 	private Boolean resourcePacketsEnabled;
-
 	@Nullable
 	private Boolean integratedCarePatientDemographicsRequired;
 	@Nullable
@@ -365,11 +364,15 @@ public class Institution {
 	@Nullable
 	private Boolean preferLegacyTopicCenters;
 
+	@Nullable
+	private UUID onboardingScreeningFlowId;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
 		COBALT_IC_SELF_REFERRAL,
 		COBALT_FHIR,
+		COBALT_COURSES
 	}
 
 	@Override
@@ -1658,7 +1661,7 @@ public class Institution {
 		this.resourcePacketsEnabled = resourcePacketsEnabled;
 	}
 
-	@Nullable
+
 	public Boolean getIntegratedCarePatientDemographicsRequired() {
 		return this.integratedCarePatientDemographicsRequired;
 	}
@@ -1721,12 +1724,21 @@ public class Institution {
 		this.landingPageTaglineOverride = landingPageTaglineOverride;
 	}
 
-	@Nullable
+	@Nonnull
 	public Boolean getPreferLegacyTopicCenters() {
 		return this.preferLegacyTopicCenters;
 	}
 
 	public void setPreferLegacyTopicCenters(@Nullable Boolean preferLegacyTopicCenters) {
 		this.preferLegacyTopicCenters = preferLegacyTopicCenters;
+	}
+
+	@Nullable
+	public UUID getOnboardingScreeningFlowId() {
+		return this.onboardingScreeningFlowId;
+	}
+
+	public void setOnboardingScreeningFlowId(@Nullable UUID onboardingScreeningFlowId) {
+		this.onboardingScreeningFlowId = onboardingScreeningFlowId;
 	}
 }

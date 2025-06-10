@@ -28,67 +28,54 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningAnswer {
+public class CourseModule {
 	@Nullable
-	private UUID screeningAnswerId;
+	private UUID courseModuleId;
 	@Nullable
-	private UUID screeningAnswerOptionId;
+	private UUID courseId;
 	@Nullable
-	private UUID screeningSessionAnsweredScreeningQuestionId;
+	private String title;
 	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private String text;
-	@Nullable
-	private Integer answerOrder;
+	private Integer displayOrder;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getScreeningAnswerId() {
-		return this.screeningAnswerId;
+	public UUID getCourseModuleId() {
+		return this.courseModuleId;
 	}
 
-	public void setScreeningAnswerId(@Nullable UUID screeningAnswerId) {
-		this.screeningAnswerId = screeningAnswerId;
-	}
-
-	@Nullable
-	public UUID getScreeningAnswerOptionId() {
-		return this.screeningAnswerOptionId;
-	}
-
-	public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
-		this.screeningAnswerOptionId = screeningAnswerOptionId;
+	public void setCourseModuleId(@Nullable UUID courseModuleId) {
+		this.courseModuleId = courseModuleId;
 	}
 
 	@Nullable
-	public UUID getScreeningSessionAnsweredScreeningQuestionId() {
-		return this.screeningSessionAnsweredScreeningQuestionId;
+	public UUID getCourseId() {
+		return this.courseId;
 	}
 
-	public void setScreeningSessionAnsweredScreeningQuestionId(@Nullable UUID screeningSessionAnsweredScreeningQuestionId) {
-		this.screeningSessionAnsweredScreeningQuestionId = screeningSessionAnsweredScreeningQuestionId;
-	}
-
-	@Nullable
-	public UUID getCreatedByAccountId() {
-		return this.createdByAccountId;
-	}
-
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
+	public void setCourseId(@Nullable UUID courseId) {
+		this.courseId = courseId;
 	}
 
 	@Nullable
-	public String getText() {
-		return this.text;
+	public String getTitle() {
+		return this.title;
 	}
 
-	public void setText(@Nullable String text) {
-		this.text = text;
+	public void setTitle(@Nullable String title) {
+		this.title = title;
+	}
+
+	@Nullable
+	public Integer getDisplayOrder() {
+		return this.displayOrder;
+	}
+
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 
 	@Nullable
@@ -107,14 +94,5 @@ public class ScreeningAnswer {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
-	}
-
-	@Nullable
-	public Integer getAnswerOrder() {
-		return answerOrder;
-	}
-
-	public void setAnswerOrder(@Nullable Integer answerOrder) {
-		this.answerOrder = answerOrder;
 	}
 }

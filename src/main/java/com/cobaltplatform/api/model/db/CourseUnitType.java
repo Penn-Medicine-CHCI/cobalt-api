@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 
 import static java.lang.String.format;
 
@@ -28,67 +29,44 @@ import static java.lang.String.format;
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class ScreeningType {
+public class CourseUnitType {
 	@Nullable
-	private ScreeningTypeId screeningTypeId;
+	private CourseUnitTypeId courseUnitTypeId;
 	@Nullable
 	private String description;
-	@Nullable
-	private Integer overallScoreMaximum;
 
-	public enum ScreeningTypeId {
-		CUSTOM,
-		GAD_2,
-		GAD_7,
-		PHQ_4,
-		PHQ_8,
-		PHQ_9,
-		WHO_5,
-		PC_PTSD_5,
-		CAGE_ALCOHOL,
-		TICS,
-		ISI,
-		ASRM,
-		C_SSRS_3,
-		C_SSRS_8,
-		DAST_10,
-		BPI,
-		AUDIT_C,
-		MBI_9,
-		@Deprecated IC_INTRO,  // Replaced by IC_INTAKE
-		@Deprecated IC_INTRO_CONDITIONS, // Replaced by IC_PATIENT_SELF_REPORTING
-		@Deprecated IC_INTRO_SYMPTOMS, // Replaced by IC_PATIENT_SELF_REPORTING
-		IC_INTAKE,
-		IC_PATIENT_SELF_REPORTING,
-		IC_DRUG_USE_FREQUENCY,
-		IC_DRUG_USE_OPIOID,
-		BPI_1,
-		PRIME_5,
-		PSYCHOSIS,
-		SUDS_THERMOMETER,
-		UCLA_LONELINESS,
-		CONTENT_SATISFACTION,
-		SCREENING_READINESS,
-		CARD_SORT
+	@Nullable
+	private UnitCompletionTypeId unitCompletionTypeId;
+
+	@Nullable
+	private Boolean showRestartActivityWhenComplete;
+
+	public enum CourseUnitTypeId {
+		VIDEO,
+		INFOGRAPHIC,
+		HOMEWORK,
+		CARD_SORT,
+		QUIZ,
+		REORDER
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{screeningTypeId=%s, description=%s}", getClass().getSimpleName(), getScreeningTypeId().name(), getDescription());
+		return format("%s{courseUnitTypeId=%s, description=%s}", getClass().getSimpleName(), getCourseUnitTypeId().name(), getDescription());
 	}
 
 	@Nullable
-	public ScreeningTypeId getScreeningTypeId() {
-		return this.screeningTypeId;
+	public CourseUnitTypeId getCourseUnitTypeId() {
+		return this.courseUnitTypeId;
 	}
 
-	public void setScreeningTypeId(@Nullable ScreeningTypeId screeningTypeId) {
-		this.screeningTypeId = screeningTypeId;
+	public void setCourseUnitTypeId(@Nullable CourseUnitTypeId courseUnitTypeId) {
+		this.courseUnitTypeId = courseUnitTypeId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public void setDescription(@Nullable String description) {
@@ -96,11 +74,20 @@ public class ScreeningType {
 	}
 
 	@Nullable
-	public Integer getOverallScoreMaximum() {
-		return this.overallScoreMaximum;
+	public UnitCompletionTypeId getUnitCompletionTypeId() {
+		return unitCompletionTypeId;
 	}
 
-	public void setOverallScoreMaximum(@Nullable Integer overallScoreMaximum) {
-		this.overallScoreMaximum = overallScoreMaximum;
+	public void setUnitCompletionTypeId(@Nullable UnitCompletionTypeId unitCompletionTypeId) {
+		this.unitCompletionTypeId = unitCompletionTypeId;
+	}
+
+	@Nullable
+	public Boolean getShowRestartActivityWhenComplete() {
+		return showRestartActivityWhenComplete;
+	}
+
+	public void setShowRestartActivityWhenComplete(@Nullable Boolean showRestartActivityWhenComplete) {
+		this.showRestartActivityWhenComplete = showRestartActivityWhenComplete;
 	}
 }

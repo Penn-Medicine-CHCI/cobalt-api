@@ -17,47 +17,63 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
+package com.cobaltplatform.api.model.service;
 
-import com.cobaltplatform.api.model.service.FeedbackTypeId;
+
+import com.cobaltplatform.api.model.db.CourseUnitDownloadableFile;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FeedbackRequest {
+public class CourseUnitDownloadableFileWithFileDetails extends CourseUnitDownloadableFile {
 	@Nullable
-	private FeedbackTypeId feedbackTypeId;
+	private String url;
 	@Nullable
-	private String feedback;
+	private String filename;
 	@Nullable
-	private String emailAddress;
+	private String contentType;
 
 	@Nullable
-	public FeedbackTypeId getFeedbackTypeId() {
-		return this.feedbackTypeId;
+	private Long filesize;
+
+	@Nullable
+	public String getUrl() {
+		return url;
 	}
 
-	public void setFeedbackTypeId(@Nullable FeedbackTypeId feedbackTypeId) {
-		this.feedbackTypeId = feedbackTypeId;
+	public void setUrl(@Nullable String url) {
+		this.url = url;
 	}
 
-	public String getFeedback() {
-		return feedback;
+	@Nullable
+	public String getFilename() {
+		return filename;
 	}
 
-	public void setFeedback(String feedback) {
-		this.feedback = feedback;
+	public void setFilename(@Nullable String filename) {
+		this.filename = filename;
 	}
 
-	public String getEmailAddress() {
-		return emailAddress;
+	@Nullable
+	public String getContentType() {
+		return contentType;
 	}
 
-	public void setEmailAddress(String emailAddress) {
-		this.emailAddress = emailAddress;
+	public void setContentType(@Nullable String contentType) {
+		this.contentType = contentType;
+	}
+
+	@Nullable
+	public Long getFilesize() {
+		return filesize;
+	}
+
+	public void setFilesize(@Nullable Long filesize) {
+		this.filesize = filesize;
 	}
 }

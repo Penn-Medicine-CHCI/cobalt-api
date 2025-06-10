@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
+import com.cobaltplatform.api.model.db.ScreeningQuestionSubmissionStyle.ScreeningQuestionSubmissionStyleId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -30,6 +31,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -47,10 +49,14 @@ public class ScreeningQuestionApiResponse {
 	private final ScreeningAnswerFormatId screeningAnswerFormatId;
 	@Nonnull
 	private final ScreeningAnswerContentHintId screeningAnswerContentHintId;
+	@Nonnull
+	private final ScreeningQuestionSubmissionStyleId screeningQuestionSubmissionStyleId;
 	@Nullable
 	private final String introText;
 	@Nonnull
 	private final String questionText;
+	@Nullable
+	private final String supplementText;
 	@Nullable
 	private final String footerText;
 	@Nonnull
@@ -61,6 +67,8 @@ public class ScreeningQuestionApiResponse {
 	private final Integer maximumAnswerCount;
 	@Nonnull
 	private final String maximumAnswerCountDescription;
+	@Nonnull
+	private final Boolean preferAutosubmit;
 	@Nonnull
 	private final Integer displayOrder;
 
@@ -83,13 +91,16 @@ public class ScreeningQuestionApiResponse {
 		this.screeningVersionId = screeningQuestion.getScreeningVersionId();
 		this.screeningAnswerFormatId = screeningQuestion.getScreeningAnswerFormatId();
 		this.screeningAnswerContentHintId = screeningQuestion.getScreeningAnswerContentHintId();
+		this.screeningQuestionSubmissionStyleId = screeningQuestion.getScreeningQuestionSubmissionStyleId();
 		this.questionText = screeningQuestion.getQuestionText();
+		this.supplementText = screeningQuestion.getSupplementText();
 		this.introText = screeningQuestion.getIntroText();
 		this.footerText = screeningQuestion.getFooterText();
 		this.minimumAnswerCount = screeningQuestion.getMinimumAnswerCount();
 		this.minimumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMinimumAnswerCount());
 		this.maximumAnswerCount = screeningQuestion.getMaximumAnswerCount();
 		this.maximumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMaximumAnswerCount());
+		this.preferAutosubmit = screeningQuestion.getPreferAutosubmit();
 		this.displayOrder = screeningQuestion.getDisplayOrder();
 	}
 
@@ -113,9 +124,14 @@ public class ScreeningQuestionApiResponse {
 		return this.screeningAnswerContentHintId;
 	}
 
-	@Nullable
-	public String getIntroText() {
-		return this.introText;
+	@Nonnull
+	public ScreeningQuestionSubmissionStyleId getScreeningQuestionSubmissionStyleId() {
+		return this.screeningQuestionSubmissionStyleId;
+	}
+
+	@Nonnull
+	public Optional<String> getIntroText() {
+		return Optional.ofNullable(this.introText);
 	}
 
 	@Nonnull
@@ -123,9 +139,14 @@ public class ScreeningQuestionApiResponse {
 		return this.questionText;
 	}
 
-	@Nullable
-	public String getFooterText() {
-		return this.footerText;
+	@Nonnull
+	public Optional<String> getSupplementText() {
+		return Optional.ofNullable(this.supplementText);
+	}
+
+	@Nonnull
+	public Optional<String> getFooterText() {
+		return Optional.ofNullable(this.footerText);
 	}
 
 	@Nonnull
@@ -146,6 +167,11 @@ public class ScreeningQuestionApiResponse {
 	@Nonnull
 	public String getMaximumAnswerCountDescription() {
 		return this.maximumAnswerCountDescription;
+	}
+
+	@Nonnull
+	public Boolean getPreferAutosubmit() {
+		return this.preferAutosubmit;
 	}
 
 	@Nonnull

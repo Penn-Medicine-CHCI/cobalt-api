@@ -184,6 +184,8 @@ public class InstitutionApiResponse {
 	private final String landingPageTaglineOverride;
 	@Nonnull
 	private final Boolean preferLegacyTopicCenters;
+	@Nullable
+	private final UUID onboardingScreeningFlowId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -297,6 +299,7 @@ public class InstitutionApiResponse {
 		this.contentAudiencesEnabled = institution.getContentAudiencesEnabled();
 
 		this.resourcePacketsEnabled = institution.getResourcePacketsEnabled();
+
 		this.integratedCarePatientDemographicsRequired = institution.getIntegratedCarePatientDemographicsRequired();
 		this.integratedCarePatientCarePreferenceVisible = institution.getIntegratedCarePatientCarePreferenceVisible();
 		this.integratedCareCallCenterName = institution.getIntegratedCareCallCenterName();
@@ -306,6 +309,8 @@ public class InstitutionApiResponse {
 		this.landingPageTaglineOverride = institution.getLandingPageTaglineOverride();
 
 		this.preferLegacyTopicCenters = institution.getPreferLegacyTopicCenters();
+
+		this.onboardingScreeningFlowId = institution.getOnboardingScreeningFlowId();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -641,5 +646,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getPreferLegacyTopicCenters() {
 		return this.preferLegacyTopicCenters;
+	}
+
+	@Nonnull
+	public Optional<UUID> getOnboardingScreeningFlowId() {
+		return Optional.ofNullable(this.onboardingScreeningFlowId);
 	}
 }

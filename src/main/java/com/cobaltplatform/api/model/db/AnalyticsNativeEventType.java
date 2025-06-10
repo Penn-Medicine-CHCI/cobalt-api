@@ -210,6 +210,20 @@ public class AnalyticsNativeEventType {
 		// On the web, when the "in crisis" page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_IN_CRISIS,
+		//-- On the web, when the "courses" page is rendered.
+		//-- There is no additional data associated with this event type.
+		PAGE_VIEW_COURSES,
+		// On the web, when the "course detail" page is rendered.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * mode (String, one of OVERVIEW or ADDITIONAL_RESOURCES based on how page is displayed)
+		PAGE_VIEW_COURSE_DETAIL,
+		// On the web, when the "course unit" page is rendered.
+		// Additional data:
+		// * courseUnitId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		PAGE_VIEW_COURSE_UNIT,
 		// On the web, when the MHIC "Priorities" page is rendered.
 		// If a priority group tab on the page is selected, another event should be fired.
 		// Additional data:
@@ -425,7 +439,43 @@ public class AnalyticsNativeEventType {
 		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
 		//   FEATURED_TOPIC
 		//   COMMUNITY
-		CLICKTHROUGH_PAGE_LINK
+		CLICKTHROUGH_PAGE_LINK,
+		// When the user clicks to download a file that's part of a course unit.
+		// Additional data:
+		// * courseUnitId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
+		CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE,
+		// When the user clicks to view a piece of content associated with a course.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * contentId (UUID) - the content that was clicked
+		CLICKTHROUGH_COURSE_CONTENT,
+		// When the user clicks directly on a course unit to access it, e.g. from the course detail page or from the the left nav when viewing another course unit.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * courseUnitId (UUID) - the course unit that was clicked
+		// * source (String, one of COURSE_DETAIL or COURSE_UNIT based on where the click happened)
+		// * sourceCourseUnitId (UUID) - optional, only specified if source == COURSE_UNIT. This value is the course unit the user was currently viewing
+		CLICKTHROUGH_COURSE_UNIT,
+		// When the user clicks the button to skip a course unit.
+		// Additional data:
+		// * courseId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * courseUnitId (UUID) - the course unit that was skipped
+		CLICKTHROUGH_COURSE_UNIT_SKIP,
+
+		// When a video that's part of a course unit fires off an event that we listen for, e.g. 'playerReady' or 'playerPaused'.
+		// Additional data:
+		// * courseUnitId (UUID)
+		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * videoId (UUID)
+		// * eventName (String) - the name of the event, e.g. 'playerReady', which is specific to the type of video (Kaltura, YouTube, ...)
+		//     If the video fails to embed/load entirely, specify the special `eventName` INITIALIZATION_ERROR regardless of what type of video it is.
+		// * eventPayload (any) - optional, a payload for the event specific to the type of video (Kaltura, YouTube, ...)
+		EVENT_COURSE_UNIT_VIDEO,
 	}
 
 	@Override

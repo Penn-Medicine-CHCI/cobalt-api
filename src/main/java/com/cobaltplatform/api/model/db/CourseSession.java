@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -28,67 +30,54 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningAnswer {
+public class CourseSession {
 	@Nullable
-	private UUID screeningAnswerId;
+	private UUID courseSessionId;
 	@Nullable
-	private UUID screeningAnswerOptionId;
+	private UUID courseId;
 	@Nullable
-	private UUID screeningSessionAnsweredScreeningQuestionId;
+	private UUID accountId;
 	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private String text;
-	@Nullable
-	private Integer answerOrder;
+	private CourseSessionStatusId courseSessionStatusId;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getScreeningAnswerId() {
-		return this.screeningAnswerId;
+	public UUID getCourseSessionId() {
+		return this.courseSessionId;
 	}
 
-	public void setScreeningAnswerId(@Nullable UUID screeningAnswerId) {
-		this.screeningAnswerId = screeningAnswerId;
-	}
-
-	@Nullable
-	public UUID getScreeningAnswerOptionId() {
-		return this.screeningAnswerOptionId;
-	}
-
-	public void setScreeningAnswerOptionId(@Nullable UUID screeningAnswerOptionId) {
-		this.screeningAnswerOptionId = screeningAnswerOptionId;
+	public void setCourseSessionId(@Nullable UUID courseSessionId) {
+		this.courseSessionId = courseSessionId;
 	}
 
 	@Nullable
-	public UUID getScreeningSessionAnsweredScreeningQuestionId() {
-		return this.screeningSessionAnsweredScreeningQuestionId;
+	public UUID getCourseId() {
+		return this.courseId;
 	}
 
-	public void setScreeningSessionAnsweredScreeningQuestionId(@Nullable UUID screeningSessionAnsweredScreeningQuestionId) {
-		this.screeningSessionAnsweredScreeningQuestionId = screeningSessionAnsweredScreeningQuestionId;
-	}
-
-	@Nullable
-	public UUID getCreatedByAccountId() {
-		return this.createdByAccountId;
-	}
-
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
+	public void setCourseId(@Nullable UUID courseId) {
+		this.courseId = courseId;
 	}
 
 	@Nullable
-	public String getText() {
-		return this.text;
+	public UUID getAccountId() {
+		return this.accountId;
 	}
 
-	public void setText(@Nullable String text) {
-		this.text = text;
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
+	}
+
+	@Nullable
+	public CourseSessionStatusId getCourseSessionStatusId() {
+		return this.courseSessionStatusId;
+	}
+
+	public void setCourseSessionStatusId(@Nullable CourseSessionStatusId courseSessionStatusId) {
+		this.courseSessionStatusId = courseSessionStatusId;
 	}
 
 	@Nullable
@@ -107,14 +96,5 @@ public class ScreeningAnswer {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
-	}
-
-	@Nullable
-	public Integer getAnswerOrder() {
-		return answerOrder;
-	}
-
-	public void setAnswerOrder(@Nullable Integer answerOrder) {
-		this.answerOrder = answerOrder;
 	}
 }

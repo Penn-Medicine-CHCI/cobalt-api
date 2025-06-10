@@ -19,45 +19,46 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.service.FeedbackTypeId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class FeedbackRequest {
+public class CompleteCourseUnitRequest {
 	@Nullable
-	private FeedbackTypeId feedbackTypeId;
+	private UUID courseUnitId;
 	@Nullable
-	private String feedback;
+	private UUID courseSessionId;
 	@Nullable
-	private String emailAddress;
+	private UUID accountId;
 
 	@Nullable
-	public FeedbackTypeId getFeedbackTypeId() {
-		return this.feedbackTypeId;
+	public UUID getCourseUnitId() {
+		return this.courseUnitId;
 	}
 
-	public void setFeedbackTypeId(@Nullable FeedbackTypeId feedbackTypeId) {
-		this.feedbackTypeId = feedbackTypeId;
+	public void setCourseUnitId(@Nullable UUID courseUnitId) {
+		this.courseUnitId = courseUnitId;
 	}
 
-	public String getFeedback() {
-		return feedback;
+	@Nullable
+	public UUID getCourseSessionId() {
+		return this.courseSessionId;
 	}
 
-	public void setFeedback(String feedback) {
-		this.feedback = feedback;
+	public void setCourseSessionId(@Nullable UUID courseSessionId) {
+		this.courseSessionId = courseSessionId;
 	}
 
-	public String getEmailAddress() {
-		return emailAddress;
+	@Nullable
+	public UUID getAccountId() {
+		return this.accountId;
 	}
 
-	public void setEmailAddress(String emailAddress) {
-		this.emailAddress = emailAddress;
+	public void setAccountId(@Nullable UUID accountId) {
+		this.accountId = accountId;
 	}
 }

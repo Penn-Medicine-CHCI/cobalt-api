@@ -17,47 +17,48 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
-import com.cobaltplatform.api.model.service.FeedbackTypeId;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+
+import static java.lang.String.format;
 
 /**
  * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class FeedbackRequest {
+public class VideoVendor {
 	@Nullable
-	private FeedbackTypeId feedbackTypeId;
+	private VideoVendorId videoVendorId;
 	@Nullable
-	private String feedback;
+	private String description;
+
+	public enum VideoVendorId {
+		KALTURA,
+		YOUTUBE
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{videoVendorId=%s, description=%s}", getClass().getSimpleName(), getVideoVendorId().name(), getDescription());
+	}
+
 	@Nullable
-	private String emailAddress;
+	public VideoVendorId getVideoVendorId() {
+		return this.videoVendorId;
+	}
+
+	public void setVideoVendorId(@Nullable VideoVendorId videoVendorId) {
+		this.videoVendorId = videoVendorId;
+	}
 
 	@Nullable
-	public FeedbackTypeId getFeedbackTypeId() {
-		return this.feedbackTypeId;
+	public String getDescription() {
+		return description;
 	}
 
-	public void setFeedbackTypeId(@Nullable FeedbackTypeId feedbackTypeId) {
-		this.feedbackTypeId = feedbackTypeId;
-	}
-
-	public String getFeedback() {
-		return feedback;
-	}
-
-	public void setFeedback(String feedback) {
-		this.feedback = feedback;
-	}
-
-	public String getEmailAddress() {
-		return emailAddress;
-	}
-
-	public void setEmailAddress(String emailAddress) {
-		this.emailAddress = emailAddress;
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

@@ -24,6 +24,8 @@ import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTy
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.CalendarPermission.CalendarPermissionId;
+import com.cobaltplatform.api.model.db.Course;
+import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionRequest;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
@@ -51,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -77,6 +80,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<StudyService> studyServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<CourseService> courseServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -88,6 +93,7 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<ReportingService> reportingServiceProvider,
 															@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 															@Nonnull javax.inject.Provider<StudyService> studyServiceProvider,
+															@Nonnull javax.inject.Provider<CourseService> courseServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
@@ -97,6 +103,7 @@ public class AuthorizationService {
 		requireNonNull(reportingServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(studyServiceProvider);
+		requireNonNull(courseServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
@@ -107,6 +114,7 @@ public class AuthorizationService {
 		this.reportingServiceProvider = reportingServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.studyServiceProvider = studyServiceProvider;
+		this.courseServiceProvider = courseServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -312,6 +320,29 @@ public class AuthorizationService {
 				provider.getProviderId(), account.getAccountId()).orElse(null);
 
 		return calendarPermissionId == CalendarPermissionId.MANAGER;
+	}
+
+	@Nonnull
+	public Boolean canCreateCourseSession(@Nonnull UUID courseId,
+																				@Nonnull Account account) {
+		requireNonNull(courseId);
+		requireNonNull(account);
+
+		// If this course is available for the account's institution, it's legal for the account to create a session for it
+		Course course = getCourseService().findCourseById(courseId, account.getInstitutionId()).orElse(null);
+		return course != null;
+	}
+
+	@Nonnull
+	public Boolean canModifyCourseSession(@Nonnull CourseSession courseSession,
+																				@Nonnull Account account) {
+		requireNonNull(courseSession);
+		requireNonNull(account);
+
+		// You must be the owner of the session to modify it
+		return account.getAccountId() != null
+				&& courseSession.getAccountId() != null
+				&& account.getAccountId().equals(courseSession.getAccountId());
 	}
 
 	@Nonnull
@@ -524,7 +555,7 @@ public class AuthorizationService {
 
 	@Nonnull
 	public Boolean canResetPatientOrder(@Nonnull Account performingAccount,
-																					 @Nonnull RawPatientOrder patientOrder) {
+																			@Nonnull RawPatientOrder patientOrder) {
 		requireNonNull(performingAccount);
 		requireNonNull(patientOrder);
 
@@ -792,6 +823,11 @@ public class AuthorizationService {
 	@Nonnull
 	protected StudyService getStudyService() {
 		return this.studyServiceProvider.get();
+	}
+
+	@Nonnull
+	protected CourseService getCourseService() {
+		return this.courseServiceProvider.get();
 	}
 
 	@Nonnull
