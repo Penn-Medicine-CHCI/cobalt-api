@@ -250,7 +250,7 @@ public class CourseService {
 				(SELECT cs.course_id
 				FROM course_session cs
 				WHERE cs.account_id=?)
-				ORDER BY created DESC
+				ORDER BY ic.display_order
 				""", CourseWithInstitutionCourseStatus.class, institutionId, accountId);
 	}
 
@@ -267,7 +267,7 @@ public class CourseService {
 				AND cs.account_id=?
 				AND ic.institution_id=?
 				AND cs.course_session_status_id IN (?,?)
-				ORDER BY created DESC
+				ORDER BY ic.display_order
 				""", CourseWithCourseSessionStatus.class, accountId, institutionId, CourseSessionStatusId.COMPLETED, CourseSessionStatusId.IN_PROGRESS);
 	}
 
