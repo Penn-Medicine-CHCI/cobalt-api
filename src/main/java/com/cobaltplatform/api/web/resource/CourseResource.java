@@ -28,9 +28,13 @@ import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.Course
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseSession;
+import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionCourse.InstitutionCourseStatusId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.CourseWithCourseSessionStatus;
+import com.cobaltplatform.api.model.service.CourseWithInstitutionCourseStatus;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.ValidationException;
@@ -53,6 +57,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -114,12 +119,30 @@ public class CourseResource {
 	@GET("/courses")
 	@AuthenticationRequired
 	public ApiResponse courses() {
-		InstitutionId institutionId = getCurrentContext().getInstitutionId();
-		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
+		Account account = getCurrentContext().getAccount().get();
+		List<CourseWithCourseSessionStatus> inProgressAndCompletedCourses = getCourseService().findInProgressAndCompletedCourseSessions(account.getAccountId(), account.getInstitutionId());
+		List<CourseWithInstitutionCourseStatus> courseWithInstitutionCourseStatuses = getCourseService().findComingSoonAndAvailableCourses(account.getAccountId(), account.getInstitutionId());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("courses", courses.stream()
-					.map(course -> getCourseApiResponseFactory().create(course, CourseApiResponseType.LIST))
+			put("inProgress", inProgressAndCompletedCourses.stream()
+					.filter(course -> course.getCourseSessionStatusId() == CourseSessionStatusId.IN_PROGRESS)
+					.map(course -> getCourseApiResponseFactory()
+							.create(course, CourseApiResponseType.DETAIL))
+					.collect(Collectors.toList()));
+			put("completed", inProgressAndCompletedCourses.stream()
+					.filter(course -> course.getCourseSessionStatusId() == CourseSessionStatusId.COMPLETED)
+					.map(course -> getCourseApiResponseFactory()
+							.create(course, CourseApiResponseType.DETAIL))
+					.collect(Collectors.toList()));
+			put("available", courseWithInstitutionCourseStatuses.stream()
+					.filter(course -> course.getInstitutionCourseStatusId() == InstitutionCourseStatusId.AVAILABLE)
+					.map(course -> getCourseApiResponseFactory()
+							.create(course, CourseApiResponseType.LIST))
+					.collect(Collectors.toList()));
+			put("comingSoon", courseWithInstitutionCourseStatuses.stream()
+					.filter(course -> course.getInstitutionCourseStatusId() == InstitutionCourseStatusId.COMING_SOON)
+					.map(course -> getCourseApiResponseFactory()
+							.create(course, CourseApiResponseType.LIST))
 					.collect(Collectors.toList()));
 		}});
 	}

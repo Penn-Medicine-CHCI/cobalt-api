@@ -27,7 +27,6 @@ import com.cobaltplatform.api.model.api.response.CourseSessionApiResponse.Course
 import com.cobaltplatform.api.model.api.response.VideoApiResponse.VideoApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Course;
-import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.service.ContentService;
@@ -42,6 +41,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -92,7 +92,8 @@ public class CourseApiResponse {
 
 	public enum CourseApiResponseType {
 		LIST,
-		DETAIL
+		DETAIL,
+		PARTIAL_DETAIL
 	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -127,6 +128,12 @@ public class CourseApiResponse {
 		requireNonNull(course);
 		requireNonNull(type);
 
+		List<CourseModuleApiResponse> courseModulesTemp = null;
+		CourseSessionApiResponse currentCourseSessionTemp = null;
+		List<VideoApiResponse> videosTemp = null;
+		Map<UUID, CourseUnitLockStatus> defaultCourseUnitLockStatusesByCourseUnitIdTemp = null;
+		List<ContentApiResponse> contentsTemp = null;
+
 		this.courseId = course.getCourseId();
 		this.title = course.getTitle();
 		this.description = course.getDescription();
@@ -138,44 +145,67 @@ public class CourseApiResponse {
 		this.lastUpdated = course.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(course.getLastUpdated());
 
-		if (type == CourseApiResponseType.DETAIL) {
-			List<CourseUnit> courseUnits = courseService.findCourseUnitsByCourseId(course.getCourseId());
+		Account account = currentContextProvider.get()
+				.getAccount()
+				.orElseThrow(() -> new IllegalStateException("No logged-in account"));
 
-			Map<UUID, List<CourseUnit>> courseUnitsByCourseModuleId = courseUnits.stream()
-					.collect(Collectors.groupingBy(CourseUnit::getCourseModuleId));
+		switch (type) {
+			case DETAIL:
+				// 1) load & group all units
+				List<CourseUnit> allUnits = courseService.findCourseUnitsByCourseId(course.getCourseId());
+				Map<UUID, List<CourseUnit>> unitsByModule =
+						allUnits.stream()
+								.collect(Collectors.groupingBy(CourseUnit::getCourseModuleId));
 
-			this.courseModules = courseService.findCourseModulesByCourseId(course.getCourseId()).stream()
-					.map(courseModule -> {
-						List<CourseUnit> courseUnitsForModule = courseUnitsByCourseModuleId.get(courseModule.getCourseModuleId());
+				// 2) build full module list (with units)
+				courseModulesTemp = courseService.findCourseModulesByCourseId(course.getCourseId()).stream()
+						.map(module -> {
+							List<CourseUnit> units = unitsByModule.getOrDefault(module.getCourseModuleId(),
+									Collections.emptyList());
+							return courseModuleApiResponseFactory.create(module, units);
+						})
+						.collect(Collectors.toList());
 
-						if (courseUnitsForModule == null)
-							courseUnitsForModule = List.of();
+				// 3) videos, locks, contents only for DETAIL
+				videosTemp = courseService.findVideosByCourseId(course.getCourseId()).stream()
+						.map(videoApiResponseFactory::create)
+						.collect(Collectors.toList());
 
-						return courseModuleApiResponseFactory.create(courseModule, courseUnitsForModule);
-					})
-					.collect(Collectors.toList());
+				defaultCourseUnitLockStatusesByCourseUnitIdTemp =
+						courseService.determineDefaultCourseUnitLockStatusesByCourseUnitId(course.getCourseId());
 
-			Account account = currentContextProvider.get().getAccount().get();
-			CourseSession courseSession = courseService.findCurrentCourseSession(account.getAccountId(), course.getCourseId()).orElse(null);
+				contentsTemp = contentService.findContentByCourseId(course.getCourseId(),
+								account.getInstitutionId()).stream()
+						.map(content -> contentApiResponseFactory.create(
+								content,
+								Set.of(ContentApiResponseSupplement.TAGS)))
+						.collect(Collectors.toList());
+				// fall-through to PARTIAL_DETAIL logic
+			case PARTIAL_DETAIL:
+				// current session is needed for both DETAIL & PARTIAL_DETAIL
+				currentCourseSessionTemp = courseService
+						.findCurrentCourseSession(account.getAccountId(), course.getCourseId())
+						.map(courseSessionApiResponseFactory::create)
+						.orElse(null);
+				break;
 
-			this.currentCourseSession = courseSession == null ? null : courseSessionApiResponseFactory.create(courseSession);
-
-			this.videos = courseService.findVideosByCourseId(course.getCourseId()).stream()
-					.map(video -> videoApiResponseFactory.create(video))
-					.collect(Collectors.toList());
-
-			this.defaultCourseUnitLockStatusesByCourseUnitId = courseService.determineDefaultCourseUnitLockStatusesByCourseUnitId(course.getCourseId());
-
-			this.contents = contentService.findContentByCourseId(course.getCourseId(), account.getInstitutionId()).stream()
-					.map(content -> contentApiResponseFactory.create(content, Set.of(ContentApiResponseSupplement.TAGS)))
-					.collect(Collectors.toList());
-		} else {
-			this.courseModules = null;
-			this.currentCourseSession = null;
-			this.videos = null;
-			this.defaultCourseUnitLockStatusesByCourseUnitId = null;
-			this.contents = null;
+			case LIST:
+			default:
+				// only IDs & basics in LIST
+				courseModulesTemp = null;
+				currentCourseSessionTemp = null;
+				videosTemp = null;
+				defaultCourseUnitLockStatusesByCourseUnitIdTemp = null;
+				contentsTemp = null;
+				break;
 		}
+
+		this.courseModules = courseModulesTemp;
+		this.currentCourseSession = currentCourseSessionTemp;
+		this.videos = videosTemp;
+		this.defaultCourseUnitLockStatusesByCourseUnitId = defaultCourseUnitLockStatusesByCourseUnitIdTemp;
+		this.contents = contentsTemp;
+
 	}
 
 	@Nonnull

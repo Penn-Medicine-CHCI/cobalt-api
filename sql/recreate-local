@@ -223,6 +223,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/213-more-provi
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/214-ic-self-referral-overrides.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/215-page-group.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/216-courses.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/217-courses-homepage.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

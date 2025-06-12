@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
 import com.cobaltplatform.api.model.db.CourseSession;
+import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseSessionUnit;
 import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
@@ -32,11 +33,11 @@ import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDepend
 import com.cobaltplatform.api.model.db.CourseUnitType;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.UnitCompletionType;
-import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 import com.cobaltplatform.api.model.db.Video;
 import com.cobaltplatform.api.model.service.CourseUnitDownloadableFileWithFileDetails;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
+import com.cobaltplatform.api.model.service.CourseWithCourseSessionStatus;
+import com.cobaltplatform.api.model.service.CourseWithInstitutionCourseStatus;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -233,6 +234,41 @@ public class CourseService {
 				FROM course_session
 				WHERE course_session_id=?
 				""", CourseSession.class, courseSessionId);
+	}
+
+	public List<CourseWithInstitutionCourseStatus> findComingSoonAndAvailableCourses(@Nullable UUID accountId,
+																																									 @Nullable InstitutionId institutionId) {
+		if (accountId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT c.*, ic.institution_course_status_id
+				FROM v_course c, institution_course ic
+				WHERE c.course_id = ic.course_id				
+				AND ic.institution_id=?
+				AND c.course_id NOT IN
+				(SELECT cs.course_id
+				FROM course_session cs
+				WHERE cs.account_id=?)
+				ORDER BY created DESC
+				""", CourseWithInstitutionCourseStatus.class, institutionId, accountId);
+	}
+
+	public List<CourseWithCourseSessionStatus> findInProgressAndCompletedCourseSessions(@Nullable UUID accountId,
+																																											@Nullable InstitutionId institutionId) {
+		if (accountId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT c.*, cs.course_session_status_id
+				FROM v_course c, course_session cs, institution_course ic
+				WHERE c.course_id = cs.course_id
+				AND cs.course_id = ic.course_id
+				AND cs.account_id=?
+				AND ic.institution_id=?
+				AND cs.course_session_status_id IN (?,?)
+				ORDER BY created DESC
+				""", CourseWithCourseSessionStatus.class, accountId, institutionId, CourseSessionStatusId.COMPLETED, CourseSessionStatusId.IN_PROGRESS);
 	}
 
 	@Nonnull
@@ -484,6 +520,7 @@ public class CourseService {
 				WHERE course_unit_type_id=?
 				""", CourseUnitType.class, courseUnitTypeId);
 	}
+
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
