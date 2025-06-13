@@ -82,7 +82,7 @@ public class CourseSessionApiResponse {
 	private final CourseSessionCompletionPercentage courseSessionCompletionPercentage;
 
 	@Nonnull
-	private final String completionPercentage;
+	private final String completionPercentageForDisplay;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -138,7 +138,7 @@ public class CourseSessionApiResponse {
 		Optional<CourseSessionCompletionPercentage> sessionCompletionPercentage = courseService.findCourseSessionCompletionPercentage(courseSessionId);
 		this.courseSessionCompletionPercentage = sessionCompletionPercentage.orElse(null);
 
-		this.completionPercentage = sessionCompletionPercentage.isPresent() ?
+		this.completionPercentageForDisplay = sessionCompletionPercentage.isPresent() ?
 				formatter.formatPercent(sessionCompletionPercentage.get().getCompletionPercentage()) : null;
 
 		// TODO: fill in remaining fields
@@ -202,5 +202,10 @@ public class CourseSessionApiResponse {
 	@Nonnull
 	public List<UUID> getOptionalCourseModuleIds() {
 		return this.optionalCourseModuleIds;
+	}
+
+	@Nonnull
+	public String getCompletionPercentageForDisplay() {
+		return completionPercentageForDisplay;
 	}
 }
