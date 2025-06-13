@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.db.CourseSessionUnit;
 import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.db.CourseUnitDependency;
+import com.cobaltplatform.api.model.service.CourseSessionCompletionPercentage;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.service.CourseService;
 import com.cobaltplatform.api.util.Formatter;
@@ -39,6 +40,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -75,6 +77,12 @@ public class CourseSessionApiResponse {
 	private final Map<UUID, CourseSessionUnitStatusId> courseSessionUnitStatusIdsByCourseUnitId;
 	@Nonnull
 	private final List<UUID> optionalCourseModuleIds;
+
+	@Nonnull
+	private final CourseSessionCompletionPercentage courseSessionCompletionPercentage;
+
+	@Nonnull
+	private final String completionPercentage;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -127,6 +135,12 @@ public class CourseSessionApiResponse {
 
 		this.optionalCourseModuleIds = courseService.findOptionalCourseModuleIdsByCourseSessionId(courseSession.getCourseSessionId());
 
+		Optional<CourseSessionCompletionPercentage> sessionCompletionPercentage = courseService.findCourseSessionCompletionPercentage(courseSessionId);
+		this.courseSessionCompletionPercentage = sessionCompletionPercentage.orElse(null);
+
+		this.completionPercentage = sessionCompletionPercentage.isPresent() ?
+				formatter.formatPercent(sessionCompletionPercentage.get().getCompletionPercentage()) : null;
+
 		// TODO: fill in remaining fields
 	}
 
@@ -158,6 +172,11 @@ public class CourseSessionApiResponse {
 	@Nonnull
 	public String getCreatedDescription() {
 		return this.createdDescription;
+	}
+
+	@Nonnull
+	public CourseSessionCompletionPercentage getCourseSessionCompletionPercentage() {
+		return courseSessionCompletionPercentage;
 	}
 
 	@Nonnull
