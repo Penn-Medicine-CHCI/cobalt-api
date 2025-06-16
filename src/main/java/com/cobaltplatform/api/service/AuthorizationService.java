@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.TopicCenter;
+import com.cobaltplatform.api.model.db.Video;
 import com.cobaltplatform.api.model.security.AccountCapabilities;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Normalizer;
@@ -738,6 +739,32 @@ public class AuthorizationService {
 		// An admin or MHIC at the same institution is able to edit patients at that institution
 		if (Objects.equals(accountMakingEdit.getInstitutionId(), accountToEdit.getInstitutionId())
 				&& (accountMakingEdit.getRoleId() == RoleId.ADMINISTRATOR || accountMakingEdit.getRoleId() == RoleId.MHIC))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewVideo(@Nonnull Video video,
+															@Nonnull InstitutionId institutionId) {
+		requireNonNull(video);
+		requireNonNull(institutionId);
+
+		// By default, you can see any video in the institution
+		if (Objects.equals(video.getInstitutionId(), institutionId))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canViewVideo(@Nonnull Video video,
+															@Nonnull Account account) {
+		requireNonNull(video);
+		requireNonNull(account);
+
+		// By default, you can see any video in your institution
+		if (Objects.equals(video.getInstitutionId(), account.getInstitutionId()))
 			return true;
 
 		return false;
