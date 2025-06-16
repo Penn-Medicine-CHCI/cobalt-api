@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.VideoVendor.VideoVendorId;
 
 import javax.annotation.Nullable;
@@ -33,6 +34,8 @@ import java.util.UUID;
 public class Video {
 	@Nullable
 	private UUID videoId;
+	@Nullable
+	private InstitutionId institutionId;
 	@Nullable
 	private VideoVendorId videoVendorId;
 	@Nullable
@@ -57,6 +60,15 @@ public class Video {
 
 	public void setVideoId(@Nullable UUID videoId) {
 		this.videoId = videoId;
+	}
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable
