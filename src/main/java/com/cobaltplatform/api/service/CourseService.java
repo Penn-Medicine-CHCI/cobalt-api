@@ -211,21 +211,6 @@ public class CourseService {
 	}
 
 	@Nonnull
-	public List<Video> findVideosByCourseId(@Nullable UUID courseId) {
-		if (courseId == null)
-			return List.of();
-
-		return getDatabase().queryForList("""
-				SELECT v.*
-				FROM course_module cm, course_unit cu, video v
-				WHERE cm.course_id=?
-				AND cu.course_module_id=cm.course_module_id
-				AND cu.video_id=v.video_id
-				ORDER BY cu.display_order
-				""", Video.class, courseId);
-	}
-
-	@Nonnull
 	public Optional<CourseSession> findCourseSessionById(@Nullable UUID courseSessionId) {
 		if (courseSessionId == null)
 			return Optional.empty();

@@ -36,7 +36,8 @@ public class SiteLocation {
 
 	public enum SiteLocationId {
 		FEATURED_TOPIC,
-		COMMUNITY
+		COMMUNITY,
+		RESOURCE
 	}
 
 	@Nullable

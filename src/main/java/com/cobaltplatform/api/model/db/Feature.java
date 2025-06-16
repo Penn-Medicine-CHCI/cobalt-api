@@ -71,7 +71,8 @@ public class Feature {
 		PSYCHOTHERAPIST,
 		RESOURCE_NAVIGATOR,
 		COUNSELING_SERVICES,
-		COURSE
+		COURSE,
+		MY_EVENTS
 	}
 
 	@Nullable

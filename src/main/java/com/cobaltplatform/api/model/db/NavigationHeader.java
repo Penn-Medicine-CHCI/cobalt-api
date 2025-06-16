@@ -29,7 +29,8 @@ public class NavigationHeader {
 
 	public enum NavigationHeaderId {
 		CONNECT_WITH_SUPPORT,
-		BROWSE_RESOURCES
+		BROWSE_RESOURCES,
+		MY_PROFILE
 	}
 
 	@Nonnull

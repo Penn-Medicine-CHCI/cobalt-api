@@ -566,7 +566,7 @@ public class PageService {
 		parameters.add(urlName);
 
 		if (pageId != null) {
-			Optional<Page>  page = findPageById(pageId, institutionId, true);
+			Optional<Page> page = findPageById(pageId, institutionId, true);
 
 			if (page.isPresent()) {
 				query.append(" AND p.page_group_id != ?");
@@ -1920,8 +1920,9 @@ public class PageService {
 	}
 
 	@Nonnull
-	public List<NavigationItem> findPageNavigationItemsByInstitutionId(@Nullable InstitutionId institutionId) {
-		if (institutionId == null)
+	public List<NavigationItem> findPageNavigationItemsBySiteLocationId(@Nullable SiteLocationId siteLocationId,
+																																			@Nullable InstitutionId institutionId) {
+		if (siteLocationId == null || institutionId == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
@@ -1944,7 +1945,7 @@ public class PageService {
 					  AND p.page_status_id=?
 					ORDER BY
 					  psl.display_order
-				""", NavigationItem.class, institutionId, SiteLocationId.COMMUNITY, PageStatusId.LIVE);
+				""", NavigationItem.class, institutionId, siteLocationId, PageStatusId.LIVE);
 	}
 
 	@Nonnull

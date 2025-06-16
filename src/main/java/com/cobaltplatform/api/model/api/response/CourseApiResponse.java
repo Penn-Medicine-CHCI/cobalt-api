@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.CourseUnit;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.CourseService;
+import com.cobaltplatform.api.service.VideoService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
@@ -107,6 +108,7 @@ public class CourseApiResponse {
 	@AssistedInject
 	public CourseApiResponse(@Nonnull CourseService courseService,
 													 @Nonnull ContentService contentService,
+													 @Nonnull VideoService videoService,
 													 @Nonnull CourseModuleApiResponseFactory courseModuleApiResponseFactory,
 													 @Nonnull CourseSessionApiResponseFactory courseSessionApiResponseFactory,
 													 @Nonnull VideoApiResponseFactory videoApiResponseFactory,
@@ -118,6 +120,7 @@ public class CourseApiResponse {
 													 @Assisted @Nonnull CourseApiResponseType type) {
 		requireNonNull(courseService);
 		requireNonNull(contentService);
+		requireNonNull(videoService);
 		requireNonNull(courseModuleApiResponseFactory);
 		requireNonNull(courseSessionApiResponseFactory);
 		requireNonNull(videoApiResponseFactory);
@@ -167,7 +170,7 @@ public class CourseApiResponse {
 						.collect(Collectors.toList());
 
 				// 3) videos, locks, contents only for DETAIL
-				videosTemp = courseService.findVideosByCourseId(course.getCourseId()).stream()
+				videosTemp = videoService.findVideosByCourseId(course.getCourseId()).stream()
 						.map(videoApiResponseFactory::create)
 						.collect(Collectors.toList());
 

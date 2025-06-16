@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.model.service.NavigationItem;
@@ -125,6 +126,8 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final List<NavigationItem> additionalNavigationItems;
 	@Nonnull
+	private final List<NavigationItem> additionalResourceNavigationItems;
+	@Nonnull
 	private final List<FeatureForInstitution> features;
 	@Nonnull
 	private final Boolean takeFeatureScreening;
@@ -186,6 +189,78 @@ public class InstitutionApiResponse {
 	private final Boolean preferLegacyTopicCenters;
 	@Nullable
 	private final UUID onboardingScreeningFlowId;
+
+	// Branding configuration
+
+	// Top-left nav header logo
+	@Nullable
+	private final String headerLogoUrl;
+	// Footer logo, right above "Powered by Cobalt Innovations, Inc."
+	@Nullable
+	private final String footerLogoUrl;
+
+	// Copy/image for when patients first enter the site.  Currently ignored for IC institutions.
+	@Nullable
+	private final String heroTitle;
+	@Nullable
+	private final String heroDescription;
+	@Nullable
+	private final String heroImageUrl;
+
+	// "Sign in" screen logo at top left of screen
+	@Nullable
+	private final String signInLogoUrl;
+	// Large "Sign in" screen logo on right side of screen
+	@Nullable
+	private final String signInLargeLogoUrl;
+	// Large "Sign in" screen logo background image, sits underneath the large logo
+	@Nullable
+	private final String signInLargeLogoBackgroundUrl;
+	// Additional "Sign in" screen branding logo shown over "Welcome to Cobalt" title text, e.g. if customer is whitelabeling
+	@Nullable
+	private final String signInBrandingLogoUrl;
+	// e.g. "Welcome to Cobalt"
+	@Nullable
+	private final String signInTitle;
+	// e.g. "Cobalt is a mental health and wellness platform created for [Institution name] faculty and staff"
+	@Nullable
+	private final String signInDescription;
+	// e.g. "Select your sign in method to continue." or "Click 'Sign In With MyChart' below, then enter your details to sign in."
+	@Nullable
+	private final String signInDirection;
+	// Whether the "Crisis support" button on the sign-in screen is visible
+	@Nonnull
+	private final Boolean signInCrisisButtonVisible;
+	// Whether the "If you are in crisis" box on the sign-in screen is visible
+	@Nonnull
+	private final Boolean signInCrisisSectionVisible;
+	// If there is a marketing video to be shown on the sign-in screen
+	@Nullable
+	private final UUID signInVideoId;
+	// Copy to show on the "play video" button, e.g. "Watch our video"
+	@Nullable
+	private final String signInVideoCta;
+
+	// If signInPrivacyOverview is present, then show the "About your privacy" box on the sign-in screen.
+	// If signInPrivacyDetail is present, then show the "Learn more about your privacy" link in the "privacy" box.
+	// Both can include HTML.
+	@Nullable
+	private final String signInPrivacyOverview;
+	@Nullable
+	private final String signInPrivacyDetail;
+
+	// Should we show the "personalized quote" area of the homepage (bubble with headshot and blurb)?
+	@Nonnull
+	private final Boolean signInQuoteVisible;
+	// e.g. "Welcome to Cobalt"
+	@Nullable
+	private final String signInQuoteTitle;
+	// e.g. "Hi! I'm Dr. Example Person, the Director of Cobalt. I am a Clinical Psychologist and Clinical Assistant...".  Can include HTML
+	@Nullable
+	private final String signInQuoteBlurb;
+	// e.g. the rest of the blurb above, if applicable.  Can include HTML.  If this is non-null, a "Read More" link should be shown and this copy is rendered in a modal.
+	@Nullable
+	private final String signInQuoteDetail;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -253,7 +328,8 @@ public class InstitutionApiResponse {
 		this.groupSessionRequestsEnabled = institution.getGroupSessionRequestsEnabled();
 		this.additionalNavigationItems = institution.getPreferLegacyTopicCenters()
 				? topicCenterService.findTopicCenterNavigationItemsByInstitutionId(institutionId)
-				: pageService.findPageNavigationItemsByInstitutionId(institutionId);
+				: pageService.findPageNavigationItemsBySiteLocationId(SiteLocationId.COMMUNITY, institutionId);
+		this.additionalResourceNavigationItems = pageService.findPageNavigationItemsBySiteLocationId(SiteLocationId.RESOURCE, institutionId);
 		this.features = institutionService.findFeaturesByInstitutionId(institution, account);
 		this.takeFeatureScreening = screeningService.shouldAccountIdTakeScreeningFlowId(account, institution.getFeatureScreeningFlowId());
 		this.hasTakenFeatureScreening = screeningService.hasAccountIdTakenScreeningFlowId(account, institution.getFeatureScreeningFlowId());
@@ -311,6 +387,29 @@ public class InstitutionApiResponse {
 		this.preferLegacyTopicCenters = institution.getPreferLegacyTopicCenters();
 
 		this.onboardingScreeningFlowId = institution.getOnboardingScreeningFlowId();
+
+		this.headerLogoUrl = institution.getHeaderLogoUrl();
+		this.footerLogoUrl = institution.getFooterLogoUrl();
+		this.heroTitle = institution.getHeroTitle();
+		this.heroDescription = institution.getHeroDescription();
+		this.heroImageUrl = institution.getHeroImageUrl();
+		this.signInLogoUrl = institution.getSignInLogoUrl();
+		this.signInLargeLogoUrl = institution.getSignInLargeLogoUrl();
+		this.signInLargeLogoBackgroundUrl = institution.getSignInLargeLogoBackgroundUrl();
+		this.signInBrandingLogoUrl = institution.getSignInBrandingLogoUrl();
+		this.signInTitle = institution.getSignInTitle();
+		this.signInDescription = institution.getSignInDescription();
+		this.signInDirection = institution.getSignInDirection();
+		this.signInCrisisButtonVisible = institution.getSignInCrisisButtonVisible();
+		this.signInCrisisSectionVisible = institution.getSignInCrisisSectionVisible();
+		this.signInVideoId = institution.getSignInVideoId();
+		this.signInVideoCta = institution.getSignInVideoCta();
+		this.signInPrivacyOverview = institution.getSignInPrivacyOverview();
+		this.signInPrivacyDetail = institution.getSignInPrivacyDetail();
+		this.signInQuoteVisible = institution.getSignInQuoteVisible();
+		this.signInQuoteTitle = institution.getSignInQuoteTitle();
+		this.signInQuoteBlurb = institution.getSignInQuoteBlurb();
+		this.signInQuoteDetail = institution.getSignInQuoteDetail();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -451,6 +550,11 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public List<NavigationItem> getAdditionalNavigationItems() {
 		return this.additionalNavigationItems;
+	}
+
+	@Nonnull
+	public List<NavigationItem> getAdditionalResourceNavigationItems() {
+		return this.additionalResourceNavigationItems;
 	}
 
 	@Nonnull
@@ -651,5 +755,115 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Optional<UUID> getOnboardingScreeningFlowId() {
 		return Optional.ofNullable(this.onboardingScreeningFlowId);
+	}
+
+	@Nullable
+	public String getHeaderLogoUrl() {
+		return this.headerLogoUrl;
+	}
+
+	@Nullable
+	public String getFooterLogoUrl() {
+		return this.footerLogoUrl;
+	}
+
+	@Nullable
+	public String getHeroTitle() {
+		return this.heroTitle;
+	}
+
+	@Nullable
+	public String getHeroDescription() {
+		return this.heroDescription;
+	}
+
+	@Nullable
+	public String getHeroImageUrl() {
+		return this.heroImageUrl;
+	}
+
+	@Nullable
+	public String getSignInLogoUrl() {
+		return this.signInLogoUrl;
+	}
+
+	@Nullable
+	public String getSignInLargeLogoUrl() {
+		return this.signInLargeLogoUrl;
+	}
+
+	@Nullable
+	public String getSignInLargeLogoBackgroundUrl() {
+		return this.signInLargeLogoBackgroundUrl;
+	}
+
+	@Nullable
+	public String getSignInBrandingLogoUrl() {
+		return this.signInBrandingLogoUrl;
+	}
+
+	@Nullable
+	public String getSignInTitle() {
+		return this.signInTitle;
+	}
+
+	@Nullable
+	public String getSignInDescription() {
+		return this.signInDescription;
+	}
+
+	@Nullable
+	public String getSignInDirection() {
+		return this.signInDirection;
+	}
+
+	@Nonnull
+	public Boolean getSignInCrisisButtonVisible() {
+		return this.signInCrisisButtonVisible;
+	}
+
+	@Nonnull
+	public Boolean getSignInCrisisSectionVisible() {
+		return this.signInCrisisSectionVisible;
+	}
+
+	@Nullable
+	public UUID getSignInVideoId() {
+		return this.signInVideoId;
+	}
+
+	@Nullable
+	public String getSignInVideoCta() {
+		return this.signInVideoCta;
+	}
+
+	@Nullable
+	public String getSignInPrivacyOverview() {
+		return this.signInPrivacyOverview;
+	}
+
+	@Nullable
+	public String getSignInPrivacyDetail() {
+		return this.signInPrivacyDetail;
+	}
+
+	@Nonnull
+	public Boolean getSignInQuoteVisible() {
+		return this.signInQuoteVisible;
+	}
+
+	@Nullable
+	public String getSignInQuoteTitle() {
+		return this.signInQuoteTitle;
+	}
+
+	@Nullable
+	public String getSignInQuoteBlurb() {
+		return this.signInQuoteBlurb;
+	}
+
+	@Nullable
+	public String getSignInQuoteDetail() {
+		return this.signInQuoteDetail;
 	}
 }

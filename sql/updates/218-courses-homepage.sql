@@ -1,4 +1,5 @@
 BEGIN;
+SELECT _v.register_patch('218-courses-homepage', NULL, NULL);
 
 CREATE TABLE institution_course_status (
 institution_course_status_id TEXT NOT NULL PRIMARY KEY,

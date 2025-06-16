@@ -367,6 +367,78 @@ public class Institution {
 	@Nullable
 	private UUID onboardingScreeningFlowId;
 
+	// Branding configuration
+
+	// Top-left nav header logo
+	@Nullable
+	private String headerLogoUrl;
+	// Footer logo, right above "Powered by Cobalt Innovations, Inc."
+	@Nullable
+	private String footerLogoUrl;
+
+	// Copy/image for when patients first enter the site.  Currently ignored for IC institutions.
+	@Nullable
+	private String heroTitle;
+	@Nullable
+	private String heroDescription;
+	@Nullable
+	private String heroImageUrl;
+
+	// "Sign in" screen logo at top left of screen
+	@Nullable
+	private String signInLogoUrl;
+	// Large "Sign in" screen logo on right side of screen
+	@Nullable
+	private String signInLargeLogoUrl;
+	// Large "Sign in" screen logo background image, sits underneath the large logo
+	@Nullable
+	private String signInLargeLogoBackgroundUrl;
+	// Additional "Sign in" screen branding logo shown over "Welcome to Cobalt" title text, e.g. if customer is whitelabeling
+	@Nullable
+	private String signInBrandingLogoUrl;
+	// e.g. "Welcome to Cobalt"
+	@Nullable
+	private String signInTitle;
+	// e.g. "Cobalt is a mental health and wellness platform created for [Institution name] faculty and staff"
+	@Nullable
+	private String signInDescription;
+	// e.g. "Select your sign in method to continue." or "Click 'Sign In With MyChart' below, then enter your details to sign in."
+	@Nullable
+	private String signInDirection;
+	// Whether the "Crisis support" button on the sign-in screen is visible
+	@Nullable
+	private Boolean signInCrisisButtonVisible;
+	// Whether the "If you are in crisis" box on the sign-in screen is visible
+	@Nullable
+	private Boolean signInCrisisSectionVisible;
+	// If there is a marketing video to be shown on the sign-in screen
+	@Nullable
+	private UUID signInVideoId;
+	// Copy to show on the "play video" button, e.g. "Watch our video"
+	@Nullable
+	private String signInVideoCta;
+
+	// If signInPrivacyOverview is present, then show the "About your privacy" box on the sign-in screen.
+	// If signInPrivacyDetail is present, then show the "Learn more about your privacy" link in the "privacy" box.
+	// Both can include HTML.
+	@Nullable
+	private String signInPrivacyOverview;
+	@Nullable
+	private String signInPrivacyDetail;
+
+	// Should we show the "personalized quote" area of the homepage (bubble with headshot and blurb)?
+	@Nullable
+	private Boolean signInQuoteVisible;
+	// e.g. "Welcome to Cobalt"
+	@Nullable
+	private String signInQuoteTitle;
+	// e.g. "Hi! I'm Dr. Example Person, the Director of Cobalt. I am a Clinical Psychologist and Clinical Assistant...".  Can include HTML
+	@Nullable
+	private String signInQuoteBlurb;
+	// e.g. the rest of the blurb above, if applicable.  Can include HTML.  If this is non-null, a "Read More" link should be shown and this copy is rendered in a modal.
+	@Nullable
+	private String signInQuoteDetail;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -1740,5 +1812,203 @@ public class Institution {
 
 	public void setOnboardingScreeningFlowId(@Nullable UUID onboardingScreeningFlowId) {
 		this.onboardingScreeningFlowId = onboardingScreeningFlowId;
+	}
+
+	@Nullable
+	public String getHeaderLogoUrl() {
+		return this.headerLogoUrl;
+	}
+
+	public void setHeaderLogoUrl(@Nullable String headerLogoUrl) {
+		this.headerLogoUrl = headerLogoUrl;
+	}
+
+	@Nullable
+	public String getFooterLogoUrl() {
+		return this.footerLogoUrl;
+	}
+
+	public void setFooterLogoUrl(@Nullable String footerLogoUrl) {
+		this.footerLogoUrl = footerLogoUrl;
+	}
+
+	@Nullable
+	public String getHeroTitle() {
+		return this.heroTitle;
+	}
+
+	public void setHeroTitle(@Nullable String heroTitle) {
+		this.heroTitle = heroTitle;
+	}
+
+	@Nullable
+	public String getHeroDescription() {
+		return this.heroDescription;
+	}
+
+	public void setHeroDescription(@Nullable String heroDescription) {
+		this.heroDescription = heroDescription;
+	}
+
+	@Nullable
+	public String getHeroImageUrl() {
+		return this.heroImageUrl;
+	}
+
+	public void setHeroImageUrl(@Nullable String heroImageUrl) {
+		this.heroImageUrl = heroImageUrl;
+	}
+
+	@Nullable
+	public String getSignInLogoUrl() {
+		return this.signInLogoUrl;
+	}
+
+	public void setSignInLogoUrl(@Nullable String signInLogoUrl) {
+		this.signInLogoUrl = signInLogoUrl;
+	}
+
+	@Nullable
+	public String getSignInLargeLogoUrl() {
+		return this.signInLargeLogoUrl;
+	}
+
+	public void setSignInLargeLogoUrl(@Nullable String signInLargeLogoUrl) {
+		this.signInLargeLogoUrl = signInLargeLogoUrl;
+	}
+
+	@Nullable
+	public String getSignInLargeLogoBackgroundUrl() {
+		return this.signInLargeLogoBackgroundUrl;
+	}
+
+	public void setSignInLargeLogoBackgroundUrl(@Nullable String signInLargeLogoBackgroundUrl) {
+		this.signInLargeLogoBackgroundUrl = signInLargeLogoBackgroundUrl;
+	}
+
+	@Nullable
+	public String getSignInBrandingLogoUrl() {
+		return this.signInBrandingLogoUrl;
+	}
+
+	public void setSignInBrandingLogoUrl(@Nullable String signInBrandingLogoUrl) {
+		this.signInBrandingLogoUrl = signInBrandingLogoUrl;
+	}
+
+	@Nullable
+	public String getSignInTitle() {
+		return this.signInTitle;
+	}
+
+	public void setSignInTitle(@Nullable String signInTitle) {
+		this.signInTitle = signInTitle;
+	}
+
+	@Nullable
+	public String getSignInDescription() {
+		return this.signInDescription;
+	}
+
+	public void setSignInDescription(@Nullable String signInDescription) {
+		this.signInDescription = signInDescription;
+	}
+
+	@Nullable
+	public String getSignInDirection() {
+		return this.signInDirection;
+	}
+
+	public void setSignInDirection(@Nullable String signInDirection) {
+		this.signInDirection = signInDirection;
+	}
+
+	@Nullable
+	public Boolean getSignInCrisisButtonVisible() {
+		return this.signInCrisisButtonVisible;
+	}
+
+	public void setSignInCrisisButtonVisible(@Nullable Boolean signInCrisisButtonVisible) {
+		this.signInCrisisButtonVisible = signInCrisisButtonVisible;
+	}
+
+	@Nullable
+	public Boolean getSignInCrisisSectionVisible() {
+		return this.signInCrisisSectionVisible;
+	}
+
+	public void setSignInCrisisSectionVisible(@Nullable Boolean signInCrisisSectionVisible) {
+		this.signInCrisisSectionVisible = signInCrisisSectionVisible;
+	}
+
+	@Nullable
+	public UUID getSignInVideoId() {
+		return this.signInVideoId;
+	}
+
+	public void setSignInVideoId(@Nullable UUID signInVideoId) {
+		this.signInVideoId = signInVideoId;
+	}
+
+	@Nullable
+	public String getSignInVideoCta() {
+		return this.signInVideoCta;
+	}
+
+	public void setSignInVideoCta(@Nullable String signInVideoCta) {
+		this.signInVideoCta = signInVideoCta;
+	}
+
+	@Nullable
+	public String getSignInPrivacyOverview() {
+		return this.signInPrivacyOverview;
+	}
+
+	public void setSignInPrivacyOverview(@Nullable String signInPrivacyOverview) {
+		this.signInPrivacyOverview = signInPrivacyOverview;
+	}
+
+	@Nullable
+	public String getSignInPrivacyDetail() {
+		return this.signInPrivacyDetail;
+	}
+
+	public void setSignInPrivacyDetail(@Nullable String signInPrivacyDetail) {
+		this.signInPrivacyDetail = signInPrivacyDetail;
+	}
+
+	@Nullable
+	public Boolean getSignInQuoteVisible() {
+		return this.signInQuoteVisible;
+	}
+
+	public void setSignInQuoteVisible(@Nullable Boolean signInQuoteVisible) {
+		this.signInQuoteVisible = signInQuoteVisible;
+	}
+
+	@Nullable
+	public String getSignInQuoteTitle() {
+		return this.signInQuoteTitle;
+	}
+
+	public void setSignInQuoteTitle(@Nullable String signInQuoteTitle) {
+		this.signInQuoteTitle = signInQuoteTitle;
+	}
+
+	@Nullable
+	public String getSignInQuoteBlurb() {
+		return this.signInQuoteBlurb;
+	}
+
+	public void setSignInQuoteBlurb(@Nullable String signInQuoteBlurb) {
+		this.signInQuoteBlurb = signInQuoteBlurb;
+	}
+
+	@Nullable
+	public String getSignInQuoteDetail() {
+		return this.signInQuoteDetail;
+	}
+
+	public void setSignInQuoteDetail(@Nullable String signInQuoteDetail) {
+		this.signInQuoteDetail = signInQuoteDetail;
 	}
 }
