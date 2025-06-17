@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -49,6 +50,10 @@ public class ScreeningAnswerOptionApiResponse {
 	private final Boolean freeformSupplement;
 	@Nullable
 	private final String freeformSupplementText;
+	@Nullable
+	private final Boolean freeformSupplementTextAutoShow;
+	@Nullable
+	private final ScreeningAnswerContentHintId freeformSupplementContentHintId;
 	@Nullable
 	private Integer score;
 	@Nullable
@@ -82,6 +87,8 @@ public class ScreeningAnswerOptionApiResponse {
 		this.scoreDescription = screeningAnswerOption.getScore() == null ? null : formatter.formatNumber(screeningAnswerOption.getScore());
 		this.displayOrder = screeningAnswerOption.getDisplayOrder();
 		this.metadata = screeningAnswerOption.getMetadata();
+		this.freeformSupplementContentHintId = screeningAnswerOption.getFreeformSupplementContentHintId();
+		this.freeformSupplementTextAutoShow = screeningAnswerOption.getFreeformSupplementTextAutoShow();
 	}
 
 	@Nonnull
@@ -127,5 +134,15 @@ public class ScreeningAnswerOptionApiResponse {
 	@Nonnull
 	public Optional<Map<String, Object>> getMetadata() {
 		return Optional.ofNullable(this.metadata);
+	}
+
+	@Nullable
+	public Boolean getFreeformSupplementTextAutoShow() {
+		return freeformSupplementTextAutoShow;
+	}
+
+	@Nullable
+	public ScreeningAnswerContentHintId getFreeformSupplementContentHintId() {
+		return freeformSupplementContentHintId;
 	}
 }

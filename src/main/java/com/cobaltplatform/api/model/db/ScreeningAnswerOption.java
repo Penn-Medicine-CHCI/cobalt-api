@@ -23,6 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.pyranid.DatabaseColumn;
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -62,6 +63,11 @@ public class ScreeningAnswerOption {
 	private Boolean freeformSupplement;
 	@Nullable
 	private String freeformSupplementText;
+
+	@Nullable
+	private Boolean freeformSupplementTextAutoShow;
+	@Nullable
+	private ScreeningAnswerContentHintId freeformSupplementContentHintId;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -185,5 +191,27 @@ public class ScreeningAnswerOption {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@Nullable
+	public Boolean getFreeformSupplementTextAutoShow() {
+		return freeformSupplementTextAutoShow;
+	}
+
+	public void setFreeformSupplementTextAutoShow(@Nullable Boolean freeformSupplementTextAutoShow) {
+		this.freeformSupplementTextAutoShow = freeformSupplementTextAutoShow;
+	}
+
+	@Nullable
+	public ScreeningAnswerContentHintId getFreeformSupplementContentHintId() {
+		return freeformSupplementContentHintId;
+	}
+
+	public void setFreeformSupplementContentHintId(@Nullable ScreeningAnswerContentHintId freeformSupplementContentHintId) {
+		this.freeformSupplementContentHintId = freeformSupplementContentHintId;
+	}
+
+	public void setMetadata(@Nullable Map<String, Object> metadata) {
+		this.metadata = metadata;
 	}
 }
