@@ -225,7 +225,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/215-page-group
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/216-courses.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/217-institution-customizations.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/218-courses-homepage.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/219-courses-complete.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/219-courses-complete-flag.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
