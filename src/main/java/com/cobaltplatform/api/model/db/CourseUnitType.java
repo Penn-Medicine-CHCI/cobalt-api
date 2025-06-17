@@ -40,14 +40,16 @@ public class CourseUnitType {
 
 	@Nullable
 	private Boolean showRestartActivityWhenComplete;
-
+	@Nullable
+	private Boolean showUnitAsComplete;
 	public enum CourseUnitTypeId {
 		VIDEO,
 		INFOGRAPHIC,
 		HOMEWORK,
 		CARD_SORT,
 		QUIZ,
-		REORDER
+		REORDER,
+		THINGS_TO_SHARE
 	}
 
 	@Override
@@ -89,5 +91,14 @@ public class CourseUnitType {
 
 	public void setShowRestartActivityWhenComplete(@Nullable Boolean showRestartActivityWhenComplete) {
 		this.showRestartActivityWhenComplete = showRestartActivityWhenComplete;
+	}
+
+	@Nullable
+	public Boolean getShowUnitAsComplete() {
+		return showUnitAsComplete;
+	}
+
+	public void setShowUnitAsComplete(@Nullable Boolean showUnitAsComplete) {
+		this.showUnitAsComplete = showUnitAsComplete;
 	}
 }
