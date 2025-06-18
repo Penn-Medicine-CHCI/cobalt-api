@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
 import com.cobaltplatform.api.model.db.CourseSession;
+import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseSessionUnit;
 import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
@@ -32,11 +33,12 @@ import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDepend
 import com.cobaltplatform.api.model.db.CourseUnitType;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.UnitCompletionType;
-import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 import com.cobaltplatform.api.model.db.Video;
+import com.cobaltplatform.api.model.service.CourseSessionCompletionPercentage;
 import com.cobaltplatform.api.model.service.CourseUnitDownloadableFileWithFileDetails;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
+import com.cobaltplatform.api.model.service.CourseWithCourseSessionStatus;
+import com.cobaltplatform.api.model.service.CourseWithInstitutionCourseStatus;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -218,6 +220,106 @@ public class CourseService {
 				FROM course_session
 				WHERE course_session_id=?
 				""", CourseSession.class, courseSessionId);
+	}
+
+	public List<CourseWithInstitutionCourseStatus> findComingSoonAndAvailableCourses(@Nullable UUID accountId,
+																																									 @Nullable InstitutionId institutionId) {
+		if (accountId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT c.*, ic.institution_course_status_id
+				FROM v_course c, institution_course ic
+				WHERE c.course_id = ic.course_id				
+				AND ic.institution_id=?
+				AND c.course_id NOT IN
+				(SELECT cs.course_id
+				FROM course_session cs
+				WHERE cs.account_id=?)
+				ORDER BY ic.display_order
+				""", CourseWithInstitutionCourseStatus.class, institutionId, accountId);
+	}
+
+	public List<CourseWithCourseSessionStatus> findInProgressAndCompletedCourseSessions(@Nullable UUID accountId,
+																																											@Nullable InstitutionId institutionId) {
+		if (accountId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT c.*, cs.course_session_status_id
+				FROM v_course c, course_session cs, institution_course ic
+				WHERE c.course_id = cs.course_id
+				AND cs.course_id = ic.course_id
+				AND cs.account_id=?
+				AND ic.institution_id=?
+				AND cs.course_session_status_id IN (?,?)
+				ORDER BY ic.display_order
+				""", CourseWithCourseSessionStatus.class, accountId, institutionId, CourseSessionStatusId.COMPLETED, CourseSessionStatusId.IN_PROGRESS);
+	}
+
+	public Optional<CourseSessionCompletionPercentage> findCourseSessionCompletionPercentage(@Nullable UUID courseSessionId) {
+		if (courseSessionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				WITH session_courses AS (
+				  -- grab only the one session’s course
+				  SELECT
+				    cs.course_session_id,
+				    cs.course_id
+				  FROM cobalt.course_session AS cs
+				  WHERE cs.course_session_id = ?
+				),
+				all_units AS (
+				  -- for that session, pull in every unit in its course
+				  SELECT
+				    sc.course_session_id,
+				    cu.course_unit_id,
+				    cu.estimated_completion_time_in_minutes
+				  FROM session_courses AS sc
+				  JOIN cobalt.course_module AS cm
+				    ON cm.course_id = sc.course_id
+				  JOIN cobalt.course_unit AS cu
+				    ON cu.course_module_id = cm.course_module_id
+				)
+				SELECT
+				  au.course_session_id,
+				    
+				  -- completed minutes (only units marked COMPLETED)
+				  SUM(
+				    CASE
+				      WHEN csu.course_session_unit_status_id = 'COMPLETED'
+				      THEN au.estimated_completion_time_in_minutes
+				      ELSE 0
+				    END
+				  ) AS minutes_completed,
+				    
+				  -- total minutes possible (all units in the course)
+				  SUM(au.estimated_completion_time_in_minutes) AS total_minutes,
+				    
+				  -- completion percentage
+				  ROUND(
+				    SUM(
+				      CASE
+				        WHEN csu.course_session_unit_status_id = 'COMPLETED'
+				        THEN au.estimated_completion_time_in_minutes
+				        ELSE 0
+				      END
+				    )::numeric
+				    / NULLIF(SUM(au.estimated_completion_time_in_minutes), 0)				    
+				  , 2) AS completion_percentage
+				    
+				FROM all_units AS au
+				    
+				-- bring in any completion status rows (if they exist)
+				LEFT JOIN cobalt.course_session_unit AS csu
+				  ON csu.course_session_id = au.course_session_id
+				 AND csu.course_unit_id    = au.course_unit_id
+				    
+				-- since CTE already filtered to the one session, no extra WHERE is needed
+				GROUP BY
+				  au.course_session_id;				    
+				""", CourseSessionCompletionPercentage.class, courseSessionId);
 	}
 
 	@Nonnull
@@ -439,7 +541,8 @@ public class CourseService {
 			return getStrings().get("Video");
 
 		if (courseUnitTypeId == CourseUnitTypeId.INFOGRAPHIC
-				|| courseUnitTypeId == CourseUnitTypeId.HOMEWORK)
+				|| courseUnitTypeId == CourseUnitTypeId.HOMEWORK
+				|| courseUnitTypeId == CourseUnitTypeId.THINGS_TO_SHARE)
 			return getStrings().get("Info");
 
 		throw new UnsupportedOperationException(format("Unexpected value: %s.%s", CourseUnitTypeId.class.getSimpleName(), courseUnitTypeId.name()));
@@ -469,6 +572,7 @@ public class CourseService {
 				WHERE course_unit_type_id=?
 				""", CourseUnitType.class, courseUnitTypeId);
 	}
+
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();

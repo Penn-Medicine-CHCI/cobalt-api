@@ -86,6 +86,8 @@ public class CourseUnitApiResponse {
 
 	@Nonnull
 	private final Boolean showRestartActivityWhenComplete;
+	@Nonnull
+	private final Boolean showUnitAsComplete;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -110,6 +112,7 @@ public class CourseUnitApiResponse {
 		this.courseUnitTypeId = courseUnit.getCourseUnitTypeId();
 		Optional<CourseUnitType> courseUnitType = courseService.findCourseUnitTypeById(courseUnit.getCourseUnitTypeId());
 		this.showRestartActivityWhenComplete = courseUnitType.isPresent() ? courseUnitType.get().getShowRestartActivityWhenComplete() : null;
+		this.showUnitAsComplete = courseUnitType.isPresent() ? courseUnitType.get().getShowUnitAsComplete() : null;
 		this.unitCompletionTypeId = courseUnitType.isPresent() ? courseUnitType.get().getUnitCompletionTypeId() : null;
 		this.courseUnitTypeIdDescription = courseService.determineCourseUnitTypeIdDescription(courseUnit.getCourseUnitTypeId());
 		this.courseModuleId = courseUnit.getCourseModuleId();
@@ -222,5 +225,10 @@ public class CourseUnitApiResponse {
 	@Nonnull
 	public Boolean getShowRestartActivityWhenComplete() {
 		return showRestartActivityWhenComplete;
+	}
+
+	@Nonnull
+	public Boolean getShowUnitAsComplete() {
+		return showUnitAsComplete;
 	}
 }
