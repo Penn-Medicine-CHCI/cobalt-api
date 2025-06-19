@@ -248,35 +248,43 @@ public class CourseService {
 		}
 
 		return getDatabase().queryForList("""
-						-- rank each session within its (course, status) by created desc
-						WITH ranked_sessions AS (
-						  SELECT
-						    cs.course_id,
-						    cs.course_session_status_id,
-						    ROW_NUMBER() OVER (
-						      PARTITION BY cs.course_id, cs.course_session_status_id
-						      ORDER BY cs.created DESC
-						    ) AS rn
-						  FROM course_session cs
-						  WHERE cs.account_id = ?
-						    AND cs.course_session_status_id IN (?, ?)
-						)
+						WITH prioritized_sessions AS (
 						SELECT
-						  c.*,
-						  rs.course_session_status_id
-						FROM ranked_sessions rs
-						JOIN v_course c
-						  ON c.course_id = rs.course_id
-						JOIN institution_course ic
-						  ON ic.course_id = c.course_id
-						 AND ic.institution_id = ?
-						WHERE rs.rn = 1
-						ORDER BY ic.display_order
+							cs.course_id,
+							cs.course_session_status_id,
+							cs.created,
+							ROW_NUMBER() OVER (
+								PARTITION BY cs.course_id
+								ORDER BY
+									-- rank IN_PROGRESS first, then COMPLETED,
+									CASE cs.course_session_status_id
+										WHEN ? THEN 1
+										WHEN ? THEN 2
+									END,
+									cs.created DESC
+							) AS rn
+						FROM course_session cs
+						WHERE cs.account_id = ?
+							AND cs.course_session_status_id IN (?,?)
+					)
+					SELECT
+						c.*,
+						ps.course_session_status_id
+					FROM prioritized_sessions ps
+					JOIN v_course c
+						ON c.course_id = ps.course_id
+					JOIN institution_course ic
+						ON ic.course_id = c.course_id
+					 AND ic.institution_id = ?
+					WHERE ps.rn = 1
+					ORDER BY ps.created DESC
 						""",
 				CourseWithCourseSessionStatus.class,
-				accountId,
-				CourseSessionStatusId.COMPLETED,
 				CourseSessionStatusId.IN_PROGRESS,
+				CourseSessionStatusId.COMPLETED,
+				accountId,
+				CourseSessionStatusId.IN_PROGRESS,
+				CourseSessionStatusId.COMPLETED,
 				institutionId
 		);
 	}
@@ -469,8 +477,6 @@ public class CourseService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		logger.debug("In checkAndSetCourseComplete");
-
 		Optional<Course> course = getDatabase().queryForObject("""
 				SELECT vc.*
 				FROM v_course vc, course_module cm, course_unit cu
@@ -484,6 +490,7 @@ public class CourseService {
 					SELECT COUNT(*) = 0
 					FROM course_unit cu, course_module cm
 					WHERE cu.course_module_id = cm.course_module_id
+					AND cu.optional_unit = FALSE
 					AND cm.course_id = ?
 					AND cm.course_module_id NOT IN
 					(SELECT cso.course_module_id
@@ -495,7 +502,6 @@ public class CourseService {
 					WHERE csu.course_session_id = cs.course_session_id
 					AND cs.course_session_id = ?)					
 					""", Boolean.class, course.get().getCourseId(), courseSessionId, courseSessionId).get();
-			logger.debug("courseComplete = " + courseComplete);
 
 			if (courseComplete)
 				getDatabase().execute("""
