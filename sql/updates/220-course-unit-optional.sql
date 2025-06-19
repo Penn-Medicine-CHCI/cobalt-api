@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE course_unit ADD COLUMN optional_unit BOOLEAN NOT NULL DEFAULT FALSE;
+
+END;
