@@ -1898,7 +1898,7 @@ public class ScreeningService {
 
 			getLogger().info("Answer[s] are for course unit ID {} ({})", courseUnit.getCourseUnitId(), courseUnit.getTitle());
 		}
-
+getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestrationFunctionOutput.getCompleted());
 		if (orchestrationFunctionOutput.getCompleted()) {
 			boolean skipped = orchestrationFunctionOutput.getSkipped() != null && orchestrationFunctionOutput.getSkipped();
 
@@ -1966,6 +1966,8 @@ public class ScreeningService {
 						throw e;
 					}
 				}
+
+				getCourseService().checkAndSetCourseComplete(courseSessionId, courseUnit.getCourseUnitId());
 			}
 
 			// Special case: if we have a pre-completion screening confirmation prompt for this flow AND request did not indicate that we
