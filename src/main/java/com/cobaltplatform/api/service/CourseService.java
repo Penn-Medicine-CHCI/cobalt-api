@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
 import com.cobaltplatform.api.model.db.CourseSession;
+import com.cobaltplatform.api.model.db.CourseSessionStatus;
 import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseSessionUnit;
 import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
@@ -305,8 +306,8 @@ public class CourseService {
 				    ON cm.course_id = sc.course_id
 				  JOIN course_unit AS cu
 				    ON cu.course_module_id = cm.course_module_id
-         WHERE cm.course_module_id NOT IN
-			  (SELECT cso.course_module_id
+				     WHERE cm.course_module_id NOT IN
+				 (SELECT cso.course_module_id
 				   FROM course_session_optional_module cso
 				  WHERE cso.course_session_id = sc.course_session_id)
 				)
@@ -419,11 +420,20 @@ public class CourseService {
 	@Nonnull
 	public Boolean completeCourseUnit(@Nonnull CompleteCourseUnitRequest request) {
 		requireNonNull(request);
-
+		logger.debug("completeCourseUnit");
 		UUID courseSessionId = request.getCourseSessionId();
 		UUID courseUnitId = request.getCourseUnitId();
 		UUID accountId = request.getAccountId();
 		ValidationException validationException = new ValidationException();
+
+		if (courseSessionId == null)
+			validationException.add(new FieldError("courseSessionId", getStrings().get("Course Session ID is required.")));
+
+		if (courseUnitId == null)
+			validationException.add(new FieldError("courseUnitId", getStrings().get("Course Unit ID is required.")));
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -443,10 +453,57 @@ public class CourseService {
 				""", courseSessionId, courseUnitId, CourseSessionUnitStatusId.COMPLETED) > 0;
 
 		if (updated) {
-			// TODO: check and see if the entire course session is complete and set its overall status
+			checkAndSetCourseComplete(courseSessionId, courseUnitId);
 		}
 
 		return updated;
+	}
+
+	@Nonnull
+	public void checkAndSetCourseComplete(@Nonnull UUID courseSessionId,
+																				@Nonnull UUID courseUnitId) {
+		ValidationException validationException = new ValidationException();
+		if (courseSessionId == null)
+			validationException.add(new FieldError("courseSessionId", getStrings().get("Course Session ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		logger.debug("In checkAndSetCourseComplete");
+
+		Optional<Course> course = getDatabase().queryForObject("""
+				SELECT vc.*
+				FROM v_course vc, course_module cm, course_unit cu
+				WHERE vc.course_id = cm.course_id
+				AND cm.course_module_id = cu.course_module_id
+				AND cu.course_unit_id=?
+				""", Course.class, courseUnitId);
+
+		if (course.isPresent()) {
+			Boolean courseComplete = getDatabase().queryForObject("""
+					SELECT COUNT(*) = 0
+					FROM course_unit cu, course_module cm
+					WHERE cu.course_module_id = cm.course_module_id
+					AND cm.course_id = ?
+					AND cm.course_module_id NOT IN
+					(SELECT cso.course_module_id
+					FROM course_session_optional_module cso
+					WHERE cso.course_session_id = ?)
+					AND cu.course_unit_id NOT IN
+					(SELECT csu.course_unit_id
+					FROM course_session_unit csu, course_session cs
+					WHERE csu.course_session_id = cs.course_session_id
+					AND cs.course_session_id = ?)					
+					""", Boolean.class, course.get().getCourseId(), courseSessionId, courseSessionId).get();
+			logger.debug("courseComplete = " + courseComplete);
+
+			if (courseComplete)
+				getDatabase().execute("""
+						UPDATE course_session
+						SET course_session_status_id = ?
+						WHERE course_session_id=?
+						""", CourseSessionStatusId.COMPLETED, courseSessionId);
+		}
 	}
 
 	@Nonnull
