@@ -54,6 +54,8 @@ import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePus
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
+import com.cobaltplatform.api.model.db.PatientOrder;
+import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.CallToAction;
 import com.cobaltplatform.api.model.service.CallToActionDisplayAreaId;
@@ -285,5 +287,23 @@ public interface EnterprisePlugin {
 
 		// No-op by default
 		return institutionFeatureInstitutionReferrers;
+	}
+
+	@Nonnull
+	default Boolean shouldSendAutomatedWelcomeMessageForPatientOrder(@Nonnull PatientOrder patientOrder) {
+		requireNonNull(patientOrder);
+
+		// Never send for self-referrals
+		if (patientOrder.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.SELF)
+			return false;
+
+		// If the order's insurance and region (state in US) are OK and patient is old enough, then it's OK to send the welcome message.
+		if (patientOrder.getPrimaryPlanAccepted()
+				&& patientOrder.getPatientAddressRegionAccepted()
+				&& !patientOrder.getPatientBelowAgeThreshold())
+			return true;
+
+		// Don't send the welcome message otherwise
+		return false;
 	}
 }

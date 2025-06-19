@@ -5450,13 +5450,10 @@ public class PatientOrderService implements AutoCloseable {
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
 		for (PatientOrder importedPatientOrder : importedPatientOrders) {
-			// Don't send a welcome message for self-referrals
-			if (importedPatientOrder.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.SELF)
-				continue;
+			boolean shouldSendAutomatedWelcomeMessage = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution().shouldSendAutomatedWelcomeMessageForPatientOrder(importedPatientOrder);
 
-			// If the order's insurance and region (state in US) are OK and patient is old enough, then send the welcome message...
-			if (importedPatientOrder.getPrimaryPlanAccepted() && importedPatientOrder.getPatientAddressRegionAccepted() && !importedPatientOrder.getPatientBelowAgeThreshold()) {
-				getLogger().info("Patient Order ID {} has an accepted region and insurance - automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
+			if (shouldSendAutomatedWelcomeMessage) {
+				getLogger().info("Patient Order ID {} meets criteria for automatically-sent welcome message.", importedPatientOrder.getPatientOrderId());
 
 				Set<MessageTypeId> messageTypeIds = new HashSet<>();
 
@@ -5484,7 +5481,7 @@ public class PatientOrderService implements AutoCloseable {
 				}
 			} else {
 				// ...the order needs review by a human.  Don't send the welcome message.
-				getLogger().info("Patient Order ID {} has either an un-accepted region or insurance - not automatically sending welcome message.", importedPatientOrder.getPatientOrderId());
+				getLogger().info("Patient Order ID {} will not automatically be sent a welcome message.", importedPatientOrder.getPatientOrderId());
 			}
 		}
 
