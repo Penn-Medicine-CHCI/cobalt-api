@@ -33,7 +33,6 @@ import com.cobaltplatform.api.model.db.CourseUnitDependencyType.CourseUnitDepend
 import com.cobaltplatform.api.model.db.CourseUnitType;
 import com.cobaltplatform.api.model.db.CourseUnitType.CourseUnitTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Video;
 import com.cobaltplatform.api.model.service.CourseSessionCompletionPercentage;
 import com.cobaltplatform.api.model.service.CourseUnitDownloadableFileWithFileDetails;
 import com.cobaltplatform.api.model.service.CourseUnitLockStatus;
@@ -240,22 +239,47 @@ public class CourseService {
 				""", CourseWithInstitutionCourseStatus.class, institutionId, accountId);
 	}
 
-	public List<CourseWithCourseSessionStatus> findInProgressAndCompletedCourseSessions(@Nullable UUID accountId,
-																																											@Nullable InstitutionId institutionId) {
-		if (accountId == null || institutionId == null)
+	public List<CourseWithCourseSessionStatus> findInProgressAndCompletedCourseSessions(
+			@Nullable UUID accountId,
+			@Nullable InstitutionId institutionId) {
+		if (accountId == null || institutionId == null) {
 			return List.of();
+		}
 
 		return getDatabase().queryForList("""
-				SELECT c.*, cs.course_session_status_id
-				FROM v_course c, course_session cs, institution_course ic
-				WHERE c.course_id = cs.course_id
-				AND cs.course_id = ic.course_id
-				AND cs.account_id=?
-				AND ic.institution_id=?
-				AND cs.course_session_status_id IN (?,?)
-				ORDER BY ic.display_order
-				""", CourseWithCourseSessionStatus.class, accountId, institutionId, CourseSessionStatusId.COMPLETED, CourseSessionStatusId.IN_PROGRESS);
+						-- rank each session within its (course, status) by created desc
+						WITH ranked_sessions AS (
+						  SELECT
+						    cs.course_id,
+						    cs.course_session_status_id,
+						    ROW_NUMBER() OVER (
+						      PARTITION BY cs.course_id, cs.course_session_status_id
+						      ORDER BY cs.created DESC
+						    ) AS rn
+						  FROM course_session cs
+						  WHERE cs.account_id = ?
+						    AND cs.course_session_status_id IN (?, ?)
+						)
+						SELECT
+						  c.*,
+						  rs.course_session_status_id
+						FROM ranked_sessions rs
+						JOIN v_course c
+						  ON c.course_id = rs.course_id
+						JOIN institution_course ic
+						  ON ic.course_id = c.course_id
+						 AND ic.institution_id = ?
+						WHERE rs.rn = 1
+						ORDER BY ic.display_order
+						""",
+				CourseWithCourseSessionStatus.class,
+				accountId,
+				CourseSessionStatusId.COMPLETED,
+				CourseSessionStatusId.IN_PROGRESS,
+				institutionId
+		);
 	}
+
 
 	public Optional<CourseSessionCompletionPercentage> findCourseSessionCompletionPercentage(@Nullable UUID courseSessionId) {
 		if (courseSessionId == null)
@@ -267,7 +291,7 @@ public class CourseService {
 				  SELECT
 				    cs.course_session_id,
 				    cs.course_id
-				  FROM cobalt.course_session AS cs
+				  FROM course_session AS cs
 				  WHERE cs.course_session_id = ?
 				),
 				all_units AS (
@@ -277,10 +301,14 @@ public class CourseService {
 				    cu.course_unit_id,
 				    cu.estimated_completion_time_in_minutes
 				  FROM session_courses AS sc
-				  JOIN cobalt.course_module AS cm
+				  JOIN course_module AS cm
 				    ON cm.course_id = sc.course_id
-				  JOIN cobalt.course_unit AS cu
+				  JOIN course_unit AS cu
 				    ON cu.course_module_id = cm.course_module_id
+         WHERE cm.course_module_id NOT IN
+			  (SELECT cso.course_module_id
+				   FROM course_session_optional_module cso
+				  WHERE cso.course_session_id = sc.course_session_id)
 				)
 				SELECT
 				  au.course_session_id,
@@ -312,7 +340,7 @@ public class CourseService {
 				FROM all_units AS au
 				    
 				-- bring in any completion status rows (if they exist)
-				LEFT JOIN cobalt.course_session_unit AS csu
+				LEFT JOIN course_session_unit AS csu
 				  ON csu.course_session_id = au.course_session_id
 				 AND csu.course_unit_id    = au.course_unit_id
 				    
