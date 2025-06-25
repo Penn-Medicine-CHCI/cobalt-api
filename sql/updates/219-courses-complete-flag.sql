@@ -1,4 +1,5 @@
 BEGIN;
+SELECT _v.register_patch('219-courses-complete-flag', NULL, NULL);
 
 ALTER TABLE course_unit_type ADD COLUMN show_unit_as_complete BOOLEAN NOT NULL DEFAULT TRUE;
 
