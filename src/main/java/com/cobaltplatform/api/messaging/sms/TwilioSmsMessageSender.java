@@ -55,6 +55,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -66,8 +67,10 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 	private final String twilioAccountSid;
 	@Nonnull
 	private final String twilioAuthToken;
-	@Nonnull
+	@Nullable
 	private final String twilioFromNumber;
+	@Nullable
+	private final String twilioMessagingServiceSid;
 	@Nullable
 	private final String twilioStatusCallbackUrl;
 	@Nonnull
@@ -94,14 +97,21 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 		this.gson = new Gson();
 		this.logger = LoggerFactory.getLogger(getClass());
 
-		String normalizedFromNumber = getNormalizer().normalizePhoneNumberToE164(builder.twilioFromNumber, Locale.US).orElse(null);
+		String twilioFromNumber = trimToNull(builder.twilioFromNumber);
 
-		// In the future, we might want to support a messaging service ID instead of/in combination with "from number".
-		// For now, just require the "from number" exists and is valid.
-		if (normalizedFromNumber == null)
-			throw new IllegalArgumentException("Valid Twilio 'from number' is required.");
+		// If 'from' number specified, normalize it, which also ensures it's in a valid format
+		if (twilioFromNumber != null) {
+			twilioFromNumber = getNormalizer().normalizePhoneNumberToE164(builder.twilioFromNumber, Locale.US).orElse(null);
 
-		this.twilioFromNumber = normalizedFromNumber;
+			if (twilioFromNumber == null)
+				throw new IllegalArgumentException(format("Invalid Twilio 'from' number specified: %s", twilioFromNumber));
+		}
+
+		this.twilioFromNumber = twilioFromNumber;
+		this.twilioMessagingServiceSid = trimToNull(builder.twilioMessagingServiceSid);
+
+		if (getTwilioFromNumber().isEmpty() && getTwilioMessagingServiceSid().isEmpty())
+			throw new IllegalStateException("You must specify either a Twilio 'from' number or messaging service SID");
 	}
 
 	@Override
@@ -129,11 +139,19 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 				"Authorization", format("Basic %s", encodedBasicAuthCredentials)
 		);
 
+		String twilioFromNumber = getTwilioFromNumber().orElse(null);
+		String twilioMessagingServiceSid = getTwilioMessagingServiceSid().orElse(null);
 		String twilioStatusCallbackUrl = getTwilioStatusCallbackUrl().orElse(null);
 
 		Map<String, String> requestBodyComponents = new LinkedHashMap<>();
 		requestBodyComponents.put("To", normalizedToNumber);
-		requestBodyComponents.put("From", getTwilioFromNumber());
+
+		if (twilioFromNumber != null)
+			requestBodyComponents.put("From", twilioFromNumber);
+
+		if (twilioMessagingServiceSid != null)
+			requestBodyComponents.put("MessagingServiceSid", twilioMessagingServiceSid);
+
 		requestBodyComponents.put("Body", body);
 
 		if (twilioStatusCallbackUrl != null)
@@ -247,7 +265,10 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 		@Nonnull
 		private final String twilioAuthToken;
 		@Nullable
+		@Deprecated // Prefer twilioMessagingServiceSid
 		private String twilioFromNumber;
+		@Nullable
+		private String twilioMessagingServiceSid;
 		@Nullable
 		private String twilioStatusCallbackUrl;
 		@Nullable
@@ -269,6 +290,12 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 		@Nonnull
 		public Builder twilioFromNumber(@Nullable String twilioFromNumber) {
 			this.twilioFromNumber = twilioFromNumber;
+			return this;
+		}
+
+		@Nonnull
+		public Builder twilioMessagingServiceSid(@Nullable String twilioMessagingServiceSid) {
+			this.twilioMessagingServiceSid = twilioMessagingServiceSid;
 			return this;
 		}
 
@@ -325,8 +352,13 @@ public class TwilioSmsMessageSender implements MessageSender<SmsMessage> {
 	}
 
 	@Nonnull
-	protected String getTwilioFromNumber() {
-		return this.twilioFromNumber;
+	protected Optional<String> getTwilioFromNumber() {
+		return Optional.ofNullable(this.twilioFromNumber);
+	}
+
+	@Nonnull
+	protected Optional<String> getTwilioMessagingServiceSid() {
+		return Optional.ofNullable(this.twilioMessagingServiceSid);
 	}
 
 	@Nonnull

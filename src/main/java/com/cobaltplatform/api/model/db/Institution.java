@@ -311,7 +311,10 @@ public class Institution {
 	@Nullable
 	private String twilioAccountSid;
 	@Nullable
+	@Deprecated // Prefer twilioMessagingServiceSid instead of explicit numbers
 	private String twilioFromNumber;
+	@Nullable
+	private String twilioMessagingServiceSid;
 	@Nullable
 	private Boolean callMessagesEnabled;
 	@Nullable
@@ -1596,6 +1599,15 @@ public class Institution {
 
 	public void setTwilioFromNumber(@Nullable String twilioFromNumber) {
 		this.twilioFromNumber = twilioFromNumber;
+	}
+
+	@Nullable
+	public String getTwilioMessagingServiceSid() {
+		return this.twilioMessagingServiceSid;
+	}
+
+	public void setTwilioMessagingServiceSid(@Nullable String twilioMessagingServiceSid) {
+		this.twilioMessagingServiceSid = twilioMessagingServiceSid;
 	}
 
 	@Nullable
