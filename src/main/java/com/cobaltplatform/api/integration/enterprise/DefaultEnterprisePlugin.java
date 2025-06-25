@@ -412,7 +412,7 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 	protected MessageSender<SmsMessage> uncachedTwilioSmsMessageSender() {
 		Institution institution = getInstitutionService().findInstitutionById(getInstitutionId()).get();
 
-		if (!institution.getSmsMessagesEnabled() || institution.getTwilioAccountSid() == null || institution.getTwilioFromNumber() == null)
+		if (!institution.getSmsMessagesEnabled() || institution.getTwilioAccountSid() == null || (institution.getTwilioFromNumber() == null && institution.getTwilioMessagingServiceSid() == null))
 			return new ConsoleSmsMessageSender();
 
 		// Read client secret from AWS Secrets Manager
@@ -423,7 +423,8 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			throw new IllegalStateException(format("No SecretsManager value available for %s", twilioAuthTokenSecretName));
 
 		return new TwilioSmsMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
-				.twilioFromNumber(institution.getTwilioFromNumber())
+				.twilioFromNumber(institution.getTwilioFromNumber()) // Deprecated, prefer only messaging service SID
+				.twilioMessagingServiceSid(institution.getTwilioMessagingServiceSid())
 				.twilioStatusCallbackUrl(format("%s/twilio/%s/message-status-callback", getConfiguration().getBaseUrl(), getInstitutionId().name()))
 				.build();
 	}

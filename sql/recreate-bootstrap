@@ -227,6 +227,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/217-inst
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/218-courses-homepage.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/219-courses-complete-flag.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/220-course-unit-optional.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/221-twilio-messaging-service.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
