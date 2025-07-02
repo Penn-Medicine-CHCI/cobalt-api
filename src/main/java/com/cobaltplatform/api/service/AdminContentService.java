@@ -176,7 +176,7 @@ public class AdminContentService {
 		StringBuilder whereClause = new StringBuilder(" 1=1 ");
 		StringBuilder orderByClause = new StringBuilder("ORDER BY ");
 
-		if (search != null && pageNumber != 0)
+		if (search.isPresent() && pageNumber != 0)
 			pageNumber = 0;
 
 		Integer offset = pageNumber * DEFAULT_PAGE_SIZE;
