@@ -423,7 +423,6 @@ public abstract class DefaultEnterprisePlugin implements EnterprisePlugin {
 			throw new IllegalStateException(format("No SecretsManager value available for %s", twilioAuthTokenSecretName));
 
 		return new TwilioSmsMessageSender.Builder(institution.getTwilioAccountSid(), twilioAuthToken)
-				.twilioFromNumber(institution.getTwilioFromNumber()) // Deprecated, prefer only messaging service SID
 				.twilioMessagingServiceSid(institution.getTwilioMessagingServiceSid())
 				.twilioStatusCallbackUrl(format("%s/twilio/%s/message-status-callback", getConfiguration().getBaseUrl(), getInstitutionId().name()))
 				.build();
