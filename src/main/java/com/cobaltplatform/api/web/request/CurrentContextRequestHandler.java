@@ -27,6 +27,7 @@ import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
 import com.cobaltplatform.api.model.api.request.UpsertClientDeviceRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.ClientDeviceType.ClientDeviceTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -68,7 +69,6 @@ import java.util.stream.Collectors;
 import static com.cobaltplatform.api.util.WebUtility.extractValueFromRequest;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -214,9 +214,10 @@ public class CurrentContextRequestHandler {
 			// Try to load account data for access token
 			String accessTokenValue = extractValueFromRequest(httpServletRequest, getAccessTokenRequestPropertyName()).orElse(null);
 			AccessTokenStatus accessTokenStatus = null;
+			AccessTokenClaims accessTokenClaims = null;
 
 			if (accessTokenValue != null) {
-				AccessTokenClaims accessTokenClaims = getAuthenticator().validateAccessToken(accessTokenValue).orElse(null);
+				accessTokenClaims = getAuthenticator().validateAccessToken(accessTokenValue).orElse(null);
 
 				if (accessTokenClaims != null) {
 					UUID accountId = accessTokenClaims.getAccountId();
@@ -283,6 +284,25 @@ public class CurrentContextRequestHandler {
 					InstitutionId institutionId = InstitutionId.valueOf(institutionIdAsString);
 					institution = getInstitutionService().findInstitutionById(institutionId).get();
 				}
+			}
+
+			// Special case: if this is an ANONYMOUS_IMPLICIT account and its access token was issued
+			// before the institution's anon implicit threshold, treat the token as expired.
+			// The idea is to force any "old" anon implicit users to reauthenticate.
+			// This is useful to "reset" anon implicit users when anon implicit rules change.
+			if (account != null
+					&& institution != null
+					&& account.getAccountSourceId() == AccountSourceId.ANONYMOUS_IMPLICIT
+					&& institution.getAnonymousImplicitAccessTokensValidAfter() != null
+					&& accessTokenClaims != null
+					&& accessTokenClaims.getIssuedAt() != null
+					&& accessTokenClaims.getIssuedAt().isBefore(institution.getAnonymousImplicitAccessTokensValidAfter())) {
+				getLogger().info("Access token for {} account ID {} expired {}, which is before threshold {}. Forcing re-auth...",
+						AccountSourceId.ANONYMOUS_IMPLICIT.name(), account.getAccountId(), accessTokenClaims.getExpiration(),
+						institution.getAnonymousImplicitAccessTokensValidAfter());
+
+				// It's sufficient to mark the access token status as expired, downstream checks will handle the rest
+				accessTokenStatus = AccessTokenStatus.FULLY_EXPIRED;
 			}
 
 			if (account == null && institution == null) {

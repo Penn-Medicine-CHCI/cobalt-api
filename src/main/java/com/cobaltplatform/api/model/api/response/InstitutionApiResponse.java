@@ -189,6 +189,8 @@ public class InstitutionApiResponse {
 	private final Boolean preferLegacyTopicCenters;
 	@Nullable
 	private final UUID onboardingScreeningFlowId;
+	@Nullable
+	private final String anonymousImplicitUrlPathRegex;
 
 	// Branding configuration
 
@@ -387,6 +389,7 @@ public class InstitutionApiResponse {
 		this.preferLegacyTopicCenters = institution.getPreferLegacyTopicCenters();
 
 		this.onboardingScreeningFlowId = institution.getOnboardingScreeningFlowId();
+		this.anonymousImplicitUrlPathRegex = institution.getAnonymousImplicitUrlPathRegex();
 
 		this.headerLogoUrl = institution.getHeaderLogoUrl();
 		this.footerLogoUrl = institution.getFooterLogoUrl();
@@ -755,6 +758,11 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Optional<UUID> getOnboardingScreeningFlowId() {
 		return Optional.ofNullable(this.onboardingScreeningFlowId);
+	}
+
+	@Nonnull
+	public Optional<String> getAnonymousImplicitUrlPathRegex() {
+		return Optional.ofNullable(this.anonymousImplicitUrlPathRegex);
 	}
 
 	@Nullable

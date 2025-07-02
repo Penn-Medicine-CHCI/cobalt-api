@@ -30,6 +30,7 @@ import com.pyranid.DatabaseColumn;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -369,6 +370,11 @@ public class Institution {
 
 	@Nullable
 	private UUID onboardingScreeningFlowId;
+
+	@Nullable
+	private String anonymousImplicitUrlPathRegex;
+	@Nullable
+	private Instant anonymousImplicitAccessTokensValidAfter;
 
 	// Branding configuration
 
@@ -1824,6 +1830,24 @@ public class Institution {
 
 	public void setOnboardingScreeningFlowId(@Nullable UUID onboardingScreeningFlowId) {
 		this.onboardingScreeningFlowId = onboardingScreeningFlowId;
+	}
+
+	@Nullable
+	public String getAnonymousImplicitUrlPathRegex() {
+		return this.anonymousImplicitUrlPathRegex;
+	}
+
+	public void setAnonymousImplicitUrlPathRegex(@Nullable String anonymousImplicitUrlPathRegex) {
+		this.anonymousImplicitUrlPathRegex = anonymousImplicitUrlPathRegex;
+	}
+
+	@Nullable
+	public Instant getAnonymousImplicitAccessTokensValidAfter() {
+		return this.anonymousImplicitAccessTokensValidAfter;
+	}
+
+	public void setAnonymousImplicitAccessTokensValidAfter(@Nullable Instant anonymousImplicitAccessTokensValidAfter) {
+		this.anonymousImplicitAccessTokensValidAfter = anonymousImplicitAccessTokensValidAfter;
 	}
 
 	@Nullable
