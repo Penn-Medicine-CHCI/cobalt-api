@@ -7,7 +7,7 @@ CREATE INDEX ON patient_order (patient_mrn, institution_id, order_date);
 -- Fix recent_po_query so it's institution-specific.
 -- This ensures patients with the same MRN in multiple institutions don't trigger the "patient had a recently-closed order" flag cross-institution.
 -- Previous definition is in 207-ic-patient-order-view-next-contact-fix.sql
-CREATE OR REPLACE VIEW v_all_patient_order_20250710 AS WITH
+CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo_query AS (
     -- Count up the patient outreach attempts for each patient order
     select
