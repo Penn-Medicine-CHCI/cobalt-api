@@ -1,6 +1,14 @@
 BEGIN;
 SELECT _v.register_patch('224-patient-order-view-perf', NULL, NULL);
 
+CREATE INDEX CONCURRENTLY idx_posmg_live_cover
+    ON patient_order_scheduled_message_group
+       (patient_order_id,
+        patient_order_scheduled_message_group_id,
+        scheduled_at_date_time DESC)
+    INCLUDE (patient_order_scheduled_message_type_id)
+    WHERE deleted = false;
+
 -- Collapse some of our CTEs into a single CTE for performance.
 -- For example, 'poo_query' + 'poomax_query' are combined into a single 'poo' since they are doing essentially the same work twice.
 -- Previous definition is in 223-patient-order-view-recent-order.sql
