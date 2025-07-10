@@ -29,46 +29,19 @@ reason_for_referral_query AS (
     group by
         por.patient_order_id
 ),
-smg_query AS (
-    -- Count up the scheduled message groups with a successful delivery for each patient order
-    select
-        posmg.patient_order_id,
-        count(distinct posmg.patient_order_scheduled_message_group_id) AS scheduled_message_group_delivered_count
-    from
-        patient_order_scheduled_message_group posmg
-    join
-        patient_order_scheduled_message posm
-        ON posmg.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
-    join
-        scheduled_message sm
-        ON posm.scheduled_message_id = sm.scheduled_message_id
-    join
-        message_log ml
-        ON sm.message_id = ml.message_id
-    where
-        posmg.deleted = FALSE
-        AND ml.message_status_id = 'DELIVERED'
-    group by
-        posmg.patient_order_id
-),
-smgmax_query AS (
-    -- Pick the most-distant scheduled message group with a successful delivery for each patient order
-    select
-        posmg.patient_order_id,
-        MAX(posmg.scheduled_at_date_time) AS max_delivered_scheduled_message_group_date_time
-    from
-        patient_order_scheduled_message_group posmg
-    join
-        patient_order_scheduled_message posm ON posmg.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
-    join
-        scheduled_message sm ON posm.scheduled_message_id = sm.scheduled_message_id
-    join
-        message_log ml ON sm.message_id = ml.message_id
-    where
-        posmg.deleted = FALSE
-        AND ml.message_status_id = 'DELIVERED'
-    group by
-        posmg.patient_order_id
+smg AS (
+  SELECT posmg.patient_order_id,
+         COUNT(DISTINCT posmg.patient_order_scheduled_message_group_id)
+                AS scheduled_message_group_delivered_count,
+         MAX(posmg.scheduled_at_date_time)
+                AS max_delivered_scheduled_message_group_date_time
+  FROM   patient_order_scheduled_message_group posmg
+  JOIN   patient_order_scheduled_message  posm ON posmg.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
+  JOIN   scheduled_message                sm   ON posm.scheduled_message_id = sm.scheduled_message_id
+  JOIN   message_log                      ml   ON sm.message_id          = ml.message_id
+  WHERE  posmg.deleted = false
+    AND  ml.message_status_id = 'DELIVERED'
+  GROUP  BY posmg.patient_order_id
 ),
 next_resource_check_in_scheduled_message_group_query AS (
     -- Pick the next nondeleted scheduled message group in the future of type RESOURCE_CHECK_IN that has not yet been delivered
@@ -243,10 +216,10 @@ select
     potg.patient_order_triage_source_id,
     coalesce(poo.outreach_count, 0) AS outreach_count,
     poo.max_outreach_date_time AS most_recent_outreach_date_time,
-    coalesce(smgq.scheduled_message_group_delivered_count, 0) AS scheduled_message_group_delivered_count,
-    smgmaxq.max_delivered_scheduled_message_group_date_time AS most_recent_delivered_scheduled_message_group_date_time,
-    coalesce(poo.outreach_count, 0) + coalesce(smgq.scheduled_message_group_delivered_count, 0) as total_outreach_count,
-    GREATEST(poo.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
+    coalesce(smg.scheduled_message_group_delivered_count, 0) AS scheduled_message_group_delivered_count,
+    smg.max_delivered_scheduled_message_group_date_time AS most_recent_delivered_scheduled_message_group_date_time,
+    coalesce(poo.outreach_count, 0) + coalesce(smg.scheduled_message_group_delivered_count, 0) as total_outreach_count,
+    GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
     ssq.screening_session_id AS most_recent_screening_session_id,
     ssq.created AS most_recent_screening_session_created_at,
     ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
@@ -381,11 +354,11 @@ select
         AND (ssq.screening_session_id IS NULL AND rssq.scheduled_date_time IS NULL)
         -- 3. At least one outreach has been performed (either recorded by MHIC or successfully-delivered SMS/email message)
         -- Basically total_outreach_count > 0 above
-        AND (coalesce(poo.outreach_count, 0) + coalesce(smgq.scheduled_message_group_delivered_count, 0)) > 0
+        AND (coalesce(poo.outreach_count, 0) + coalesce(smg.scheduled_message_group_delivered_count, 0)) > 0
         -- 4. The most recent outreach plus the institution day offset is on or after "now" (normalized for institution timezone)
         -- Basically most_recent_total_outreach_date_time above + [institution offset] >= NOW()
         AND (
-            (GREATEST(poo.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()
+            (GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()
         ))
     ) AS outreach_followup_needed,
 
@@ -481,9 +454,9 @@ select
 						 )
 						 AND nsoq.next_scheduled_outreach_reason_id = 'OTHER'
 				THEN 'OTHER'
-        when poo.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null and ssiq.screening_session_id is null then 'WELCOME_MESSAGE'
+        when poo.max_outreach_date_time is null and smg.max_delivered_scheduled_message_group_date_time is null and ssiq.screening_session_id is null then 'WELCOME_MESSAGE'
         -- There has been some form of outreach but no screening session scheduled or started after X days
-        WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poo.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poo.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then 'ASSESSMENT_OUTREACH'
+        WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poo.max_outreach_date_time is not null or smg.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then 'ASSESSMENT_OUTREACH'
         -- Next resource check-in message
         when nrcismgq.next_resource_check_in_scheduled_message_group_id is not null then 'RESOURCE_CHECK_IN'
         -- TODO: RESOURCE_CHECK_IN_FOLLOWUP
@@ -500,9 +473,9 @@ select
 					 nsoq.next_scheduled_outreach_scheduled_at_date_time
 				)
 				THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
-        when poo.max_outreach_date_time is null and smgmaxq.max_delivered_scheduled_message_group_date_time is null and ssiq.screening_session_id is null then null
+        when poo.max_outreach_date_time is null and smg.max_delivered_scheduled_message_group_date_time is null and ssiq.screening_session_id is null then null
         -- There has been some form of outreach but no screening session scheduled or started after X days
-        WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poo.max_outreach_date_time is not null or smgmaxq.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poo.max_outreach_date_time, smgmaxq.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then NULL
+        WHEN ssq.screening_session_id is null and rssq.scheduled_date_time is null and (poo.max_outreach_date_time is not null or smg.max_delivered_scheduled_message_group_date_time is not null) and ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone <= NOW()) then NULL
         -- Next resource check-in message
         when nrcismgq.next_resource_check_in_scheduled_message_group_id is not null then nrcismgq.next_resource_check_in_scheduled_at_date_time
         -- TODO: RESOURCE_CHECK_IN_FOLLOWUP
@@ -519,8 +492,7 @@ from
     left join epic_department ed ON poq.epic_department_id = ed.epic_department_id
     left outer join address patient_address ON poq.patient_address_id = patient_address.address_id
     left outer join poo ON poq.patient_order_id = poo.patient_order_id
-    left outer join smg_query smgq ON poq.patient_order_id = smgq.patient_order_id
-    left outer join smgmax_query smgmaxq ON poq.patient_order_id = smgmaxq.patient_order_id
+    left outer join smg ON poq.patient_order_id = smg.patient_order_id
     left outer join ss_query ssq ON poq.patient_order_id = ssq.patient_order_id
     left outer join ss_intake_query ssiq ON poq.patient_order_id = ssiq.patient_order_id
     left outer join patient_order_triage_group potg ON poq.patient_order_id = potg.patient_order_id and potg.active=TRUE
