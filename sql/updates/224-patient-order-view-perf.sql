@@ -12,7 +12,7 @@ CREATE INDEX CONCURRENTLY idx_posmg_live_cover
 -- Collapse some of our CTEs into a single CTE for performance.
 -- For example, 'poo_query' + 'poomax_query' are combined into a single 'poo' since they are doing essentially the same work twice.
 -- Previous definition is in 223-patient-order-view-recent-order.sql
-CREATE OR REPLACE VIEW v_all_patient_order_20250710_perf AS WITH
+CREATE OR REPLACE VIEW v_all_patient_order AS WITH
 poo AS (
   SELECT
     patient_order_id,
