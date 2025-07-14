@@ -117,7 +117,9 @@ public class FootprintEventGroupType {
 		// Scheduled Messages
 		SCHEDULED_MESSAGE_SEND,
 		// Remote Data Sync
-		REMOTE_DATA_SYNC
+		REMOTE_DATA_SYNC,
+		// Cron
+		CRON_JOB
 	}
 
 	@Override
