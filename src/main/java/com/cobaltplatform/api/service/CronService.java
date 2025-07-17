@@ -23,9 +23,19 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.error.ErrorReporter;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.model.db.CronJob;
+import com.cobaltplatform.api.model.db.CronJobRunStatus.CronJobRunStatusId;
 import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.model.time.ExecutionTime;
+import com.cronutils.parser.CronParser;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -38,6 +48,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -78,7 +91,7 @@ public class CronService implements AutoCloseable {
 
 	static {
 		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
-		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 300L;
+		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 30L;
 	}
 
 	@Inject
@@ -159,9 +172,13 @@ public class CronService implements AutoCloseable {
 		@Nonnull
 		private final Provider<SystemService> systemServiceProvider;
 		@Nonnull
+		private final EnterprisePluginProvider enterprisePluginProvider;
+		@Nonnull
 		private final CurrentContextExecutor currentContextExecutor;
 		@Nonnull
 		private final ErrorReporter errorReporter;
+		@Nonnull
+		private final Formatter formatter;
 		@Nonnull
 		private final DatabaseProvider databaseProvider;
 		@Nonnull
@@ -171,19 +188,25 @@ public class CronService implements AutoCloseable {
 
 		@Inject
 		public BackgroundTask(@Nonnull Provider<SystemService> systemServiceProvider,
+													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 													@Nonnull CurrentContextExecutor currentContextExecutor,
 													@Nonnull ErrorReporter errorReporter,
+													@Nonnull Formatter formatter,
 													@Nonnull DatabaseProvider databaseProvider,
 													@Nonnull Configuration configuration) {
 			requireNonNull(systemServiceProvider);
+			requireNonNull(enterprisePluginProvider);
 			requireNonNull(currentContextExecutor);
 			requireNonNull(errorReporter);
+			requireNonNull(formatter);
 			requireNonNull(databaseProvider);
 			requireNonNull(configuration);
 
 			this.systemServiceProvider = systemServiceProvider;
+			this.enterprisePluginProvider = enterprisePluginProvider;
 			this.currentContextExecutor = currentContextExecutor;
 			this.errorReporter = errorReporter;
+			this.formatter = formatter;
 			this.databaseProvider = databaseProvider;
 			this.configuration = configuration;
 			this.logger = LoggerFactory.getLogger(getClass());
@@ -198,18 +221,151 @@ public class CronService implements AutoCloseable {
 				try {
 					getDatabase().transaction(() -> {
 						getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CRON_JOB);
-						// TODO: check to see if there are any pending cron jobs to run, and if so, run them
+
+						List<CronJob> dueCronJobs = getDatabase().queryForList("""
+								    SELECT *
+								    FROM cron_job
+								    WHERE next_run_at <= now()
+								    AND enabled=TRUE
+								    ORDER BY next_run_at
+								    FOR UPDATE SKIP LOCKED
+								    LIMIT 5
+								""", CronJob.class);
+
+						// Note: keep cron job "run" time very short so we don't hold this txn open for a long time!
+						// If there is a longer-running task like firing off a materialized view refresh, fire off a separate
+						// thread (in your EnterprisePlugin::runCronJob implementation)
+						for (CronJob cronJob : dueCronJobs) {
+							try {
+								run(cronJob);
+								markSuccess(cronJob);
+							} catch (Throwable t) {
+								markFailure(cronJob, t);
+							}
+						}
 					});
 				} catch (Exception e) {
-					getLogger().error("Unable to run cron background task", e);
+					getLogger().error("Unable to complete cron background task", e);
 					getErrorReporter().report(e);
 				}
 			});
 		}
 
+		protected void run(@Nonnull CronJob cronJob) {
+			getLogger().info("Running cron job ID {} ({} for {})...", cronJob.getCronJobId(), cronJob.getCallbackType(), cronJob.getInstitutionId());
+			requireNonNull(cronJob);
+
+			// Immediately attempt a write to the cron record before running the job.
+			// This will ensure there is no issue writing to the database (gives confidence we can mark the run as finished after executing it).
+			// For example, suppose we are unintentionally operating on a read-replica.  This would fail-fast and the cron job would never be run.
+			// If this write did not occur, the cron job could potentially be run and then fail to be marked as completed, causing repeated re-runs.
+			getDatabase().execute("""
+							UPDATE
+								cron_job
+							SET
+								next_run_at=NULL,
+								last_run_started_at=?,
+								last_run_finished_at=NULL,
+								last_run_status_id=?,
+								last_run_stack_trace=NULL
+							WHERE
+								cron_job_id=?
+							""",
+					Instant.now(), CronJobRunStatusId.UNDEFINED, cronJob.getCronJobId());
+
+			// Delegate execution to the enterprise plugin
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(cronJob.getInstitutionId());
+			enterprisePlugin.runCronJob(cronJob);
+		}
+
+		protected void markSuccess(@Nonnull CronJob cronJob) {
+			requireNonNull(cronJob);
+
+			Instant lastRunFinishedAt = Instant.now();
+			Instant nextRunAt = null;
+
+			// In the event of a malformed cron expression which prevents us from figuring out the next run,
+			// set to null and send an error report.
+			try {
+				nextRunAt = calculateNextRunAt(cronJob);
+			} catch (Exception e) {
+				getErrorReporter().report(e);
+			}
+
+			getDatabase().execute("""
+							UPDATE
+								cron_job
+							SET
+								next_run_at=?,
+								last_run_finished_at=?,
+								last_run_status_id=?,
+								last_run_stack_trace=NULL
+							WHERE
+								cron_job_id=?
+							""",
+					nextRunAt, lastRunFinishedAt, CronJobRunStatusId.SUCCEEDED, cronJob.getCronJobId());
+		}
+
+		protected void markFailure(@Nonnull CronJob cronJob,
+															 @Nonnull Throwable throwable) {
+			requireNonNull(cronJob);
+			requireNonNull(throwable);
+
+			getLogger().error(format("Unable to complete cron job '%s' for institution ID %s", cronJob.getCallbackType(), cronJob.getInstitutionId()), throwable);
+			getErrorReporter().report(throwable);
+
+			Instant lastRunFinishedAt = Instant.now();
+			Instant nextRunAt = null;
+
+			// In the event of a malformed cron expression which prevents us from figuring out the next run,
+			// set to null and send an error report.
+			try {
+				nextRunAt = calculateNextRunAt(cronJob);
+			} catch (Exception e) {
+				getErrorReporter().report(e);
+			}
+
+			getDatabase().execute("""
+							UPDATE
+								cron_job
+							SET
+								next_run_at=?,
+								last_run_finished_at=?,
+								last_run_status_id=?,
+								last_run_stack_trace=?
+							WHERE
+								cron_job_id=?
+							""",
+					nextRunAt, lastRunFinishedAt, CronJobRunStatusId.FAILED, getFormatter().formatStackTrace(throwable), cronJob.getCronJobId());
+		}
+
+		@Nonnull
+		protected Instant calculateNextRunAt(@Nonnull CronJob cronJob) {
+			requireNonNull(cronJob);
+
+			CronParser cronParser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX));
+			ExecutionTime executionTime;
+
+			try {
+				Cron cron = cronParser.parse(cronJob.getCronExpression());
+				executionTime = ExecutionTime.forCron(cron);
+			} catch (Exception e) {
+				throw new RuntimeException(format("Unable to process cron expression '%s' for cron job ID %s", cronJob.getCronExpression(), cronJob.getCronJobId()), e);
+			}
+
+			return executionTime.nextExecution(ZonedDateTime.ofInstant(Instant.now(), cronJob.getTimeZone()))
+					.map(ZonedDateTime::toInstant)
+					.orElseThrow(() -> new IllegalStateException("Unreachable – invalid cron"));
+		}
+
 		@Nonnull
 		protected SystemService getSystemService() {
 			return this.systemServiceProvider.get();
+		}
+
+		@Nonnull
+		protected EnterprisePluginProvider getEnterprisePluginProvider() {
+			return this.enterprisePluginProvider;
 		}
 
 		@Nonnull
@@ -220,6 +376,11 @@ public class CronService implements AutoCloseable {
 		@Nonnull
 		protected ErrorReporter getErrorReporter() {
 			return this.errorReporter;
+		}
+
+		@Nonnull
+		protected Formatter getFormatter() {
+			return this.formatter;
 		}
 
 		@Nonnull

@@ -22,15 +22,20 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.CronJob;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
+import com.cobaltplatform.api.util.GsonUtility;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -38,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -48,6 +54,8 @@ import static java.util.Objects.requireNonNull;
 public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Nonnull
 	private final ContentService contentService;
+	@Nonnull
+	private final Gson gson;
 
 	@Inject
 	public CobaltEnterprisePlugin(@Nonnull InstitutionService institutionService,
@@ -56,6 +64,14 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 																@Nonnull Configuration configuration) {
 		super(institutionService, awsSecretManagerClient, configuration);
 		this.contentService = contentService;
+
+		GsonBuilder gsonBuilder = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping();
+
+		GsonUtility.applyDefaultTypeAdapters(gsonBuilder);
+
+		this.gson = gsonBuilder.create();
 	}
 
 	@Nonnull
@@ -103,5 +119,61 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 			return List.of();
 
 		return institutionFeatureInstitutionReferrers;
+	}
+
+	@Override
+	public void runCronJob(@Nonnull CronJob cronJob) {
+		requireNonNull(cronJob);
+
+		if ("MOCK_SEND_REPORT_EMAIL".equals(cronJob.getCallbackType())) {
+			MockSendReportEmailCronPayload payload = getGson().fromJson(cronJob.getCallbackPayload(), MockSendReportEmailCronPayload.class);
+			getLogger().info("Cron job run for {} in {}: pretending to send a report email to these addresses: {}",
+					cronJob.getCallbackType(), getInstitutionId(), payload.getEmailAddresses());
+		} else if ("MOCK_MATERIALIZED_VIEW_REFRESH".equals(cronJob.getCallbackType())) {
+			MockMaterializedViewRefreshCronPayload payload = getGson().fromJson(cronJob.getCallbackPayload(), MockMaterializedViewRefreshCronPayload.class);
+			getLogger().info("Cron job run for {} in {}: pretending to refresh materialized view '{}'",
+					cronJob.getCallbackType(), getInstitutionId(), payload.getMaterializedViewName());
+
+			// Exercise error workflow if special data is configured
+			if (payload.getMaterializedViewName().equals("v_example_error"))
+				throw new RuntimeException("Example of throwing an exception during cron execution");
+		} else {
+			throw new IllegalArgumentException(format("Unexpected cron job callback type '%s'", cronJob.getCallbackType()));
+		}
+	}
+
+	@NotThreadSafe
+	protected static class MockMaterializedViewRefreshCronPayload {
+		@Nullable
+		private String materializedViewName;
+
+		@Nullable
+		public String getMaterializedViewName() {
+			return this.materializedViewName;
+		}
+
+		public void setMaterializedViewName(@Nullable String materializedViewName) {
+			this.materializedViewName = materializedViewName;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class MockSendReportEmailCronPayload {
+		@Nullable
+		private List<String> emailAddresses;
+
+		@Nullable
+		public List<String> getEmailAddresses() {
+			return this.emailAddresses;
+		}
+
+		public void setEmailAddresses(@Nullable List<String> emailAddresses) {
+			this.emailAddresses = emailAddresses;
+		}
+	}
+
+	@Nonnull
+	protected Gson getGson() {
+		return this.gson;
 	}
 }
