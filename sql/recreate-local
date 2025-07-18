@@ -231,6 +231,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/221-twilio-mes
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/222-anonymous-implicit-controls.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/223-patient-order-view-recent-order.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/224-patient-order-view-perf.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/225-cron.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

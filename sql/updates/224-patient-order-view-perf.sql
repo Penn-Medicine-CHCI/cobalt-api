@@ -1,7 +1,7 @@
 BEGIN;
 SELECT _v.register_patch('224-patient-order-view-perf', NULL, NULL);
 
-CREATE INDEX CONCURRENTLY idx_posmg_live_cover
+CREATE INDEX idx_posmg_live_cover
     ON patient_order_scheduled_message_group
        (patient_order_id,
         patient_order_scheduled_message_group_id,

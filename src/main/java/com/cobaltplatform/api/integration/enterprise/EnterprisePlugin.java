@@ -52,6 +52,7 @@ import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ClientDevicePushTokenType.ClientDevicePushTokenTypeId;
 import com.cobaltplatform.api.model.db.Content;
+import com.cobaltplatform.api.model.db.CronJob;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.PatientOrder;
@@ -73,6 +74,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -305,5 +307,18 @@ public interface EnterprisePlugin {
 
 		// Don't send the welcome message otherwise
 		return false;
+	}
+
+	// It's up to implementations to decide if they want to handle cron jobs.
+	// The provided cron job will always match this plugin's institution.
+	// The cron job run is assumed to complete successfully if this method returns without throwing an exception.
+	default void runCronJob(@Nonnull CronJob cronJob) {
+		requireNonNull(cronJob);
+
+		// Cron jobs are generally institution-specific, e.g. "send this report email to these people every weekday".
+		// Implementors should examine cronJob.getCallbackType() (and cronJob.getCallbackPayload() if appropriate) to determine what work to do
+
+		throw new UnsupportedOperationException(format("Attempted to run cron job ID %s, but cron jobs are not supported for institution ID %s",
+				cronJob.getCronJobId(), getInstitutionId()));
 	}
 }

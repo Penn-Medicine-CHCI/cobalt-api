@@ -26,6 +26,7 @@ import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.service.AnalyticsService;
 import com.cobaltplatform.api.service.AvailabilityService;
 import com.cobaltplatform.api.service.ContentService;
+import com.cobaltplatform.api.service.CronService;
 import com.cobaltplatform.api.service.DataSyncService;
 import com.cobaltplatform.api.service.GroupSessionService;
 import com.cobaltplatform.api.service.MessageService;
@@ -246,9 +247,23 @@ public class App implements AutoCloseable {
 				getLogger().warn("Failed to start Data Sync Service background task", e);
 			}
 		}
+
+		try {
+			CronService cronService = getInjector().getInstance(CronService.class);
+			cronService.startBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to start Cron Service task", e);
+		}
 	}
 
 	public void performShutdownTasks() {
+		try {
+			CronService cronService = getInjector().getInstance(CronService.class);
+			cronService.stopBackgroundTask();
+		} catch (Exception e) {
+			getLogger().warn("Failed to stop Cron Service background task", e);
+		}
+
 		try {
 			PatientOrderSyncService patientOrderSyncService = getInjector().getInstance(PatientOrderSyncService.class);
 			patientOrderSyncService.stopBackgroundTask();
