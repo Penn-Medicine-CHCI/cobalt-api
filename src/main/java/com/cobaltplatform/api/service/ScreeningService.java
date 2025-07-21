@@ -2159,8 +2159,10 @@ getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestratio
 							boolean selfAdministered = account.getRoleId() == RoleId.PATIENT;
 							// Prevent self-referral IC institutions from scheduling appointment booking reminder messages
 							boolean providerReferred = patientOrder.getPatientOrderReferralSourceId() == PatientOrderReferralSourceId.PROVIDER;
+							// For now - disable appointment reminders.  We might re-enable in the future
+							boolean shouldAutomaticallyScheduleAppointmentReminder = false;
 
-							if (selfAdministered && providerReferred) {
+							if (selfAdministered && providerReferred && shouldAutomaticallyScheduleAppointmentReminder) {
 								LocalDateTime currentDateTime = LocalDateTime.now(institution.getTimeZone());
 								LocalDate reminderScheduledAtDate = currentDateTime.toLocalDate().plusDays(1);
 								LocalTime reminderScheduledAtTime = currentDateTime.toLocalTime();
