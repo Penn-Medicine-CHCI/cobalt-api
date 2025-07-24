@@ -19,16 +19,29 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
+import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.ScreeningFlowSkipType.ScreeningFlowSkipTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
+import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
+import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,6 +66,8 @@ public class ScreeningFlowVersionApiResponse {
 	private final Integer versionNumber;
 	@Nonnull
 	private final String versionNumberDescription;
+	@Nonnull
+	private final List<AccountSourceApiResponse> requiredAccountSources;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -62,9 +77,19 @@ public class ScreeningFlowVersionApiResponse {
 	}
 
 	@AssistedInject
-	public ScreeningFlowVersionApiResponse(@Nonnull Formatter formatter,
+	public ScreeningFlowVersionApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
+																				 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
+																				 @Nonnull InstitutionService institutionService,
+																				 @Nonnull ScreeningService screeningService,
+																				 @Nonnull Configuration configuration,
+																				 @Nonnull Formatter formatter,
 																				 @Nonnull Strings strings,
 																				 @Assisted @Nonnull ScreeningFlowVersion screeningFlowVersion) {
+		requireNonNull(currentContextProvider);
+		requireNonNull(accountSourceApiResponseFactory);
+		requireNonNull(institutionService);
+		requireNonNull(screeningService);
+		requireNonNull(configuration);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(screeningFlowVersion);
@@ -77,6 +102,20 @@ public class ScreeningFlowVersionApiResponse {
 		this.skippable = screeningFlowVersion.getSkippable();
 		this.versionNumber = screeningFlowVersion.getVersionNumber();
 		this.versionNumberDescription = formatter.formatNumber(screeningFlowVersion.getVersionNumber());
+
+		List<AccountSource> requiredAccountSources = screeningService.findRequiredAccountSourcesByScreeningFlowVersionId(screeningFlowVersion.getScreeningFlowVersionId());
+		Map<AccountSourceId, AccountSourceForInstitution> accountSourcesForInstitutionByAccountSourceId = new HashMap<>(requiredAccountSources.size());
+
+		if (requiredAccountSources.size() > 0) {
+			List<AccountSourceForInstitution> accountSources = institutionService.findAccountSourcesByInstitutionId(currentContextProvider.get().getInstitutionId());
+
+			for (AccountSourceForInstitution accountSource : accountSources)
+				accountSourcesForInstitutionByAccountSourceId.put(accountSource.getAccountSourceId(), accountSource);
+		}
+
+		this.requiredAccountSources = requiredAccountSources.stream()
+				.map(accountSource -> accountSourceApiResponseFactory.create(accountSourcesForInstitutionByAccountSourceId.get(accountSource.getAccountSourceId()), configuration.getEnvironment()))
+				.collect(Collectors.toList());
 	}
 
 	@Nonnull
@@ -117,5 +156,10 @@ public class ScreeningFlowVersionApiResponse {
 	@Nonnull
 	public String getVersionNumberDescription() {
 		return this.versionNumberDescription;
+	}
+
+	@Nonnull
+	public List<AccountSourceApiResponse> getRequiredAccountSources() {
+		return this.requiredAccountSources;
 	}
 }

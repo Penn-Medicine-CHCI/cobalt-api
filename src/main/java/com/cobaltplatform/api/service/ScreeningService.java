@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
@@ -319,6 +320,20 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_flow_version WHERE screening_flow_version_id=?",
 				ScreeningFlowVersion.class, screeningFlowVersionId);
+	}
+
+	@Nonnull
+	public List<AccountSource> findRequiredAccountSourcesByScreeningFlowVersionId(@Nullable UUID screeningFlowVersionId) {
+		if (screeningFlowVersionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT asrc.*
+				FROM account_source asrc, screening_flow_version_account_source sfvas
+				WHERE asrc.account_source_id=sfvas.account_source_id
+				AND sfvas.screening_flow_version_id=?
+				ORDER BY sfvas.display_order
+				""", AccountSource.class, screeningFlowVersionId);
 	}
 
 	@Nonnull
