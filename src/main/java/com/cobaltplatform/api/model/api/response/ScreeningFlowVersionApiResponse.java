@@ -22,13 +22,16 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AccountSourceApiResponse.AccountSourceApiResponseFactory;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.ScreeningFlowSkipType.ScreeningFlowSkipTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
+import com.cobaltplatform.api.model.service.SsoAuthenticationAction;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.util.Authenticator;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
@@ -81,6 +84,7 @@ public class ScreeningFlowVersionApiResponse {
 																				 @Nonnull AccountSourceApiResponseFactory accountSourceApiResponseFactory,
 																				 @Nonnull InstitutionService institutionService,
 																				 @Nonnull ScreeningService screeningService,
+																				 @Nonnull Authenticator authenticator,
 																				 @Nonnull Configuration configuration,
 																				 @Nonnull Formatter formatter,
 																				 @Nonnull Strings strings,
@@ -89,10 +93,14 @@ public class ScreeningFlowVersionApiResponse {
 		requireNonNull(accountSourceApiResponseFactory);
 		requireNonNull(institutionService);
 		requireNonNull(screeningService);
+		requireNonNull(authenticator);
 		requireNonNull(configuration);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(screeningFlowVersion);
+
+		CurrentContext currentContext = currentContextProvider.get();
+		Account account = currentContext.getAccount().orElse(null); // Should not be null in practice unless we expose screenings to signed-out users
 
 		this.screeningFlowVersionId = screeningFlowVersion.getScreeningFlowVersionId();
 		this.screeningFlowId = screeningFlowVersion.getScreeningFlowId();
@@ -105,16 +113,34 @@ public class ScreeningFlowVersionApiResponse {
 
 		List<AccountSource> requiredAccountSources = screeningService.findRequiredAccountSourcesByScreeningFlowVersionId(screeningFlowVersion.getScreeningFlowVersionId());
 		Map<AccountSourceId, AccountSourceForInstitution> accountSourcesForInstitutionByAccountSourceId = new HashMap<>(requiredAccountSources.size());
+		Map<String, String> additionalSsoUrlQueryParameters = new HashMap<>();
 
+		// If there are required account sources for this screening flow, include a signing token in any SSO account source URLs which indicates
+		// "upgrade this account if possible (e.g. anon -> SSO) and create a new screening session and redirect to it post-auth".
+		// The signing token ensures that it's not possible to spoof another user's account
 		if (requiredAccountSources.size() > 0) {
 			List<AccountSourceForInstitution> accountSources = institutionService.findAccountSourcesByInstitutionId(currentContextProvider.get().getInstitutionId());
 
 			for (AccountSourceForInstitution accountSource : accountSources)
 				accountSourcesForInstitutionByAccountSourceId.put(accountSource.getAccountSourceId(), accountSource);
+
+			if (account != null) {
+				final long EXPIRATION_IN_SECONDS = 60 * 30;
+				String signingToken = authenticator.generateSigningToken(
+						account.getAccountId().toString(),
+						EXPIRATION_IN_SECONDS,
+						Map.of(
+								"screeningFlowVersionId", screeningFlowVersion.getScreeningFlowVersionId(),
+								"ssoAuthenticationActions", List.of(SsoAuthenticationAction.UPGRADE_ACCOUNT, SsoAuthenticationAction.CREATE_SCREENING_SESSION)
+						)
+				);
+
+				additionalSsoUrlQueryParameters.put("signingToken", signingToken);
+			}
 		}
 
 		this.requiredAccountSources = requiredAccountSources.stream()
-				.map(accountSource -> accountSourceApiResponseFactory.create(accountSourcesForInstitutionByAccountSourceId.get(accountSource.getAccountSourceId()), configuration.getEnvironment()))
+				.map(accountSource -> accountSourceApiResponseFactory.create(accountSourcesForInstitutionByAccountSourceId.get(accountSource.getAccountSourceId()), configuration.getEnvironment(), additionalSsoUrlQueryParameters))
 				.collect(Collectors.toList());
 	}
 

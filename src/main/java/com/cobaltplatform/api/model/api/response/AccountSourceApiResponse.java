@@ -23,6 +23,7 @@ import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AccountSourceDisplayStyle.AccountSourceDisplayStyleId;
 import com.cobaltplatform.api.model.service.AccountSourceForInstitution;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.WebUtility;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
@@ -30,6 +31,7 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -64,6 +66,11 @@ public class AccountSourceApiResponse {
 		@Nonnull
 		AccountSourceApiResponse create(@Nonnull AccountSourceForInstitution accountSource,
 																		@Nonnull String environment);
+
+		@Nonnull
+		AccountSourceApiResponse create(@Nonnull AccountSourceForInstitution accountSource,
+																		@Nonnull String environment,
+																		@Nonnull Map<String, String> additionalSsoUrlQueryParameters);
 	}
 
 	@AssistedInject
@@ -71,9 +78,19 @@ public class AccountSourceApiResponse {
 																	@Nonnull Strings strings,
 																	@Assisted @Nonnull AccountSourceForInstitution accountSource,
 																	@Assisted @Nonnull String environment) {
+		this(formatter, strings, accountSource, environment, Map.of());
+	}
+
+	@AssistedInject
+	public AccountSourceApiResponse(@Nonnull Formatter formatter,
+																	@Nonnull Strings strings,
+																	@Assisted @Nonnull AccountSourceForInstitution accountSource,
+																	@Assisted @Nonnull String environment,
+																	@Assisted @Nonnull Map<String, String> additionalSsoUrlQueryParameters) {
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(accountSource);
+		requireNonNull(additionalSsoUrlQueryParameters);
 
 		this.accountSourceId = accountSource.getAccountSourceId();
 		this.description = accountSource.getDescription();
@@ -92,6 +109,10 @@ public class AccountSourceApiResponse {
 			ssoUrl = accountSource.getDevSsoUrl();
 		else if (environment.equals("local"))
 			ssoUrl = accountSource.getLocalSsoUrl();
+
+		// Tack on any additional query parameters, if provided
+		if (ssoUrl != null && !additionalSsoUrlQueryParameters.isEmpty())
+			ssoUrl = WebUtility.appendQueryParameters(ssoUrl, additionalSsoUrlQueryParameters);
 
 		this.ssoUrl = ssoUrl;
 	}

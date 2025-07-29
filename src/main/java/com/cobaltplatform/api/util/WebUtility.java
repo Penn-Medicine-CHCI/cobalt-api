@@ -33,7 +33,10 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -324,5 +327,60 @@ public final class WebUtility {
 				.replaceAll("\\p{Zs}+", "-")
 				// Anything that's not alphanumeric or a hyphen is discarded
 				.replaceAll("[^-\\pL\\pN]", ""));
+	}
+
+	/**
+	 * Returns a new URL string formed by adding the given query parameters to the inputUrl.
+	 * Existing parameters (if any) are preserved, and new ones are URL‑encoded and appended.
+	 *
+	 * @param inputUrl        the absolute URL to which parameters should be added
+	 * @param queryParameters the map of query‑parameter names and values
+	 * @return a new URL string with the parameters added
+	 * @throws IllegalArgumentException if inputUrl is not a valid URI or encoding fails
+	 */
+	@Nonnull
+	public static String appendQueryParameters(@Nonnull String inputUrl,
+																						 @Nullable Map<String, String> queryParameters) {
+		requireNonNull(inputUrl);
+
+		if (queryParameters == null || queryParameters.isEmpty())
+			return inputUrl;
+
+		try {
+			URI uri = new URI(inputUrl);
+			String existingQuery = uri.getQuery();
+
+			// Build up the new query string
+			StringBuilder newQuery = new StringBuilder();
+
+			if (existingQuery != null && !existingQuery.isEmpty())
+				newQuery.append(existingQuery).append('&');
+
+			Iterator<Entry<String, String>> iter = queryParameters.entrySet().iterator();
+
+			while (iter.hasNext()) {
+				Map.Entry<String, String> entry = iter.next();
+				newQuery
+						.append(URLEncoder.encode(entry.getKey(), "UTF-8"))
+						.append('=')
+						.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+				if (iter.hasNext()) {
+					newQuery.append('&');
+				}
+			}
+
+			// Reconstruct the URI with the updated query (preserving fragment, if any)
+			URI updated = new URI(
+					uri.getScheme(),
+					uri.getAuthority(),
+					uri.getPath(),
+					newQuery.toString(),
+					uri.getFragment()
+			);
+
+			return updated.toString();
+		} catch (URISyntaxException | UnsupportedEncodingException e) {
+			throw new IllegalArgumentException(format("Failed to append query parameters to URL: %s", inputUrl), e);
+		}
 	}
 }
