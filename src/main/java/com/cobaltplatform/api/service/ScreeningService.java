@@ -1476,7 +1476,7 @@ public class ScreeningService {
 
 												if (text == null)
 													validationException.add(new FieldError("text", getStrings().get("A valid phone number is required.")));
-												else if (Objects.equals(Boolean.TRUE, screeningQuestion.getMetadata().get("shouldUpdateAccountPhoneNumber")))
+												else if (screeningQuestion.getMetadata() != null && Objects.equals(Boolean.TRUE, screeningQuestion.getMetadata().get("shouldUpdateAccountPhoneNumber")))
 													accountPhoneNumberToUpdate = text;
 											}
 											case EMAIL_ADDRESS -> {
