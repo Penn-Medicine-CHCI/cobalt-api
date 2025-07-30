@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.service.InstitutionService;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -72,6 +73,19 @@ public class LinkGenerator {
 		this.currentContextProvider = currentContextProvider;
 	}
 
+	// Default link would be the root URL for the institution, e.g. "https://www.exampleinstitution.com"
+	@Nonnull
+	public String generateDefaultLink(@Nonnull InstitutionId institutionId,
+																		@Nonnull UserExperienceTypeId userExperienceTypeId,
+																		@Nonnull ClientDeviceTypeId clientDeviceTypeId) {
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+		requireNonNull(clientDeviceTypeId);
+
+		String baseUrl = determineBaseUrl(institutionId, userExperienceTypeId, clientDeviceTypeId);
+		return constructUrl(baseUrl, "");
+	}
+
 	@Nonnull
 	public String generateAuthenticationLink(@Nonnull InstitutionId institutionId,
 																					 @Nonnull UserExperienceTypeId userExperienceTypeId,
@@ -104,12 +118,30 @@ public class LinkGenerator {
 		requireNonNull(clientDeviceTypeId);
 		requireNonNull(accessToken);
 
+		return generateAuthenticationLink(institutionId, userExperienceTypeId, clientDeviceTypeId, accessToken, null);
+	}
+
+	@Nonnull
+	public String generateAuthenticationLink(@Nonnull InstitutionId institutionId,
+																					 @Nonnull UserExperienceTypeId userExperienceTypeId,
+																					 @Nonnull ClientDeviceTypeId clientDeviceTypeId,
+																					 @Nonnull String accessToken,
+																					 @Nullable String forceDestinationUrl) {
+		requireNonNull(institutionId);
+		requireNonNull(userExperienceTypeId);
+		requireNonNull(clientDeviceTypeId);
+		requireNonNull(accessToken);
+
 		String baseUrl = determineBaseUrl(institutionId, userExperienceTypeId, clientDeviceTypeId);
 		String urlPath = "auth";
 
-		return constructUrl(baseUrl, urlPath, new HashMap<String, Object>() {{
-			put("accessToken", accessToken);
-		}});
+		Map<String, Object> queryParameters = new HashMap<>();
+		queryParameters.put("accessToken", accessToken);
+
+		if (forceDestinationUrl != null)
+			queryParameters.put("forceDestination", forceDestinationUrl);
+
+		return constructUrl(baseUrl, urlPath, queryParameters);
 	}
 
 	@Nonnull

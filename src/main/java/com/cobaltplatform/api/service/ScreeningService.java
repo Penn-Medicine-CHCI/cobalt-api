@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountCheckIn;
 import com.cobaltplatform.api.model.db.AccountCheckInAction;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.AccountSource;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.AssessmentType.AssessmentTypeId;
 import com.cobaltplatform.api.model.db.CheckInActionStatus.CheckInActionStatusId;
@@ -319,6 +320,20 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_flow_version WHERE screening_flow_version_id=?",
 				ScreeningFlowVersion.class, screeningFlowVersionId);
+	}
+
+	@Nonnull
+	public List<AccountSource> findRequiredAccountSourcesByScreeningFlowVersionId(@Nullable UUID screeningFlowVersionId) {
+		if (screeningFlowVersionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT asrc.*
+				FROM account_source asrc, screening_flow_version_account_source sfvas
+				WHERE asrc.account_source_id=sfvas.account_source_id
+				AND sfvas.screening_flow_version_id=?
+				ORDER BY sfvas.display_order
+				""", AccountSource.class, screeningFlowVersionId);
 	}
 
 	@Nonnull
@@ -1386,6 +1401,7 @@ public class ScreeningService {
 		List<ScreeningAnswerOption> screeningAnswerOptions = new ArrayList<>();
 		Account createdByAccount = null;
 		boolean force = request.getForce() == null ? false : request.getForce();
+		String accountPhoneNumberToUpdate = null;
 		ValidationException validationException = new ValidationException();
 
 		if (screeningQuestionContextId == null) {
@@ -1460,6 +1476,8 @@ public class ScreeningService {
 
 												if (text == null)
 													validationException.add(new FieldError("text", getStrings().get("A valid phone number is required.")));
+												else if (screeningQuestion.getMetadata() != null && Objects.equals(Boolean.TRUE, screeningQuestion.getMetadata().get("shouldUpdateAccountPhoneNumber")))
+													accountPhoneNumberToUpdate = text;
 											}
 											case EMAIL_ADDRESS -> {
 												text = getNormalizer().normalizeEmailAddress(text).orElse(null);
@@ -1509,6 +1527,11 @@ public class ScreeningService {
 			throw validationException;
 
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+
+		if (accountPhoneNumberToUpdate != null) {
+			getLogger().info("Setting phone number for account ID {} to {}...", screeningSession.getTargetAccountId(), accountPhoneNumberToUpdate);
+			getDatabase().execute("UPDATE account SET phone_number=? WHERE account_id=?", accountPhoneNumberToUpdate, screeningSession.getTargetAccountId());
+		}
 
 		if (screeningSession.getCompleted())
 			throw new ValidationException(getStrings().get("This assessment is complete and cannot have its answers changed."));
