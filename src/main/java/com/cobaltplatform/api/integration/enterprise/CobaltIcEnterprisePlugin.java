@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.Flowsheet;
 import com.cobaltplatform.api.model.db.FlowsheetType.FlowsheetTypeId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
@@ -363,6 +364,14 @@ public class CobaltIcEnterprisePlugin extends DefaultEnterprisePlugin {
 			request.setBillingProviderLastName(billingProviderName.getLastName().orElse(null));
 			request.setBillingProviderMiddleName(billingProviderName.getMiddleName().orElse(null));
 		}
+	}
+
+	@Nonnull
+	@Override
+	public List<UUID> determineApplicableStudyIdsForPatientOrder(@Nonnull PatientOrder patientOrder) {
+		// This is for the 'cobalt-ic-test-study' - assign it to every order
+		// return List.of(UUID.fromString("f86f2e31-1438-4e48-b175-fe94e3d19a0d"));
+		return List.of();
 	}
 
 	@Nonnull

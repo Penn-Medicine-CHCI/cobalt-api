@@ -299,6 +299,20 @@ public class StudyService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<Study> findStudiesByPatientOrderId(@Nullable UUID patientOrderId) {
+		if (patientOrderId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT s.*
+				FROM study s, patient_order_study pos
+				WHERE s.study_id=pos.study_id
+				AND pos.patient_order_id=?
+				ORDER BY pos.display_order
+				""", Study.class, patientOrderId);
+	}
+
+	@Nonnull
 	public List<StudyAccount> generateAccountsForStudies(@Nonnull CreateStudyAccountRequest request,
 																											 @Nonnull Account account) {
 		requireNonNull(request);

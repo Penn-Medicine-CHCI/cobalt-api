@@ -321,4 +321,11 @@ public interface EnterprisePlugin {
 		throw new UnsupportedOperationException(format("Attempted to run cron job ID %s, but cron jobs are not supported for institution ID %s",
 				cronJob.getCronJobId(), getInstitutionId()));
 	}
+
+	// Indicate that an order should be part of one or more studies based on instituiton-specific logic.
+	// Results will be written out to the patient_order_study table.
+	@Nonnull
+	default List<UUID> determineApplicableStudyIdsForPatientOrder(@Nonnull PatientOrder patientOrder) {
+		return List.of();
+	}
 }

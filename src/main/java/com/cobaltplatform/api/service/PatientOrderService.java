@@ -5446,11 +5446,14 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		// For any orders in the import batch that have no flags, send a welcome message automatically.
+		// Also, register orders as participating in studies if applicable
 		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
+
 		for (PatientOrder importedPatientOrder : importedPatientOrders) {
-			boolean shouldSendAutomatedWelcomeMessage = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution().shouldSendAutomatedWelcomeMessageForPatientOrder(importedPatientOrder);
+			boolean shouldSendAutomatedWelcomeMessage = enterprisePlugin.shouldSendAutomatedWelcomeMessageForPatientOrder(importedPatientOrder);
 
 			if (shouldSendAutomatedWelcomeMessage) {
 				getLogger().info("Patient Order ID {} meets criteria for automatically-sent welcome message.", importedPatientOrder.getPatientOrderId());
@@ -5483,6 +5486,19 @@ public class PatientOrderService implements AutoCloseable {
 				// ...the order needs review by a human.  Don't send the welcome message.
 				getLogger().info("Patient Order ID {} will not automatically be sent a welcome message.", importedPatientOrder.getPatientOrderId());
 			}
+
+			// Next, see if this order is part of any studies, and if so, store that off
+			List<UUID> studyIds = enterprisePlugin.determineApplicableStudyIdsForPatientOrder(importedPatientOrder);
+			int i = 0;
+
+			for (UUID studyId : studyIds)
+				getDatabase().execute("""
+						INSERT INTO patient_order_study (
+						  patient_order_id,
+						  study_id,
+						  display_order
+						) VALUES (?,?,?)
+						""", importedPatientOrder.getPatientOrderId(), studyId, ++i);
 		}
 
 		return new PatientOrderImportResult(patientOrderImportId, patientOrderIds);

@@ -90,6 +90,7 @@ import com.cobaltplatform.api.model.db.ScreeningSessionScreening;
 import com.cobaltplatform.api.model.db.ScreeningType;
 import com.cobaltplatform.api.model.db.ScreeningType.ScreeningTypeId;
 import com.cobaltplatform.api.model.db.ScreeningVersion;
+import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
@@ -178,11 +179,11 @@ public class ScreeningService {
 	@Nonnull
 	private final Provider<MessageService> messageServiceProvider;
 	@Nonnull
+	private final Provider<StudyService> studyServiceProvider;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory;
-	@Nonnull
-	private final StudyService studyService;
 	@Nonnull
 	private final JavascriptExecutor javascriptExecutor;
 	@Nonnull
@@ -209,8 +210,8 @@ public class ScreeningService {
 													@Nonnull Provider<CourseService> courseServiceProvider,
 													@Nonnull Provider<AuthorizationService> authorizationServiceProvider,
 													@Nonnull Provider<MessageService> messageServiceProvider,
+													@Nonnull Provider<StudyService> studyServiceProvider,
 													@Nonnull Provider<CurrentContext> currentContextProvider,
-													@Nonnull StudyService studyService,
 													@Nonnull ScreeningConfirmationPromptApiResponseFactory screeningConfirmationPromptApiResponseFactory,
 													@Nonnull JavascriptExecutor javascriptExecutor,
 													@Nonnull EnterprisePluginProvider enterprisePluginProvider,
@@ -227,8 +228,8 @@ public class ScreeningService {
 		requireNonNull(courseServiceProvider);
 		requireNonNull(authorizationServiceProvider);
 		requireNonNull(messageServiceProvider);
+		requireNonNull(studyServiceProvider);
 		requireNonNull(currentContextProvider);
-		requireNonNull(studyService);
 		requireNonNull(screeningConfirmationPromptApiResponseFactory);
 		requireNonNull(javascriptExecutor);
 		requireNonNull(enterprisePluginProvider);
@@ -246,8 +247,8 @@ public class ScreeningService {
 		this.courseServiceProvider = courseServiceProvider;
 		this.authorizationServiceProvider = authorizationServiceProvider;
 		this.messageServiceProvider = messageServiceProvider;
+		this.studyServiceProvider = studyServiceProvider;
 		this.currentContextProvider = currentContextProvider;
-		this.studyService = studyService;
 		this.screeningConfirmationPromptApiResponseFactory = screeningConfirmationPromptApiResponseFactory;
 		this.javascriptExecutor = javascriptExecutor;
 		this.enterprisePluginProvider = enterprisePluginProvider;
@@ -814,7 +815,7 @@ public class ScreeningService {
 			if (targetAccountId == null) {
 				validationException.add(new FieldError("targetAccountId", getStrings().get("Target account ID is required.")));
 			} else {
-				Optional<AccountCheckInAction> accountCheckInAction = studyService.findAccountCheckInActionFoAccountAndCheckIn(targetAccountId, accountCheckInActionId);
+				Optional<AccountCheckInAction> accountCheckInAction = getStudyService().findAccountCheckInActionFoAccountAndCheckIn(targetAccountId, accountCheckInActionId);
 				if (!accountCheckInAction.isPresent())
 					validationException.add(new FieldError("accountCheckInActionId", getStrings().get("Account check-in is not valid for this account.")));
 			}
@@ -2689,6 +2690,13 @@ getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestratio
 					.collect(Collectors.toSet());
 
 			context.put("patientOrderReferralReasonIds", patientOrderReferralReasonIds);
+
+			// If this order is part of one or more studies, expose study URL names for easy JS access
+			List<Study> studies = getStudyService().findStudiesByPatientOrderId(patientOrder.getPatientOrderId());
+
+			context.put("studyUrlNames", studies.stream()
+					.map(study -> study.getUrlName())
+					.collect(Collectors.toList()));
 		}
 
 		Account account = getCurrentContext().getAccount().orElse(null);
@@ -3375,13 +3383,13 @@ getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestratio
 	}
 
 	@Nonnull
-	protected CurrentContext getCurrentContext() {
-		return this.currentContextProvider.get();
+	protected StudyService getStudyService() {
+		return this.studyServiceProvider.get();
 	}
 
 	@Nonnull
-	protected StudyService getStudyService() {
-		return studyService;
+	protected CurrentContext getCurrentContext() {
+		return this.currentContextProvider.get();
 	}
 
 	@Nonnull
