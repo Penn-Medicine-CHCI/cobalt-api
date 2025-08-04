@@ -220,8 +220,6 @@ public class CronService implements AutoCloseable {
 			getCurrentContextExecutor().execute(currentContext, () -> {
 				try {
 					getDatabase().transaction(() -> {
-						getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CRON_JOB);
-
 						List<CronJob> dueCronJobs = getDatabase().queryForList("""
 								    SELECT *
 								    FROM cron_job
@@ -232,15 +230,19 @@ public class CronService implements AutoCloseable {
 								    LIMIT 5
 								""", CronJob.class);
 
-						// Note: keep cron job "run" time very short so we don't hold this txn open for a long time!
-						// If there is a longer-running task like firing off a materialized view refresh, fire off a separate
-						// thread (in your EnterprisePlugin::runCronJob implementation)
-						for (CronJob cronJob : dueCronJobs) {
-							try {
-								run(cronJob);
-								markSuccess(cronJob);
-							} catch (Throwable t) {
-								markFailure(cronJob, t);
+						if (dueCronJobs.size() > 0) {
+							getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.CRON_JOB);
+							
+							// Note: keep cron job "run" time very short so we don't hold this txn open for a long time!
+							// If there is a longer-running task like firing off a materialized view refresh, fire off a separate
+							// thread (in your EnterprisePlugin::runCronJob implementation)
+							for (CronJob cronJob : dueCronJobs) {
+								try {
+									run(cronJob);
+									markSuccess(cronJob);
+								} catch (Throwable t) {
+									markFailure(cronJob, t);
+								}
 							}
 						}
 					});
