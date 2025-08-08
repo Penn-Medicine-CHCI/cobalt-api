@@ -132,7 +132,7 @@ public class PageApiResponse {
 
 		if (includeDetails) {
 			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId(), page.getInstitutionId())
-					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).collect(Collectors.toList());
+					.stream().map(pageSection -> pageSectionApiResponseFactory.create(pageSection)).filter(apiResp -> apiResp.getDisplaySection()).collect(Collectors.toList());
 			this.livePageSiteLocations = pageService.findLivePageSiteLocationsByPageId(page.getPageId(), page.getInstitutionId()).stream()
 					.map(pageSiteLocation -> pageSiteLocationApiResponseFactory.create(pageSiteLocation))
 					.collect(Collectors.toList());
