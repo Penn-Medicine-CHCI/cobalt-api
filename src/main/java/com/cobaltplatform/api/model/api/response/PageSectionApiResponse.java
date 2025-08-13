@@ -20,7 +20,10 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
+import com.cobaltplatform.api.model.db.Page;
+import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageSection;
+import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
 import com.cobaltplatform.api.util.Formatter;
@@ -32,6 +35,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -82,9 +86,17 @@ public class PageSectionApiResponse {
 		requireNonNull(pageService);
 		requireNonNull(pageRowApiResponseFactory);
 
-		this.pageRows = pageService.findPageRowsBySectionId(pageSection.getPageSectionId(), pageSection.getInstitutionId())
-				.stream().map(pageRow -> pageRowApiResponseFactory.create(pageRow)).filter(apiResp -> apiResp.getDisplayRow()).collect(Collectors.toList());
-		this.displaySection = this.pageRows.size() > 0;
+		Page page = pageService.findPageById(pageSection.getPageId(), pageSection.getInstitutionId(), true).get();
+
+		List<PageRow> allPageRows = pageService.findPageRowsBySectionId(pageSection.getPageSectionId(), pageSection.getInstitutionId());
+		this.pageRows = allPageRows.stream().map(pageRow -> pageRowApiResponseFactory.create(pageRow)).filter(apiResp -> apiResp.getDisplayRow()).collect(Collectors.toList());
+		if (page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE)
+				&& this.pageRows.size() == 0
+				&& allPageRows.size() > 0) {
+			this.displaySection = false;
+		} else {
+			this.displaySection = true;
+		}
 		this.pageSectionId = pageSection.getPageSectionId();
 		this.pageId = pageSection.getPageId();
 		this.name = pageSection.getName();
@@ -92,7 +104,7 @@ public class PageSectionApiResponse {
 		this.description = pageSection.getDescription();
 		this.backgroundColorId = pageSection.getBackgroundColorId();
 		this.displayOrder = pageSection.getDisplayOrder();
-}
+	}
 
 	@Nonnull
 	public UUID getPageSectionId() {

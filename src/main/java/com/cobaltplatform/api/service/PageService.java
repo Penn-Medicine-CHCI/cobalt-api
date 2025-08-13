@@ -252,50 +252,45 @@ public class PageService {
 			//Name and background color are required when creating or updating a page section so no need to validate them
 			List<PageRow> pageRows = findPageRowsBySectionId(pageSection.getPageSectionId(), institutionId);
 
-			if (pageRows.size() == 0) {
-				validationException.add(new ValidationException.FieldError("pageRows", getStrings().get(format("At least one row is required for Section %s.\n", pageSection.getName()))));
-				if (validationException.hasErrors() && metadata.isEmpty()) {
-					metadata.put("sectionId", pageSection.getPageSectionId());
-				}
-			} else {
-				for (PageRow pageRow : pageRows) {
-					if (pageRow.getRowTypeId().equals(RowTypeId.RESOURCES)) {
-						List<PageRowContent> pageRowContent = findPageRowContentByPageRowId(pageRow.getPageRowId());
-						if (pageRowContent.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.\n", pageSection.getName()))));
-					} else if (pageRow.getRowTypeId().equals(RowTypeId.GROUP_SESSIONS)) {
-						List<PageRowGroupSession> pageRowGroupSessions = findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
-						if (pageRowGroupSessions.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.\n", pageSection.getName()))));
-					} else if (pageRow.getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE)
-							|| pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
-						Optional<PageRowColumn> pageRowColumn = Optional.empty();
-						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
 
+			for (PageRow pageRow : pageRows) {
+				if (pageRow.getRowTypeId().equals(RowTypeId.RESOURCES)) {
+					List<PageRowContent> pageRowContent = findPageRowContentByPageRowId(pageRow.getPageRowId());
+					if (pageRowContent.isEmpty())
+						validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.\n", pageSection.getName()))));
+				} else if (pageRow.getRowTypeId().equals(RowTypeId.GROUP_SESSIONS)) {
+					List<PageRowGroupSession> pageRowGroupSessions = findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
+					if (pageRowGroupSessions.isEmpty())
+						validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.\n", pageSection.getName()))));
+				} else if (pageRow.getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE)
+						|| pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
+					Optional<PageRowColumn> pageRowColumn = Optional.empty();
+					pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
+
+					if (pageRowColumn.isEmpty())
+						validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.\n", pageSection.getName()))));
+					else {
+						validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
+					}
+
+					if (pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
+						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1);
 						if (pageRowColumn.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.\n", pageSection.getName()))));
+							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.\n", pageSection.getName()))));
 						else {
 							validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 						}
+					}
 
-						if (pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
-							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1);
-							if (pageRowColumn.isEmpty())
-								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.\n", pageSection.getName()))));
-							else {
-								validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
-							}
-						}
-
-						if (pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
-							pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2);
-							if (pageRowColumn.isEmpty())
-								validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 3 not present for Custom row in Section %s.\n", pageSection.getName()))));
-							else {
-								validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
-							}
+					if (pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
+						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2);
+						if (pageRowColumn.isEmpty())
+							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 3 not present for Custom row in Section %s.\n", pageSection.getName()))));
+						else {
+							validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 						}
 					}
+
 
 					if (validationException.hasErrors() && metadata.isEmpty()) {
 						metadata.put("sectionId", pageSection.getPageSectionId());
