@@ -264,6 +264,9 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String signInQuoteDetail;
 
+	@Nonnull
+	private final Boolean aboutPageEnabled;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
@@ -413,6 +416,8 @@ public class InstitutionApiResponse {
 		this.signInQuoteTitle = institution.getSignInQuoteTitle();
 		this.signInQuoteBlurb = institution.getSignInQuoteBlurb();
 		this.signInQuoteDetail = institution.getSignInQuoteDetail();
+
+		this.aboutPageEnabled = institution.getAboutPageEnabled();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -873,5 +878,10 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getSignInQuoteDetail() {
 		return this.signInQuoteDetail;
+	}
+
+	@Nonnull
+	public Boolean getAboutPageEnabled() {
+		return this.aboutPageEnabled;
 	}
 }

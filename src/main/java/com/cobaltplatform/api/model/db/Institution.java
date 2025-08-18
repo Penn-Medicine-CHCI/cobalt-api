@@ -448,6 +448,9 @@ public class Institution {
 	@Nullable
 	private String signInQuoteDetail;
 
+	@Nullable
+	private Boolean aboutPageEnabled;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -2046,5 +2049,14 @@ public class Institution {
 
 	public void setSignInQuoteDetail(@Nullable String signInQuoteDetail) {
 		this.signInQuoteDetail = signInQuoteDetail;
+	}
+
+	@Nullable
+	public Boolean getAboutPageEnabled() {
+		return this.aboutPageEnabled;
+	}
+
+	public void setAboutPageEnabled(@Nullable Boolean aboutPageEnabled) {
+		this.aboutPageEnabled = aboutPageEnabled;
 	}
 }
