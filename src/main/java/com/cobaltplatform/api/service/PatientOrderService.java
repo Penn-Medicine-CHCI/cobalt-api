@@ -5450,9 +5450,8 @@ public class PatientOrderService implements AutoCloseable {
 		List<PatientOrder> importedPatientOrders = findPatientOrdersByPatientOrderImportId(patientOrderImportId);
 		LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
-		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForCurrentInstitution();
-
 		for (PatientOrder importedPatientOrder : importedPatientOrders) {
+			EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(importedPatientOrder.getInstitutionId());
 			boolean shouldSendAutomatedWelcomeMessage = enterprisePlugin.shouldSendAutomatedWelcomeMessageForPatientOrder(importedPatientOrder);
 
 			if (shouldSendAutomatedWelcomeMessage) {
