@@ -426,10 +426,17 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 				.filter(appointmentType -> appointmentType.getSchedulingSystemId().equals(SchedulingSystemId.EPIC) && provider.getActive())
 				.collect(Collectors.toList());
 
+		if (appointmentTypes.size() > 1 && provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.MANUAL_VISIT_TYPE))
+			throw new IllegalStateException(format("Provider ID %s has more than 1 visit type, which is incompatible with %s.%s",
+					provider.getProviderId(), EpicAppointmentFilterId.class.getSimpleName(), EpicAppointmentFilterId.MANUAL_VISIT_TYPE.name()));
+
 		List<EpicDepartment> epicDepartments = getInstitutionService().findEpicDepartmentsByProviderId(provider.getProviderId());
 		List<ProviderAvailabilityDateInsertRow> rows = new ArrayList<>();
 
-		if (provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.VISIT_TYPE)) {
+		if (
+				provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.VISIT_TYPE)
+						|| provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.MANUAL_VISIT_TYPE)
+		) {
 			// This path is for providers that want explicit filtering on EPIC visit types (as opposed to us looking at any open slot regardless of visit type)
 			for (AppointmentType appointmentType : appointmentTypes) {
 				for (EpicDepartment epicDepartment : epicDepartments) {
@@ -439,8 +446,13 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 					request.setProviderIDType(provider.getEpicProviderIdType());
 					request.setDepartmentID(epicDepartment.getDepartmentId());
 					request.setDepartmentIDType(epicDepartment.getDepartmentIdType());
-					request.setVisitTypeID(appointmentType.getEpicVisitTypeId());
-					request.setVisitTypeIDType(appointmentType.getEpicVisitTypeIdType());
+
+					// Only include visit type for this filter mode
+					if (provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.VISIT_TYPE)) {
+						request.setVisitTypeID(appointmentType.getEpicVisitTypeId());
+						request.setVisitTypeIDType(appointmentType.getEpicVisitTypeIdType());
+					}
+
 					request.setUserID(institution.getEpicUserId());
 					request.setUserIDType(institution.getEpicUserIdType());
 
