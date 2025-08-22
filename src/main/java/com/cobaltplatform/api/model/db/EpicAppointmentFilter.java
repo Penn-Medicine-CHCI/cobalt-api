@@ -36,7 +36,8 @@ public class EpicAppointmentFilter {
 
 	public enum EpicAppointmentFilterId {
 		NONE,
-		VISIT_TYPE;
+		VISIT_TYPE,
+		MANUAL_VISIT_TYPE
 	}
 
 	@Override
