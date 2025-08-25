@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('231-data-driven-reports', NULL, NULL);
+SELECT _v.register_patch('232-data-driven-reports', NULL, NULL);
 
 -- TODO: add institution flag for legacy analytics vs. x-ray so we can leave old institutions as-is
 

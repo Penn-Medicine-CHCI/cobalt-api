@@ -174,7 +174,7 @@ public class EpicProviderScheduleTests {
 				"Provider Name",
 				"Department ID",
 				"Department Name",
-				"Visit Type ID",
+				//"Visit Type ID",
 				"Date",
 				"Start Time",
 				"Length",
@@ -200,7 +200,7 @@ public class EpicProviderScheduleTests {
 				recordElements.add(scheduleCsvRow.getProviderName());
 				recordElements.add(scheduleCsvRow.getDepartmentId());
 				recordElements.add(scheduleCsvRow.getDepartmentName());
-				recordElements.add(scheduleCsvRow.getVisitTypeId());
+				//recordElements.add(scheduleCsvRow.getVisitTypeId());
 				recordElements.add(scheduleCsvRow.getDate());
 				recordElements.add(scheduleCsvRow.getStartTime());
 				recordElements.add(scheduleCsvRow.getLength());
