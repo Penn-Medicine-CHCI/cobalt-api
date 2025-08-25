@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionCourse.InstitutionCourseStatusId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -37,6 +38,7 @@ import com.cobaltplatform.api.model.service.CourseWithCourseSessionStatus;
 import com.cobaltplatform.api.model.service.CourseWithInstitutionCourseStatus;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CourseService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -57,7 +59,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -77,6 +78,8 @@ public class CourseResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
+	private final SystemService systemService;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
@@ -92,6 +95,7 @@ public class CourseResource {
 	@Inject
 	public CourseResource(@Nonnull CourseService courseService,
 												@Nonnull AuthorizationService authorizationService,
+												@Nonnull SystemService systemService,
 												@Nonnull RequestBodyParser requestBodyParser,
 												@Nonnull Provider<CurrentContext> currentContextProvider,
 												@Nonnull CourseApiResponseFactory courseApiResponseFactory,
@@ -99,6 +103,7 @@ public class CourseResource {
 												@Nonnull Strings strings) {
 		requireNonNull(courseService);
 		requireNonNull(authorizationService);
+		requireNonNull(systemService);
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(courseApiResponseFactory);
@@ -107,6 +112,7 @@ public class CourseResource {
 
 		this.courseService = courseService;
 		this.authorizationService = authorizationService;
+		this.systemService = systemService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.courseApiResponseFactory = courseApiResponseFactory;
@@ -170,6 +176,8 @@ public class CourseResource {
 	public ApiResponse createCourseSession(@Nonnull @RequestBody String requestBody) {
 		requireNonNull(requestBody);
 
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.COURSE_SESSION_CREATE);
+
 		Account account = getCurrentContext().getAccount().get();
 
 		CreateCourseSessionRequest request = getRequestBodyParser().parse(requestBody, CreateCourseSessionRequest.class);
@@ -195,6 +203,8 @@ public class CourseResource {
 	@AuthenticationRequired
 	public ApiResponse completeCourseUnit(@Nonnull @PathParameter UUID courseUnitId) {
 		requireNonNull(courseUnitId);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.COURSE_UNIT_COMPLETE);
 
 		Account account = getCurrentContext().getAccount().get();
 
@@ -245,6 +255,11 @@ public class CourseResource {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull
