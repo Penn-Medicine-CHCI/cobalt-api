@@ -38,6 +38,8 @@ public class CourseSessionUnit {
 	@Nullable
 	private CourseSessionUnitStatusId courseSessionUnitStatusId;
 	@Nullable
+	private String completionMessage;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -67,6 +69,15 @@ public class CourseSessionUnit {
 
 	public void setCourseSessionUnitStatusId(@Nullable CourseSessionUnitStatusId courseSessionUnitStatusId) {
 		this.courseSessionUnitStatusId = courseSessionUnitStatusId;
+	}
+
+	@Nullable
+	public String getCompletionMessage() {
+		return this.completionMessage;
+	}
+
+	public void setCompletionMessage(@Nullable String completionMessage) {
+		this.completionMessage = completionMessage;
 	}
 
 	@Nullable
