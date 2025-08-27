@@ -53,4 +53,7 @@ CREATE TRIGGER course_session_optional_module_footprint AFTER INSERT OR UPDATE O
 -- In practice, this could be specified by the screening flow results function when the user completes a screening session for a course unit.
 ALTER TABLE course_session_unit ADD COLUMN completion_message TEXT;
 
+-- Support for Kaltura playlists
+ALTER TABLE video ADD COLUMN kaltura_playlist_id TEXT;
+
 END;

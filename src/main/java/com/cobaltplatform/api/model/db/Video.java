@@ -49,6 +49,8 @@ public class Video {
 	@Nullable
 	private String kalturaEntryId; // Only applies to VideoVendorId.KALTURA
 	@Nullable
+	private String kalturaPlaylistId; // Only applies to VideoVendorId.KALTURA
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -123,6 +125,15 @@ public class Video {
 
 	public void setKalturaEntryId(@Nullable String kalturaEntryId) {
 		this.kalturaEntryId = kalturaEntryId;
+	}
+
+	@Nullable
+	public String getKalturaPlaylistId() {
+		return this.kalturaPlaylistId;
+	}
+
+	public void setKalturaPlaylistId(@Nullable String kalturaPlaylistId) {
+		this.kalturaPlaylistId = kalturaPlaylistId;
 	}
 
 	@Nullable
