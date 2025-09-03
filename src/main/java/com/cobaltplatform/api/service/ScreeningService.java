@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.Cr
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.SkipScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCheckInAction;
+import com.cobaltplatform.api.model.api.request.UpdateCourseSessionUnitCompletionMessageRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.response.ScreeningConfirmationPromptApiResponse.ScreeningConfirmationPromptApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -1922,7 +1923,7 @@ public class ScreeningService {
 
 			getLogger().info("Answer[s] are for course unit ID {} ({})", courseUnit.getCourseUnitId(), courseUnit.getTitle());
 		}
-getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestrationFunctionOutput.getCompleted());
+		getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestrationFunctionOutput.getCompleted());
 		if (orchestrationFunctionOutput.getCompleted()) {
 			boolean skipped = orchestrationFunctionOutput.getSkipped() != null && orchestrationFunctionOutput.getSkipped();
 
@@ -2024,6 +2025,18 @@ getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestratio
 				// Execute results function and store off results
 				ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
 						screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
+
+				System.out.println("***** COMPLETED *****");
+				// If this is a course session, apply the completion message (or null it out)
+				if (courseSessionId != null) {
+					System.out.println("***** SAVING *****");
+					UpdateCourseSessionUnitCompletionMessageRequest updateRequest = new UpdateCourseSessionUnitCompletionMessageRequest();
+					updateRequest.setCourseSessionId(courseSessionId);
+					updateRequest.setCourseUnitId(courseUnit.getCourseUnitId());
+					updateRequest.setCompletionMessage(resultsFunctionOutput.getCourseSessionUnitCompletionMessage());
+
+					getCourseService().updateCourseSessionUnitCompletionMessage(updateRequest);
+				}
 
 				// Ensure highest-weighted are first, so if we see duplicate support roles returned, we picked the highest-weight to persist
 				Set<SupportRoleId> recommendedSupportRoleIds = new HashSet<>();
@@ -3149,6 +3162,8 @@ getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestratio
 		private PatientOrderIntakeWantsServicesStatusId patientOrderIntakeWantsServicesStatusId;
 		@Nullable
 		private PatientOrderConsentStatusId patientOrderConsentStatusId;
+		@Nullable
+		private String courseSessionUnitCompletionMessage;
 
 		@Nullable
 		public Set<String> getRecommendedTagIds() {
@@ -3250,6 +3265,15 @@ getLogger().debug("orchestrationFunctionOutput.getCompleted() = " + orchestratio
 
 		public void setPatientOrderConsentStatusId(@Nullable PatientOrderConsentStatusId patientOrderConsentStatusId) {
 			this.patientOrderConsentStatusId = patientOrderConsentStatusId;
+		}
+
+		@Nullable
+		public String getCourseSessionUnitCompletionMessage() {
+			return this.courseSessionUnitCompletionMessage;
+		}
+
+		public void setCourseSessionUnitCompletionMessage(@Nullable String courseSessionUnitCompletionMessage) {
+			this.courseSessionUnitCompletionMessage = courseSessionUnitCompletionMessage;
 		}
 
 		@NotThreadSafe

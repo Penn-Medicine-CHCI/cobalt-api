@@ -21,10 +21,10 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.api.request.CompleteCourseUnitRequest;
 import com.cobaltplatform.api.model.api.request.CreateCourseSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCourseSessionUnitCompletionMessageRequest;
 import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.CourseModule;
 import com.cobaltplatform.api.model.db.CourseSession;
-import com.cobaltplatform.api.model.db.CourseSessionStatus;
 import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseSessionUnit;
 import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
@@ -64,6 +64,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -248,36 +249,36 @@ public class CourseService {
 		}
 
 		return getDatabase().queryForList("""
-						WITH prioritized_sessions AS (
+							WITH prioritized_sessions AS (
+							SELECT
+								cs.course_id,
+								cs.course_session_status_id,
+								cs.created,
+								ROW_NUMBER() OVER (
+									PARTITION BY cs.course_id
+									ORDER BY
+										-- rank IN_PROGRESS first, then COMPLETED,
+										CASE cs.course_session_status_id
+											WHEN ? THEN 1
+											WHEN ? THEN 2
+										END,
+										cs.created DESC
+								) AS rn
+							FROM course_session cs
+							WHERE cs.account_id = ?
+								AND cs.course_session_status_id IN (?,?)
+						)
 						SELECT
-							cs.course_id,
-							cs.course_session_status_id,
-							cs.created,
-							ROW_NUMBER() OVER (
-								PARTITION BY cs.course_id
-								ORDER BY
-									-- rank IN_PROGRESS first, then COMPLETED,
-									CASE cs.course_session_status_id
-										WHEN ? THEN 1
-										WHEN ? THEN 2
-									END,
-									cs.created DESC
-							) AS rn
-						FROM course_session cs
-						WHERE cs.account_id = ?
-							AND cs.course_session_status_id IN (?,?)
-					)
-					SELECT
-						c.*,
-						ps.course_session_status_id
-					FROM prioritized_sessions ps
-					JOIN v_course c
-						ON c.course_id = ps.course_id
-					JOIN institution_course ic
-						ON ic.course_id = c.course_id
-					 AND ic.institution_id = ?
-					WHERE ps.rn = 1
-					ORDER BY ps.created DESC
+							c.*,
+							ps.course_session_status_id
+						FROM prioritized_sessions ps
+						JOIN v_course c
+							ON c.course_id = ps.course_id
+						JOIN institution_course ic
+							ON ic.course_id = c.course_id
+						 AND ic.institution_id = ?
+						WHERE ps.rn = 1
+						ORDER BY ps.created DESC
 						""",
 				CourseWithCourseSessionStatus.class,
 				CourseSessionStatusId.IN_PROGRESS,
@@ -321,7 +322,7 @@ public class CourseService {
 				)
 				SELECT
 				  au.course_session_id,
-				    
+				
 				  -- completed minutes (only units marked COMPLETED)
 				  SUM(
 				    CASE
@@ -330,10 +331,10 @@ public class CourseService {
 				      ELSE 0
 				    END
 				  ) AS minutes_completed,
-				    
+				
 				  -- total minutes possible (all units in the course)
 				  SUM(au.estimated_completion_time_in_minutes) AS total_minutes,
-				    
+				
 				  -- completion percentage
 				  ROUND(
 				    SUM(
@@ -345,14 +346,14 @@ public class CourseService {
 				    )::numeric
 				    / NULLIF(SUM(au.estimated_completion_time_in_minutes), 0)				    
 				  , 2) AS completion_percentage
-				    
+				
 				FROM all_units AS au
-				    
+				
 				-- bring in any completion status rows (if they exist)
 				LEFT JOIN course_session_unit AS csu
 				  ON csu.course_session_id = au.course_session_id
 				 AND csu.course_unit_id    = au.course_unit_id
-				    
+				
 				-- since CTE already filtered to the one session, no extra WHERE is needed
 				GROUP BY
 				  au.course_session_id;				    
@@ -423,6 +424,34 @@ public class CourseService {
 				AND ss.screening_flow_version_id=sfv.screening_flow_version_id
 				AND sfv.screening_flow_id=cu.screening_flow_id
 				""", CourseUnit.class, courseSessionId, screeningQuestionId);
+	}
+
+	@Nonnull
+	public Boolean updateCourseSessionUnitCompletionMessage(@Nonnull UpdateCourseSessionUnitCompletionMessageRequest request) {
+		requireNonNull(request);
+
+		UUID courseSessionId = request.getCourseSessionId();
+		UUID courseUnitId = request.getCourseUnitId();
+		String completionMessage = trimToNull(request.getCompletionMessage());
+		ValidationException validationException = new ValidationException();
+
+		if (courseSessionId == null)
+			validationException.add(new FieldError("courseSessionId", getStrings().get("Course Session ID is required.")));
+
+		if (courseUnitId == null)
+			validationException.add(new FieldError("courseUnitId", getStrings().get("Course Unit ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean updated = getDatabase().execute("""
+				UPDATE course_session_unit
+				SET completion_message=?
+				WHERE course_session_id=?
+				AND course_unit_id=?
+				""", completionMessage, courseSessionId, courseUnitId) > 0;
+
+		return updated;
 	}
 
 	@Nonnull
