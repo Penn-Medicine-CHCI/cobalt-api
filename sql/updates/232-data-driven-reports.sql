@@ -56,4 +56,31 @@ ALTER TABLE course_session_unit ADD COLUMN completion_message TEXT;
 -- Support for Kaltura playlists
 ALTER TABLE video ADD COLUMN kaltura_playlist_id TEXT;
 
+
+ALTER TABLE video ALTER COLUMN kaltura_entry_id DROP not null;
+
+CREATE OR REPLACE FUNCTION video_validation()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.video_vendor_id = 'YOUTUBE' 
+       AND NEW.youtube_id IS NULL THEN
+        RAISE EXCEPTION 
+            'youtube_id column must be non-null for video_vendor_id YOUTUBE';
+
+    ELSIF NEW.video_vendor_id = 'KALTURA' 
+       AND (
+            NEW.kaltura_partner_id IS NULL 
+            OR NEW.kaltura_uiconf_id IS NULL 
+            OR NEW.kaltura_wid IS NULL
+            OR (NEW.kaltura_entry_id IS NULL AND NEW.kaltura_playlist_id IS NULL)
+       ) THEN
+        RAISE EXCEPTION 
+            'kaltura_partner_id, kaltura_uiconf_id, kaltura_wid must be non-null, and either kaltura_entry_id or kaltura_playlist_id must be non-null for video_vendor_id KALTURA';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
 END;
