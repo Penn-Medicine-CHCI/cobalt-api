@@ -854,16 +854,16 @@ public class PatientOrderService implements AutoCloseable {
 		if (institutionId == null)
 			return List.of();
 
-		// Panel accounts are either MHICs or any account that has been assigned to manage a panel
-		// (this might be some kind of administrator, for example).
-		// Different from "order servicers" because this list can include MHICs who have had their access removed.
+		// Panel accounts are any account that is assigned to manage a non-archived order (generally MHICs).
+		// A panel account can be inactive.
+		// Different from concept of "order servicers" in that those are "accounts that can potentially be assigned to an order".
 		return getDatabase().queryForList("""
 				SELECT *
 				FROM account
 				WHERE institution_id=?
-				AND (role_id=? OR account_id IN (SELECT panel_account_id FROM patient_order WHERE institution_id=?))
+				AND account_id IN (SELECT panel_account_id FROM patient_order WHERE institution_id=? AND patient_order_disposition_id != ?)
 				ORDER BY first_name, last_name, account_id
-				""", Account.class, institutionId, RoleId.MHIC, institutionId);
+				""", Account.class, institutionId, institutionId, PatientOrderDispositionId.ARCHIVED);
 	}
 
 	@Nonnull
@@ -881,6 +881,7 @@ public class PatientOrderService implements AutoCloseable {
 				AND a.role_id=?
 				AND a.account_id=ac.account_id
 				AND ac.account_capability_type_id=?
+				AND a.active=TRUE
 				ORDER BY a.first_name, a.last_name, a.account_id
 				""", Account.class, institutionId, RoleId.MHIC, AccountCapabilityTypeId.MHIC_ORDER_SERVICER);
 	}
