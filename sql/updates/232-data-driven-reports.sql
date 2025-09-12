@@ -12,33 +12,67 @@ INSERT INTO analytics_profile VALUES ('XRAY', 'X-Ray'); -- For X-Ray
 
 ALTER TABLE institution ADD COLUMN analytics_profile_id TEXT NOT NULL REFERENCES analytics_profile DEFAULT 'XRAY';
 
--- TODO: don't model legacy ADMIN_ANALYTICS_OVERVIEW etc.  Instead, add new ADMIN_ANALYTICS_V2_SITE_ACTIVE_ACCOUNTS, ADMIN_ANALYTICS_V2_SITE_CREATED_ACCOUNTS, ...
---INSERT INTO site_location (site_location_id, description) VALUES
---  ('ADMIN_REPORTS', 'Admin Reports'),
---  ('ADMIN_ANALYTICS_XRAY_', 'Admin Analytics - Overview'),
---  ('ADMIN_ANALYTICS_ASSESSMENTS_APPOINTMENTS', 'Admin Analytics - Assessments & Appointments'),
---  ('ADMIN_ANALYTICS_GROUP_SESSIONS', 'Admin Analytics - Group Sessions'),
---  ('ADMIN_ANALYTICS_RESOURCES_TOPICS', 'Admin Analytics - Resources & Topics'),
---  ('ADMIN_ANALYTICS_TABLEAU', 'Admin Analytics - Tableau');
-
--- Reports are now customized per-institution for non-legacy-flag institutions.
---CREATE TABLE institution_report_type ()
-
---CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON institution_report_type FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
---CREATE UNIQUE INDEX idx_institution_report_type_i_rt ON institution_report_type (institution_id, report_type_id);
-
-CREATE TABLE report_site_location (
-	report_site_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-	--institution_report_type_id UUID NOT NULL REFERENCES institution_report_type,
-	site_location_id TEXT REFERENCES site_location,
-	display_order SMALLINT NOT NULL,
-	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
-	created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-	last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+-- "Standard" reports (CSV downloads) that live within the "Reports" section of the admin UI (dropdown with report names).
+-- Only applicable for institutions with analytics_profile_id of 'XRAY'.
+CREATE TABLE analytics_standard_report (
+  analytics_standard_report_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  institution_id TEXT NOT NULL REFERENCES institution,
+  report_type_id TEXT NOT NULL REFERENCES report_type,
+  name TEXT NOT NULL,
+  display_order INTEGER NOT NULL,
+  created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON report_site_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
---CREATE UNIQUE INDEX idx_report_site_location_rt_sl ON report_site_location (institution_report_type_id, site_location_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON analytics_standard_report FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX analytics_standard_report_irt ON analytics_standard_report (institution_id, report_type_id);
+CREATE UNIQUE INDEX analytics_standard_report_name ON analytics_standard_report (institution_id, name);
+CREATE UNIQUE INDEX analytics_standard_report_display_order ON analytics_standard_report (institution_id, display_order);
+
+-- Logical groupings of analytics reports.
+-- Each grouping is displayed as a tab (with specified 'name') in the admin UI.
+-- Only applicable for institutions with analytics_profile_id of 'XRAY'.
+CREATE TABLE analytics_report_group (
+  analytics_report_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  institution_id TEXT NOT NULL REFERENCES institution,
+  name TEXT NOT NULL,
+  display_order INTEGER NOT NULL,
+  created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON analytics_report_group FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX idx_analytics_report_group_institution_display_order ON analytics_report_group (institution_id, display_order);
+CREATE UNIQUE INDEX idx_analytics_report_group_institution_name ON analytics_report_group (institution_id, name);
+
+-- Reports that live within a report group (admin UI analytics tab)
+CREATE TABLE analytics_report_group_report (
+  analytics_report_group_report_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  analytics_report_group_id UUID NOT NULL REFERENCES analytics_report_group,
+  report_type_id TEXT NOT NULL REFERENCES report_type,
+  display_order INTEGER NOT NULL,
+  created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON analytics_report_group_report FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE UNIQUE INDEX analytics_report_group_report_display_order ON analytics_report_group_report (analytics_report_group_id, display_order);
+
+-- Add new X-Ray report types
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_ACCOUNT_VISITS', 'Admin Analytics - Account Visits', 100);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_ACCOUNT_CREATION', 'Admin Analytics - Account Creation', 101);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS', 'Admin Analytics - Account Repeat Visits', 102);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS', 'Admin Analytics - Course Account Visits', 103);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS', 'Admin Analytics - Course Aggregate Visits', 104);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS', 'Admin Analytics - Course Module Account Visits', 105);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_DWELL_TIME', 'Admin Analytics - Course Dwell Time', 106);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME', 'Admin Analytics - Course Module Dwell Time', 107);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_COMPLETION', 'Admin Analytics - Course Completion', 108);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS', 'Admin Analytics - Course Aggregate Completions', 109);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION', 'Admin Analytics - Course Module Completion', 110);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_ACCOUNT_LOCATION', 'Admin Analytics - Account Location', 111);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_ACCOUNT_REFERRER', 'Admin Analytics - Account Referrer', 112);
+INSERT INTO report_type VALUES ('ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS', 'Admin Analytics - Account Onboarding Results', 113);
 
 -- Configure footprint event types for course sessions
 INSERT INTO footprint_event_group_type VALUES ('COURSE_SESSION_CREATE', 'Course Session Create');
