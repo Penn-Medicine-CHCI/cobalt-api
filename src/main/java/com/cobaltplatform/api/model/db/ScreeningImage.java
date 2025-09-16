@@ -48,7 +48,8 @@ public class ScreeningImage {
 		SCREENING_TO_DO,
 		WELCOME,
 		SUDS_THERMOMETER,
-		PEOPLE_PUZZLE
+		PEOPLE_PUZZLE,
+		SLEEP
 	}
 
 	@Override
