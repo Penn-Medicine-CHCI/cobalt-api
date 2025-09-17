@@ -492,8 +492,6 @@ public class AnalyticsResource {
 
 		int i = 0;
 
-		System.out.println(activeUserCountsByAccountSourceId);
-
 		for (Entry<AccountSourceId, Long> entry : activeUserCountsByAccountSourceId.entrySet()) {
 			AccountSourceId accountSourceId = entry.getKey();
 			AccountSourceForInstitution accountSource = accountSourcesByAccountSourceId.get(accountSourceId);
