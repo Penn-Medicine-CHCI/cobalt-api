@@ -498,6 +498,8 @@ public class AppointmentService {
 
 			return appointments;
 		} else {
+			// Ensure appointments are visible for up to 6 hours after they start.
+			// This ensures users can easily join late or re-join an in-progress appointment.
 			return getDatabase().queryForList("""
 					SELECT *
 					FROM appointment
@@ -505,7 +507,7 @@ public class AppointmentService {
 					AND canceled=FALSE
 					AND start_time >= ?
 					ORDER BY start_time
-					""", Appointment.class, accountId, now);
+					""", Appointment.class, accountId, LocalDateTime.ofInstant(now, account.getTimeZone()).minusHours(6));
 		}
 	}
 
