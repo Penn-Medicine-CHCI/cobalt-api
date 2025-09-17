@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AnalyticsProfile.AnalyticsProfileId;
 import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.EpicBackendServiceAuthType.EpicBackendServiceAuthTypeId;
 import com.cobaltplatform.api.model.db.GroupSessionSystem.GroupSessionSystemId;
@@ -450,6 +451,9 @@ public class Institution {
 
 	@Nullable
 	private Boolean aboutPageEnabled;
+
+	@Nullable
+	private AnalyticsProfileId analyticsProfileId;
 
 	public enum InstitutionId {
 		COBALT,
@@ -2058,5 +2062,14 @@ public class Institution {
 
 	public void setAboutPageEnabled(@Nullable Boolean aboutPageEnabled) {
 		this.aboutPageEnabled = aboutPageEnabled;
+	}
+
+	@Nullable
+	public AnalyticsProfileId getAnalyticsProfileId() {
+		return this.analyticsProfileId;
+	}
+
+	public void setAnalyticsProfileId(@Nullable AnalyticsProfileId analyticsProfileId) {
+		this.analyticsProfileId = analyticsProfileId;
 	}
 }

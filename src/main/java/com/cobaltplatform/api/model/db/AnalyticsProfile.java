@@ -25,50 +25,37 @@ import javax.annotation.concurrent.NotThreadSafe;
 import static java.lang.String.format;
 
 /**
- * @author Transmogrify LLC.
+ * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class ScreeningImage {
+public class AnalyticsProfile {
 	@Nullable
-	private ScreeningImageId screeningImageId;
+	private AnalyticsProfileId analyticsProfileId;
 	@Nullable
 	private String description;
 
-	public enum ScreeningImageId {
-		APPOINTMENT,
-		CONNECTED_TO_CARE,
-		CONNECTING_TO_CARE,
-		FEELING_RECENTLY,
-		GOALS,
-		KEEP_GOING,
-		NEXT_APPOINTMENT_SCHEDULED,
-		RESOURCES,
-		SAFETY,
-		SCREENING_COMPLETE,
-		SCREENING_TO_DO,
-		WELCOME,
-		SUDS_THERMOMETER,
-		PEOPLE_PUZZLE,
-		SLEEP
+	public enum AnalyticsProfileId {
+		LEGACY,
+		XRAY
 	}
 
 	@Override
 	public String toString() {
-		return format("%s{screeningImageId=%s, description=%s}", getClass().getSimpleName(), getScreeningImageId(), getDescription());
+		return format("%s{analyticsProfileId=%s, description=%s}", getClass().getSimpleName(), getAnalyticsProfileId(), getDescription());
 	}
 
 	@Nullable
-	public ScreeningImageId getScreeningImageId() {
-		return this.screeningImageId;
+	public AnalyticsProfileId getAnalyticsProfileId() {
+		return this.analyticsProfileId;
 	}
 
-	public void setScreeningImageId(@Nullable ScreeningImageId screeningImageId) {
-		this.screeningImageId = screeningImageId;
+	public void setAnalyticsProfileId(@Nullable AnalyticsProfileId analyticsProfileId) {
+		this.analyticsProfileId = analyticsProfileId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {

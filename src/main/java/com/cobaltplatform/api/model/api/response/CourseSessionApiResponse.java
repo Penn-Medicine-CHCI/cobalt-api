@@ -34,7 +34,6 @@ import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.util.HashMap;
@@ -75,6 +74,8 @@ public class CourseSessionApiResponse {
 	private final Map<UUID, CourseUnitLockStatus> courseUnitLockStatusesByCourseUnitId;
 	@Nonnull
 	private final Map<UUID, CourseSessionUnitStatusId> courseSessionUnitStatusIdsByCourseUnitId;
+	@Nonnull
+	private final Map<UUID, String> courseSessionUnitCompletionMessagesByCourseUnitId;
 	@Nonnull
 	private final List<UUID> optionalCourseModuleIds;
 
@@ -132,6 +133,14 @@ public class CourseSessionApiResponse {
 		}
 
 		this.courseSessionUnitStatusIdsByCourseUnitId = courseSessionUnitStatusIdsByCourseUnitId;
+
+		Map<UUID, String> courseSessionUnitCompletionMessagesByCourseUnitId = new HashMap<>(courseUnits.size());
+
+		for (CourseSessionUnit courseSessionUnit : courseSessionUnits)
+			if (courseSessionUnit.getCompletionMessage() != null)
+				courseSessionUnitCompletionMessagesByCourseUnitId.put(courseSessionUnit.getCourseUnitId(), courseSessionUnit.getCompletionMessage());
+
+		this.courseSessionUnitCompletionMessagesByCourseUnitId = courseSessionUnitCompletionMessagesByCourseUnitId;
 
 		this.optionalCourseModuleIds = courseService.findOptionalCourseModuleIdsByCourseSessionId(courseSession.getCourseSessionId());
 
@@ -197,6 +206,11 @@ public class CourseSessionApiResponse {
 	@Nonnull
 	public Map<UUID, CourseSessionUnitStatusId> getCourseSessionUnitStatusIdsByCourseUnitId() {
 		return this.courseSessionUnitStatusIdsByCourseUnitId;
+	}
+
+	@Nonnull
+	public Map<UUID, String> getCourseSessionUnitCompletionMessagesByCourseUnitId() {
+		return this.courseSessionUnitCompletionMessagesByCourseUnitId;
 	}
 
 	@Nonnull

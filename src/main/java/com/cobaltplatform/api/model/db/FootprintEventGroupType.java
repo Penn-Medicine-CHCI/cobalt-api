@@ -119,7 +119,10 @@ public class FootprintEventGroupType {
 		// Remote Data Sync
 		REMOTE_DATA_SYNC,
 		// Cron
-		CRON_JOB
+		CRON_JOB,
+		// Courses
+		COURSE_SESSION_CREATE,
+		COURSE_UNIT_COMPLETE,
 	}
 
 	@Override

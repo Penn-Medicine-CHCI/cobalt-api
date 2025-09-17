@@ -23,6 +23,7 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AnalyticsProfile.AnalyticsProfileId;
 import com.cobaltplatform.api.model.db.AnonymousAccountExpirationStrategy.AnonymousAccountExpirationStrategyId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -267,6 +268,9 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final Boolean aboutPageEnabled;
 
+	@Nonnull
+	private final AnalyticsProfileId analyticsProfileId;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
@@ -418,6 +422,8 @@ public class InstitutionApiResponse {
 		this.signInQuoteDetail = institution.getSignInQuoteDetail();
 
 		this.aboutPageEnabled = institution.getAboutPageEnabled();
+
+		this.analyticsProfileId = institution.getAnalyticsProfileId();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -883,5 +889,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public Boolean getAboutPageEnabled() {
 		return this.aboutPageEnabled;
+	}
+
+	@Nonnull
+	public AnalyticsProfileId getAnalyticsProfileId() {
+		return this.analyticsProfileId;
 	}
 }

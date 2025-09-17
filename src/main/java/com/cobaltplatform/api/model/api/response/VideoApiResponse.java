@@ -54,6 +54,8 @@ public class VideoApiResponse {
 	private final String kalturaWid; // only applicable to KALTURA vendor type
 	@Nullable
 	private final String kalturaEntryId; // only applicable to KALTURA vendor type
+	@Nullable
+	private final String kalturaPlaylistId; // only applicable to KALTURA vendor type
 	@Nonnull
 	private final Instant created;
 	@Nonnull
@@ -85,6 +87,7 @@ public class VideoApiResponse {
 		this.kalturaUiconfId = video.getKalturaUiconfId();
 		this.kalturaWid = video.getKalturaWid();
 		this.kalturaEntryId = video.getKalturaEntryId();
+		this.kalturaPlaylistId = video.getKalturaPlaylistId();
 		this.created = video.getCreated();
 		this.createdDescription = formatter.formatTimestamp(video.getCreated());
 		this.lastUpdated = video.getLastUpdated();
@@ -124,6 +127,11 @@ public class VideoApiResponse {
 	@Nonnull
 	public Optional<String> getKalturaEntryId() {
 		return Optional.ofNullable(this.kalturaEntryId);
+	}
+
+	@Nonnull
+	public Optional<String> getKalturaPlaylistId() {
+		return Optional.ofNullable(this.kalturaPlaylistId);
 	}
 
 	@Nonnull

@@ -17,32 +17,23 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
-
-import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
 import java.util.UUID;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class CourseSessionUnit {
+public class UpdateCourseSessionUnitCompletionMessageRequest {
 	@Nullable
 	private UUID courseSessionId;
 	@Nullable
 	private UUID courseUnitId;
 	@Nullable
-	private CourseSessionUnitStatusId courseSessionUnitStatusId;
-	@Nullable
 	private String completionMessage;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
 
 	@Nullable
 	public UUID getCourseSessionId() {
@@ -63,38 +54,11 @@ public class CourseSessionUnit {
 	}
 
 	@Nullable
-	public CourseSessionUnitStatusId getCourseSessionUnitStatusId() {
-		return this.courseSessionUnitStatusId;
-	}
-
-	public void setCourseSessionUnitStatusId(@Nullable CourseSessionUnitStatusId courseSessionUnitStatusId) {
-		this.courseSessionUnitStatusId = courseSessionUnitStatusId;
-	}
-
-	@Nullable
 	public String getCompletionMessage() {
 		return this.completionMessage;
 	}
 
 	public void setCompletionMessage(@Nullable String completionMessage) {
 		this.completionMessage = completionMessage;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return this.created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return this.lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
 	}
 }
