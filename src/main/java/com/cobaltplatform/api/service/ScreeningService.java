@@ -2026,10 +2026,8 @@ public class ScreeningService {
 				ResultsFunctionOutput resultsFunctionOutput = executeScreeningFlowResultsFunction(screeningFlowVersion.getResultsFunction(),
 						screeningSession.getScreeningSessionId(), createdByAccount.getInstitutionId()).get();
 
-				System.out.println("***** COMPLETED *****");
 				// If this is a course session, apply the completion message (or null it out)
 				if (courseSessionId != null) {
-					System.out.println("***** SAVING *****");
 					UpdateCourseSessionUnitCompletionMessageRequest updateRequest = new UpdateCourseSessionUnitCompletionMessageRequest();
 					updateRequest.setCourseSessionId(courseSessionId);
 					updateRequest.setCourseUnitId(courseUnit.getCourseUnitId());
