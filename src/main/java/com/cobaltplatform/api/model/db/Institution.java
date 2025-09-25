@@ -455,6 +455,9 @@ public class Institution {
 	@Nullable
 	private AnalyticsProfileId analyticsProfileId;
 
+	@Nullable
+	private String platformName;
+
 	public enum InstitutionId {
 		COBALT,
 		COBALT_IC,
@@ -2071,5 +2074,14 @@ public class Institution {
 
 	public void setAnalyticsProfileId(@Nullable AnalyticsProfileId analyticsProfileId) {
 		this.analyticsProfileId = analyticsProfileId;
+	}
+
+	@Nullable
+	public String getPlatformName() {
+		return this.platformName;
+	}
+
+	public void setPlatformName(@Nullable String platformName) {
+		this.platformName = platformName;
 	}
 }

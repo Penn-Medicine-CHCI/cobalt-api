@@ -319,8 +319,12 @@ public class MessageService implements AutoCloseable {
 			// Platform name (optionally overridable)
 			String platformName = ObjectUtils.firstNonNull(
 					trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name())),
-					getStrings().get("Cobalt")
+					institution.getPlatformName()
 			);
+
+			// Should not happen; failsafe
+			if (platformName == null)
+				platformName = getStrings().get("Cobalt");
 
 			messageContext.put("platformName", platformName);
 

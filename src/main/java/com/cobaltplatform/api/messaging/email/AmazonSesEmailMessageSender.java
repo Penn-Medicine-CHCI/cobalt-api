@@ -21,8 +21,10 @@ package com.cobaltplatform.api.messaging.email;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
 import jakarta.activation.DataHandler;
 import jakarta.activation.DataSource;
@@ -48,6 +50,7 @@ import software.amazon.awssdk.services.ses.model.SendRawEmailResponse;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Provider;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -69,6 +72,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> {
 	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final HandlebarsTemplater handlebarsTemplater;
 	@Nonnull
 	private final Configuration configuration;
@@ -79,11 +84,14 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 	@Nonnull
 	private final Logger logger;
 
-	public AmazonSesEmailMessageSender(@Nonnull HandlebarsTemplater handlebarsTemplater,
+	public AmazonSesEmailMessageSender(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+																		 @Nonnull HandlebarsTemplater handlebarsTemplater,
 																		 @Nonnull Configuration configuration) {
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(handlebarsTemplater);
 		requireNonNull(configuration);
 
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.handlebarsTemplater = handlebarsTemplater;
 		this.configuration = configuration;
 		this.defaultFromAddress = configuration.getEmailDefaultFromAddress();
@@ -142,7 +150,8 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 		long time = System.currentTimeMillis();
 
 		try {
-			Address normalizedFromAddress = fromAddress.equals(getDefaultFromAddress()) ? new InternetAddress(fromAddress, "Cobalt") : new InternetAddress(fromAddress);
+			Institution institution = getInstitutionService().findInstitutionById(emailMessage.getInstitutionId()).get();
+			Address normalizedFromAddress = new InternetAddress(fromAddress, institution.getPlatformName());
 
 			Session session = Session.getDefaultInstance(new Properties());
 			MimeMessage mimeMessage = new MimeMessage(session);
@@ -244,6 +253,10 @@ public class AmazonSesEmailMessageSender implements MessageSender<EmailMessage> 
 		return builder.build();
 	}
 
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
 
 	@Nonnull
 	protected SesClient getAmazonSimpleEmailService() {
