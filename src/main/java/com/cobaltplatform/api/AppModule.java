@@ -184,6 +184,7 @@ import com.cobaltplatform.api.model.api.response.TopicCenterRowTagApiResponse.To
 import com.cobaltplatform.api.model.api.response.VideoApiResponse.VideoApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
@@ -683,7 +684,9 @@ public class AppModule extends AbstractModule {
 	@Provides
 	@Singleton
 	@Nonnull
-	public MessageSender<EmailMessage> provideEmailMessageSender(@Nonnull Configuration configuration) {
+	public MessageSender<EmailMessage> provideEmailMessageSender(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+																															 @Nonnull Configuration configuration) {
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(configuration);
 
 		if (getConfiguration().getShouldSendRealEmailMessages()) {
@@ -691,7 +694,8 @@ public class AppModule extends AbstractModule {
 					.viewsDirectoryName("views")
 					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
 					.build();
-			return new AmazonSesEmailMessageSender(handlebarsTemplater, configuration);
+			
+			return new AmazonSesEmailMessageSender(institutionServiceProvider, handlebarsTemplater, configuration);
 		}
 
 		return new ConsoleEmailMessageSender();

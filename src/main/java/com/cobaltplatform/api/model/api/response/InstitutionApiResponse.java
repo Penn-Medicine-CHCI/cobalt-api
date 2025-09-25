@@ -271,6 +271,9 @@ public class InstitutionApiResponse {
 	@Nonnull
 	private final AnalyticsProfileId analyticsProfileId;
 
+	@Nonnull
+	private final String platformName;
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionApiResponseFactory {
@@ -424,6 +427,8 @@ public class InstitutionApiResponse {
 		this.aboutPageEnabled = institution.getAboutPageEnabled();
 
 		this.analyticsProfileId = institution.getAnalyticsProfileId();
+
+		this.platformName = institution.getPlatformName();
 
 		if (account == null) {
 			this.alerts = alertService.findAlertsByInstitutionId(institution.getInstitutionId()).stream()
@@ -894,5 +899,10 @@ public class InstitutionApiResponse {
 	@Nonnull
 	public AnalyticsProfileId getAnalyticsProfileId() {
 		return this.analyticsProfileId;
+	}
+
+	@Nonnull
+	public String getPlatformName() {
+		return this.platformName;
 	}
 }
