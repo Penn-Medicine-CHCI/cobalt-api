@@ -67,6 +67,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -311,7 +312,20 @@ public class InstitutionService {
 
 	@Nonnull
 	public List<Institution> findInstitutions() {
-		return getDatabase().queryForList("SELECT * FROM institution ORDER BY institution_id", Institution.class);
+		// Only pull institutions who have defined ID enum values.
+		// This permits us to add new institutions to the database and only "pick them up" on subsequent deployments
+		// once the ID enum values exist.
+		// Suppose we did not do this and just wrote "SELECT * FROM institution" - this method would encounter an unknown
+		// enum value when trying to map the resultset to the Java object - an exception would be thrown.
+		String availableInstitutionIdValues = Arrays.stream(InstitutionId.values())
+				.map(institutionId -> format("'%s'", institutionId.name()))
+				.collect(Collectors.joining(", "));
+
+		return getDatabase().queryForList(format("""
+				SELECT * FROM institution
+				WHERE institution_id IN (%s)
+				ORDER BY institution_id
+				""", availableInstitutionIdValues), Institution.class);
 	}
 
 	@Nonnull
