@@ -2277,8 +2277,8 @@ public class AppointmentService {
 
 		// Special case for Health Advocate
 		if (provider.getVideoconferencePlatformId() == VideoconferencePlatformId.TELEPHONE) {
-			intakeAssessmentAnswerString = null;
 			videoconferenceUrl = null;
+			String okToLeaveVoicemail = "No";
 
 			// Temporary hack: pull out the assessment answers for HA...
 			try {
@@ -2306,9 +2306,13 @@ public class AppointmentService {
 				name = finalAnswers.get(3);
 				phoneNumber = finalAnswers.get(4);
 				phoneNumber = getFormatter().formatPhoneNumber(phoneNumber, account.getLocale());
+				okToLeaveVoicemail = finalAnswers.get(5);
 			} catch (Exception e) {
 				getLogger().warn("Unable to pull data from Health Advocate intake, continuing on...", e);
+				getErrorReporter().report(e);
 			}
+
+			intakeAssessmentAnswerString = format("Name: %s, Phone Number: %s, OK to leave voicemail? %s", name, phoneNumber, okToLeaveVoicemail);
 		}
 
 		Map<String, Object> messageContext = new HashMap<>();
