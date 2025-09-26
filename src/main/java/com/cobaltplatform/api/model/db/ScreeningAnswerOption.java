@@ -19,11 +19,11 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.pyranid.DatabaseColumn;
-import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -102,7 +102,7 @@ public class ScreeningAnswerOption {
 	public Map<String, Object> getMetadata() {
 		return this.metadata;
 	}
-	
+
 	@Nullable
 	public UUID getScreeningAnswerOptionId() {
 		return this.screeningAnswerOptionId;
@@ -209,9 +209,5 @@ public class ScreeningAnswerOption {
 
 	public void setFreeformSupplementContentHintId(@Nullable ScreeningAnswerContentHintId freeformSupplementContentHintId) {
 		this.freeformSupplementContentHintId = freeformSupplementContentHintId;
-	}
-
-	public void setMetadata(@Nullable Map<String, Object> metadata) {
-		this.metadata = metadata;
 	}
 }
