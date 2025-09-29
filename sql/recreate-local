@@ -240,6 +240,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/230-institutio
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/231-new-epic-appointment-filter.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/232-data-driven-reports.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/233-sleep-image.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/234-platform-name.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
