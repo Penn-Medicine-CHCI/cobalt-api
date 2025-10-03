@@ -504,6 +504,7 @@ public class AccountResource {
 			throw new AuthorizationException();
 
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
 		final int MAXIMUM_GROUP_SESSIONS = 8;
 
@@ -537,8 +538,8 @@ public class AccountResource {
 
 		final int MAXIMUM_CONTENTS = 12;
 
-		// Show the latest and greatest visible content
-		List<Content> contents = getContentService().findVisibleContentByAccountId(accountId);
+		// Show whatever the enterprise plugin says is recommended
+		List<Content> contents = enterprisePlugin.recommendedContentForAccountId(accountId);
 
 		// Don't show too many content pieces
 		if (contents.size() > MAXIMUM_CONTENTS)
