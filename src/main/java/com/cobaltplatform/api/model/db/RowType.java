@@ -39,7 +39,8 @@ public class RowType {
 		TAG,
 		ONE_COLUMN_IMAGE,
 		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE
+		THREE_COLUMN_IMAGE,
+		SUBSCRIBE
 	}
 
 	@Nullable
