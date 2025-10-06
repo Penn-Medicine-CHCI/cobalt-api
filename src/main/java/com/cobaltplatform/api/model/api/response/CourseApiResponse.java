@@ -89,7 +89,7 @@ public class CourseApiResponse {
 	@Nullable
 	private final Map<UUID, CourseUnitLockStatus> defaultCourseUnitLockStatusesByCourseUnitId;
 	@Nullable
-	private final List<ContentApiResponse> contents;
+	private final Map<UUID, List<ContentApiResponse>> contentsByCourseUnitId;
 
 	public enum CourseApiResponseType {
 		LIST,
@@ -135,7 +135,7 @@ public class CourseApiResponse {
 		CourseSessionApiResponse currentCourseSessionTemp = null;
 		List<VideoApiResponse> videosTemp = null;
 		Map<UUID, CourseUnitLockStatus> defaultCourseUnitLockStatusesByCourseUnitIdTemp = null;
-		List<ContentApiResponse> contentsTemp = null;
+		Map<UUID, List<ContentApiResponse>> contentsByCourseUnitIdTemp = null;
 
 		this.courseId = course.getCourseId();
 		this.title = course.getTitle();
@@ -177,12 +177,14 @@ public class CourseApiResponse {
 				defaultCourseUnitLockStatusesByCourseUnitIdTemp =
 						courseService.determineDefaultCourseUnitLockStatusesByCourseUnitId(course.getCourseId());
 
-				contentsTemp = contentService.findContentByCourseId(course.getCourseId(),
-								account.getInstitutionId()).stream()
-						.map(content -> contentApiResponseFactory.create(
-								content,
-								Set.of(ContentApiResponseSupplement.TAGS)))
-						.collect(Collectors.toList());
+				contentsByCourseUnitIdTemp = contentService.findContentsByCourseUnitIdForCourseId(course.getCourseId(), account.getInstitutionId()).entrySet().stream()
+						.collect(Collectors.toMap(
+								Map.Entry::getKey,
+								entry -> entry.getValue().stream()
+										.map(content -> contentApiResponseFactory.create(
+												content, Set.of(ContentApiResponseSupplement.TAGS)))
+										.toList()
+						));
 				// fall-through to PARTIAL_DETAIL logic
 			case PARTIAL_DETAIL:
 				// current session is needed for both DETAIL & PARTIAL_DETAIL
@@ -199,7 +201,7 @@ public class CourseApiResponse {
 				currentCourseSessionTemp = null;
 				videosTemp = null;
 				defaultCourseUnitLockStatusesByCourseUnitIdTemp = null;
-				contentsTemp = null;
+				contentsByCourseUnitIdTemp = null;
 				break;
 		}
 
@@ -207,7 +209,7 @@ public class CourseApiResponse {
 		this.currentCourseSession = currentCourseSessionTemp;
 		this.videos = videosTemp;
 		this.defaultCourseUnitLockStatusesByCourseUnitId = defaultCourseUnitLockStatusesByCourseUnitIdTemp;
-		this.contents = contentsTemp;
+		this.contentsByCourseUnitId = contentsByCourseUnitIdTemp;
 
 	}
 
@@ -282,7 +284,7 @@ public class CourseApiResponse {
 	}
 
 	@Nonnull
-	public Optional<List<ContentApiResponse>> getContents() {
-		return Optional.ofNullable(this.contents);
+	public Optional<Map<UUID, List<ContentApiResponse>>> getContentsByCourseUnitId() {
+		return Optional.ofNullable(this.contentsByCourseUnitId);
 	}
 }
