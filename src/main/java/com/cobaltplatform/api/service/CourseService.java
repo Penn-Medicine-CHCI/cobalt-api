@@ -662,7 +662,8 @@ public class CourseService {
 
 		if (courseUnitTypeId == CourseUnitTypeId.INFOGRAPHIC
 				|| courseUnitTypeId == CourseUnitTypeId.HOMEWORK
-				|| courseUnitTypeId == CourseUnitTypeId.THINGS_TO_SHARE)
+				|| courseUnitTypeId == CourseUnitTypeId.THINGS_TO_SHARE
+				|| courseUnitTypeId == CourseUnitTypeId.FINAL)
 			return getStrings().get("Info");
 
 		throw new UnsupportedOperationException(format("Unexpected value: %s.%s", CourseUnitTypeId.class.getSimpleName(), courseUnitTypeId.name()));

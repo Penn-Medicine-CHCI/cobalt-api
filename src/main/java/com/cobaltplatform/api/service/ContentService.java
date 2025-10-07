@@ -69,6 +69,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -491,27 +492,68 @@ public class ContentService implements AutoCloseable {
 		return contents;
 	}
 
-
 	@Nonnull
-	public List<Content> findContentByCourseId(@Nullable UUID courseId,
-																						 @Nullable InstitutionId institutionId) {
+	public Map<UUID, List<Content>> findContentsByCourseUnitIdForCourseId(@Nullable UUID courseId,
+																																				@Nullable InstitutionId institutionId) {
 		if (courseId == null || institutionId == null)
-			return List.of();
+			return Map.of();
 
-		List<Content> contents = getDatabase().queryForList("""
-				SELECT c.*
-				FROM course_content cc, institution_content ic, v_admin_content c
-				WHERE cc.course_id=?
-				AND cc.content_id=ic.content_id
+		List<CourseUnitContent> courseUnitContents = getDatabase().queryForList("""
+				SELECT c.*, cuc.course_unit_id, cuc.display_order
+				FROM course_unit_content cuc, course_unit cu, course_module cm, institution_content ic, v_admin_content c
+				WHERE cm.course_id=?
+				AND cu.course_module_id=cm.course_module_id
+				AND cu.course_unit_id=cuc.course_unit_id
+				AND cuc.content_id=ic.content_id
 				AND ic.institution_id=?
 				AND ic.content_id=c.content_id
 				AND c.content_status_id=?
-				ORDER BY cc.display_order
-				""", Content.class, courseId, institutionId, ContentStatusId.LIVE);
+				ORDER BY cuc.display_order
+				""", CourseUnitContent.class, courseId, institutionId, ContentStatusId.LIVE);
 
-		applyTagsToContents(contents, institutionId);
+		applyTagsToContents(courseUnitContents, institutionId);
 
-		return contents;
+		// Fill up mapping from "flat" resultset so we have an easy handle from a course_unit_id to a list of its content
+		Map<UUID, List<Content>> contentsByCourseUnitId = new HashMap<>();
+
+		for (CourseUnitContent courseUnitContent : courseUnitContents) {
+			List<Content> contents = contentsByCourseUnitId.get(courseUnitContent.getCourseUnitId());
+
+			if (contents == null) {
+				contents = new ArrayList<>();
+				contentsByCourseUnitId.put(courseUnitContent.getCourseUnitId(), contents);
+			}
+
+			contents.add(courseUnitContent);
+		}
+
+		return contentsByCourseUnitId;
+	}
+
+	@NotThreadSafe
+	protected static class CourseUnitContent extends Content {
+		@Nullable
+		private UUID courseUnitId;
+		@Nullable
+		private Integer displayOrder;
+
+		@Nullable
+		public UUID getCourseUnitId() {
+			return this.courseUnitId;
+		}
+
+		public void setCourseUnitId(@Nullable UUID courseUnitId) {
+			this.courseUnitId = courseUnitId;
+		}
+
+		@Nullable
+		public Integer getDisplayOrder() {
+			return this.displayOrder;
+		}
+
+		public void setDisplayOrder(@Nullable Integer displayOrder) {
+			this.displayOrder = displayOrder;
+		}
 	}
 
 	@Nonnull
