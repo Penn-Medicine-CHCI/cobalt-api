@@ -446,13 +446,13 @@ public class AnalyticsNativeEventType {
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
 		// * courseUnitDownloadableFileId (UUID) - the file for which click-to-download was initiated
 		CLICKTHROUGH_COURSE_UNIT_DOWNLOADABLE_FILE,
-		// When the user clicks to view a piece of content associated with a course.
+		// When the user clicks to view a piece of content associated with a course unit.
 		// Additional data:
-		// * courseId (UUID)
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
+		// * courseUnitId (UUID) - the course unit containing the clicked-on content
 		// * contentId (UUID) - the content that was clicked
-		CLICKTHROUGH_COURSE_CONTENT,
-		// When the user clicks directly on a course unit to access it, e.g. from the course detail page or from the the left nav when viewing another course unit.
+		CLICKTHROUGH_COURSE_UNIT_CONTENT,
+		// When the user clicks directly on a course unit to access it, e.g. from the course detail page or from the left nav when viewing another course unit.
 		// Additional data:
 		// * courseId (UUID)
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
@@ -466,7 +466,6 @@ public class AnalyticsNativeEventType {
 		// * courseSessionId (UUID) - optional, if a session has been started for this course
 		// * courseUnitId (UUID) - the course unit that was skipped
 		CLICKTHROUGH_COURSE_UNIT_SKIP,
-
 		// When a video that's part of a course unit fires off an event that we listen for, e.g. 'playerReady' or 'playerPaused'.
 		// Additional data:
 		// * courseUnitId (UUID)

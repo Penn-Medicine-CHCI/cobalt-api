@@ -19,9 +19,10 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import com.cobaltplatform.api.model.db.UnitCompletionType.UnitCompletionTypeId;
 
 import static java.lang.String.format;
 
@@ -42,6 +43,7 @@ public class CourseUnitType {
 	private Boolean showRestartActivityWhenComplete;
 	@Nullable
 	private Boolean showUnitAsComplete;
+
 	public enum CourseUnitTypeId {
 		VIDEO,
 		INFOGRAPHIC,
@@ -49,7 +51,8 @@ public class CourseUnitType {
 		CARD_SORT,
 		QUIZ,
 		REORDER,
-		THINGS_TO_SHARE
+		THINGS_TO_SHARE,
+		FINAL
 	}
 
 	@Override
