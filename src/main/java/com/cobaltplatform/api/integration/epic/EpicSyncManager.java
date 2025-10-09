@@ -29,6 +29,7 @@ import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRe
 import com.cobaltplatform.api.integration.epic.request.GetProviderScheduleRequest;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse;
+import com.cobaltplatform.api.integration.epic.response.GetProviderScheduleResponse.ScheduleSlot;
 import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBookingRequest;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.EpicAppointmentFilter.EpicAppointmentFilterId;
@@ -457,17 +458,30 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 					request.setUserIDType(institution.getEpicUserIdType());
 
 					GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
+					List<ScheduleSlot> scheduleSlots = response.getScheduleSlots();
 
-					if (response.getScheduleSlots() == null)
+					if (scheduleSlots == null)
 						throw new IllegalStateException(format("Unable to detect schedule slots in Epic response for provider %s (%s) " +
 										"in department ID %s and visit type ID %s on %s.  Epic response JSON follows:\n%s",
 								provider.getName(), provider.getEpicProviderId(), epicDepartment.getDepartmentId(), appointmentType.getEpicVisitTypeId(),
 								date, response.getRawJson()));
 
-					// First, walk the data to figure out what slots are explicitly blocked off as unbookable
-					Set<Range> unbookableRanges = new HashSet<>(response.getScheduleSlots().size());
+					// Special handling: we know MANUAL_VISIT_TYPE only permits 1 visit type.
+					// If we see any slots with a different duration, discard them.
+					if (provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.MANUAL_VISIT_TYPE)) {
+						scheduleSlots = scheduleSlots.stream()
+								.filter((scheduleSlot) -> {
+									long slotLength = Long.parseLong(scheduleSlot.getLength(), 10);
+									long appointmentTypeLength = appointmentType.getDurationInMinutes();
+									return slotLength == appointmentTypeLength;
+								})
+								.collect(Collectors.toList());
+					}
 
-					for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
+					// First, walk the data to figure out what slots are explicitly blocked off as unbookable
+					Set<Range> unbookableRanges = new HashSet<>(scheduleSlots.size());
+
+					for (ScheduleSlot scheduleSlot : scheduleSlots) {
 						boolean held = trimToEmpty(scheduleSlot.getHeldTimeReason()).length() > 0;
 						boolean unavailable = trimToEmpty(scheduleSlot.getUnavailableTimeReason()).length() > 0;
 
@@ -483,7 +497,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 					}
 
 					// Now that we know what slots are blocked off as unbookable, figure out what actually is bookable
-					for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
+					for (ScheduleSlot scheduleSlot : scheduleSlots) {
 						LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
 						Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
 						LocalDateTime dateTime = LocalDateTime.of(date, startTime);
@@ -553,7 +567,7 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 				GetProviderScheduleResponse response = epicClient.performGetProviderSchedule(request);
 
-				for (GetProviderScheduleResponse.ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
+				for (ScheduleSlot scheduleSlot : response.getScheduleSlots()) {
 					LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
 					Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
 					Long length = Long.valueOf(scheduleSlot.getLength());
