@@ -35,10 +35,13 @@ public class AnalyticsNativeEventType {
 	private String description;
 
 	public enum AnalyticsNativeEventTypeId {
-		// When the user brings the browser tab into focus (unminimizes the window, switches into it from another tab)
-		// See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
-		// In a native app, this would be fired when the app is brought to the foreground
-		// There is no additional data associated with this event type.
+		// The start of a web "session" (lifespan of a browser tab).
+		// Fired when a new browser tab opens.
+		// When the browser tab is closed, the session ends (there is no corresponding SESSION_ENDED event for this currently).
+		// See https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage for details
+		// In a native app, this would be when the app first launches
+		// Additional data:
+		// * referringUrl (String, in a webapp this is the value of document.referrer, if available)
 		SESSION_STARTED,
 		// Fired if, due to a browser bug regarding session storage, we have to manually "restore" a session as a workaround.
 		// See https://issues.chromium.org/issues/40940701
@@ -50,9 +53,9 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * intervalInMilliseconds (Integer, the recurring interval duration in millis, only present if this heartbeat was fired by an automated interval as opposed to an explicit one-off)
 		HEARTBEAT,
-		// When the user brings the browser tab out of focus (minimizes the window, switches to another tab)
+		// When the user brings the browser tab into focus (unminimizes the window, switches into it from another tab)
 		// See https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event for details
-		// In a native app, this would be fired when the app is sent to the background
+		// In a native app, this would be fired when the app is brought to the foreground
 		// There is no additional data associated with this event type.
 		BROUGHT_TO_FOREGROUND,
 		// When the user brings the browser tab out of focus (minimizes the window, switches to another tab)
