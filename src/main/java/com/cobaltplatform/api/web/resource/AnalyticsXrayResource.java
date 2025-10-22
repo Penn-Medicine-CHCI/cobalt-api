@@ -109,10 +109,10 @@ public class AnalyticsXrayResource {
 	}
 
 	@Nonnull
-	@GET("/analytics-report-groups/{analyticsReportGroupId}/reports")
+	@GET("/analytics-report-groups/{analyticsReportGroupId}/widgets")
 	@AuthenticationRequired
 	@ReadReplica
-	public ApiResponse reportsByAnalyticsReportGroupId(@Nonnull @PathParameter UUID analyticsReportGroupId,
+	public ApiResponse widgetsByAnalyticsReportGroupId(@Nonnull @PathParameter UUID analyticsReportGroupId,
 																										 @Nonnull @QueryParameter LocalDate startDate,
 																										 @Nonnull @QueryParameter LocalDate endDate) {
 		requireNonNull(analyticsReportGroupId);
