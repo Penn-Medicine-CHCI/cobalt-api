@@ -19,6 +19,9 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.db.AnalyticsReportGroup;
+import com.cobaltplatform.api.model.db.AnalyticsReportGroupReport;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -26,9 +29,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.List;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -57,8 +63,34 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
-	protected Database getDatabase() {
-		return this.databaseProvider.get();
+	public List<AnalyticsReportGroup> findAnalyticsReportGroupsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		return getReadReplicaDatabase().queryForList("""
+				SELECT *
+				FROM analytics_report_group
+				WHERE institution_id=?
+				ORDER BY display_order
+				""", AnalyticsReportGroup.class, institutionId);
+	}
+
+	@Nonnull
+	public List<AnalyticsReportGroupReport> findAnalyticsReportGroupReportsByAnalyticsReportGroupId(@Nullable UUID analyticsReportGroupId) {
+		if (analyticsReportGroupId == null)
+			return List.of();
+
+		return getReadReplicaDatabase().queryForList("""
+				SELECT *
+				FROM analytics_report_group_report
+				WHERE analytics_report_group_id=?
+				ORDER BY display_order
+				""", AnalyticsReportGroupReport.class, analyticsReportGroupId);
+	}
+
+	@Nonnull
+	protected Database getReadReplicaDatabase() {
+		return this.databaseProvider.getReadReplicaDatabase();
 	}
 
 	@Nonnull

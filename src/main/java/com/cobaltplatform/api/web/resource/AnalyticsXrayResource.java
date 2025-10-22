@@ -20,13 +20,18 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.AnalyticsReportGroupApiResponse.AnalyticsReportGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AnalyticsReportGroup;
+import com.cobaltplatform.api.model.db.AnalyticsReportGroupReport;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsXrayService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.soklet.web.annotation.GET;
+import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
 import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
@@ -40,7 +45,12 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -55,6 +65,8 @@ public class AnalyticsXrayResource {
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
+	private final AnalyticsReportGroupApiResponseFactory analyticsReportGroupApiResponseFactory;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
@@ -62,23 +74,48 @@ public class AnalyticsXrayResource {
 	@Inject
 	public AnalyticsXrayResource(@Nonnull AnalyticsXrayService analyticsXrayService,
 															 @Nonnull AuthorizationService authorizationService,
+															 @Nonnull AnalyticsReportGroupApiResponseFactory analyticsReportGroupApiResponseFactory,
 															 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(analyticsXrayService);
 		requireNonNull(authorizationService);
+		requireNonNull(analyticsReportGroupApiResponseFactory);
 		requireNonNull(currentContextProvider);
 
 		this.analyticsXrayService = analyticsXrayService;
 		this.authorizationService = authorizationService;
+		this.analyticsReportGroupApiResponseFactory = analyticsReportGroupApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
-	@GET("/analytics/xray/TODO")
+	@GET("/analytics-report-groups")
 	@AuthenticationRequired
 	@ReadReplica
-	public ApiResponse analyticsOverview(@Nonnull @QueryParameter LocalDate startDate,
-																			 @Nonnull @QueryParameter LocalDate endDate) {
+	public ApiResponse analyticsReportGroups() {
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
+			throw new AuthorizationException();
+
+		List<AnalyticsReportGroup> analyticsReportGroups = getAnalyticsXrayService().findAnalyticsReportGroupsByInstitutionId(institutionId);
+
+		return new ApiResponse(Map.of(
+				"analyticsReportGroups", analyticsReportGroups.stream()
+						.map(analyticsReportGroup -> getAnalyticsReportGroupApiResponseFactory().create(analyticsReportGroup))
+						.collect(Collectors.toList())
+		));
+	}
+
+	@Nonnull
+	@GET("/analytics-report-groups/{analyticsReportGroupId}/reports")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse reportsByAnalyticsReportGroupId(@Nonnull @PathParameter UUID analyticsReportGroupId,
+																										 @Nonnull @QueryParameter LocalDate startDate,
+																										 @Nonnull @QueryParameter LocalDate endDate) {
+		requireNonNull(analyticsReportGroupId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
@@ -87,6 +124,35 @@ public class AnalyticsXrayResource {
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
+
+		List<AnalyticsReportGroupReport> reports = getAnalyticsXrayService().findAnalyticsReportGroupReportsByAnalyticsReportGroupId(analyticsReportGroupId);
+
+		// Based on report type, pull data for it
+		for (AnalyticsReportGroupReport report : reports) {
+			switch (report.getReportTypeId()) {
+				// Account-related reports
+				case ADMIN_ANALYTICS_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_CREATION -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_REFERRER -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS -> throw new UnsupportedOperationException("TODO");
+
+				// Course-related reports
+				case ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_COMPLETION -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> throw new UnsupportedOperationException("TODO");
+
+				default ->
+						throw new UnsupportedOperationException(format("Unsupported %s value '%s' for analytics_report_group_id %s",
+								ReportTypeId.class.getSimpleName(), report.getReportTypeId().name(), analyticsReportGroupId));
+			}
+		}
 
 		throw new UnsupportedOperationException();
 	}
@@ -99,6 +165,11 @@ public class AnalyticsXrayResource {
 	@Nonnull
 	protected AuthorizationService getAuthorizationService() {
 		return this.authorizationService;
+	}
+
+	@Nonnull
+	protected AnalyticsReportGroupApiResponseFactory getAnalyticsReportGroupApiResponseFactory() {
+		return this.analyticsReportGroupApiResponseFactory;
 	}
 
 	@Nonnull
