@@ -20,12 +20,12 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.analytics.AnalyticsWidget;
 import com.cobaltplatform.api.model.api.response.AnalyticsReportGroupApiResponse.AnalyticsReportGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroup;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroupReport;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsXrayService;
 import com.cobaltplatform.api.service.AuthorizationService;
@@ -45,12 +45,12 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -93,8 +93,8 @@ public class AnalyticsXrayResource {
 	@AuthenticationRequired
 	@ReadReplica
 	public ApiResponse analyticsReportGroups() {
-		InstitutionId institutionId = getCurrentContext().getInstitutionId();
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
@@ -119,42 +119,47 @@ public class AnalyticsXrayResource {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
-		InstitutionId institutionId = getCurrentContext().getInstitutionId();
 		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = account.getInstitutionId();
 
 		if (!getAuthorizationService().canViewAnalytics(institutionId, account))
 			throw new AuthorizationException();
 
 		List<AnalyticsReportGroupReport> reports = getAnalyticsXrayService().findAnalyticsReportGroupReportsByAnalyticsReportGroupId(analyticsReportGroupId);
+		List<AnalyticsWidget> widgets = new ArrayList<>(reports.size());
 
 		// Based on report type, pull data for it
 		for (AnalyticsReportGroupReport report : reports) {
 			switch (report.getReportTypeId()) {
 				// Account-related reports
-				case ADMIN_ANALYTICS_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_ACCOUNT_CREATION -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_ACCOUNT_REFERRER -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_VISITS ->
+						widgets.add(getAnalyticsXrayService().createAccountVisitsWidget(institutionId, startDate, endDate));
 
-				// Course-related reports
-				case ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_COURSE_COMPLETION -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS -> throw new UnsupportedOperationException("TODO");
-				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> throw new UnsupportedOperationException("TODO");
-
-				default ->
-						throw new UnsupportedOperationException(format("Unsupported %s value '%s' for analytics_report_group_id %s",
-								ReportTypeId.class.getSimpleName(), report.getReportTypeId().name(), analyticsReportGroupId));
+//				case ADMIN_ANALYTICS_ACCOUNT_CREATION -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_ACCOUNT_REFERRER -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS -> throw new UnsupportedOperationException("TODO");
+//
+//				// Course-related reports
+//				case ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_COURSE_COMPLETION -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS -> throw new UnsupportedOperationException("TODO");
+//				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> throw new UnsupportedOperationException("TODO");
+//
+//				default ->
+//						throw new UnsupportedOperationException(format("Unsupported %s value '%s' for analytics_report_group_id %s",
+//								ReportTypeId.class.getSimpleName(), report.getReportTypeId().name(), analyticsReportGroupId));
 			}
 		}
 
-		throw new UnsupportedOperationException();
+		return new ApiResponse(
+				Map.of("widgets", widgets)
+		);
 	}
 
 	@Nonnull
