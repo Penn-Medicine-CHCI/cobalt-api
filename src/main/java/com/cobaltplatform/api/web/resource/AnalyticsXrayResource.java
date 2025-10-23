@@ -139,7 +139,8 @@ public class AnalyticsXrayResource {
 				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS ->
 						widgets.add(getAnalyticsXrayService().createAccountRepeatVisitsWidget(institutionId, startDate, endDate));
 //				case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_ACCOUNT_REFERRER -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_REFERRER ->
+						widgets.add(getAnalyticsXrayService().createAccountReferrersWidget(institutionId, startDate, endDate));
 //				case ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS -> throw new UnsupportedOperationException("TODO");
 //
 //				// Course-related reports

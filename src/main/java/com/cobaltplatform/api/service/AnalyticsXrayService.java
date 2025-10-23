@@ -21,12 +21,18 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.analytics.AnalyticsCounterWidget;
 import com.cobaltplatform.api.model.analytics.AnalyticsLineChartWidget;
+import com.cobaltplatform.api.model.analytics.AnalyticsTableWidget;
 import com.cobaltplatform.api.model.analytics.AnalyticsWidgetChartData;
+import com.cobaltplatform.api.model.analytics.AnalyticsWidgetTableData;
+import com.cobaltplatform.api.model.analytics.AnalyticsWidgetTableRow;
+import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroup;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroupReport;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -365,6 +371,113 @@ public class AnalyticsXrayService {
 		)));
 
 		return counterWidget;
+	}
+
+	@Nonnull
+	public AnalyticsTableWidget createAccountReferrersWidget(@Nonnull InstitutionId institutionId,
+																													 @Nonnull LocalDate startDate,
+																													 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+
+		List<AccountReferrersRow> rows = getReadReplicaDatabase().queryForList("""
+						WITH params AS (
+						  SELECT
+						      ? AS start_date,
+						      ? AS end_date,
+						      ? AS tz
+						),
+						bounds AS (
+						  SELECT
+						      (start_date::timestamp AT TIME ZONE tz) AS start_utc,
+						      ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc
+						  FROM params
+						)
+						SELECT
+						  ane.data->>'referringUrl' AS referring_url,
+						  COUNT(*)::bigint          AS event_count
+						FROM bounds b
+						JOIN analytics_native_event ane
+							ON ane."timestamp" >= b.start_utc
+						 AND ane."timestamp" <  b.end_utc
+						JOIN account a
+							ON a.account_id = ane.account_id
+						WHERE ane.institution_id=?
+							AND a.role_id=?
+							AND ane.analytics_native_event_type_id=?
+							AND ane.data->>'referringUrl' NOT LIKE CONCAT(?,'%')
+						GROUP BY referring_url
+						ORDER BY event_count DESC, referring_url
+						""", AccountReferrersRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT,
+				AnalyticsNativeEventTypeId.SESSION_STARTED, webappBaseUrl);
+
+		Long widgetTotal = rows.stream()
+				.map(AccountReferrersRow::getEventCount)
+				.mapToLong(Long::longValue)
+				.sum();
+
+		AnalyticsWidgetTableData widgetData = new AnalyticsWidgetTableData();
+
+		widgetData.setHeaders(List.of(
+				getStrings().get("Referring Website"),
+				getStrings().get("Referral Count")
+		));
+
+		widgetData.setRows(rows.stream()
+				.map(row -> {
+					AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
+
+					tableRow.setData(List.of(
+							row.getReferringUrl(),
+							getFormatter().formatInteger(row.getEventCount())
+					));
+
+					return tableRow;
+				})
+				.collect(Collectors.toList())
+		);
+
+		AnalyticsTableWidget tableWidget = new AnalyticsTableWidget();
+		tableWidget.setWidgetTitle(getStrings().get("Referrers"));
+		tableWidget.setWidgetSubtitle(getStrings().get("Other websites that directed users to {{platformName}} ({{widgetTotal}} total)", Map.of(
+				"platformName", institution.getPlatformName(),
+				"widgetTotal", getFormatter().formatInteger(widgetTotal)
+		)));
+		tableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_REFERRER);
+		tableWidget.setWidgetData(widgetData);
+
+		return tableWidget;
+	}
+
+	@NotThreadSafe
+	protected static class AccountReferrersRow {
+		@Nullable
+		private String referringUrl;
+		@Nullable
+		private Long eventCount;
+
+		@Nullable
+		public String getReferringUrl() {
+			return this.referringUrl;
+		}
+
+		public void setReferringUrl(@Nullable String referringUrl) {
+			this.referringUrl = referringUrl;
+		}
+
+		@Nullable
+		public Long getEventCount() {
+			return this.eventCount;
+		}
+
+		public void setEventCount(@Nullable Long eventCount) {
+			this.eventCount = eventCount;
+		}
 	}
 
 	@Nonnull
