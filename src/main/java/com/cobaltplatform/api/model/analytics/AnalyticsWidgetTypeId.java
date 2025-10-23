@@ -27,5 +27,5 @@ public enum AnalyticsWidgetTypeId {
 	BAR_CHART,
 	PIE_CHART,
 	TABLE,
-	LINE_CHART
+	MULTI_CHART
 }

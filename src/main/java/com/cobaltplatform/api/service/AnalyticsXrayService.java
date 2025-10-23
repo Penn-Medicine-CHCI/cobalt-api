@@ -20,9 +20,8 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.analytics.AnalyticsCounterWidget;
-import com.cobaltplatform.api.model.analytics.AnalyticsLineChartWidget;
+import com.cobaltplatform.api.model.analytics.AnalyticsMultiChartWidget;
 import com.cobaltplatform.api.model.analytics.AnalyticsTableWidget;
-import com.cobaltplatform.api.model.analytics.AnalyticsWidgetChartData;
 import com.cobaltplatform.api.model.analytics.AnalyticsWidgetTableData;
 import com.cobaltplatform.api.model.analytics.AnalyticsWidgetTableRow;
 import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
@@ -123,9 +122,9 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
-	public AnalyticsLineChartWidget createAccountVisitsWidget(@Nonnull InstitutionId institutionId,
-																														@Nonnull LocalDate startDate,
-																														@Nonnull LocalDate endDate) {
+	public AnalyticsMultiChartWidget createAccountVisitsWidget(@Nonnull InstitutionId institutionId,
+																														 @Nonnull LocalDate startDate,
+																														 @Nonnull LocalDate endDate) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
@@ -174,30 +173,50 @@ public class AnalyticsXrayService {
 				.mapToLong(Long::longValue)
 				.sum();
 
-		List<AnalyticsWidgetChartData> widgetData = rows.stream()
-				.map((row) -> {
-					AnalyticsWidgetChartData element = new AnalyticsWidgetChartData();
-					element.setColor("#102747");
-					element.setLabel(row.getDay().toString());
-					element.setCount(row.getDistinctAccounts());
-					element.setCountDescription(getFormatter().formatInteger(row.getDistinctAccounts()));
+		// List of date labels for x axis
+		List<String> labels = rows.stream()
+				.map(row -> row.getDay().toString())
+				.collect(Collectors.toUnmodifiableList());
 
-					return element;
-				})
-				.collect(Collectors.toList());
+		List<Number> data = rows.stream()
+				.map(row -> row.getDistinctAccounts())
+				.collect(Collectors.toUnmodifiableList());
 
-		AnalyticsLineChartWidget lineChartWidget = new AnalyticsLineChartWidget();
-		lineChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_VISITS);
-		lineChartWidget.setWidgetTitle(getStrings().get("Account Visits"));
-		lineChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have visited {{platformName}} at least once", Map.of(
+		List<String> dataDescriptions = data.stream()
+				.map(rawData -> getFormatter().formatInteger(rawData))
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> borderColors = data.stream()
+				.map(rawData -> "#1B4279")
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> backgroundColors = data.stream()
+				.map(rawData -> "#102747")
+				.collect(Collectors.toUnmodifiableList());
+
+		AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
+		dataset.setData(data);
+		dataset.setDataDescriptions(dataDescriptions);
+		dataset.setLabel(getStrings().get("Accounts"));
+		dataset.setType(AnalyticsMultiChartWidget.DatasetType.LINE);
+		dataset.setBorderColor(borderColors);
+		dataset.setBackgroundColor(backgroundColors);
+
+		AnalyticsMultiChartWidget.WidgetData widgetData = new AnalyticsMultiChartWidget.WidgetData();
+		widgetData.setLabels(labels);
+		widgetData.setDatasets(List.of(dataset));
+
+		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
+		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_VISITS);
+		multiChartWidget.setWidgetTitle(getStrings().get("Account Visits"));
+		multiChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have visited {{platformName}} at least once", Map.of(
 				"platformName", institution.getPlatformName()
 		)));
-		lineChartWidget.setWidgetChartLabel(getStrings().get("Accounts"));
-		lineChartWidget.setWidgetTotal(widgetTotal);
-		lineChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
-		lineChartWidget.setWidgetData(widgetData);
+		multiChartWidget.setWidgetTotal(widgetTotal);
+		multiChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
+		multiChartWidget.setWidgetData(widgetData);
 
-		return lineChartWidget;
+		return multiChartWidget;
 	}
 
 	@NotThreadSafe
@@ -227,9 +246,9 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
-	public AnalyticsLineChartWidget createAccountsCreatedWidget(@Nonnull InstitutionId institutionId,
-																															@Nonnull LocalDate startDate,
-																															@Nonnull LocalDate endDate) {
+	public AnalyticsMultiChartWidget createAccountsCreatedWidget(@Nonnull InstitutionId institutionId,
+																															 @Nonnull LocalDate startDate,
+																															 @Nonnull LocalDate endDate) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
@@ -276,28 +295,60 @@ public class AnalyticsXrayService {
 				.mapToLong(Long::longValue)
 				.sum();
 
-		List<AnalyticsWidgetChartData> widgetData = rows.stream()
-				.map((row) -> {
-					AnalyticsWidgetChartData element = new AnalyticsWidgetChartData();
-					element.setColor("#102747");
-					element.setLabel(row.getDay().toString());
-					element.setCount(row.getAccountsCreated());
-					element.setCountDescription(getFormatter().formatInteger(row.getAccountsCreated()));
+		// List of date labels for x axis
+		List<String> labels = rows.stream()
+				.map(row -> row.getDay().toString())
+				.collect(Collectors.toUnmodifiableList());
 
-					return element;
-				})
-				.collect(Collectors.toList());
+		List<Number> data = rows.stream()
+				.map(row -> row.getAccountsCreated())
+				.collect(Collectors.toUnmodifiableList());
 
-		AnalyticsLineChartWidget lineChartWidget = new AnalyticsLineChartWidget();
-		lineChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_CREATION);
-		lineChartWidget.setWidgetTitle(getStrings().get("Accounts Created"));
-		lineChartWidget.setWidgetSubtitle(getStrings().get("The total number of new accounts created"));
-		lineChartWidget.setWidgetChartLabel(getStrings().get("Accounts"));
-		lineChartWidget.setWidgetTotal(widgetTotal);
-		lineChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
-		lineChartWidget.setWidgetData(widgetData);
+		List<String> dataDescriptions = data.stream()
+				.map(rawData -> getFormatter().formatInteger(rawData))
+				.collect(Collectors.toUnmodifiableList());
 
-		return lineChartWidget;
+		List<String> borderColors = data.stream()
+				.map(rawData -> "#1B4279")
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> backgroundColors = data.stream()
+				.map(rawData -> "#102747")
+				.collect(Collectors.toUnmodifiableList());
+
+		AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
+		dataset.setData(data);
+		dataset.setDataDescriptions(dataDescriptions);
+		dataset.setLabel(getStrings().get("Accounts"));
+		dataset.setType(AnalyticsMultiChartWidget.DatasetType.LINE);
+		dataset.setBorderColor(borderColors);
+		dataset.setBackgroundColor(backgroundColors);
+
+		AnalyticsMultiChartWidget.WidgetData widgetData = new AnalyticsMultiChartWidget.WidgetData();
+		widgetData.setLabels(labels);
+		widgetData.setDatasets(List.of(dataset));
+
+//		List<AnalyticsWidgetChartData> widgetData = rows.stream()
+//				.map((row) -> {
+//					AnalyticsWidgetChartData element = new AnalyticsWidgetChartData();
+//					element.setColor("#102747");
+//					element.setLabel(row.getDay().toString());
+//					element.setCount(row.getAccountsCreated());
+//					element.setCountDescription(getFormatter().formatInteger(row.getAccountsCreated()));
+//
+//					return element;
+//				})
+//				.collect(Collectors.toList());
+
+		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
+		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_CREATION);
+		multiChartWidget.setWidgetTitle(getStrings().get("Accounts Created"));
+		multiChartWidget.setWidgetSubtitle(getStrings().get("The total number of new accounts created"));
+		multiChartWidget.setWidgetTotal(widgetTotal);
+		multiChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
+		multiChartWidget.setWidgetData(widgetData);
+
+		return multiChartWidget;
 	}
 
 	@NotThreadSafe
