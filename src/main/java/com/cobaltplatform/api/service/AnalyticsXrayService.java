@@ -51,6 +51,7 @@ import javax.inject.Singleton;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -175,7 +176,7 @@ public class AnalyticsXrayService {
 
 		// List of date labels for x axis
 		List<String> labels = rows.stream()
-				.map(row -> row.getDay().toString())
+				.map(row -> getFormatter().formatDate(row.getDay(), FormatStyle.SHORT))
 				.collect(Collectors.toUnmodifiableList());
 
 		List<Number> data = rows.stream()
@@ -297,7 +298,7 @@ public class AnalyticsXrayService {
 
 		// List of date labels for x axis
 		List<String> labels = rows.stream()
-				.map(row -> row.getDay().toString())
+				.map(row -> getFormatter().formatDate(row.getDay(), FormatStyle.SHORT))
 				.collect(Collectors.toUnmodifiableList());
 
 		List<Number> data = rows.stream()
@@ -327,18 +328,6 @@ public class AnalyticsXrayService {
 		AnalyticsMultiChartWidget.WidgetData widgetData = new AnalyticsMultiChartWidget.WidgetData();
 		widgetData.setLabels(labels);
 		widgetData.setDatasets(List.of(dataset));
-
-//		List<AnalyticsWidgetChartData> widgetData = rows.stream()
-//				.map((row) -> {
-//					AnalyticsWidgetChartData element = new AnalyticsWidgetChartData();
-//					element.setColor("#102747");
-//					element.setLabel(row.getDay().toString());
-//					element.setCount(row.getAccountsCreated());
-//					element.setCountDescription(getFormatter().formatInteger(row.getAccountsCreated()));
-//
-//					return element;
-//				})
-//				.collect(Collectors.toList());
 
 		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
 		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_CREATION);
