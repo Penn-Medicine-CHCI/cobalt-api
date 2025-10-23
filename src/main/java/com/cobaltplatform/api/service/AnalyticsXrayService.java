@@ -210,6 +210,106 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
+	public AnalyticsLineChartWidget createAccountsCreatedWidget(@Nonnull InstitutionId institutionId,
+																															@Nonnull LocalDate startDate,
+																															@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+
+		List<AccountsCreatedRow> rows = getReadReplicaDatabase().queryForList("""
+				WITH params AS (
+				  SELECT
+				      ? AS start_date,
+				      ? AS end_date,
+				      ? AS tz
+				),
+				bounds AS (
+				  SELECT
+				      (start_date::timestamp AT TIME ZONE tz) AS start_utc,
+				      ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc,
+				      start_date, end_date, tz
+				  FROM params
+				),
+				agg AS (
+				  SELECT
+				      (timezone(b.tz, a.created))::date AS day,
+				      COUNT(*)::bigint AS accounts_created
+				  FROM bounds b
+				  JOIN account a
+				    ON a.created >= b.start_utc
+				   AND a.created <  b.end_utc
+				  WHERE a.role_id=?
+				  AND a.institution_id=?
+				  GROUP BY 1
+				)
+				SELECT d.day, COALESCE(agg.accounts_created, 0) AS accounts_created
+				FROM (
+				  SELECT generate_series(b.start_date, b.end_date, interval '1 day')::date AS day
+				  FROM bounds b
+				) d
+				LEFT JOIN agg USING (day)
+				ORDER BY d.day
+				""", AccountsCreatedRow.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId);
+
+		Long widgetTotal = rows.stream()
+				.map(AccountsCreatedRow::getAccountsCreated)
+				.mapToLong(Long::longValue)
+				.sum();
+
+		List<AnalyticsWidgetChartData> widgetData = rows.stream()
+				.map((row) -> {
+					AnalyticsWidgetChartData element = new AnalyticsWidgetChartData();
+					element.setColor("#102747");
+					element.setLabel(row.getDay().toString());
+					element.setCount(row.getAccountsCreated());
+					element.setCountDescription(getFormatter().formatInteger(row.getAccountsCreated()));
+
+					return element;
+				})
+				.collect(Collectors.toList());
+
+		AnalyticsLineChartWidget lineChartWidget = new AnalyticsLineChartWidget();
+		lineChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_CREATION);
+		lineChartWidget.setWidgetTitle(getStrings().get("Accounts Created"));
+		lineChartWidget.setWidgetSubtitle(getStrings().get("TODO: Subtitle"));
+		lineChartWidget.setWidgetChartLabel(getStrings().get("TODO: Chart Label"));
+		lineChartWidget.setWidgetTotal(widgetTotal);
+		lineChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
+		lineChartWidget.setWidgetData(widgetData);
+
+		return lineChartWidget;
+	}
+
+	@NotThreadSafe
+	protected static class AccountsCreatedRow {
+		@Nullable
+		private LocalDate day;
+		@Nullable
+		private Long accountsCreated;
+
+		@Nullable
+		public LocalDate getDay() {
+			return this.day;
+		}
+
+		public void setDay(@Nullable LocalDate day) {
+			this.day = day;
+		}
+
+		@Nullable
+		public Long getAccountsCreated() {
+			return this.accountsCreated;
+		}
+
+		public void setAccountsCreated(@Nullable Long accountsCreated) {
+			this.accountsCreated = accountsCreated;
+		}
+	}
+
+	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionServiceProvider.get();
 	}
