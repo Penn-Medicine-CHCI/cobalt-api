@@ -136,7 +136,8 @@ public class AnalyticsXrayResource {
 						widgets.add(getAnalyticsXrayService().createAccountVisitsWidget(institutionId, startDate, endDate));
 				case ADMIN_ANALYTICS_ACCOUNT_CREATION ->
 						widgets.add(getAnalyticsXrayService().createAccountsCreatedWidget(institutionId, startDate, endDate));
-//				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS ->
+						widgets.add(getAnalyticsXrayService().createAccountRepeatVisitsWidget(institutionId, startDate, endDate));
 //				case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
 //				case ADMIN_ANALYTICS_ACCOUNT_REFERRER -> throw new UnsupportedOperationException("TODO");
 //				case ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS -> throw new UnsupportedOperationException("TODO");
@@ -156,7 +157,6 @@ public class AnalyticsXrayResource {
 //								ReportTypeId.class.getSimpleName(), report.getReportTypeId().name(), analyticsReportGroupId));
 			}
 		}
-
 
 
 		return new ApiResponse(

@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.analytics.AnalyticsCounterWidget;
 import com.cobaltplatform.api.model.analytics.AnalyticsLineChartWidget;
 import com.cobaltplatform.api.model.analytics.AnalyticsWidgetChartData;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroup;
@@ -42,7 +43,9 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.FormatStyle;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -307,6 +310,61 @@ public class AnalyticsXrayService {
 		public void setAccountsCreated(@Nullable Long accountsCreated) {
 			this.accountsCreated = accountsCreated;
 		}
+	}
+
+	@Nonnull
+	public AnalyticsCounterWidget createAccountRepeatVisitsWidget(@Nonnull InstitutionId institutionId,
+																																@Nonnull LocalDate startDate,
+																																@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+
+		Long accountsWithMoreThanOneSession = getReadReplicaDatabase().queryForObject("""
+				WITH params AS (
+				  SELECT
+				      ? AS start_date,
+				      ? AS end_date,
+				      ? AS tz
+				),
+				bounds AS (
+				  SELECT
+				      (start_date::timestamp AT TIME ZONE tz) AS start_utc,
+				      ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc
+				  FROM params
+				)
+				SELECT COUNT(*)::bigint AS accounts_with_multi_sessions
+				FROM (
+				  SELECT ane.account_id
+				  FROM bounds b
+				  JOIN analytics_native_event ane
+				    ON ane."timestamp" >= b.start_utc
+				   AND ane."timestamp" <  b.end_utc
+				  WHERE EXISTS (
+				          SELECT 1
+				          FROM account a
+				          WHERE a.account_id = ane.account_id
+				          AND a.role_id=?
+				          AND a.institution_id=?
+				        )
+				  GROUP BY ane.account_id
+				  HAVING COUNT(DISTINCT ane.session_id) > 1
+				) t
+				""", Long.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId).get();
+
+		AnalyticsCounterWidget counterWidget = new AnalyticsCounterWidget();
+		counterWidget.setWidgetTotal(accountsWithMoreThanOneSession);
+		counterWidget.setWidgetTotalDescription(getFormatter().formatInteger(accountsWithMoreThanOneSession));
+		counterWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS);
+		counterWidget.setWidgetTitle(getStrings().get("Repeat Visits"));
+		counterWidget.setWidgetSubtitle(getStrings().get("Accounts with > 1 session from {{startDate}} to {{endDate}}", Map.of(
+				"startDate", getFormatter().formatDate(startDate, FormatStyle.SHORT),
+				"endDate", getFormatter().formatDate(endDate, FormatStyle.SHORT)
+		)));
+
+		return counterWidget;
 	}
 
 	@Nonnull
