@@ -771,7 +771,7 @@ public class AnalyticsXrayService {
 
 		String safeUrl = safeUrl(rawUrl).orElse(null);
 
-		if (safeUrl == null)
+		if (safeUrl == null || !rawUrl.toLowerCase(Locale.ROOT).startsWith("https://"))
 			return Encode.forHtmlContent(rawUrl);
 
 		return format(
