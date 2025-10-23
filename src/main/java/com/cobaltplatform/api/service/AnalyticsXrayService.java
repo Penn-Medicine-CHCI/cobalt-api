@@ -158,6 +158,7 @@ public class AnalyticsXrayService {
 				  AND ane.institution_id=?
 				  AND ane.account_id=a.account_id
 				  AND a.role_id=?
+				  AND a.test_account=FALSE
 				  GROUP BY 1
 				)
 				SELECT d.day, COALESCE(dd.distinct_accounts, 0) AS distinct_accounts
@@ -279,6 +280,7 @@ public class AnalyticsXrayService {
 				    ON a.created >= b.start_utc
 				   AND a.created <  b.end_utc
 				  WHERE a.role_id=?
+				  AND a.test_account=FALSE
 				  AND a.institution_id=?
 				  GROUP BY 1
 				)
@@ -401,6 +403,7 @@ public class AnalyticsXrayService {
 				          FROM account a
 				          WHERE a.account_id = ane.account_id
 				          AND a.role_id=?
+				          AND a.test_account=FALSE
 				          AND a.institution_id=?
 				        )
 				  GROUP BY ane.account_id
@@ -454,6 +457,7 @@ public class AnalyticsXrayService {
 							ON a.account_id = ane.account_id
 						WHERE ane.institution_id=?
 							AND a.role_id=?
+							AND a.test_account=FALSE
 							AND ane.analytics_native_event_type_id=?
 							AND ane.data->>'referringUrl' NOT LIKE CONCAT(?,'%')
 						GROUP BY referring_url
@@ -577,6 +581,7 @@ public class AnalyticsXrayService {
 				    ON a.account_id = ss.target_account_id
 				   AND a.institution_id = x.institution_id
 				   AND a.role_id = ?
+				   AND a.test_account=FALSE
 				  WHERE ss.created >= (SELECT start_utc FROM inst LIMIT 1)
 				    AND ss.created <  (SELECT end_utc   FROM inst LIMIT 1)
 				  ORDER BY ss.target_account_id, ss.created DESC
