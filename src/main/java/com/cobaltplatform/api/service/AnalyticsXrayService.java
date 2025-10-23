@@ -36,7 +36,6 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
-import org.apache.commons.lang3.StringUtils;
 import org.owasp.encoder.Encode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +60,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -500,51 +500,6 @@ public class AnalyticsXrayService {
 		return tableWidget;
 	}
 
-	@Nonnull
-	private Optional<String> safeUrl(@Nullable String rawUrl) {
-		rawUrl = StringUtils.trimToNull(rawUrl);
-
-		if (rawUrl == null)
-			return Optional.empty();
-
-		// reject control chars
-		if (rawUrl.chars().anyMatch(ch -> ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r')) {
-			return Optional.empty();
-		}
-
-		try {
-			URI uri = new URI(rawUrl);
-			String scheme = (uri.getScheme() == null) ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
-
-			if (!scheme.equals("http") && !scheme.equals("https"))
-				return Optional.empty();
-
-			return Optional.of(uri.toString());
-		} catch (Exception e) {
-			return Optional.empty();
-		}
-	}
-
-	@Nonnull
-	protected String safeAnchorTagOrPlaintextFallback(@Nullable String rawUrl) {
-		rawUrl = StringUtils.trimToNull(rawUrl);
-
-		if (rawUrl == null)
-			return "";
-
-		String safeUrl = safeUrl(rawUrl).orElse(null);
-
-		if (safeUrl == null)
-			return Encode.forHtmlContent(rawUrl);
-
-		return format(
-				"<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">%s</a>",
-				Encode.forHtmlAttribute(safeUrl),
-				Encode.forHtmlContent(safeUrl)
-		);
-	}
-
-
 	@NotThreadSafe
 	protected static class AccountReferrersRow {
 		@Nullable
@@ -569,6 +524,256 @@ public class AnalyticsXrayService {
 		public void setEventCount(@Nullable Long eventCount) {
 			this.eventCount = eventCount;
 		}
+	}
+
+	public AnalyticsMultiChartWidget createAccountOnboardingResultsWidget(@Nonnull InstitutionId institutionId,
+																																				@Nonnull LocalDate startDate,
+																																				@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+
+		List<AccountOnboardingResultsRow> rows = getReadReplicaDatabase().queryForList("""
+				WITH params AS (
+				  SELECT
+				      ? AS start_date,
+				      ? AS end_date,
+				      ? AS tz,
+				      ? AS institution_id
+				),
+				bounds AS (
+				  SELECT
+				      (start_date::timestamp AT TIME ZONE tz) AS start_utc,
+				      ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc,
+				      start_date, end_date, tz, institution_id
+				  FROM params
+				),
+				inst AS (
+				  -- Get the onboarding flow for this institution and carry window/tz
+				  SELECT i.onboarding_screening_flow_id AS flow_id,
+				         b.start_utc, b.end_utc, b.start_date, b.end_date, b.tz, b.institution_id
+				  FROM bounds b
+				  JOIN institution i ON i.institution_id = b.institution_id
+				),
+				-- Most recent session PER ACCOUNT for the institution's onboarding flow,
+				-- *constrained to sessions whose created falls inside the window*
+				latest AS (
+				  SELECT DISTINCT ON (ss.target_account_id)
+				         ss.screening_session_id,
+				         ss.screening_flow_version_id,
+				         ss.target_account_id,
+				         ss.created,
+				         ss.completed,
+				         ss.completed_at
+				  FROM screening_session ss
+				  JOIN screening_flow_version sfv
+				    ON sfv.screening_flow_version_id = ss.screening_flow_version_id
+				  JOIN inst x
+				    ON sfv.screening_flow_id = x.flow_id
+				  JOIN account a
+				    ON a.account_id = ss.target_account_id
+				   AND a.institution_id = x.institution_id
+				   AND a.role_id = ?
+				  WHERE ss.created >= (SELECT start_utc FROM inst LIMIT 1)
+				    AND ss.created <  (SELECT end_utc   FROM inst LIMIT 1)
+				  ORDER BY ss.target_account_id, ss.created DESC
+				),
+				started AS (
+				  -- Bucket by the local date of CREATED for the latest-in-window session
+				  SELECT
+				      (timezone((SELECT tz FROM inst LIMIT 1), l.created))::date AS day,
+				      COUNT(*)::bigint AS started_accounts
+				  FROM latest l
+				  GROUP BY 1
+				),
+				finished AS (
+				  -- Among those latest-in-window sessions, count how many are marked completed
+				  -- (ignore completed_at timestamp for bucketing to avoid cross-midnight mismatch)
+				  SELECT
+				      (timezone((SELECT tz FROM inst LIMIT 1), l.created))::date AS day,
+				      COUNT(*)::bigint AS finished_accounts
+				  FROM latest l
+				  WHERE l.completed IS TRUE
+				  GROUP BY 1
+				)
+				SELECT d.day,
+				       COALESCE(s.started_accounts, 0)  AS started_accounts,
+				       COALESCE(f.finished_accounts, 0) AS finished_accounts
+				FROM (
+				  SELECT generate_series(
+				           (SELECT start_date FROM inst LIMIT 1),
+				           (SELECT end_date   FROM inst LIMIT 1),
+				           interval '1 day'
+				         )::date AS day
+				) d
+				LEFT JOIN started  s USING (day)
+				LEFT JOIN finished f USING (day)
+				ORDER BY d.day
+				""", AccountOnboardingResultsRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT);
+
+		Long startedTotal = rows.stream()
+				.map(AccountOnboardingResultsRow::getStartedAccounts)
+				.mapToLong(Long::longValue)
+				.sum();
+
+		Long finishedTotal = rows.stream()
+				.map(AccountOnboardingResultsRow::getFinishedAccounts)
+				.mapToLong(Long::longValue)
+				.sum();
+
+		// List of date labels for x axis
+		List<String> labels = rows.stream()
+				.map(row -> getFormatter().formatDate(row.getDay(), FormatStyle.SHORT))
+				.collect(Collectors.toUnmodifiableList());
+
+		// Started data
+		List<Number> startedData = rows.stream()
+				.map(row -> row.getStartedAccounts())
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> startedDataDescriptions = startedData.stream()
+				.map(rawData -> getFormatter().formatInteger(rawData))
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> startedBorderColors = startedData.stream()
+				.map(rawData -> "#1B4279")
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> startedBackgroundColors = startedData.stream()
+				.map(rawData -> "#102747")
+				.collect(Collectors.toUnmodifiableList());
+
+		AnalyticsMultiChartWidget.Dataset startedDataset = new AnalyticsMultiChartWidget.Dataset();
+		startedDataset.setData(startedData);
+		startedDataset.setDataDescriptions(startedDataDescriptions);
+		startedDataset.setLabel(getStrings().get("Started"));
+		startedDataset.setType(AnalyticsMultiChartWidget.DatasetType.BAR);
+		startedDataset.setBorderColor(startedBorderColors);
+		startedDataset.setBackgroundColor(startedBackgroundColors);
+
+		// Finished data
+		List<Number> finishedData = rows.stream()
+				.map(row -> row.getFinishedAccounts())
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> finishedDataDescriptions = finishedData.stream()
+				.map(rawData -> getFormatter().formatInteger(rawData))
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> finishedBorderColors = finishedData.stream()
+				.map(rawData -> "#1E611E")
+				.collect(Collectors.toUnmodifiableList());
+
+		List<String> finishedBackgroundColors = finishedData.stream()
+				.map(rawData -> "#2D912D")
+				.collect(Collectors.toUnmodifiableList());
+
+		AnalyticsMultiChartWidget.Dataset finishedDataset = new AnalyticsMultiChartWidget.Dataset();
+		finishedDataset.setData(finishedData);
+		finishedDataset.setDataDescriptions(finishedDataDescriptions);
+		finishedDataset.setLabel(getStrings().get("Finished"));
+		finishedDataset.setType(AnalyticsMultiChartWidget.DatasetType.BAR);
+		finishedDataset.setBorderColor(finishedBorderColors);
+		finishedDataset.setBackgroundColor(finishedBackgroundColors);
+
+		AnalyticsMultiChartWidget.WidgetData widgetData = new AnalyticsMultiChartWidget.WidgetData();
+		widgetData.setLabels(labels);
+		widgetData.setDatasets(List.of(startedDataset, finishedDataset));
+
+		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
+		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_VISITS);
+		multiChartWidget.setWidgetTitle(getStrings().get("Account Onboarding: Started vs. Finished"));
+		multiChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have started the onboarding assessment (vs. {{finishedDescription}} who finished)", Map.of(
+				"finishedDescription", getFormatter().formatInteger(finishedTotal)
+		)));
+		multiChartWidget.setWidgetTotal(startedTotal);
+		multiChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(startedTotal));
+		multiChartWidget.setWidgetData(widgetData);
+
+		return multiChartWidget;
+	}
+
+	@NotThreadSafe
+	protected static class AccountOnboardingResultsRow {
+		@Nullable
+		private LocalDate day;
+		@Nullable
+		private Long startedAccounts;
+		@Nullable
+		private Long finishedAccounts;
+
+		@Nullable
+		public LocalDate getDay() {
+			return this.day;
+		}
+
+		public void setDay(@Nullable LocalDate day) {
+			this.day = day;
+		}
+
+		@Nullable
+		public Long getStartedAccounts() {
+			return this.startedAccounts;
+		}
+
+		public void setStartedAccounts(@Nullable Long startedAccounts) {
+			this.startedAccounts = startedAccounts;
+		}
+
+		@Nullable
+		public Long getFinishedAccounts() {
+			return this.finishedAccounts;
+		}
+
+		public void setFinishedAccounts(@Nullable Long finishedAccounts) {
+			this.finishedAccounts = finishedAccounts;
+		}
+	}
+
+	@Nonnull
+	private Optional<String> safeUrl(@Nullable String rawUrl) {
+		rawUrl = trimToNull(rawUrl);
+
+		if (rawUrl == null)
+			return Optional.empty();
+
+		// Reject control chars
+		if (rawUrl.chars().anyMatch(ch -> ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r'))
+			return Optional.empty();
+
+		try {
+			URI uri = new URI(rawUrl);
+			String scheme = (uri.getScheme() == null) ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+
+			if (!scheme.equals("http") && !scheme.equals("https"))
+				return Optional.empty();
+
+			return Optional.of(uri.toString());
+		} catch (Exception e) {
+			return Optional.empty();
+		}
+	}
+
+	@Nonnull
+	private String safeAnchorTagOrPlaintextFallback(@Nullable String rawUrl) {
+		rawUrl = trimToNull(rawUrl);
+
+		if (rawUrl == null)
+			return "";
+
+		String safeUrl = safeUrl(rawUrl).orElse(null);
+
+		if (safeUrl == null)
+			return Encode.forHtmlContent(rawUrl);
+
+		return format(
+				"<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">%s</a>",
+				Encode.forHtmlAttribute(safeUrl),
+				Encode.forHtmlContent(safeUrl)
+		);
 	}
 
 	@Nonnull
