@@ -37,6 +37,8 @@ import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import org.apache.commons.lang3.StringUtils;
+import org.owasp.encoder.Encode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,14 +49,17 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.FormatStyle;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -125,7 +130,8 @@ public class AnalyticsXrayService {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
-		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
 
 		List<AccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
 				WITH params AS (
@@ -183,8 +189,10 @@ public class AnalyticsXrayService {
 		AnalyticsLineChartWidget lineChartWidget = new AnalyticsLineChartWidget();
 		lineChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_VISITS);
 		lineChartWidget.setWidgetTitle(getStrings().get("Account Visits"));
-		lineChartWidget.setWidgetSubtitle(getStrings().get("TODO: Subtitle"));
-		lineChartWidget.setWidgetChartLabel(getStrings().get("TODO: Chart Label"));
+		lineChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have visited {{platformName}} at least once", Map.of(
+				"platformName", institution.getPlatformName()
+		)));
+		lineChartWidget.setWidgetChartLabel(getStrings().get("Accounts"));
 		lineChartWidget.setWidgetTotal(widgetTotal);
 		lineChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
 		lineChartWidget.setWidgetData(widgetData);
@@ -283,8 +291,8 @@ public class AnalyticsXrayService {
 		AnalyticsLineChartWidget lineChartWidget = new AnalyticsLineChartWidget();
 		lineChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_CREATION);
 		lineChartWidget.setWidgetTitle(getStrings().get("Accounts Created"));
-		lineChartWidget.setWidgetSubtitle(getStrings().get("TODO: Subtitle"));
-		lineChartWidget.setWidgetChartLabel(getStrings().get("TODO: Chart Label"));
+		lineChartWidget.setWidgetSubtitle(getStrings().get("The total number of new accounts created"));
+		lineChartWidget.setWidgetChartLabel(getStrings().get("Accounts"));
 		lineChartWidget.setWidgetTotal(widgetTotal);
 		lineChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
 		lineChartWidget.setWidgetData(widgetData);
@@ -365,10 +373,7 @@ public class AnalyticsXrayService {
 		counterWidget.setWidgetTotalDescription(getFormatter().formatInteger(accountsWithMoreThanOneSession));
 		counterWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS);
 		counterWidget.setWidgetTitle(getStrings().get("Repeat Visits"));
-		counterWidget.setWidgetSubtitle(getStrings().get("Accounts with more than 1 browsing session from {{startDate}} to {{endDate}}", Map.of(
-				"startDate", getFormatter().formatDate(startDate, FormatStyle.SHORT),
-				"endDate", getFormatter().formatDate(endDate, FormatStyle.SHORT)
-		)));
+		counterWidget.setWidgetSubtitle(getStrings().get("Accounts with more than 1 browsing session"));
 
 		return counterWidget;
 	}
@@ -433,7 +438,7 @@ public class AnalyticsXrayService {
 					AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
 
 					tableRow.setData(List.of(
-							row.getReferringUrl(),
+							safeAnchorTagOrPlaintextFallback(row.getReferringUrl()),
 							getFormatter().formatInteger(row.getEventCount())
 					));
 
@@ -454,6 +459,51 @@ public class AnalyticsXrayService {
 
 		return tableWidget;
 	}
+
+	@Nonnull
+	private Optional<String> safeUrl(@Nullable String rawUrl) {
+		rawUrl = StringUtils.trimToNull(rawUrl);
+
+		if (rawUrl == null)
+			return Optional.empty();
+
+		// reject control chars
+		if (rawUrl.chars().anyMatch(ch -> ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r')) {
+			return Optional.empty();
+		}
+
+		try {
+			URI uri = new URI(rawUrl);
+			String scheme = (uri.getScheme() == null) ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+
+			if (!scheme.equals("http") && !scheme.equals("https"))
+				return Optional.empty();
+
+			return Optional.of(uri.toString());
+		} catch (Exception e) {
+			return Optional.empty();
+		}
+	}
+
+	@Nonnull
+	protected String safeAnchorTagOrPlaintextFallback(@Nullable String rawUrl) {
+		rawUrl = StringUtils.trimToNull(rawUrl);
+
+		if (rawUrl == null)
+			return "";
+
+		String safeUrl = safeUrl(rawUrl).orElse(null);
+
+		if (safeUrl == null)
+			return Encode.forHtmlContent(rawUrl);
+
+		return format(
+				"<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">%s</a>",
+				Encode.forHtmlAttribute(safeUrl),
+				Encode.forHtmlContent(safeUrl)
+		);
+	}
+
 
 	@NotThreadSafe
 	protected static class AccountReferrersRow {
