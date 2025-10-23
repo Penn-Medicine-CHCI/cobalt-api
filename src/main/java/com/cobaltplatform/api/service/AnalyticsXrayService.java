@@ -365,7 +365,7 @@ public class AnalyticsXrayService {
 		counterWidget.setWidgetTotalDescription(getFormatter().formatInteger(accountsWithMoreThanOneSession));
 		counterWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS);
 		counterWidget.setWidgetTitle(getStrings().get("Repeat Visits"));
-		counterWidget.setWidgetSubtitle(getStrings().get("Accounts with > 1 session from {{startDate}} to {{endDate}}", Map.of(
+		counterWidget.setWidgetSubtitle(getStrings().get("Accounts with more than 1 browsing session from {{startDate}} to {{endDate}}", Map.of(
 				"startDate", getFormatter().formatDate(startDate, FormatStyle.SHORT),
 				"endDate", getFormatter().formatDate(endDate, FormatStyle.SHORT)
 		)));
@@ -444,9 +444,10 @@ public class AnalyticsXrayService {
 
 		AnalyticsTableWidget tableWidget = new AnalyticsTableWidget();
 		tableWidget.setWidgetTitle(getStrings().get("Referrers"));
-		tableWidget.setWidgetSubtitle(getStrings().get("Other websites that directed users to {{platformName}} ({{widgetTotal}} total)", Map.of(
-				"platformName", institution.getPlatformName(),
-				"widgetTotal", getFormatter().formatInteger(widgetTotal)
+		tableWidget.setWidgetTotal(widgetTotal);
+		tableWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
+		tableWidget.setWidgetSubtitle(getStrings().get("Other websites that directed users to {{platformName}}", Map.of(
+				"platformName", institution.getPlatformName()
 		)));
 		tableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_REFERRER);
 		tableWidget.setWidgetData(widgetData);
