@@ -128,6 +128,9 @@ public class AnalyticsXrayResource {
 		List<AnalyticsReportGroupReport> reports = getAnalyticsXrayService().findAnalyticsReportGroupReportsByAnalyticsReportGroupId(analyticsReportGroupId);
 		List<AnalyticsWidget> widgets = new ArrayList<>(reports.size());
 
+		// TODO: temporary hack, remove
+		endDate = endDate.plusDays(1);
+
 		// Based on report type, pull data for it
 		for (AnalyticsReportGroupReport report : reports) {
 			switch (report.getReportTypeId()) {

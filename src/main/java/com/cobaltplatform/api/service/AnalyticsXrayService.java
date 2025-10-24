@@ -232,7 +232,7 @@ public class AnalyticsXrayService {
 		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
 		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_VISITS);
 		multiChartWidget.setWidgetTitle(getStrings().get("Account Visits"));
-		multiChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have visited {{platformName}} at least once", Map.of(
+		multiChartWidget.setWidgetSubtitle(getStrings().get("This chart shows how many accounts visited {{platformName}} per-day", Map.of(
 				"platformName", institution.getPlatformName()
 		)));
 		multiChartWidget.setWidgetTotal(widgetTotal);
@@ -880,7 +880,9 @@ public class AnalyticsXrayService {
 
 		// List of date labels for x axis
 		List<String> labels = rows.stream()
-				.map(row -> getFormatter().formatDate(row.getDay(), FormatStyle.SHORT))
+				.map(row -> row.getDay())
+				.distinct()
+				.map(day -> getFormatter().formatDate(day, FormatStyle.SHORT))
 				.collect(Collectors.toUnmodifiableList());
 
 		List<AnalyticsMultiChartWidget.Dataset> datasets = new ArrayList<>(courses.size());
