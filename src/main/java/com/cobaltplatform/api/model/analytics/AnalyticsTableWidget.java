@@ -28,10 +28,32 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class AnalyticsTableWidget extends AnalyticsWidget {
 	@Nullable
+	private Number widgetTotal;
+	@Nullable
+	private String widgetTotalDescription;
+	@Nullable
 	private AnalyticsWidgetTableData widgetData;
 
 	public AnalyticsTableWidget() {
 		super(AnalyticsWidgetTypeId.TABLE);
+	}
+
+	@Nullable
+	public Number getWidgetTotal() {
+		return this.widgetTotal;
+	}
+
+	public void setWidgetTotal(@Nullable Number widgetTotal) {
+		this.widgetTotal = widgetTotal;
+	}
+
+	@Nullable
+	public String getWidgetTotalDescription() {
+		return this.widgetTotalDescription;
+	}
+
+	public void setWidgetTotalDescription(@Nullable String widgetTotalDescription) {
+		this.widgetTotalDescription = widgetTotalDescription;
 	}
 
 	@Nullable
