@@ -27,8 +27,11 @@ import com.cobaltplatform.api.model.analytics.AnalyticsWidgetTableRow;
 import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroup;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroupReport;
+import com.cobaltplatform.api.model.db.ColorValue.ColorValueId;
+import com.cobaltplatform.api.model.db.Course;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionColorValue;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -51,11 +54,16 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.FormatStyle;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -68,8 +76,14 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @Singleton
 @ThreadSafe
 public class AnalyticsXrayService {
+	// In-memory cache of chart colors
+	@Nonnull
+	private final ConcurrentMap<InstitutionId, List<InstitutionColorValue>> chartColorsValuesByInstitutionIdCache;
+
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
+	private final Provider<CourseService> courseServiceProvider;
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
@@ -81,15 +95,20 @@ public class AnalyticsXrayService {
 
 	@Inject
 	public AnalyticsXrayService(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+															@Nonnull Provider<CourseService> courseServiceProvider,
 															@Nonnull DatabaseProvider databaseProvider,
 															@Nonnull Strings strings,
 															@Nonnull Formatter formatter) {
 		requireNonNull(institutionServiceProvider);
+		requireNonNull(courseServiceProvider);
 		requireNonNull(databaseProvider);
 		requireNonNull(strings);
 		requireNonNull(formatter);
 
+		this.chartColorsValuesByInstitutionIdCache = new ConcurrentHashMap<>();
+
 		this.institutionServiceProvider = institutionServiceProvider;
+		this.courseServiceProvider = courseServiceProvider;
 		this.databaseProvider = databaseProvider;
 		this.strings = strings;
 		this.formatter = formatter;
@@ -170,6 +189,8 @@ public class AnalyticsXrayService {
 				ORDER BY d.day
 				""", AccountVisitsRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT);
 
+		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
+
 		Long widgetTotal = rows.stream()
 				.map(AccountVisitsRow::getDistinctAccounts)
 				.mapToLong(Long::longValue)
@@ -189,11 +210,11 @@ public class AnalyticsXrayService {
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> borderColors = data.stream()
-				.map(rawData -> "#1B4279")
+				.map(rawData -> chartColorValues.get(0).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> backgroundColors = data.stream()
-				.map(rawData -> "#102747")
+				.map(rawData -> chartColorValues.get(0).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
@@ -293,6 +314,8 @@ public class AnalyticsXrayService {
 				ORDER BY d.day
 				""", AccountsCreatedRow.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId);
 
+		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
+
 		Long widgetTotal = rows.stream()
 				.map(AccountsCreatedRow::getAccountsCreated)
 				.mapToLong(Long::longValue)
@@ -312,11 +335,11 @@ public class AnalyticsXrayService {
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> borderColors = data.stream()
-				.map(rawData -> "#1B4279")
+				.map(rawData -> chartColorValues.get(0).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> backgroundColors = data.stream()
-				.map(rawData -> "#102747")
+				.map(rawData -> chartColorValues.get(0).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
@@ -530,6 +553,7 @@ public class AnalyticsXrayService {
 		}
 	}
 
+	@Nonnull
 	public AnalyticsMultiChartWidget createAccountOnboardingResultsWidget(@Nonnull InstitutionId institutionId,
 																																				@Nonnull LocalDate startDate,
 																																				@Nonnull LocalDate endDate) {
@@ -619,6 +643,8 @@ public class AnalyticsXrayService {
 				ORDER BY d.day
 				""", AccountOnboardingResultsRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT);
 
+		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
+
 		Long startedTotal = rows.stream()
 				.map(AccountOnboardingResultsRow::getStartedAccounts)
 				.mapToLong(Long::longValue)
@@ -644,11 +670,11 @@ public class AnalyticsXrayService {
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> startedBorderColors = startedData.stream()
-				.map(rawData -> "#1B4279")
+				.map(rawData -> chartColorValues.get(0).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> startedBackgroundColors = startedData.stream()
-				.map(rawData -> "#102747")
+				.map(rawData -> chartColorValues.get(0).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		AnalyticsMultiChartWidget.Dataset startedDataset = new AnalyticsMultiChartWidget.Dataset();
@@ -669,11 +695,11 @@ public class AnalyticsXrayService {
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> finishedBorderColors = finishedData.stream()
-				.map(rawData -> "#1E611E")
+				.map(rawData -> chartColorValues.get(1).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		List<String> finishedBackgroundColors = finishedData.stream()
-				.map(rawData -> "#2D912D")
+				.map(rawData -> chartColorValues.get(1).getCssRepresentation())
 				.collect(Collectors.toUnmodifiableList());
 
 		AnalyticsMultiChartWidget.Dataset finishedDataset = new AnalyticsMultiChartWidget.Dataset();
@@ -689,7 +715,7 @@ public class AnalyticsXrayService {
 		widgetData.setDatasets(List.of(startedDataset, finishedDataset));
 
 		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
-		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_VISITS);
+		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS);
 		multiChartWidget.setWidgetTitle(getStrings().get("Account Onboarding: Started vs. Finished"));
 		multiChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have started the onboarding assessment (vs. {{finishedDescription}} who finished)", Map.of(
 				"finishedDescription", getFormatter().formatInteger(finishedTotal)
@@ -739,6 +765,268 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
+	public AnalyticsMultiChartWidget createCourseAccountVisitsWidget(@Nonnull InstitutionId institutionId,
+																																	 @Nonnull LocalDate startDate,
+																																	 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+
+		// Data looks like this:
+		//    day     |              course_id               |          course_title          | distinct_accounts
+		// -----------+--------------------------------------+--------------------------------+-------------------
+		// 2025-10-24 | 0bc19523-1795-4dbd-80f5-52f92b455e2f | Building Healthy Sleep         |                 1
+		// 2025-10-24 | b38f9806-3ba2-4ec7-b836-538c395621df | Managing Challenging Behaviors |                 0
+		// 2025-10-24 | 11ad19bb-3759-4610-b8f7-0fe56f647d45 | Parenting Teens                |                 1
+		// 2025-10-24 | d5cf3b37-c3a3-4d30-9d47-7f6e33ce6b68 | Understanding Trauma           |                 0
+		List<CourseAccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
+						WITH params AS (
+						  SELECT
+						      ? AS start_date,
+						      ? AS end_date,
+						      ? AS tz
+						),
+						bounds AS (
+						  SELECT
+						    (start_date::timestamp AT TIME ZONE tz) AS start_utc,
+						    ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc,
+						    start_date, end_date, tz
+						  FROM params
+						),
+						-- Courses that actually appear in the window (limits the zero-fill set)
+						courses_in_scope AS (
+						  SELECT DISTINCT
+						    c.course_id,
+						    c.title
+						  FROM bounds b
+						  JOIN analytics_native_event ane
+						    ON ane."timestamp" >= b.start_utc
+						   AND ane."timestamp" <  b.end_utc
+						   AND ane.institution_id = ?
+						   AND ane.analytics_native_event_type_id = ?
+						  JOIN account a
+						    ON a.account_id = ane.account_id
+						   AND a.role_id = ?
+						   AND a.test_account = FALSE
+						  JOIN course_unit cu
+						    ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
+						  JOIN course_module cm
+						    ON cm.course_module_id = cu.course_module_id
+						  JOIN course c
+						    ON c.course_id = cm.course_id
+						),
+						-- Daily distinct accounts per course
+						daily AS (
+						  SELECT
+						    (timezone(b.tz, ane."timestamp"))::date AS day,
+						    c.course_id,
+						    c.title,
+						    COUNT(DISTINCT ane.account_id)          AS distinct_accounts
+						  FROM bounds b
+						  JOIN analytics_native_event ane
+						    ON ane."timestamp" >= b.start_utc
+						   AND ane."timestamp" <  b.end_utc
+						   AND ane.institution_id = ?
+						   AND ane.analytics_native_event_type_id = ?
+						  JOIN account a
+						    ON a.account_id = ane.account_id
+						   AND a.role_id = ?
+						   AND a.test_account = FALSE
+						  JOIN course_unit cu
+						    ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
+						  JOIN course_module cm
+						    ON cm.course_module_id = cu.course_module_id
+						  JOIN course c
+						    ON c.course_id = cm.course_id
+						  GROUP BY 1, 2, 3
+						),
+						days AS (
+						  SELECT generate_series(b.start_date, b.end_date, interval '1 day')::date AS day
+						  FROM bounds b
+						)
+						SELECT
+						  d.day,
+						  cis.course_id,
+						  cis.title AS course_title,
+						  COALESCE(di.distinct_accounts, 0) AS distinct_accounts
+						FROM days d
+						CROSS JOIN courses_in_scope cis
+						LEFT JOIN daily di
+						  ON di.day = d.day
+						 AND di.course_id = cis.course_id
+						ORDER BY d.day, cis.title, cis.course_id
+						""", CourseAccountVisitsRow.class, startDate, endDate, timeZone,
+				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT,
+				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT);
+
+		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
+		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
+		Map<UUID, InstitutionColorValue> chartColorValuesByCourseId = new HashMap<>(courses.size());
+
+		// "Stable" coloring based on institution's course sort order.
+		// This way colors don't change on page reload
+		for (int i = 0; i < courses.size(); ++i) {
+			Course course = courses.get(i);
+			chartColorValuesByCourseId.put(course.getCourseId(), chartColorValues.get(i % chartColorValues.size()));
+		}
+
+		Long totalVisitingAccounts = rows.stream()
+				.map(CourseAccountVisitsRow::getDistinctAccounts)
+				.mapToLong(Long::longValue)
+				.sum();
+
+		// List of date labels for x axis
+		List<String> labels = rows.stream()
+				.map(row -> getFormatter().formatDate(row.getDay(), FormatStyle.SHORT))
+				.collect(Collectors.toUnmodifiableList());
+
+		List<AnalyticsMultiChartWidget.Dataset> datasets = new ArrayList<>(courses.size());
+
+		for (Course course : courses) {
+			List<Number> data = rows.stream()
+					.filter(row -> row.getCourseId().equals(course.getCourseId()))
+					.map(row -> row.getDistinctAccounts())
+					.collect(Collectors.toUnmodifiableList());
+
+			List<String> dataDescriptions = data.stream()
+					.map(rawData -> getFormatter().formatInteger(rawData))
+					.collect(Collectors.toUnmodifiableList());
+
+			InstitutionColorValue institutionColorValue = chartColorValuesByCourseId.get(course.getCourseId());
+
+			List<String> borderColors = data.stream()
+					.map(rawData -> institutionColorValue.getCssRepresentation())
+					.collect(Collectors.toUnmodifiableList());
+
+			List<String> backgroundColors = data.stream()
+					.map(rawData -> institutionColorValue.getCssRepresentation())
+					.collect(Collectors.toUnmodifiableList());
+
+			AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
+			dataset.setData(data);
+			dataset.setDataDescriptions(dataDescriptions);
+			dataset.setLabel(getStrings().get(course.getTitle()));
+			dataset.setType(AnalyticsMultiChartWidget.DatasetType.BAR);
+			dataset.setBorderColor(borderColors);
+			dataset.setBackgroundColor(backgroundColors);
+
+			datasets.add(dataset);
+		}
+
+		AnalyticsMultiChartWidget.WidgetData widgetData = new AnalyticsMultiChartWidget.WidgetData();
+		widgetData.setLabels(labels);
+		widgetData.setDatasets(datasets);
+
+		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
+		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS);
+		multiChartWidget.setWidgetTitle(getStrings().get("Course Visits"));
+		multiChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have viewed a course unit at least once"));
+		multiChartWidget.setWidgetTotal(totalVisitingAccounts);
+		multiChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(totalVisitingAccounts));
+		multiChartWidget.setWidgetData(widgetData);
+
+		return multiChartWidget;
+	}
+
+	@NotThreadSafe
+	protected static class CourseAccountVisitsRow {
+		@Nullable
+		private LocalDate day;
+		@Nullable
+		private UUID courseId;
+		@Nullable
+		private String courseTitle;
+		@Nullable
+		private Long distinctAccounts;
+
+		@Nullable
+		public LocalDate getDay() {
+			return this.day;
+		}
+
+		public void setDay(@Nullable LocalDate day) {
+			this.day = day;
+		}
+
+		@Nullable
+		public UUID getCourseId() {
+			return this.courseId;
+		}
+
+		public void setCourseId(@Nullable UUID courseId) {
+			this.courseId = courseId;
+		}
+
+		@Nullable
+		public String getCourseTitle() {
+			return this.courseTitle;
+		}
+
+		public void setCourseTitle(@Nullable String courseTitle) {
+			this.courseTitle = courseTitle;
+		}
+
+		@Nullable
+		public Long getDistinctAccounts() {
+			return this.distinctAccounts;
+		}
+
+		public void setDistinctAccounts(@Nullable Long distinctAccounts) {
+			this.distinctAccounts = distinctAccounts;
+		}
+	}
+
+	@Nonnull
+	protected List<InstitutionColorValue> findChartColorValuesByInstitutionId(@Nonnull InstitutionId institutionId) {
+		requireNonNull(institutionId);
+
+		return getChartColorsValuesByInstitutionIdCache().computeIfAbsent(institutionId, (key) -> {
+			List<InstitutionColorValue> institutionColorValues = getInstitutionService().findInstitutionColorValuesByInstitutionId(institutionId);
+
+			// Try COBALT if no colors defined for this institution
+			if (institutionColorValues.size() == 0 && institutionId != InstitutionId.COBALT)
+				institutionColorValues = getInstitutionService().findInstitutionColorValuesByInstitutionId(InstitutionId.COBALT);
+
+			// Should never occur; COBALT should be a failsafe
+			if (institutionColorValues.size() == 0)
+				throw new IllegalStateException(format("No colors available for %s institution", institutionId.name()));
+
+			List<InstitutionColorValue> chartColors = new ArrayList<>(8);
+
+			InstitutionColorValue p500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.P500).findFirst().orElse(null);
+			InstitutionColorValue a500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.A500).findFirst().orElse(null);
+			InstitutionColorValue d500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.D500).findFirst().orElse(null);
+			InstitutionColorValue t500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.T500).findFirst().orElse(null);
+			InstitutionColorValue w500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.W500).findFirst().orElse(null);
+			InstitutionColorValue n500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.N500).findFirst().orElse(null);
+			InstitutionColorValue i500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.I500).findFirst().orElse(null);
+
+			if (p500 != null)
+				chartColors.add(p500);
+			if (a500 != null)
+				chartColors.add(a500);
+			if (d500 != null)
+				chartColors.add(d500);
+			if (t500 != null)
+				chartColors.add(t500);
+			if (w500 != null)
+				chartColors.add(w500);
+			if (n500 != null)
+				chartColors.add(n500);
+			if (i500 != null)
+				chartColors.add(i500);
+
+			if (chartColors.size() == 0)
+				throw new IllegalStateException(format("No chart colors available for %s institution", institutionId.name()));
+
+			return Collections.unmodifiableList(chartColors);
+		});
+	}
+
+	@Nonnull
 	private Optional<String> safeUrl(@Nullable String rawUrl) {
 		rawUrl = trimToNull(rawUrl);
 
@@ -782,8 +1070,18 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
+	protected ConcurrentMap<InstitutionId, List<InstitutionColorValue>> getChartColorsValuesByInstitutionIdCache() {
+		return this.chartColorsValuesByInstitutionIdCache;
+	}
+
+	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected CourseService getCourseService() {
+		return this.courseServiceProvider.get();
 	}
 
 	@Nonnull
