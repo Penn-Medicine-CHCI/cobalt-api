@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.util;
 
 import com.cobaltplatform.api.integration.epic.MyChartAccessToken;
+import com.cobaltplatform.api.model.analytics.AnalyticsMultiChartWidget;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -392,6 +393,19 @@ public final class GsonUtility {
 					requireNonNull(jsonSerializationContext);
 
 					return myChartAccessToken == null ? null : new JsonPrimitive(myChartAccessToken.serialize());
+				}
+			});
+
+			gsonBuilder.registerTypeAdapter(AnalyticsMultiChartWidget.DatasetType.class, new JsonSerializer<AnalyticsMultiChartWidget.DatasetType>() {
+				@Override
+				@Nullable
+				public JsonElement serialize(@Nullable AnalyticsMultiChartWidget.DatasetType datasetType,
+																		 @Nonnull Type type,
+																		 @Nonnull JsonSerializationContext jsonSerializationContext) {
+					requireNonNull(type);
+					requireNonNull(jsonSerializationContext);
+
+					return datasetType == null ? null : new JsonPrimitive(datasetType.getJsonRepresentation());
 				}
 			});
 		}

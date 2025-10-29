@@ -4674,23 +4674,23 @@ public class PatientOrderService implements AutoCloseable {
 			lines.add(headline);
 			lines.add(StringUtils.repeat("-", headline.length()));
 
-			for (ScreeningQuestionResult screeningQuestionResult : screeningSessionScreeningResult.getScreeningQuestionResults()) {
+
+			for (int i = 0; i < screeningSessionScreeningResult.getScreeningQuestionResults().size(); ++i) {
+				ScreeningQuestionResult screeningQuestionResult = screeningSessionScreeningResult.getScreeningQuestionResults().get(i);
 				String screeningQuestionText = screeningQuestionResult.getScreeningQuestionText();
 
-				// Temporary hack to deal with lists, e.g.
-				// "Sometimes things happen to people that are unusually or especially frightening, horrible, or traumatic. For example: <ul><li>a serious accident or fire</li><li>a physical or sexual assault or abuse</li><li>an earthquake or flood</li><li>a war</li><li>seeing someone be killed or seriously injured</li><li>having a loved one die through homicide or suicide</li></ul>Have you ever experienced this kind of event?"
-				if (screeningQuestionText.contains("<ul>") || screeningQuestionText.contains("<li>")) {
-					screeningQuestionText = screeningQuestionText.replace("<ul>", "");
-					screeningQuestionText = screeningQuestionText.replace("</ul>", ". ");
-					screeningQuestionText = screeningQuestionText.replace("</li><li>", ", ");
-					screeningQuestionText = screeningQuestionText.replace("<li>", "");
-					screeningQuestionText = screeningQuestionText.replace("</li>", "");
-				}
+				// If it looks like we have an HTML list in the question, convert it to something plaintext-friendly (remove HTML tags for lists)
+				if (screeningQuestionText.contains("<ul") || screeningQuestionText.contains("<li"))
+					screeningQuestionText = ClinicalReportHtmlEscaper.toBulletedText(screeningQuestionText, ClinicalReportHtmlEscaper.BulletType.HYPHEN);
 
 				lines.add(getStrings().get("* Question: {{question}}", Map.of("question", screeningQuestionResult.getScreeningQuestionIntroText() == null ? screeningQuestionText : format("%s %s", screeningQuestionResult.getScreeningQuestionIntroText(), screeningQuestionText))));
 				lines.add(getStrings().get("* Answer[s]: {{answers}}", Map.of("answers", screeningQuestionResult.getScreeningAnswerResults().stream()
 						.map(screeningAnswerResult -> screeningAnswerResult.getText() == null ? screeningAnswerResult.getAnswerOptionText() : format("%s (%s)", screeningAnswerResult.getAnswerOptionText(), screeningAnswerResult.getText()))
 						.collect(Collectors.joining(", ")))));
+
+				// Add blank link to separate from the next question
+				if (i < screeningSessionScreeningResult.getScreeningQuestionResults().size() - 1)
+					lines.add("");
 			}
 		}
 
@@ -4700,6 +4700,157 @@ public class PatientOrderService implements AutoCloseable {
 		}
 
 		return lines.stream().collect(Collectors.joining("\n"));
+	}
+
+	@ThreadSafe
+	private static final class ClinicalReportHtmlEscaper {
+		private ClinicalReportHtmlEscaper() {
+		}
+
+		public enum BulletType {
+			ASTERISK,
+			HYPHEN,
+			DOT,
+			ARROW
+		}
+
+		/**
+		 * Default: "*" bullet.
+		 */
+		public static String toBulletedText(String html) {
+			return toBulletedText(html, BulletType.ASTERISK);
+		}
+
+		/**
+		 * Convert &lt;ul&gt;/&lt;li&gt; HTML into plain-text bullets using the given bullet.
+		 *
+		 * @param html       input HTML-ish text
+		 * @param bulletType what kind of bullet to render
+		 */
+		public static String toBulletedText(@Nonnull String html,
+																				@Nonnull BulletType bulletType) {
+			requireNonNull(html);
+			requireNonNull(bulletType);
+
+			String bullet = "*";
+
+			if (bulletType == BulletType.HYPHEN)
+				bullet = "-";
+			else if (bulletType == BulletType.DOT)
+				bullet = "•";
+			else if (bulletType == BulletType.ARROW)
+				bullet = "→";
+
+			Pattern tagPat = Pattern.compile("(?is)</?\\s*([a-zA-Z0-9]+)([^>]*)>");
+			Matcher m = tagPat.matcher(html);
+
+			StringBuilder out = new StringBuilder();
+			int idx = 0;
+			int ulDepth = 0;
+
+			while (m.find()) {
+				emitText(html.substring(idx, m.start()), out);
+				idx = m.end();
+
+				String tagName = m.group(1).toLowerCase();
+				String tagFull = m.group(0);
+				boolean isClosing = tagFull.startsWith("</");
+
+				switch (tagName) {
+					case "ul" -> {
+						if (!isClosing) ulDepth++;
+						else {
+							ulDepth = Math.max(0, ulDepth - 1);
+							if (!endsWithNewline(out)) out.append('\n');
+						}
+					}
+					case "li" -> {
+						if (!isClosing) {
+							if (!endsWithNewline(out)) out.append('\n');
+							indent(out, Math.max(0, ulDepth - 1));
+							out.append(bullet).append(' ');
+						} else {
+							if (!endsWithNewline(out)) out.append('\n');
+						}
+					}
+					case "br" -> {
+						if (!endsWithNewline(out)) out.append('\n');
+					}
+					case "p" -> {
+						if (!endsWithNewline(out)) out.append('\n');
+						// Provide a blank line between paragraphs
+						if (!endsWithDoubleNewline(out)) out.append('\n');
+					}
+					default -> {
+						// ignore other tags
+					}
+				}
+			}
+
+			emitText(html.substring(idx), out);
+
+			String result = out.toString()
+					.replaceAll("[ \\t\\x0B\\f\\r]+", " ")   // collapse whitespace
+					.replaceAll(" *\n", "\n")               // strip trailing spaces
+					.replaceAll("\n{3,}", "\n\n")           // limit consecutive blank lines
+					.replaceAll("(?m)^(\\*|\\-|•|→)\\s*\n", "$1 ") // remove accidental blank line between bullets
+					.replaceAll("(?m)\n{2,}(?=\\s*(\\*|\\-|•|→) )", "\n") // collapse double newlines before bullets
+					.trim();
+
+			return result;
+		}
+
+		private static void emitText(String raw, StringBuilder out) {
+			if (raw == null || raw.isEmpty()) return;
+			String s = raw.replaceAll("(?is)<[^>]+>", "");
+			out.append(unescapeBasicHtmlEntities(s));
+		}
+
+		private static boolean endsWithNewline(StringBuilder sb) {
+			return sb.length() > 0 && sb.charAt(sb.length() - 1) == '\n';
+		}
+
+		private static boolean endsWithDoubleNewline(StringBuilder sb) {
+			int n = sb.length();
+			return n >= 2 && sb.charAt(n - 1) == '\n' && sb.charAt(n - 2) == '\n';
+		}
+
+		private static void indent(StringBuilder sb, int depth) {
+			for (int i = 0; i < depth; i++) sb.append("  "); // two spaces per level
+		}
+
+		private static String unescapeBasicHtmlEntities(String s) {
+			if (s.indexOf('&') < 0) return s;
+			s = s.replace("&lt;", "<")
+					.replace("&gt;", ">")
+					.replace("&amp;", "&")
+					.replace("&quot;", "\"")
+					.replace("&apos;", "'");
+			// Decimal numeric entities
+			s = replaceAll(s, Pattern.compile("&#(\\d+);"), mm -> {
+				int cp = Integer.parseInt(mm.group(1));
+				return new String(Character.toChars(cp));
+			});
+			// Hex numeric entities
+			s = replaceAll(s, Pattern.compile("&#x([0-9a-fA-F]+);"), mm -> {
+				int cp = Integer.parseInt(mm.group(1), 16);
+				return new String(Character.toChars(cp));
+			});
+			return s;
+		}
+
+		// --- tiny Matcher.replaceAll helper using lambda (Java 9+) ---
+		private interface Replacer {
+			String apply(Matcher mm);
+		}
+
+		private static String replaceAll(String input, Pattern pattern, Replacer fn) {
+			Matcher mm = pattern.matcher(input);
+			StringBuffer sb = new StringBuffer();
+			while (mm.find()) mm.appendReplacement(sb, Matcher.quoteReplacement(fn.apply(mm)));
+			mm.appendTail(sb);
+			return sb.toString();
+		}
 	}
 
 	@Nonnull

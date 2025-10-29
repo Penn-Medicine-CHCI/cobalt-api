@@ -70,6 +70,7 @@ import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiRe
 import com.cobaltplatform.api.model.api.response.AdminContentApiResponse.AdminContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AdminInstitutionApiResponse.AdminInstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AlertApiResponse.AlertApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.AnalyticsReportGroupApiResponse.AnalyticsReportGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.AppointmentTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentTypeApiResponse.AppointmentTypeApiResponseFactory;
@@ -409,6 +410,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(CourseSessionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(VideoApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseUnitDownloadableFileApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(AnalyticsReportGroupApiResponseFactory.class)));
 	}
 
 	@Provides
@@ -694,7 +696,7 @@ public class AppModule extends AbstractModule {
 					.viewsDirectoryName("views")
 					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
 					.build();
-			
+
 			return new AmazonSesEmailMessageSender(institutionServiceProvider, handlebarsTemplater, configuration);
 		}
 
