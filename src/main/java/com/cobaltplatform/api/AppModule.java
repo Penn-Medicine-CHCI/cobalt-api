@@ -52,9 +52,9 @@ import com.cobaltplatform.api.messaging.MessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.email.AmazonSesEmailMessageSender;
-import com.cobaltplatform.api.messaging.email.ConsoleEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
+import com.cobaltplatform.api.messaging.email.MailpitEmailMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -691,16 +691,16 @@ public class AppModule extends AbstractModule {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(configuration);
 
-		if (getConfiguration().getShouldSendRealEmailMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/email"))
-					.viewsDirectoryName("views")
-					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
-					.build();
+		HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/email"))
+				.viewsDirectoryName("views")
+				.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+				.build();
 
+		if (getConfiguration().getShouldSendRealEmailMessages())
 			return new AmazonSesEmailMessageSender(institutionServiceProvider, handlebarsTemplater, configuration);
-		}
 
-		return new ConsoleEmailMessageSender();
+		// We now prefer MailpitEmailMessageSender to ConsoleEmailMessageSender
+		return new MailpitEmailMessageSender(institutionServiceProvider, handlebarsTemplater, configuration);
 	}
 
 	@Provides
