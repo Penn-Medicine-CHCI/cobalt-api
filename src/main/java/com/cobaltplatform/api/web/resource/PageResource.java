@@ -364,8 +364,6 @@ public class PageResource {
 		if (!page.isPresent())
 			throw new NotFoundException();
 
-		UUID pageId = page.get().getPageId();
-
 		if (page.get().getPageStatusId().equals(PageStatus.PageStatusId.LIVE)) {
 			DuplicatePageRequest request = new DuplicatePageRequest();
 			request.setCreatedByAccountId(account.getAccountId());
@@ -375,7 +373,7 @@ public class PageResource {
 			request.setCopyForEditing(true);
 			request.setPageStatusId(PageStatus.PageStatusId.COPY_FOR_EDITING);
 
-			pageId = getPageService().duplicatePage(request, institutionId);
+			UUID pageId = getPageService().duplicatePage(request, institutionId);
 			page = getPageService().findPageById(pageId, institutionId, true);
 		}
 
