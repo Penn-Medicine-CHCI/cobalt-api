@@ -745,7 +745,6 @@ public class PageService {
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
-		Integer displayOrder = request.getDisplayOrder();
 		InstitutionId institutionId = request.getInstitutionId();
 
 		ValidationException validationException = new ValidationException();
@@ -760,30 +759,15 @@ public class PageService {
 			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
 		if (name == null)
 			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
-		if (displayOrder == null)
-			validationException.add(new ValidationException.FieldError("displayOrder", getStrings().get("Display Order is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
-						UPDATE page_section
-						SET display_order = 
-						CASE
-								WHEN display_order >= ? AND display_order < ? THEN display_order + 1
-								WHEN display_order <= ? AND display_order > ? THEN display_order - 1
-								ELSE display_order
-						END
-						WHERE page_section_id != ?
-						""", displayOrder, pageSection.get().getDisplayOrder(),
-				displayOrder, pageSection.get().getDisplayOrder(), pageSectionId);
-
-		getDatabase().execute("""
 				UPDATE page_section SET
-				  name=?, headline=?, description=?, background_color_id=?,
-				  display_order=?
+				  name=?, headline=?, description=?, background_color_id=?
 				WHERE page_section_id=?				   
-				""", name, headline, description, backgroundColorId, displayOrder, pageSectionId);
+				""", name, headline, description, backgroundColorId, pageSectionId);
 
 		return pageSectionId;
 	}
@@ -805,8 +789,8 @@ public class PageService {
 			throw validationException;
 
 		UUID pageId = pageSection.get().getPageId();
-
-		getDatabase().execute("""
+getLogger().debug("IN delete with page section id " + pageSection);
+		getDatabase().execute(""" 
 				DELETE FROM page_row_column
 				WHERE page_row_id IN 
 				(SELECT pr.page_row_id

@@ -348,6 +348,44 @@ public class PageResource {
 		}});
 	}
 
+	@POST("/pages/{pageIdentifier}/edit")
+	@AuthenticationRequired
+	public ApiResponse editPage(@Nonnull @PathParameter("pageIdentifier") String pageIdentifier) {
+		requireNonNull(pageIdentifier);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), true);
+
+		if (!page.isPresent())
+			throw new NotFoundException();
+
+		UUID pageId = page.get().getPageId();
+
+		if (page.get().getPageStatusId().equals(PageStatus.PageStatusId.LIVE)) {
+			DuplicatePageRequest request = new DuplicatePageRequest();
+			request.setCreatedByAccountId(account.getAccountId());
+			request.setPageId(page.get().getPageId());
+			request.setName(page.get().getName());
+			request.setUrlName(page.get().getUrlName());
+			request.setCopyForEditing(true);
+			request.setPageStatusId(PageStatus.PageStatusId.COPY_FOR_EDITING);
+
+			pageId = getPageService().duplicatePage(request, institutionId);
+			page = getPageService().findPageById(pageId, institutionId, true);
+		}
+
+		final Page finalPage = page.get();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageId", finalPage.getPageId());
+		}});
+
+	}
+
 	@GET("/pages/{pageIdentifier}")
 	@AuthenticationRequired
 	public ApiResponse page(@Nonnull @PathParameter("pageIdentifier") String pageIdentifier) {
@@ -365,21 +403,11 @@ public class PageResource {
 			throw new NotFoundException();
 
 		if (page.get().getPageStatusId().equals(PageStatus.PageStatusId.LIVE)) {
-			DuplicatePageRequest request = new DuplicatePageRequest();
-			request.setCreatedByAccountId(account.getAccountId());
-			request.setPageId(page.get().getPageId());
-			request.setName(page.get().getName());
-			request.setUrlName(page.get().getUrlName());
-			request.setCopyForEditing(true);
-			request.setPageStatusId(PageStatus.PageStatusId.COPY_FOR_EDITING);
-
-			UUID duplicatePageId = getPageService().duplicatePage(request, institutionId);
-			page = getPageService().findPageById(duplicatePageId, institutionId, true);
+			throw new IllegalStateException();
 		}
 
-		final Page finalPage = page.get();
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("page", getPageApiResponseFactory().create(finalPage, true));
+			put("page", getPageApiResponseFactory().create(page.get(), true));
 		}});
 	}
 

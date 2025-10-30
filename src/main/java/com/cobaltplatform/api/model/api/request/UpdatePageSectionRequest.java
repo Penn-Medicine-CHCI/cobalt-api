@@ -42,8 +42,6 @@ public class UpdatePageSectionRequest {
 	@Nullable
 	private BackgroundColorId backgroundColorId;
 	@Nullable
-	private Integer displayOrder;
-	@Nullable
 	private InstitutionId institutionId;
 
 	@Nullable
@@ -89,15 +87,6 @@ public class UpdatePageSectionRequest {
 
 	public void setBackgroundColorId(@Nullable BackgroundColorId backgroundColorId) {
 		this.backgroundColorId = backgroundColorId;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 
 	@Nullable
