@@ -71,6 +71,10 @@ public class Page {
 	@Nullable
 	private Instant originalCreateDate;
 
+	// Sometimes joined in - the number of mailing list entries across all rows in this page
+	@Nullable
+	private Integer mailingListEntryCount;
+
 	@Nullable
 	public UUID getPageId() {
 		return pageId;
@@ -231,5 +235,14 @@ public class Page {
 
 	public void setOriginalCreateDate(@Nullable Instant originalCreateDate) {
 		this.originalCreateDate = originalCreateDate;
+	}
+
+	@Nullable
+	public Integer getMailingListEntryCount() {
+		return this.mailingListEntryCount;
+	}
+
+	public void setMailingListEntryCount(@Nullable Integer mailingListEntryCount) {
+		this.mailingListEntryCount = mailingListEntryCount;
 	}
 }

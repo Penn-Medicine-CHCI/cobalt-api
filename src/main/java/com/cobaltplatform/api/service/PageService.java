@@ -2055,7 +2055,31 @@ public class PageService {
 		Integer offset = pageNumber * pageSize;
 		List<Object> parameters = new ArrayList<>();
 
-		StringBuilder query = new StringBuilder("SELECT vp.*, COUNT(vp.page_id) OVER() AS total_count FROM v_page vp ");
+		StringBuilder query = new StringBuilder("""
+						WITH page_ml AS (
+						  SELECT DISTINCT ps.page_id, prml.mailing_list_id
+						  FROM page_section ps
+						  JOIN page_row pr
+						    ON pr.page_section_id = ps.page_section_id
+						   AND pr.deleted_flag = false
+						  JOIN page_row_mailing_list prml
+						    ON prml.page_row_id = pr.page_row_id
+						  WHERE ps.deleted_flag = false
+						),
+						page_mle AS (
+						  SELECT pml.page_id, COUNT(mle.mailing_list_entry_id) AS mailing_list_entry_count
+						  FROM page_ml pml
+						  JOIN mailing_list_entry mle
+						    ON mle.mailing_list_id = pml.mailing_list_id
+						  GROUP BY pml.page_id
+						)
+						SELECT
+						  vp.*,
+						  COALESCE(pm.mailing_list_entry_count, 0) AS mailing_list_entry_count,
+						  COUNT(vp.page_id) OVER() AS total_count
+						FROM v_page vp
+						LEFT JOIN page_mle pm ON pm.page_id = vp.page_id
+				""");
 
 		query.append("WHERE vp.institution_id = ? AND vp.page_status_id != ? ");
 		parameters.add(institutionId);

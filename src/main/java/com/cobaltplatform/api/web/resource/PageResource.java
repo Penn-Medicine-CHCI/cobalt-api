@@ -101,6 +101,7 @@ import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -415,6 +416,30 @@ public class PageResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("page", getPageApiResponseFactory().create(page.get(), true));
 		}});
+	}
+
+	@GET("/pages/{pageIdentifier}/mailing-lists")
+	@AuthenticationRequired
+	public ApiResponse pageMailingLists(@Nonnull @PathParameter String pageIdentifier) {
+		requireNonNull(pageIdentifier);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		Page page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), true).orElse(null);
+
+		if (page == null)
+			throw new NotFoundException();
+
+		// TODO: pull all mailing lists associated with this page and, for each list, show the entries.
+		// This would enable admins to get quick access to subscriber lists
+
+		return new ApiResponse(Map.of(
+				"mailingLists", List.of(Map.of("todo", "todo"))
+		));
 	}
 
 	@PUT("/pages/{pageId}/settings")
