@@ -38,6 +38,39 @@ CREATE TABLE mailing_list_entry (
 CREATE INDEX ON mailing_list_entry(mailing_list_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON mailing_list_entry FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
+-- Ensure `value` column is lowercased (e.g. email addresses)
+CREATE OR REPLACE FUNCTION normalize_mailing_list_entry_value()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Trim whitespace first
+  IF NEW.value IS NOT NULL THEN
+    NEW.value := btrim(NEW.value);
+  END IF;
+
+  -- Reject null or empty values
+  IF NEW.value IS NULL OR NEW.value = '' THEN
+    RAISE EXCEPTION 'mailing_list_entry.value cannot be null or empty'
+      USING ERRCODE = '23514';  -- check_violation
+  END IF;
+
+  -- Normalize to lowercase
+  NEW.value := lower(NEW.value);
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_normalize_mailing_list_entry_value
+BEFORE INSERT OR UPDATE OF value
+ON mailing_list_entry
+FOR EACH ROW
+EXECUTE FUNCTION normalize_mailing_list_entry_value();
+
+-- Don't permit duplicate values
+ALTER TABLE mailing_list_entry
+ADD CONSTRAINT mailing_list_entry_value_unique_idx
+UNIQUE (value, mailing_list_id, mailing_list_entry_type_id);
+
 -- New "mailing list" row type
 INSERT INTO row_type (row_type_id, description) VALUES ('MAILING_LIST', 'Mailing List');
 
