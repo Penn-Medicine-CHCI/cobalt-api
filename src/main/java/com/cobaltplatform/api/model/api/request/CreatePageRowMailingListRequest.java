@@ -17,47 +17,49 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
+
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class RowType {
+public class CreatePageRowMailingListRequest {
 	@Nullable
-	private RowTypeId rowTypeId;
+	private UUID pageSectionId;
 	@Nullable
-	private String description;
+	private UUID mailingListId;
+	@Nullable
+	private UUID createdByAccountId;
 
-	public enum RowTypeId {
-		RESOURCES,
-		GROUP_SESSIONS,
-		TAG_GROUP,
-		TAG,
-		ONE_COLUMN_IMAGE,
-		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE,
-		MAILING_LIST
+	@Nullable
+	public UUID getPageSectionId() {
+		return this.pageSectionId;
+	}
+
+	public void setPageSectionId(@Nullable UUID pageSectionId) {
+		this.pageSectionId = pageSectionId;
 	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public UUID getMailingListId() {
+		return this.mailingListId;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
+	public void setMailingListId(@Nullable UUID mailingListId) {
+		this.mailingListId = mailingListId;
 	}
 
 	@Nullable
-	public String getDescription() {
-		return description;
+	public UUID getCreatedByAccountId() {
+		return this.createdByAccountId;
 	}
 
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
+		this.createdByAccountId = createdByAccountId;
 	}
 }

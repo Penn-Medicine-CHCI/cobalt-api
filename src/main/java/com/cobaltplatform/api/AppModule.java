@@ -138,6 +138,7 @@ import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiRespon
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowMailingListApiResponse.PageRowMailingListApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
@@ -404,6 +405,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PageAutocompleteResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageSiteLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageRowTagApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowMailingListApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseModuleApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseUnitApiResponseFactory.class)));

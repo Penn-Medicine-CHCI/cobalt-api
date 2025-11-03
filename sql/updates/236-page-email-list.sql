@@ -7,6 +7,7 @@ SELECT _v.register_patch('236-page-email-list', NULL, NULL);
 CREATE TABLE mailing_list (
   mailing_list_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   institution_id TEXT NOT NULL REFERENCES institution,
+  created_by_account_id UUID NOT NULL REFERENCES account(account_id),
   created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -28,6 +29,7 @@ CREATE TABLE mailing_list_entry (
   mailing_list_entry_type_id TEXT NOT NULL REFERENCES mailing_list_entry_type,
   mailing_list_id UUID NOT NULL REFERENCES mailing_list,
   account_id UUID NOT NULL REFERENCES account, -- the account whose email/phone this is
+  created_by_account_id UUID NOT NULL REFERENCES account(account_id), -- the account who added this entry
   value TEXT NOT NULL, -- might be normalized email or E.164 phone number depending on mailing_list_entry_type_id
   created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -36,10 +38,10 @@ CREATE TABLE mailing_list_entry (
 CREATE INDEX ON mailing_list_entry(mailing_list_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON mailing_list_entry FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
--- New "subscription" row type
-INSERT INTO row_type (row_type_id, description) VALUES ('SUBSCRIBE', 'Subscribe');
+-- New "mailing list" row type
+INSERT INTO row_type (row_type_id, description) VALUES ('MAILING_LIST', 'Mailing List');
 
--- Ability to tie mailing lists to SUBSCRIBE page rows
+-- Ability to tie mailing lists to MAILING_LIST page rows
 CREATE TABLE page_row_mailing_list (
   page_row_mailing_list_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   page_row_id UUID NOT NULL REFERENCES page_row,
@@ -50,5 +52,23 @@ CREATE TABLE page_row_mailing_list (
 
 CREATE UNIQUE INDEX idx_page_row_mailing_list_ml ON page_row_mailing_list(page_row_id, mailing_list_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_mailing_list FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE VIEW v_page_row_mailing_list AS
+SELECT
+  prml.page_row_mailing_list_id,
+  pr.page_row_id,
+  pr.display_order,
+  pr.page_section_id,
+  pr.row_type_id,
+  prml.mailing_list_id,
+  pr.created_by_account_id,
+  pr.created,
+  pr.last_updated
+FROM
+	page_row_mailing_list prml,
+	page_row pr
+WHERE
+	prml.page_row_id = pr.page_row_id
+	AND pr.deleted_flag = FALSE;
 
 COMMIT;

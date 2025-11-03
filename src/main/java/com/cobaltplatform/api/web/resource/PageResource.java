@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequ
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowMailingListRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
@@ -39,6 +40,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRe
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowMailingListRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
@@ -53,6 +55,7 @@ import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiRespon
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowMailingListApiResponse.PageRowMailingListApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
@@ -63,6 +66,7 @@ import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus;
@@ -143,6 +147,8 @@ public class PageResource {
 	@Nonnull
 	private final PageRowTagApiResponseFactory pageRowTagApiResponseFactory;
 	@Nonnull
+	private final PageRowMailingListApiResponseFactory pageRowMailingListApiResponseFactory;
+	@Nonnull
 	private final PageService pageService;
 	@Nonnull
 	private final Formatter formatter;
@@ -168,8 +174,8 @@ public class PageResource {
 											@Nonnull PageAutocompleteResultApiResponseFactory pageAutocompleteResultApiResponseFactory,
 											@Nonnull PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory,
 											@Nonnull PageRowTagApiResponseFactory pageRowTagApiResponseFactory,
+											@Nonnull PageRowMailingListApiResponseFactory pageRowMailingListApiResponseFactory,
 											@Nonnull Formatter formatter) {
-
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(pageService);
@@ -188,6 +194,7 @@ public class PageResource {
 		requireNonNull(pageAutocompleteResultApiResponseFactory);
 		requireNonNull(pageSiteLocationApiResponseFactory);
 		requireNonNull(pageRowTagApiResponseFactory);
+		requireNonNull(pageRowMailingListApiResponseFactory);
 		requireNonNull(formatter);
 
 		this.requestBodyParser = requestBodyParser;
@@ -208,6 +215,7 @@ public class PageResource {
 		this.pageAutocompleteResultApiResponseFactory = pageAutocompleteResultApiResponseFactory;
 		this.pageSiteLocationApiResponseFactory = pageSiteLocationApiResponseFactory;
 		this.pageRowTagApiResponseFactory = pageRowTagApiResponseFactory;
+		this.pageRowMailingListApiResponseFactory = pageRowMailingListApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -862,6 +870,63 @@ public class PageResource {
 		}});
 	}
 
+	@POST("/pages/row/{pageSectionId}/mailing-list")
+	@AuthenticationRequired
+	public ApiResponse createPageRowMailingList(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																							@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowMailingListRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowMailingListRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
+
+		UUID pageRowId = getPageService().createPageRowMailingList(request, institutionId);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+		Optional<PageRowMailingList> pageRowMailingList = getPageService().findPageRowMailingListByRowId(pageRowId);
+
+		if (!pageRow.isPresent() || !pageRowMailingList.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowMailingListApiResponseFactory().create(pageRow.get(), pageRowMailingList.get()));
+		}});
+	}
+
+	@PUT("/pages/row/{pageRowId}/mailing-list")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowMailingList(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																							@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowMailingListRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowMailingListRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setPageRowId(pageRowId);
+
+		getPageService().updatePageRowMailingList(request, institutionId);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+		Optional<PageRowMailingList> pageRowMailingList = getPageService().findPageRowMailingListByRowId(pageRowId);
+
+		if (!pageRow.isPresent() || !pageRowMailingList.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowMailingListApiResponseFactory().create(pageRow.get(), pageRowMailingList.get()));
+		}});
+	}
+
 	@POST("/pages/row/{pageSectionId}/group-session")
 	@AuthenticationRequired
 	public ApiResponse createPageRowGroupSession(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
@@ -1221,5 +1286,10 @@ public class PageResource {
 	@Nonnull
 	public PageRowTagApiResponseFactory getPageRowTagApiResponseFactory() {
 		return pageRowTagApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PageRowMailingListApiResponseFactory getPageRowMailingListApiResponseFactory() {
+		return this.pageRowMailingListApiResponseFactory;
 	}
 }

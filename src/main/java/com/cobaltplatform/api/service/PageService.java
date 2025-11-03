@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequ
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowMailingListRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
@@ -42,6 +43,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRe
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowGroupSessionRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowMailingListRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagGroupRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderRequest;
@@ -59,6 +61,7 @@ import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
+import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
@@ -74,6 +77,7 @@ import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.model.service.PageWithTotalCount;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -120,7 +124,9 @@ public class PageService {
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
 	@Nonnull
-	private final AccountService accountService;
+	private final Provider<MailingListService> mailingListServiceProvder;
+	@Nonnull
+	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Logger logger;
 	@Nonnull
@@ -130,23 +136,26 @@ public class PageService {
 	public PageService(@Nonnull DatabaseProvider databaseProvider,
 										 @Nonnull Configuration configuration,
 										 @Nonnull Provider<SystemService> systemServiceProvider,
+										 @Nonnull Provider<MailingListService> mailingListServiceProvider,
+										 @Nonnull Provider<AccountService> accountServiceProvider,
 										 @Nonnull Strings strings,
-										 @Nonnull AccountService accountService,
 										 @Nonnull Formatter formatter) {
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
-		requireNonNull(strings);
 		requireNonNull(systemServiceProvider);
-		requireNonNull(accountService);
+		requireNonNull(mailingListServiceProvider);
+		requireNonNull(accountServiceProvider);
+		requireNonNull(strings);
 		requireNonNull(formatter);
 
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
-		this.strings = strings;
 		this.systemServiceProvider = systemServiceProvider;
-		this.logger = LoggerFactory.getLogger(getClass());
-		this.accountService = accountService;
+		this.mailingListServiceProvder = mailingListServiceProvider;
+		this.accountServiceProvider = accountServiceProvider;
+		this.strings = strings;
 		this.formatter = formatter;
+		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
 	@Nonnull
@@ -233,11 +242,11 @@ public class PageService {
 		Map<String, Object> metadata = new HashMap<>();
 
 		if (pageHeadline == null)
-			validationException.add(new ValidationException.FieldError("pageHeadline", getStrings().get(format("A Headline is required for Page %s.\n", page.get().getName()))));
+			validationException.add(new FieldError("pageHeadline", getStrings().get(format("A Headline is required for Page %s.\n", page.get().getName()))));
 		if (pageDescription == null)
-			validationException.add(new ValidationException.FieldError("pageDescription", getStrings().get(format("A Description is required for Page %s.\n", page.get().getName()))));
+			validationException.add(new FieldError("pageDescription", getStrings().get(format("A Description is required for Page %s.\n", page.get().getName()))));
 		if (pageImageFileUploadId == null)
-			validationException.add(new ValidationException.FieldError("pageImageFileUploadId", getStrings().get(format("An Image is required for Page %s.\n", page.get().getName()))));
+			validationException.add(new FieldError("pageImageFileUploadId", getStrings().get(format("An Image is required for Page %s.\n", page.get().getName()))));
 
 		if (validationException.hasErrors()) {
 			metadata.put("pageId", pageId);
@@ -246,7 +255,7 @@ public class PageService {
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId, institutionId);
 
 		if (pageSections.size() == 0)
-			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get(format("At least one section is required for Page %s.\n", page.get().getName()))));
+			validationException.add(new FieldError("pageSection", getStrings().get(format("At least one section is required for Page %s.\n", page.get().getName()))));
 
 		for (PageSection pageSection : pageSections) {
 			//Name and background color are required when creating or updating a page section so no need to validate them
@@ -257,18 +266,18 @@ public class PageService {
 				if (pageRow.getRowTypeId().equals(RowTypeId.RESOURCES)) {
 					List<PageRowContent> pageRowContent = findPageRowContentByPageRowId(pageRow.getPageRowId());
 					if (pageRowContent.isEmpty())
-						validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.\n", pageSection.getName()))));
+						validationException.add(new FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.\n", pageSection.getName()))));
 				} else if (pageRow.getRowTypeId().equals(RowTypeId.GROUP_SESSIONS)) {
 					List<PageRowGroupSession> pageRowGroupSessions = findPageRowGroupSessionByPageRowId(pageRow.getPageRowId());
 					if (pageRowGroupSessions.isEmpty())
-						validationException.add(new ValidationException.FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.\n", pageSection.getName()))));
+						validationException.add(new FieldError("pageRow", getStrings().get(format("At least one Group Session is required for the Resource row in Section %s.\n", pageSection.getName()))));
 				} else if (pageRow.getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE)
 						|| pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 					Optional<PageRowColumn> pageRowColumn = Optional.empty();
 					pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0);
 
 					if (pageRowColumn.isEmpty())
-						validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.\n", pageSection.getName()))));
+						validationException.add(new FieldError("pageRowColumn", getStrings().get(format("Column 1 not present for Custom row in Section %s.\n", pageSection.getName()))));
 					else {
 						validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 					}
@@ -276,7 +285,7 @@ public class PageService {
 					if (pageRow.getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE) || pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1);
 						if (pageRowColumn.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.\n", pageSection.getName()))));
+							validationException.add(new FieldError("pageRowColumn", getStrings().get(format("Column 2 not present for Custom row in Section %s.\n", pageSection.getName()))));
 						else {
 							validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 						}
@@ -285,7 +294,7 @@ public class PageService {
 					if (pageRow.getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE)) {
 						pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2);
 						if (pageRowColumn.isEmpty())
-							validationException.add(new ValidationException.FieldError("pageRowColumn", getStrings().get(format("Column 3 not present for Custom row in Section %s.\n", pageSection.getName()))));
+							validationException.add(new FieldError("pageRowColumn", getStrings().get(format("Column 3 not present for Custom row in Section %s.\n", pageSection.getName()))));
 						else {
 							validatePageRowColum(pageRowColumn.get(), pageSection, validationException);
 						}
@@ -321,11 +330,11 @@ public class PageService {
 		Integer itemNumber = pageRowColumn.getColumnDisplayOrder() + 1;
 
 		if (headline == null)
-			validationException.add(new ValidationException.FieldError("headline", getStrings().get(format("A Headline is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
+			validationException.add(new FieldError("headline", getStrings().get(format("A Headline is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (description == null)
-			validationException.add(new ValidationException.FieldError("description", getStrings().get(format("A Description is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
+			validationException.add(new FieldError("description", getStrings().get(format("A Description is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (imageFileUploadId == null)
-			validationException.add(new ValidationException.FieldError("imageFileUploadId", getStrings().get(format("Image is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
+			validationException.add(new FieldError("imageFileUploadId", getStrings().get(format("Image is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 	}
 
 	@Nonnull
@@ -345,19 +354,19 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (name == null)
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
 		else if (nameExistsForInstitutionId(name, institutionId, null))
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name already exists.")));
+			validationException.add(new FieldError("name", getStrings().get("Name already exists.")));
 
 		if (institutionId == null)
-			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution is required.")));
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution is required.")));
 
 		if (urlName == null)
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
 		else if (!isValidUrlSubdirectory(urlName))
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
 		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -388,7 +397,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!hasAccessToPage(pageId, institutionId))
-			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to update this page.")));
+			validationException.add(new FieldError("page", getStrings().get("You do not have permission to update this page.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -415,7 +424,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!page.isPresent())
-			validationException.add(new ValidationException.FieldError("page", getStrings().get("Could not find page to publish.")));
+			validationException.add(new FieldError("page", getStrings().get("Could not find page to publish.")));
 		else {
 			Optional<Page> livePage = getDatabase().queryForObject("""
 					SELECT *
@@ -425,7 +434,7 @@ public class PageService {
 					""", Page.class, page.get().getPageGroupId(), PageStatusId.LIVE);
 			if (livePage.isPresent() && livePage.get().getPageId().compareTo(page.get().getParentPageId()) != 0) {
 				Optional<Account> account = getAccountService().findAccountById(livePage.get().getCreatedByAccountId());
-				validationException.add(new ValidationException.FieldError("page", getStrings().get(
+				validationException.add(new FieldError("page", getStrings().get(
 						format("Could not publish this page because there is a more recent version of this page published by %s on %s. Please close this window and re-edit the page.", account.get().getDisplayName(),
 								formatter.formatTimestamp(livePage.get().getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT)))));
 			}
@@ -465,10 +474,10 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!hasAccessToPage(pageId, institutionId))
-			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to unpublish this page.")));
+			validationException.add(new FieldError("page", getStrings().get("You do not have permission to unpublish this page.")));
 
 		if (!page.isPresent())
-			validationException.add(new ValidationException.FieldError("page", getStrings().get("Could not find published page to unpublish.")));
+			validationException.add(new FieldError("page", getStrings().get("Could not find published page to unpublish.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -603,17 +612,17 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (name == null)
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
 		if (institutionId == null)
-			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution Id is required.")));
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution Id is required.")));
 		if (!hasAccessToPage(pageId, institutionId))
-			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to update this page.")));
+			validationException.add(new FieldError("page", getStrings().get("You do not have permission to update this page.")));
 		if (urlName == null)
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
 		else if (!isValidUrlSubdirectory(urlName))
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
 		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
-			validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
+			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -673,15 +682,15 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageId == null)
-			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Page is required.")));
+			validationException.add(new FieldError("pageId", getStrings().get("Page is required.")));
 		if (backgroundColorId == null)
-			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
+			validationException.add(new FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
 		if (institutionId == null)
-			validationException.add(new ValidationException.FieldError("institutionId", getStrings().get("Institution ID is required.")));
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 		if (name == null)
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
 		if (!hasAccessToPage(pageId, institutionId))
-			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to add a section to this page.")));
+			validationException.add(new FieldError("page", getStrings().get("You do not have permission to add a section to this page.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -752,13 +761,13 @@ public class PageService {
 		Optional<PageSection> pageSection = findPageSectionById(pageSectionId, institutionId);
 
 		if (!pageSection.isPresent())
-			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+			validationException.add(new FieldError("pageSection", getStrings().get("Could not find page section.")));
 		else if (!hasAccessToPage(pageSection.get().getPageId(), institutionId))
-			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("You do not have permission to update this page section.")));
+			validationException.add(new FieldError("pageSection", getStrings().get("You do not have permission to update this page section.")));
 		if (backgroundColorId == null)
-			validationException.add(new ValidationException.FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
+			validationException.add(new FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
 		if (name == null)
-			validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -782,14 +791,14 @@ public class PageService {
 		Optional<PageSection> pageSection = findPageSectionById(pageSectionId, institutionId);
 
 		if (!pageSection.isPresent())
-			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+			validationException.add(new FieldError("pageSection", getStrings().get("Could not find page section.")));
 		else if (!hasAccessToPage(pageSection.get().getPageId(), institutionId))
-			validationException.add(new ValidationException.FieldError("page", getStrings().get("You do not have permission to delete a section from this page.")));
+			validationException.add(new FieldError("page", getStrings().get("You do not have permission to delete a section from this page.")));
 		if (validationException.hasErrors())
 			throw validationException;
 
 		UUID pageId = pageSection.get().getPageId();
-		getLogger().debug("IN delete with page section id " + pageSection);
+
 		getDatabase().execute(""" 
 				DELETE FROM page_row_column
 				WHERE page_row_id IN
@@ -827,7 +836,15 @@ public class PageService {
 				WHERE page_row_id IN
 				(SELECT pr.page_row_id
 				FROM page_row pr
-				WHERE pr.page_section_id =?) 
+				WHERE pr.page_section_id =?)
+				""", pageSectionId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_mailing_list
+				WHERE page_row_id IN
+				(SELECT pr.page_row_id
+				FROM page_row pr
+				WHERE pr.page_section_id =?)
 				""", pageSectionId);
 
 		getDatabase().execute("""
@@ -914,16 +931,16 @@ public class PageService {
 		Optional<PageSection> pageSection = Optional.empty();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Page is required.")));
+			validationException.add(new FieldError("pageId", getStrings().get("Page is required.")));
 		else {
 			pageSection = findPageSectionById(pageSectionId, institutionId);
 			if (!pageSection.isPresent())
-				validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find page section.")));
+				validationException.add(new FieldError("pageSection", getStrings().get("Could not find page section.")));
 		}
 		if (rowTypeId == null)
-			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings().get("Row Type is require.")));
+			validationException.add(new FieldError("rowTypeId", getStrings().get("Row Type is require.")));
 		if (pageSection == null)
-			validationException.add(new ValidationException.FieldError("pageSection", getStrings().get("Could not find Page Section")));
+			validationException.add(new FieldError("pageSection", getStrings().get("Could not find Page Section")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -955,12 +972,12 @@ public class PageService {
 		UUID pageSectionId = null;
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Could not find page row.")));
+			validationException.add(new FieldError("pageRow", getStrings().get("Could not find page row.")));
 		else {
 			pageSectionId = pageRow.get().getPageSectionId();
 			Optional<PageSection> pageSection = findPageSectionById(pageSectionId, institutionId);
 			if (!hasAccessToPage(pageSection.get().getPageId(), institutionId))
-				validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("You do not have permission to delete this row.")));
+				validationException.add(new FieldError("pageRow", getStrings().get("You do not have permission to delete this row.")));
 		}
 
 		if (validationException.hasErrors())
@@ -978,22 +995,27 @@ public class PageService {
 
 		getDatabase().execute("""
 				DELETE FROM page_row_content
-				WHERE page_row_id =? 
+				WHERE page_row_id =?
 				""", pageRowId);
 
 		getDatabase().execute("""
 				DELETE FROM page_row_tag_group
-				WHERE page_row_id =? 
+				WHERE page_row_id =?
 				""", pageRowId);
 
 		getDatabase().execute("""
 				DELETE FROM page_row_tag
-				WHERE page_row_id =? 
+				WHERE page_row_id =?
+				""", pageRowId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_mailing_list
+				WHERE page_row_id =?
 				""", pageRowId);
 
 		getDatabase().execute("""
 				DELETE FROM page_row
-				WHERE page_row_id =? 
+				WHERE page_row_id =?
 				""", pageRowId);
 
 		getDatabase().execute("""
@@ -1037,7 +1059,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page row is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1070,12 +1092,12 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page is required.")));
 		if (pageRow.isPresent() && !pageRow.get().getRowTypeId().equals(RowTypeId.ONE_COLUMN_IMAGE))
-			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+			validationException.add(new FieldError("rowTypeId", getStrings()
 					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.ONE_COLUMN_IMAGE))));
 		if (columnOne == null)
-			validationException.add(new ValidationException.FieldError("columnOne", getStrings().get("Column one is required.")));
+			validationException.add(new FieldError("columnOne", getStrings().get("Column one is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1105,12 +1127,12 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page is required.")));
 		if (pageRow.isPresent() && !pageRow.get().getRowTypeId().equals(RowTypeId.TWO_COLUMN_IMAGE))
-			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+			validationException.add(new FieldError("rowTypeId", getStrings()
 					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.TWO_COLUMN_IMAGE))));
 		if (columnOne == null)
-			validationException.add(new ValidationException.FieldError("columnOne", getStrings().get("Column one is required.")));
+			validationException.add(new FieldError("columnOne", getStrings().get("Column one is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1150,12 +1172,12 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page is required.")));
 		if (pageRow.isPresent() && !pageRow.get().getRowTypeId().equals(RowTypeId.THREE_COLUMN_IMAGE))
-			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+			validationException.add(new FieldError("rowTypeId", getStrings()
 					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.THREE_COLUMN_IMAGE))));
 		if (columnOne == null)
-			validationException.add(new ValidationException.FieldError("columnOne", getStrings().get("Column one is required.")));
+			validationException.add(new FieldError("columnOne", getStrings().get("Column one is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1204,7 +1226,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page row is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1238,7 +1260,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page row is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1283,9 +1305,9 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageRowId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page row is required.")));
 		if (columnDisplayOrder == null)
-			validationException.add(new ValidationException.FieldError("columnDisplayOrder", getStrings().get("Column display order is required.")));
+			validationException.add(new FieldError("columnDisplayOrder", getStrings().get("Column display order is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1317,9 +1339,9 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageRowId == null)
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page row is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page row is required.")));
 		if (columnDisplayOrder == null)
-			validationException.add(new ValidationException.FieldError("columnDisplayOrder", getStrings().get("Display order is required.")));
+			validationException.add(new FieldError("columnDisplayOrder", getStrings().get("Display order is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1392,9 +1414,9 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page is required.")));
 		if (!pageRow.get().getRowTypeId().equals(RowTypeId.RESOURCES))
-			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+			validationException.add(new FieldError("rowTypeId", getStrings()
 					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.RESOURCES))));
 
 		if (validationException.hasErrors())
@@ -1430,9 +1452,9 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRowId", getStrings().get("Page is required.")));
+			validationException.add(new FieldError("pageRowId", getStrings().get("Page is required.")));
 		if (!pageRow.get().getRowTypeId().equals(RowTypeId.GROUP_SESSIONS))
-			validationException.add(new ValidationException.FieldError("rowTypeId", getStrings()
+			validationException.add(new FieldError("rowTypeId", getStrings()
 					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.GROUP_SESSIONS))));
 
 		if (validationException.hasErrors())
@@ -1468,7 +1490,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageSectionId", getStrings().get("Page Section is required.")));
+			validationException.add(new FieldError("pageSectionId", getStrings().get("Page Section is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1548,6 +1570,17 @@ public class PageService {
 	}
 
 	@Nonnull
+	public Optional<PageRowMailingList> findPageRowMailingListByRowId(@Nullable UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_mailing_list
+				WHERE page_row_id = ?
+				""", PageRowMailingList.class, pageRowId);
+	}
+
+	@Nonnull
 	public Optional<TagGroup> findTagGroupByRowId(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
@@ -1572,11 +1605,11 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageSectionId", getStrings().get("Page Section is required.")));
+			validationException.add(new FieldError("pageSectionId", getStrings().get("Page Section is required.")));
 		if (tagGroupId == null)
-			validationException.add(new ValidationException.FieldError("tagGroupId", getStrings().get("Tag group is required.")));
+			validationException.add(new FieldError("tagGroupId", getStrings().get("Tag group is required.")));
 		if (createdByAccountId == null)
-			validationException.add(new ValidationException.FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1618,9 +1651,9 @@ public class PageService {
 		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Page not found.")));
+			validationException.add(new FieldError("pageRow", getStrings().get("Page not found.")));
 		if (tagGroupId == null)
-			validationException.add(new ValidationException.FieldError("tagGroupId", getStrings().get("Tag Group not found.")));
+			validationException.add(new FieldError("tagGroupId", getStrings().get("Tag Group not found.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1644,11 +1677,11 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageSectionId", getStrings().get("Page Section is required.")));
+			validationException.add(new FieldError("pageSectionId", getStrings().get("Page Section is required.")));
 		if (tagId == null)
-			validationException.add(new ValidationException.FieldError("tagId", getStrings().get("Tag is required.")));
+			validationException.add(new FieldError("tagId", getStrings().get("Tag is required.")));
 		if (createdByAccountId == null)
-			validationException.add(new ValidationException.FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1690,9 +1723,9 @@ public class PageService {
 		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
 
 		if (!pageRow.isPresent())
-			validationException.add(new ValidationException.FieldError("pageRow", getStrings().get("Page not found.")));
+			validationException.add(new FieldError("pageRow", getStrings().get("Page not found.")));
 		if (tagId == null)
-			validationException.add(new ValidationException.FieldError("tagId", getStrings().get("Tag not found.")));
+			validationException.add(new FieldError("tagId", getStrings().get("Tag not found.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1702,6 +1735,78 @@ public class PageService {
 				SET tag_id=?
 				WHERE page_row_id=?
 				""", tagId, pageRowId);
+	}
+
+	public UUID createPageRowMailingList(@Nonnull CreatePageRowMailingListRequest request,
+																			 @Nonnull InstitutionId institutionId) {
+		requireNonNull(request);
+
+		UUID pageRowMailingListId = UUID.randomUUID();
+		UUID pageSectionId = request.getPageSectionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		UUID mailingListId = request.getMailingListId();
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageSectionId == null)
+			validationException.add(new FieldError("pageSectionId", getStrings().get("Page Section is required.")));
+		if (mailingListId == null)
+			validationException.add(new FieldError("mailingListId", getStrings().get("Mailing List ID is required.")));
+		if (createdByAccountId == null)
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer displayOrder = getDatabase().queryForObject("""
+				SELECT COALESCE(MAX(display_order) + 1, 0)
+				FROM v_page_row
+				WHERE page_section_id = ?
+				""", Integer.class, pageSectionId).get();
+
+		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
+		createPageRowRequest.setPageSectionId(pageSectionId);
+		createPageRowRequest.setCreatedByAccountId(createdByAccountId);
+		createPageRowRequest.setDisplayOrder(displayOrder);
+		createPageRowRequest.setRowTypeId(RowTypeId.MAILING_LIST);
+
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_mailing_list
+				  (page_row_mailing_list_id, page_row_id, mailing_list_id)
+				VALUES
+				  (?,?,?)
+				""", pageRowMailingListId, pageRowId, mailingListId);
+
+		return pageRowId;
+	}
+
+	@Nonnull
+	public void updatePageRowMailingList(@Nonnull UpdatePageRowMailingListRequest request,
+																			 @Nonnull InstitutionId institutionId) {
+		requireNonNull(request);
+
+		UUID pageRowId = request.getPageRowId();
+		UUID mailingListId = request.getMailingListId();
+
+		ValidationException validationException = new ValidationException();
+
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new FieldError("pageRow", getStrings().get("Page not found.")));
+		if (mailingListId == null)
+			validationException.add(new FieldError("mailingListId", getStrings().get("Mailing List ID not found.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE page_row_mailing_list
+				SET mailing_list_id=?
+				WHERE page_row_id=?
+				""", mailingListId, pageRowId);
 	}
 
 	@Nonnull
@@ -1754,7 +1859,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
-			validationException.add(new ValidationException.FieldError("pageSectionId", getStrings().get("Could not find Page Section")));
+			validationException.add(new FieldError("pageSectionId", getStrings().get("Could not find Page Section")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1820,7 +1925,7 @@ public class PageService {
 		ValidationException validationException = new ValidationException();
 
 		if (request.getAccountId() == null)
-			validationException.add(new ValidationException.FieldError("accountId", getStrings().get("Account ID is required.")));
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -1996,20 +2101,20 @@ public class PageService {
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 
 		if (!page.isPresent())
-			validationException.add(new ValidationException.FieldError("pageId", getStrings().get("Could not find page.")));
+			validationException.add(new FieldError("pageId", getStrings().get("Could not find page.")));
 
 		if (!copyForEditing) {
 			if (name == null)
-				validationException.add(new ValidationException.FieldError("name", getStrings().get("Name is required.")));
+				validationException.add(new FieldError("name", getStrings().get("Name is required.")));
 			else if (nameExistsForInstitutionId(name, institutionId, null))
-				validationException.add(new ValidationException.FieldError("name", getStrings().get("Name already exists.")));
+				validationException.add(new FieldError("name", getStrings().get("Name already exists.")));
 
 			if (urlName == null)
-				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is required.")));
+				validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
 			else if (!isValidUrlSubdirectory(urlName))
-				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
+				validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
 			else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
-				validationException.add(new ValidationException.FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
+				validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		}
 
@@ -2028,7 +2133,7 @@ public class PageService {
 				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id, page_group_id)
 				SELECT ?,?,?,?,headline,description,image_file_upload_id,
 				       image_alt_text,published_date,deleted_flag,institution_id,?,?, page_group_id
-				FROM page 
+				FROM page
 				WHERE page_id=?
 				""", newPageId, name, urlName, pageStatusId, accountId, parentPageId, pageId);
 
@@ -2053,7 +2158,7 @@ public class PageService {
 					 SELECT ?,?,name,headline,description,
 					        background_color_id,deleted_flag,display_order,?
 					 FROM page_section
-					 WHERE page_section_id=?					  					 
+					 WHERE page_section_id=?
 					""", newPageSectionId, newPageId, accountId, pageSection.getPageSectionId());
 
 			pageRows = findPageRowsBySectionId(pageSection.getPageSectionId(), institutionId);
@@ -2071,7 +2176,7 @@ public class PageService {
 
 				getDatabase().execute("""
 						INSERT INTO page_row_column
-						(page_row_id,headline,description,image_file_upload_id,image_alt_text,column_display_order)						 
+						(page_row_id,headline,description,image_file_upload_id,image_alt_text,column_display_order)
 						SELECT ?,headline,description,image_file_upload_id,image_alt_text,column_display_order
 						FROM page_row_column
 						WHERE page_row_id = ?""", newPageRowId, pageRow.getPageRowId());
@@ -2107,6 +2212,14 @@ public class PageService {
 						FROM page_row_tag
 						WHERE page_row_id=?
 						""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_mailing_list
+						(page_row_id, mailing_list_id)
+						SELECT ?, mailing_list_id
+						FROM page_row_mailing_list
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
 			}
 		}
 
@@ -2134,12 +2247,17 @@ public class PageService {
 	}
 
 	@Nonnull
-	public SystemService getSystemService() {
+	protected SystemService getSystemService() {
 		return systemServiceProvider.get();
 	}
 
 	@Nonnull
-	public AccountService getAccountService() {
-		return accountService;
+	protected MailingListService getMailingListService() {
+		return mailingListServiceProvder.get();
+	}
+
+	@Nonnull
+	protected AccountService getAccountService() {
+		return accountServiceProvider.get();
 	}
 }
