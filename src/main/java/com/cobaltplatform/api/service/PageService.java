@@ -156,7 +156,7 @@ public class PageService {
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM v_page vp
-				WHERE vp.page_id = 
+				WHERE vp.page_id =
 				(SELECT ps.page_id
 				FROM page_section ps, page_row pr
 				WHERE ps.page_section_id = pr.page_section_id
@@ -480,7 +480,7 @@ public class PageService {
 				UPDATE page SET
 				page_status_id=?,
 				published_date=null
-				WHERE page_id=?					   
+				WHERE page_id=?
 				AND institution_id = ?
 				""", PageStatusId.DRAFT, pageIdToUpdate, institutionId);
 
@@ -554,7 +554,7 @@ public class PageService {
 				SELECT COUNT(*) > 0
 				FROM v_page p
 				WHERE p.institution_id = ?
-				AND LOWER(p.url_name) = LOWER(?)				
+				AND LOWER(p.url_name) = LOWER(?)
 				""");
 
 		parameters.add(institutionId);
@@ -696,7 +696,7 @@ public class PageService {
 				INSERT INTO page_section
 				  (page_section_id, page_id, name, headline, description, background_color_id, created_by_account_id, display_order)
 				VALUES
-				  (?,?,?,?,?,?,?,?)   
+				  (?,?,?,?,?,?,?,?)
 				""", pageSectionId, pageId, name, headline, description, backgroundColorId, createdByAccountId, displayOrder);
 
 		return pageSectionId;
@@ -766,7 +766,7 @@ public class PageService {
 		getDatabase().execute("""
 				UPDATE page_section SET
 				  name=?, headline=?, description=?, background_color_id=?
-				WHERE page_section_id=?				   
+				WHERE page_section_id=?
 				""", name, headline, description, backgroundColorId, pageSectionId);
 
 		return pageSectionId;
@@ -789,10 +789,10 @@ public class PageService {
 			throw validationException;
 
 		UUID pageId = pageSection.get().getPageId();
-getLogger().debug("IN delete with page section id " + pageSection);
+		getLogger().debug("IN delete with page section id " + pageSection);
 		getDatabase().execute(""" 
 				DELETE FROM page_row_column
-				WHERE page_row_id IN 
+				WHERE page_row_id IN
 				(SELECT pr.page_row_id
 				FROM page_row pr
 				WHERE pr.page_section_id =?)
@@ -800,7 +800,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 
 		getDatabase().execute("""
 				DELETE FROM page_row_group_session
-				WHERE page_row_id IN 
+				WHERE page_row_id IN
 				(SELECT pr.page_row_id
 				FROM page_row pr
 				WHERE pr.page_section_id =?)
@@ -808,23 +808,23 @@ getLogger().debug("IN delete with page section id " + pageSection);
 
 		getDatabase().execute("""
 				DELETE FROM page_row_content
-				WHERE page_row_id IN 
+				WHERE page_row_id IN
 				(SELECT pr.page_row_id
 				FROM page_row pr
-				WHERE pr.page_section_id =?) 
+				WHERE pr.page_section_id =?)
 				""", pageSectionId);
 
 		getDatabase().execute("""
 				DELETE FROM page_row_tag_group
-				WHERE page_row_id IN 
+				WHERE page_row_id IN
 				(SELECT pr.page_row_id
 				FROM page_row pr
-				WHERE pr.page_section_id =?) 
+				WHERE pr.page_section_id =?)
 				""", pageSectionId);
 
 		getDatabase().execute("""
 				DELETE FROM page_row_tag
-				WHERE page_row_id IN 
+				WHERE page_row_id IN
 				(SELECT pr.page_row_id
 				FROM page_row pr
 				WHERE pr.page_section_id =?) 
@@ -832,12 +832,12 @@ getLogger().debug("IN delete with page section id " + pageSection);
 
 		getDatabase().execute("""
 				DELETE FROM page_row
-				WHERE page_section_id=? 
+				WHERE page_section_id=?
 				""", pageSectionId);
 
 		getDatabase().execute("""
-				DELETE FROM page_section 				
-				WHERE page_section_id = ?				
+				DELETE FROM page_section
+				WHERE page_section_id = ?
 				""", pageSectionId);
 
 		getDatabase().execute("""
@@ -939,7 +939,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 				INSERT INTO page_row
 				  (page_row_id, page_section_id, row_type_id, created_by_account_id, display_order)
 				VALUES
-				  (?,?,?,?,?)   
+				  (?,?,?,?,?)
 				""", pageRowId, pageSectionId, rowTypeId, createdByAccountId, displayOrder);
 
 		return pageRowId;
@@ -1489,7 +1489,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 					INSERT INTO page_row_content
 					  (page_row_id, content_id, content_display_order)
 					VALUES
-					  (?, ?, ?)   
+					  (?, ?, ?)
 					""", pageRowId, contentId, contentDisplayOrder);
 			contentDisplayOrder++;
 		}
@@ -1504,7 +1504,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 		requireNonNull(contentId);
 
 		getDatabase().execute("""
-				DELETE FROM page_row_content 				
+				DELETE FROM page_row_content
 				WHERE page_row_id = ?
 				AND content_id = ?
 				""", pageRowId, contentId);
@@ -1521,7 +1521,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 				SET content_display_order = ordered.new_order
 				FROM ordered
 				WHERE prc.page_row_content_id = ordered.page_row_content_id
-				AND page_row_id=?;			
+				AND page_row_id=?
 				""", pageRowId, pageRowId);
 	}
 
@@ -1554,7 +1554,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 		return getDatabase().queryForObject("""
 				SELECT tg.*
 				FROM v_page_row_tag_group vp, tag_group tg
-				WHERE vp.tag_group_id = tg.tag_group_id 
+				WHERE vp.tag_group_id = tg.tag_group_id
 				AND page_row_id = ?
 				""", TagGroup.class, pageRowId);
 	}
@@ -1599,7 +1599,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 				INSERT INTO page_row_tag_group
 				  (page_row_tag_group_id, page_row_id, tag_group_id)
 				VALUES
-				  (?,?,?)   
+				  (?,?,?)
 				""", pageRowTagGroupId, pageRowId, tagGroupId);
 
 		return pageRowId;
@@ -1671,7 +1671,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 				INSERT INTO page_row_tag
 				  (page_row_tag_id, page_row_id, tag_id)
 				VALUES
-				  (?,?,?)   
+				  (?,?,?)
 				""", pageRowTagGroupId, pageRowId, tagId);
 
 		return pageRowId;
@@ -1727,7 +1727,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 				SELECT vgs.*
 				FROM v_page_row_group_session vp, v_group_session vgs
 				WHERE vp.group_session_id = vgs.group_session_id
-				AND page_row_id = ? """);
+				AND page_row_id = ?""");
 
 		parameters.add(pageRowId);
 
@@ -1775,7 +1775,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 					INSERT INTO page_row_group_session
 					   (page_row_id, group_session_id, group_session_display_order)
 					 VALUES
-					   (?,?,?)   
+					   (?,?,?)
 					""", pageRowId, groupSessionId, groupSessionDisplayOrder);
 			groupSessionDisplayOrder++;
 		}
@@ -1791,7 +1791,7 @@ getLogger().debug("IN delete with page section id " + pageSection);
 
 		getLogger().debug(format("DELETE %s and %s", pageRowId, groupSessionId));
 		getDatabase().execute("""
-				DELETE FROM page_row_group_session				
+				DELETE FROM page_row_group_session
 				WHERE page_row_id = ?
 				AND group_session_id = ?
 				""", pageRowId, groupSessionId);
