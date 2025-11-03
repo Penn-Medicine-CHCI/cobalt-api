@@ -1737,21 +1737,20 @@ public class PageService {
 				""", tagId, pageRowId);
 	}
 
-	public UUID createPageRowMailingList(@Nonnull CreatePageRowMailingListRequest request,
-																			 @Nonnull InstitutionId institutionId) {
+	public UUID createPageRowMailingList(@Nonnull CreatePageRowMailingListRequest request) {
 		requireNonNull(request);
 
 		UUID pageRowMailingListId = UUID.randomUUID();
 		UUID pageSectionId = request.getPageSectionId();
+		InstitutionId institutionId = request.getInstitutionId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
-		UUID mailingListId = request.getMailingListId();
 
 		ValidationException validationException = new ValidationException();
 
 		if (pageSectionId == null)
 			validationException.add(new FieldError("pageSectionId", getStrings().get("Page Section is required.")));
-		if (mailingListId == null)
-			validationException.add(new FieldError("mailingListId", getStrings().get("Mailing List ID is required.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 		if (createdByAccountId == null)
 			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
 
@@ -1771,12 +1770,22 @@ public class PageService {
 		createPageRowRequest.setRowTypeId(RowTypeId.MAILING_LIST);
 
 		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
+		UUID mailingListId = UUID.randomUUID();
 
 		getDatabase().execute("""
-				INSERT INTO page_row_mailing_list
-				  (page_row_mailing_list_id, page_row_id, mailing_list_id)
-				VALUES
-				  (?,?,?)
+				INSERT INTO mailing_list (
+					mailing_list_id,
+					institution_id,
+					created_by_account_id
+				) VALUES (?,?,?)
+				""", mailingListId, institutionId, createdByAccountId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_mailing_list (
+					page_row_mailing_list_id,
+					page_row_id,
+					mailing_list_id
+				) VALUES (?,?,?)
 				""", pageRowMailingListId, pageRowId, mailingListId);
 
 		return pageRowId;

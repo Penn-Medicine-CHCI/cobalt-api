@@ -909,10 +909,11 @@ public class PageResource {
 		if (!getAuthorizationService().canManagePages(institutionId, account))
 			throw new AuthorizationException();
 
+		request.setInstitutionId(institutionId);
 		request.setCreatedByAccountId(account.getAccountId());
 		request.setPageSectionId(pageSectionId);
 
-		UUID pageRowId = getPageService().createPageRowMailingList(request, institutionId);
+		UUID pageRowId = getPageService().createPageRowMailingList(request);
 
 		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 		Optional<PageRowMailingList> pageRowMailingList = getPageService().findPageRowMailingListByRowId(pageRowId);

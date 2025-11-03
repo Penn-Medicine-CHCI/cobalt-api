@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.model.api.request;
 
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
@@ -30,11 +32,20 @@ import java.util.UUID;
 @NotThreadSafe
 public class CreatePageRowMailingListRequest {
 	@Nullable
+	private InstitutionId institutionId;
+	@Nullable
 	private UUID pageSectionId;
 	@Nullable
-	private UUID mailingListId;
-	@Nullable
 	private UUID createdByAccountId;
+
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
 
 	@Nullable
 	public UUID getPageSectionId() {
@@ -43,15 +54,6 @@ public class CreatePageRowMailingListRequest {
 
 	public void setPageSectionId(@Nullable UUID pageSectionId) {
 		this.pageSectionId = pageSectionId;
-	}
-
-	@Nullable
-	public UUID getMailingListId() {
-		return this.mailingListId;
-	}
-
-	public void setMailingListId(@Nullable UUID mailingListId) {
-		this.mailingListId = mailingListId;
 	}
 
 	@Nullable
