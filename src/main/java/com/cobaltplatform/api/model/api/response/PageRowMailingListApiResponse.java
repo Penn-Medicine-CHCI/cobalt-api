@@ -46,6 +46,10 @@ public class PageRowMailingListApiResponse {
 	private final RowTypeId rowTypeId;
 	@Nonnull
 	private final UUID mailingListId;
+	@Nonnull
+	private final String title;
+	@Nonnull
+	private final String description;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -70,6 +74,8 @@ public class PageRowMailingListApiResponse {
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.mailingListId = pageRowMailingList.getMailingListId();
+		this.title = pageRowMailingList.getTitle();
+		this.description = pageRowMailingList.getDescription();
 	}
 
 	@Nonnull
@@ -90,6 +96,16 @@ public class PageRowMailingListApiResponse {
 	@Nonnull
 	public UUID getMailingListId() {
 		return this.mailingListId;
+	}
+
+	@Nonnull
+	public String getTitle() {
+		return this.title;
+	}
+
+	@Nonnull
+	public String getDescription() {
+		return this.description;
 	}
 }
 

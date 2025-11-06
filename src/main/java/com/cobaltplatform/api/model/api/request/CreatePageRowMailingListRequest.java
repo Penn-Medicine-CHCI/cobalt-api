@@ -37,6 +37,10 @@ public class CreatePageRowMailingListRequest {
 	private UUID pageSectionId;
 	@Nullable
 	private UUID createdByAccountId;
+	@Nullable
+	private String title;
+	@Nullable
+	private String description;
 
 	@Nullable
 	public InstitutionId getInstitutionId() {
@@ -63,5 +67,23 @@ public class CreatePageRowMailingListRequest {
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return this.title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

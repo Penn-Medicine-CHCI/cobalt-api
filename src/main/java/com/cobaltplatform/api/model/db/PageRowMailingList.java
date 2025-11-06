@@ -32,6 +32,10 @@ public class PageRowMailingList {
 	private UUID pageRowMailingListId;
 	@Nullable
 	private UUID mailingListId;
+	@Nullable
+	private String title;
+	@Nullable
+	private String description;
 
 	@Nullable
 	public UUID getPageRowMailingListId() {
@@ -49,5 +53,23 @@ public class PageRowMailingList {
 
 	public void setMailingListId(@Nullable UUID mailingListId) {
 		this.mailingListId = mailingListId;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return this.title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	public void setDescription(@Nullable String description) {
+		this.description = description;
 	}
 }

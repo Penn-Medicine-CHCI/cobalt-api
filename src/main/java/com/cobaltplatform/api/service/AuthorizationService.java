@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionTopicCenter;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionInstance;
+import com.cobaltplatform.api.model.db.MailingListEntry;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
@@ -807,6 +808,19 @@ public class AuthorizationService {
 		if (Objects.equals(account.getInstitutionId(), institutionId)
 				&& (account.getRoleId() == RoleId.ADMINISTRATOR ||
 				account.getAccountCapabilityTypeIds().contains(AccountCapabilityTypeId.PAGE_CREATOR)))
+			return true;
+
+		return false;
+	}
+
+	@Nonnull
+	public Boolean canUpdateMailingListEntry(@Nonnull Account account,
+																					 @Nonnull MailingListEntry mailingListEntry) {
+		requireNonNull(account);
+		requireNonNull(mailingListEntry);
+
+		if (Objects.equals(account.getAccountId(), mailingListEntry.getCreatedByAccountId())
+				|| Objects.equals(account.getAccountId(), mailingListEntry.getAccountId()))
 			return true;
 
 		return false;

@@ -1,6 +1,9 @@
 BEGIN;
 SELECT _v.register_patch('236-page-email-list', NULL, NULL);
 
+INSERT INTO footprint_event_group_type VALUES ('MAILING_LIST_ENTRY_CREATE', 'Mailing List Entry Create');
+INSERT INTO footprint_event_group_type VALUES ('MAILING_LIST_ENTRY_UPDATE', 'Mailing List Entry Update');
+
 -- General "mailing list" concept to gather email addresses.
 -- For now, we are only exposing these to SUBSCRIBE-type page rows, but we could attach these to other constructs in the future.
 -- We might also support non-email contact types in the future (e.g. phone numbers for SMS) - but keeping it simple for now.
@@ -12,8 +15,9 @@ CREATE TABLE mailing_list (
   last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON mailing_list FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 CREATE INDEX ON mailing_list(institution_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON mailing_list FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER mailing_list_footprint AFTER INSERT OR UPDATE OR DELETE ON mailing_list FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- What kind of data can go into a mailing list?
 CREATE TABLE mailing_list_entry_type (
@@ -24,9 +28,19 @@ CREATE TABLE mailing_list_entry_type (
 INSERT INTO mailing_list_entry_type VALUES ('EMAIL_ADDRESS', 'Email Address');
 INSERT INTO mailing_list_entry_type VALUES ('SMS', 'SMS');
 
+-- Status of this entry, e.g. active
+CREATE TABLE mailing_list_entry_status (
+  mailing_list_entry_status_id TEXT PRIMARY KEY,
+  description TEXT NOT NULL
+);
+
+INSERT INTO mailing_list_entry_status VALUES ('ACTIVE', 'Active');
+INSERT INTO mailing_list_entry_status VALUES ('INACTIVE', 'Inactive');
+
 CREATE TABLE mailing_list_entry (
   mailing_list_entry_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   mailing_list_entry_type_id TEXT NOT NULL REFERENCES mailing_list_entry_type,
+  mailing_list_entry_status_id TEXT NOT NULL REFERENCES mailing_list_entry_status DEFAULT 'ACTIVE',
   mailing_list_id UUID NOT NULL REFERENCES mailing_list,
   account_id UUID NOT NULL REFERENCES account, -- the account whose email/phone this is
   created_by_account_id UUID NOT NULL REFERENCES account(account_id), -- the account who added this entry
@@ -37,6 +51,7 @@ CREATE TABLE mailing_list_entry (
 
 CREATE INDEX ON mailing_list_entry(mailing_list_id);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON mailing_list_entry FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+CREATE TRIGGER mailing_list_entry_footprint AFTER INSERT OR UPDATE OR DELETE ON mailing_list_entry FOR EACH ROW EXECUTE PROCEDURE perform_footprint();
 
 -- Ensure `value` column is lowercased (e.g. email addresses)
 CREATE OR REPLACE FUNCTION normalize_mailing_list_entry_value()
@@ -79,6 +94,8 @@ CREATE TABLE page_row_mailing_list (
   page_row_mailing_list_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   page_row_id UUID NOT NULL REFERENCES page_row,
   mailing_list_id UUID NOT NULL REFERENCES mailing_list,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL, -- Can contain HTML
   created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -95,6 +112,8 @@ SELECT
   pr.row_type_id,
   prml.mailing_list_id,
   pr.created_by_account_id,
+  prml.title,
+  prml.description,
   pr.created,
   pr.last_updated
 FROM

@@ -107,6 +107,7 @@ import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUrlSubdirectory;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
@@ -1744,6 +1745,8 @@ public class PageService {
 		UUID pageSectionId = request.getPageSectionId();
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
+		String title = trimToEmpty(request.getTitle());
+		String description = trimToEmpty(request.getDescription());
 
 		ValidationException validationException = new ValidationException();
 
@@ -1784,9 +1787,11 @@ public class PageService {
 				INSERT INTO page_row_mailing_list (
 					page_row_mailing_list_id,
 					page_row_id,
-					mailing_list_id
-				) VALUES (?,?,?)
-				""", pageRowMailingListId, pageRowId, mailingListId);
+					mailing_list_id,
+					title,
+					description
+				) VALUES (?,?,?,?,?)
+				""", pageRowMailingListId, pageRowId, mailingListId, title, description);
 
 		return pageRowId;
 	}
@@ -1798,6 +1803,8 @@ public class PageService {
 
 		UUID pageRowId = request.getPageRowId();
 		UUID mailingListId = request.getMailingListId();
+		String title = trimToEmpty(request.getTitle());
+		String description = trimToEmpty(request.getDescription());
 
 		ValidationException validationException = new ValidationException();
 
@@ -1813,9 +1820,9 @@ public class PageService {
 
 		getDatabase().execute("""
 				UPDATE page_row_mailing_list
-				SET mailing_list_id=?
+				SET mailing_list_id=?, title=?, description=?
 				WHERE page_row_id=?
-				""", mailingListId, pageRowId);
+				""", mailingListId, title, description, pageRowId);
 	}
 
 	@Nonnull

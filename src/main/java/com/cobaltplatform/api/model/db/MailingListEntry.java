@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.MailingListEntryStatus.MailingListEntryStatusId;
 import com.cobaltplatform.api.model.db.MailingListEntryType.MailingListEntryTypeId;
 
 import javax.annotation.Nullable;
@@ -35,6 +36,8 @@ public class MailingListEntry {
 	private UUID mailingListEntryId;
 	@Nullable
 	private MailingListEntryTypeId mailingListEntryTypeId;
+	@Nullable
+	private MailingListEntryStatusId mailingListEntryStatusId;
 	@Nullable
 	private UUID mailingListId;
 	@Nullable
@@ -64,6 +67,15 @@ public class MailingListEntry {
 
 	public void setMailingListEntryTypeId(@Nullable MailingListEntryTypeId mailingListEntryTypeId) {
 		this.mailingListEntryTypeId = mailingListEntryTypeId;
+	}
+
+	@Nullable
+	public MailingListEntryStatusId getMailingListEntryStatusId() {
+		return this.mailingListEntryStatusId;
+	}
+
+	public void setMailingListEntryStatusId(@Nullable MailingListEntryStatusId mailingListEntryStatusId) {
+		this.mailingListEntryStatusId = mailingListEntryStatusId;
 	}
 
 	@Nullable

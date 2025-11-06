@@ -17,52 +17,41 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.UUID;
+
+import static java.lang.String.format;
 
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class UpdatePageRowMailingListRequest {
+public class MailingListEntryStatus {
 	@Nullable
-	private UUID pageRowId;
-	@Nullable
-	private UUID mailingListId;
-	@Nullable
-	private String title;
+	private MailingListEntryStatusId mailingListEntryStatusId;
 	@Nullable
 	private String description;
 
-	@Nullable
-	public UUID getPageRowId() {
-		return this.pageRowId;
+	public enum MailingListEntryStatusId {
+		ACTIVE,
+		INACTIVE
 	}
 
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
-	}
-
-	@Nullable
-	public UUID getMailingListId() {
-		return this.mailingListId;
-	}
-
-	public void setMailingListId(@Nullable UUID mailingListId) {
-		this.mailingListId = mailingListId;
+	@Override
+	public String toString() {
+		return format("%s{mailingListEntryStatusId=%s, description=%s}",
+				getClass().getSimpleName(), getMailingListEntryStatusId(), getDescription());
 	}
 
 	@Nullable
-	public String getTitle() {
-		return this.title;
+	public MailingListEntryStatusId getMailingListEntryStatusId() {
+		return this.mailingListEntryStatusId;
 	}
 
-	public void setTitle(@Nullable String title) {
-		this.title = title;
+	public void setMailingListEntryStatusId(@Nullable MailingListEntryStatusId mailingListEntryStatusId) {
+		this.mailingListEntryStatusId = mailingListEntryStatusId;
 	}
 
 	@Nullable

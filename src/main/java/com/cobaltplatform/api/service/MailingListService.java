@@ -21,9 +21,11 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.api.request.CreateMailingListEntryRequest;
 import com.cobaltplatform.api.model.api.request.CreateMailingListRequest;
+import com.cobaltplatform.api.model.api.request.UpdateMailingListEntryStatusRequest;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MailingList;
 import com.cobaltplatform.api.model.db.MailingListEntry;
+import com.cobaltplatform.api.model.db.MailingListEntryStatus.MailingListEntryStatusId;
 import com.cobaltplatform.api.model.db.MailingListEntryType.MailingListEntryTypeId;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -216,6 +218,30 @@ public class MailingListService {
 				throw e;
 			}
 		}
+	}
+
+	@Nonnull
+	public Boolean updateMailingListEntryStatusRequest(@Nonnull UpdateMailingListEntryStatusRequest request) {
+		requireNonNull(request);
+
+		UUID mailingListEntryId = request.getMailingListEntryId();
+		MailingListEntryStatusId mailingListEntryStatusId = request.getMailingListEntryStatusId();
+		ValidationException validationException = new ValidationException();
+
+		if (mailingListEntryId == null)
+			validationException.add(new FieldError("mailingListEntryId", getStrings().get("Mailing List Entry ID is required.")));
+
+		if (mailingListEntryStatusId == null)
+			validationException.add(new FieldError("mailingListEntryStatusId", getStrings().get("Mailing List Entry Status ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getDatabase().execute("""
+				UPDATE mailing_list_entry
+				SET mailing_list_entry_status_id=?
+				WHERE mailing_list_entry_id=?
+				""", mailingListEntryStatusId, mailingListEntryId) > 0;
 	}
 
 	@Nonnull

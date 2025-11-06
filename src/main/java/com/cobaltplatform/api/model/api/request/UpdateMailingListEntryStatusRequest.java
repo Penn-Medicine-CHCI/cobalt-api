@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.model.api.request;
 
 
+import com.cobaltplatform.api.model.db.MailingListEntryStatus.MailingListEntryStatusId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
@@ -28,49 +30,27 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class UpdatePageRowMailingListRequest {
+public class UpdateMailingListEntryStatusRequest {
 	@Nullable
-	private UUID pageRowId;
+	private UUID mailingListEntryId;
 	@Nullable
-	private UUID mailingListId;
-	@Nullable
-	private String title;
-	@Nullable
-	private String description;
+	private MailingListEntryStatusId mailingListEntryStatusId;
 
 	@Nullable
-	public UUID getPageRowId() {
-		return this.pageRowId;
+	public UUID getMailingListEntryId() {
+		return this.mailingListEntryId;
 	}
 
-	public void setPageRowId(@Nullable UUID pageRowId) {
-		this.pageRowId = pageRowId;
+	public void setMailingListEntryId(@Nullable UUID mailingListEntryId) {
+		this.mailingListEntryId = mailingListEntryId;
 	}
 
 	@Nullable
-	public UUID getMailingListId() {
-		return this.mailingListId;
+	public MailingListEntryStatusId getMailingListEntryStatusId() {
+		return this.mailingListEntryStatusId;
 	}
 
-	public void setMailingListId(@Nullable UUID mailingListId) {
-		this.mailingListId = mailingListId;
-	}
-
-	@Nullable
-	public String getTitle() {
-		return this.title;
-	}
-
-	public void setTitle(@Nullable String title) {
-		this.title = title;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return this.description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setMailingListEntryStatusId(@Nullable MailingListEntryStatusId mailingListEntryStatusId) {
+		this.mailingListEntryStatusId = mailingListEntryStatusId;
 	}
 }
