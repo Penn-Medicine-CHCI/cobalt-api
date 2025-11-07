@@ -84,6 +84,10 @@ public class PageRowApiResponse {
 	private ColorId tagGroupColorId;
 	@Nullable
 	private UUID mailingListId;
+	@Nullable
+	private String title;
+	@Nullable
+	private String description;
 
 	@Nonnull
 	private Boolean displayRow;
@@ -164,6 +168,8 @@ public class PageRowApiResponse {
 		} else if (this.rowTypeId.equals(RowTypeId.MAILING_LIST)) {
 			PageRowMailingList pageRowMailingList = pageService.findPageRowMailingListByRowId(pageRow.getPageRowId()).orElse(null);
 			this.mailingListId = pageRowMailingList == null ? null : pageRowMailingList.getMailingListId();
+			this.title = pageRowMailingList == null ? null : pageRowMailingList.getTitle();
+			this.description = pageRowMailingList == null ? null : pageRowMailingList.getDescription();
 		}
 	}
 
@@ -235,6 +241,16 @@ public class PageRowApiResponse {
 	@Nonnull
 	public Optional<UUID> getMailingListId() {
 		return Optional.ofNullable(this.mailingListId);
+	}
+
+	@Nonnull
+	public Optional<String> getTitle() {
+		return Optional.ofNullable(this.title);
+	}
+
+	@Nonnull
+	public Optional<String> getDescription() {
+		return Optional.ofNullable(this.description);
 	}
 }
 
