@@ -2255,8 +2255,8 @@ public class PageService {
 
 				getDatabase().execute("""
 						INSERT INTO page_row_mailing_list
-						(page_row_id, mailing_list_id)
-						SELECT ?, mailing_list_id
+						(page_row_id, mailing_list_id, title, description)
+						SELECT ?, mailing_list_id, title, description
 						FROM page_row_mailing_list
 						WHERE page_row_id=?
 						""", newPageRowId, pageRow.getPageRowId());
