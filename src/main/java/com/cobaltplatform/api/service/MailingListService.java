@@ -221,7 +221,7 @@ public class MailingListService {
 	}
 
 	@Nonnull
-	public Boolean updateMailingListEntryStatusRequest(@Nonnull UpdateMailingListEntryStatusRequest request) {
+	public Boolean updateMailingListEntryStatus(@Nonnull UpdateMailingListEntryStatusRequest request) {
 		requireNonNull(request);
 
 		UUID mailingListEntryId = request.getMailingListEntryId();
