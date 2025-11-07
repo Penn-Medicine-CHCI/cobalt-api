@@ -34,13 +34,13 @@ CREATE TABLE mailing_list_entry_status (
   description TEXT NOT NULL
 );
 
-INSERT INTO mailing_list_entry_status VALUES ('ACTIVE', 'Active');
-INSERT INTO mailing_list_entry_status VALUES ('INACTIVE', 'Inactive');
+INSERT INTO mailing_list_entry_status VALUES ('SUBSCRIBED', 'Subscribed');
+INSERT INTO mailing_list_entry_status VALUES ('UNSUBSCRIBED', 'Unsubscribed');
 
 CREATE TABLE mailing_list_entry (
   mailing_list_entry_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   mailing_list_entry_type_id TEXT NOT NULL REFERENCES mailing_list_entry_type,
-  mailing_list_entry_status_id TEXT NOT NULL REFERENCES mailing_list_entry_status DEFAULT 'ACTIVE',
+  mailing_list_entry_status_id TEXT NOT NULL REFERENCES mailing_list_entry_status DEFAULT 'SUBSCRIBED',
   mailing_list_id UUID NOT NULL REFERENCES mailing_list,
   account_id UUID NOT NULL REFERENCES account, -- the account whose email/phone this is
   created_by_account_id UUID NOT NULL REFERENCES account(account_id), -- the account who added this entry

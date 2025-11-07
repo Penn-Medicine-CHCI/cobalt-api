@@ -125,8 +125,6 @@ public class PageService {
 	@Nonnull
 	private final Provider<SystemService> systemServiceProvider;
 	@Nonnull
-	private final Provider<MailingListService> mailingListServiceProvder;
-	@Nonnull
 	private final Provider<AccountService> accountServiceProvider;
 	@Nonnull
 	private final Logger logger;
@@ -137,14 +135,12 @@ public class PageService {
 	public PageService(@Nonnull DatabaseProvider databaseProvider,
 										 @Nonnull Configuration configuration,
 										 @Nonnull Provider<SystemService> systemServiceProvider,
-										 @Nonnull Provider<MailingListService> mailingListServiceProvider,
 										 @Nonnull Provider<AccountService> accountServiceProvider,
 										 @Nonnull Strings strings,
 										 @Nonnull Formatter formatter) {
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
 		requireNonNull(systemServiceProvider);
-		requireNonNull(mailingListServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(strings);
 		requireNonNull(formatter);
@@ -152,7 +148,6 @@ public class PageService {
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
 		this.systemServiceProvider = systemServiceProvider;
-		this.mailingListServiceProvder = mailingListServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.strings = strings;
 		this.formatter = formatter;
@@ -2267,6 +2262,35 @@ public class PageService {
 	}
 
 	@Nonnull
+	public List<Page> findPagesByMailingListEntryId(@Nullable UUID mailingListEntryId) {
+		if (mailingListEntryId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				WITH groups AS (
+				  SELECT DISTINCT p.page_group_id
+				  FROM mailing_list_entry mle
+				  JOIN page_row_mailing_list prml USING (mailing_list_id)
+				  JOIN page_row      pr  ON pr.page_row_id = prml.page_row_id AND pr.deleted_flag = FALSE
+				  JOIN page_section  ps  ON ps.page_section_id = pr.page_section_id AND ps.deleted_flag = FALSE
+				  JOIN page          p   ON p.page_id = ps.page_id AND p.deleted_flag = FALSE
+				  WHERE mle.mailing_list_entry_id = ?
+				)
+				SELECT DISTINCT ON (p.page_group_id)
+				       p.*
+				FROM v_page p
+				JOIN groups g ON g.page_group_id = p.page_group_id
+				WHERE p.deleted_flag = FALSE
+				ORDER BY
+				  p.page_group_id,
+				  (p.page_status_id = ?) DESC,                    -- prefer LIVE
+				  p.published_date DESC NULLS LAST,                    -- newest LIVE first
+				  COALESCE(p.last_updated, p.created) DESC,            -- otherwise latest activity
+				  p.created DESC;
+				""", Page.class, mailingListEntryId, PageStatusId.LIVE);
+	}
+
+	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
 	}
@@ -2289,11 +2313,6 @@ public class PageService {
 	@Nonnull
 	protected SystemService getSystemService() {
 		return systemServiceProvider.get();
-	}
-
-	@Nonnull
-	protected MailingListService getMailingListService() {
-		return mailingListServiceProvder.get();
 	}
 
 	@Nonnull

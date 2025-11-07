@@ -35,8 +35,8 @@ public class MailingListEntryStatus {
 	private String description;
 
 	public enum MailingListEntryStatusId {
-		ACTIVE,
-		INACTIVE
+		SUBSCRIBED,
+		UNSUBSCRIBED
 	}
 
 	@Override

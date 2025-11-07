@@ -23,21 +23,25 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateMailingListEntryRequest;
 import com.cobaltplatform.api.model.api.request.UpdateMailingListEntryStatusRequest;
 import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse.MailingListEntryApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.MailingList;
 import com.cobaltplatform.api.model.db.MailingListEntry;
+import com.cobaltplatform.api.model.db.MailingListEntryStatus.MailingListEntryStatusId;
+import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.MailingListService;
+import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
 import com.soklet.web.annotation.PUT;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.RequestBody;
 import com.soklet.web.annotation.Resource;
-import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.slf4j.Logger;
@@ -48,8 +52,10 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -63,6 +69,8 @@ public class MailingListResource {
 	@Nonnull
 	private final MailingListService mailingListService;
 	@Nonnull
+	private final PageService pageService;
+	@Nonnull
 	private final SystemService systemService;
 	@Nonnull
 	private final AuthorizationService authorizationService;
@@ -71,29 +79,37 @@ public class MailingListResource {
 	@Nonnull
 	private final MailingListEntryApiResponseFactory mailingListEntryApiResponseFactory;
 	@Nonnull
+	private final PageApiResponseFactory pageApiResponseFactory;
+	@Nonnull
 	private final Provider<CurrentContext> currentContextProvider;
 	@Nonnull
 	private final Logger logger;
 
 	@Inject
 	public MailingListResource(@Nonnull MailingListService mailingListService,
+														 @Nonnull PageService pageService,
 														 @Nonnull SystemService systemService,
 														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull RequestBodyParser requestBodyParser,
 														 @Nonnull MailingListEntryApiResponseFactory mailingListEntryApiResponseFactory,
+														 @Nonnull PageApiResponseFactory pageApiResponseFactory,
 														 @Nonnull Provider<CurrentContext> currentContextProvider) {
 		requireNonNull(mailingListService);
+		requireNonNull(pageService);
 		requireNonNull(systemService);
 		requireNonNull(authorizationService);
 		requireNonNull(requestBodyParser);
 		requireNonNull(mailingListEntryApiResponseFactory);
+		requireNonNull(pageApiResponseFactory);
 		requireNonNull(currentContextProvider);
 
 		this.mailingListService = mailingListService;
+		this.pageService = pageService;
 		this.systemService = systemService;
 		this.authorizationService = authorizationService;
 		this.requestBodyParser = requestBodyParser;
 		this.mailingListEntryApiResponseFactory = mailingListEntryApiResponseFactory;
+		this.pageApiResponseFactory = pageApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
@@ -128,12 +144,32 @@ public class MailingListResource {
 		));
 	}
 
+	// Note: no @AuthenticationRequired because this can be called from a signed-out experience, e.g. clicking "unsubscribe" in an email
 	@Nonnull
-	@AuthenticationRequired
-	@PUT("/mailing-list-entries/{mailingListEntryId}/status")
-	public ApiResponse updateMailingListEntryStatus(@Nonnull @PathParameter UUID mailingListEntryId,
-																									@Nonnull @RequestBody String requestBody) {
-		requireNonNull(requestBody);
+	@GET("/mailing-list-entries/{mailingListEntryId}")
+	public ApiResponse mailingListEntry(@Nonnull @PathParameter UUID mailingListEntryId) {
+		requireNonNull(mailingListEntryId);
+
+		MailingListEntry mailingListEntry = getMailingListService().findMailingListEntryById(mailingListEntryId).orElse(null);
+
+		if (mailingListEntry == null)
+			throw new NotFoundException();
+
+		List<Page> pages = getPageService().findPagesByMailingListEntryId(mailingListEntryId);
+
+		return new ApiResponse(Map.of(
+				"mailingListEntry", getMailingListEntryApiResponseFactory().create(mailingListEntry),
+				"pages", pages.stream()
+						.map(page -> getPageApiResponseFactory().create(page, false))
+						.collect(Collectors.toUnmodifiableList())
+		));
+	}
+
+	// Note: no @AuthenticationRequired because this can be called from a signed-out experience, e.g. clicking "unsubscribe" in an email
+	@Nonnull
+	@PUT("/mailing-list-entries/{mailingListEntryId}/unsubscribe")
+	public ApiResponse updateMailingListEntryStatus(@Nonnull @PathParameter UUID mailingListEntryId) {
+		requireNonNull(mailingListEntryId);
 
 		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.MAILING_LIST_ENTRY_UPDATE);
 
@@ -142,26 +178,27 @@ public class MailingListResource {
 		if (mailingListEntry == null)
 			throw new NotFoundException();
 
-		Account account = getCurrentContext().getAccount().get();
-
-		if (!getAuthorizationService().canUpdateMailingListEntry(account, mailingListEntry))
-			throw new AuthorizationException();
-
-		UpdateMailingListEntryStatusRequest request = getRequestBodyParser().parse(requestBody, UpdateMailingListEntryStatusRequest.class);
+		UpdateMailingListEntryStatusRequest request = new UpdateMailingListEntryStatusRequest();
 		request.setMailingListEntryId(mailingListEntryId);
+		request.setMailingListEntryStatusId(MailingListEntryStatusId.UNSUBSCRIBED);
 
 		getMailingListService().updateMailingListEntryStatus(request);
 
-		mailingListEntry = getMailingListService().findMailingListEntryById(mailingListEntryId).orElse(null);
+		MailingListEntry updatedMailingListEntry = getMailingListService().findMailingListEntryById(mailingListEntryId).get();
 
 		return new ApiResponse(Map.of(
-				"mailingListEntry", getMailingListEntryApiResponseFactory().create(mailingListEntry)
+				"mailingListEntry", getMailingListEntryApiResponseFactory().create(updatedMailingListEntry)
 		));
 	}
 
 	@Nonnull
 	protected MailingListService getMailingListService() {
 		return this.mailingListService;
+	}
+
+	@Nonnull
+	protected PageService getPageService() {
+		return this.pageService;
 	}
 
 	@Nonnull
@@ -182,6 +219,11 @@ public class MailingListResource {
 	@Nonnull
 	protected MailingListEntryApiResponseFactory getMailingListEntryApiResponseFactory() {
 		return this.mailingListEntryApiResponseFactory;
+	}
+
+	@Nonnull
+	protected PageApiResponseFactory getPageApiResponseFactory() {
+		return this.pageApiResponseFactory;
 	}
 
 	@Nonnull
