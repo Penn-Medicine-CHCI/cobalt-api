@@ -47,6 +47,8 @@ import com.cobaltplatform.api.model.api.request.UpdatePageSectionDisplayOrderReq
 import com.cobaltplatform.api.model.api.request.UpdatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageSettingsRequest;
 import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.FileUploadResultApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.MailingListApiResponse.MailingListApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
@@ -55,6 +57,7 @@ import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiRespon
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowMailingListApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowMailingListApiResponse.PageRowMailingListApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
@@ -77,10 +80,12 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.MailingListService;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
+import com.lokalized.Strings;
 import com.soklet.web.annotation.DELETE;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.POST;
@@ -92,12 +97,19 @@ import com.soklet.web.annotation.Resource;
 import com.soklet.web.exception.AuthorizationException;
 import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
+import com.soklet.web.response.CustomResponse;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -105,7 +117,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
+import static com.cobaltplatform.api.util.WebUtility.safeAttachmentContentDispositionHeaderForFilename;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -150,9 +164,15 @@ public class PageResource {
 	@Nonnull
 	private final PageRowMailingListApiResponseFactory pageRowMailingListApiResponseFactory;
 	@Nonnull
+	private final MailingListApiResponseFactory mailingListApiResponseFactory;
+	@Nonnull
 	private final PageService pageService;
 	@Nonnull
+	private final MailingListService mailingListService;
+	@Nonnull
 	private final Formatter formatter;
+	@Nonnull
+	private final Strings strings;
 	@Nonnull
 	private final AuthorizationService authorizationService;
 
@@ -160,6 +180,7 @@ public class PageResource {
 	public PageResource(@Nonnull RequestBodyParser requestBodyParser,
 											@Nonnull Provider<CurrentContext> currentContextProvider,
 											@Nonnull PageService pageService,
+											@Nonnull MailingListService mailingListService,
 											@Nonnull PageApiResponseFactory pageApiResponseFactory,
 											@Nonnull PageSectionApiResponseFactory pageSectionApiResponseFactory,
 											@Nonnull PageRowApiResponseFactory pageRowApiResponseFactory,
@@ -176,10 +197,13 @@ public class PageResource {
 											@Nonnull PageSiteLocationApiResponseFactory pageSiteLocationApiResponseFactory,
 											@Nonnull PageRowTagApiResponseFactory pageRowTagApiResponseFactory,
 											@Nonnull PageRowMailingListApiResponseFactory pageRowMailingListApiResponseFactory,
-											@Nonnull Formatter formatter) {
+											@Nonnull MailingListApiResponseFactory mailingListApiResponseFactory,
+											@Nonnull Formatter formatter,
+											@Nonnull Strings strings) {
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(pageService);
+		requireNonNull(mailingListService);
 		requireNonNull(pageApiResponseFactory);
 		requireNonNull(pageSectionApiResponseFactory);
 		requireNonNull(pageRowApiResponseFactory);
@@ -196,11 +220,14 @@ public class PageResource {
 		requireNonNull(pageSiteLocationApiResponseFactory);
 		requireNonNull(pageRowTagApiResponseFactory);
 		requireNonNull(pageRowMailingListApiResponseFactory);
+		requireNonNull(mailingListApiResponseFactory);
 		requireNonNull(formatter);
+		requireNonNull(strings);
 
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.pageService = pageService;
+		this.mailingListService = mailingListService;
 		this.pageApiResponseFactory = pageApiResponseFactory;
 		this.pageSectionApiResponseFactory = pageSectionApiResponseFactory;
 		this.pageRowApiResponseFactory = pageRowApiResponseFactory;
@@ -217,7 +244,9 @@ public class PageResource {
 		this.pageSiteLocationApiResponseFactory = pageSiteLocationApiResponseFactory;
 		this.pageRowTagApiResponseFactory = pageRowTagApiResponseFactory;
 		this.pageRowMailingListApiResponseFactory = pageRowMailingListApiResponseFactory;
+		this.mailingListApiResponseFactory = mailingListApiResponseFactory;
 		this.formatter = formatter;
+		this.strings = strings;
 	}
 
 	@POST("/pages")
@@ -418,9 +447,10 @@ public class PageResource {
 		}});
 	}
 
-	@GET("/pages/{pageIdentifier}/mailing-lists")
+	@ReadReplica
+	@GET("/pages/{pageIdentifier}/page-row-mailing-lists")
 	@AuthenticationRequired
-	public ApiResponse pageMailingLists(@Nonnull @PathParameter String pageIdentifier) {
+	public ApiResponse pageRowMailingLists(@Nonnull @PathParameter String pageIdentifier) {
 		requireNonNull(pageIdentifier);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -434,12 +464,87 @@ public class PageResource {
 		if (page == null)
 			throw new NotFoundException();
 
-		// TODO: pull all mailing lists associated with this page and, for each list, show the entries.
-		// This would enable admins to get quick access to subscriber lists
+		List<PageRowMailingList> pageRowMailingLists = getPageService().findPageRowMailingListsByPageId(page.getPageId());
 
 		return new ApiResponse(Map.of(
-				"mailingLists", List.of(Map.of("todo", "todo"))
+				"pageRowMailingLists", pageRowMailingLists.stream()
+						.map(pageRowMailingList -> {
+							PageRow pageRow = getPageService().findPageRowById(pageRowMailingList.getPageRowId(), institutionId).orElse(null);
+
+							if (pageRow == null)
+								return null;
+
+							return getPageRowMailingListApiResponseFactory().create(pageRow, pageRowMailingList, PageRowMailingListApiResponse.Supplement.MAILING_LIST_ENTRIES);
+						})
+						.filter(pageRowMailingList -> pageRowMailingList != null)
+						.collect(Collectors.toUnmodifiableList())
 		));
+	}
+
+	@ReadReplica
+	@GET("/page-row-mailing-lists/csv")
+	@AuthenticationRequired
+	public CustomResponse pageRowMailingListsCsv(@Nonnull @QueryParameter("pageId") String pageIdentifier,
+																							 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
+		requireNonNull(pageIdentifier);
+		requireNonNull(httpServletResponse);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		Page page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), true).orElse(null);
+
+		if (page == null)
+			throw new NotFoundException();
+
+		List<PageRowMailingListApiResponse> pageRowMailingLists = getPageService().findPageRowMailingListsByPageId(page.getPageId()).stream()
+				.map(pageRowMailingList -> {
+					PageRow pageRow = getPageService().findPageRowById(pageRowMailingList.getPageRowId(), institutionId).orElse(null);
+
+					if (pageRow == null)
+						return null;
+
+					return getPageRowMailingListApiResponseFactory().create(pageRow, pageRowMailingList, PageRowMailingListApiResponse.Supplement.MAILING_LIST_ENTRIES);
+				})
+				.filter(pageRowMailingList -> pageRowMailingList != null)
+				.collect(Collectors.toUnmodifiableList());
+
+
+		String filename = getStrings().get("Cobalt Subscriptions for Page '{{pageName}}'.csv", Map.of("pageName", page.getName()));
+
+		httpServletResponse.setContentType("text/csv");
+		httpServletResponse.setHeader("Content-Encoding", "gzip");
+		httpServletResponse.setHeader("Content-Disposition", safeAttachmentContentDispositionHeaderForFilename(filename));
+
+		List<String> headerColumns = List.of(
+				getStrings().get(getStrings().get("Mailing List")),
+				getStrings().get(getStrings().get("Type")),
+				getStrings().get(getStrings().get("Value"))
+		);
+
+		try (PrintWriter printWriter = new PrintWriter(new GZIPOutputStream(httpServletResponse.getOutputStream()))) {
+			try (CSVPrinter csvPrinter = new CSVPrinter(printWriter, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+				for (PageRowMailingListApiResponse pageRowMailingList : pageRowMailingLists) {
+
+					for (MailingListEntryApiResponse mailingListEntry : pageRowMailingList.getMailingListEntries()) {
+						List<String> recordElements = new ArrayList<>();
+
+						recordElements.add(pageRowMailingList.getTitle());
+						recordElements.add(mailingListEntry.getMailingListEntryTypeId().name());
+						recordElements.add(mailingListEntry.getValue());
+
+						csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+					}
+				}
+
+				csvPrinter.flush();
+			}
+		}
+
+		return CustomResponse.instance();
 	}
 
 	@PUT("/pages/{pageId}/settings")
@@ -1240,6 +1345,11 @@ public class PageResource {
 	}
 
 	@Nonnull
+	protected MailingListService getMailingListService() {
+		return this.mailingListService;
+	}
+
+	@Nonnull
 	public PageApiResponseFactory getPageApiResponseFactory() {
 		return pageApiResponseFactory;
 	}
@@ -1317,5 +1427,15 @@ public class PageResource {
 	@Nonnull
 	protected PageRowMailingListApiResponseFactory getPageRowMailingListApiResponseFactory() {
 		return this.pageRowMailingListApiResponseFactory;
+	}
+
+	@Nonnull
+	protected MailingListApiResponseFactory getMailingListApiResponseFactory() {
+		return this.mailingListApiResponseFactory;
+	}
+
+	@Nonnull
+	protected Strings getStrings() {
+		return this.strings;
 	}
 }

@@ -27,8 +27,6 @@ import com.cobaltplatform.api.model.db.MailingList;
 import com.cobaltplatform.api.model.db.MailingListEntry;
 import com.cobaltplatform.api.model.db.MailingListEntryStatus.MailingListEntryStatusId;
 import com.cobaltplatform.api.model.db.MailingListEntryType.MailingListEntryTypeId;
-import com.cobaltplatform.api.model.db.Page;
-import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
@@ -46,11 +44,14 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.sql.Savepoint;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -101,6 +102,45 @@ public class MailingListService {
 				FROM mailing_list_entry
 				WHERE mailing_list_entry_id=?
 				""", MailingListEntry.class, mailingListEntryId);
+	}
+
+	public enum MailingListEntryStatusFilter {
+		NONE,
+		SUBSCRIBED,
+		UNSUBSCRIBED
+	}
+
+	@Nonnull
+	public List<MailingListEntry> findMailingListEntriesByMailingListId(@Nullable UUID mailingListId,
+																																			@Nonnull MailingListEntryStatusFilter statusFilter) {
+		requireNonNull(statusFilter);
+
+		if (mailingListId == null)
+			return List.of();
+
+		List<String> sqlLines = new ArrayList<>();
+		sqlLines.add("""
+				SELECT *
+				FROM mailing_list_entry
+				WHERE mailing_list_id=?
+				""");
+
+		List<Object> parameters = new ArrayList<>();
+		parameters.add(mailingListId);
+
+		if (statusFilter == MailingListEntryStatusFilter.SUBSCRIBED) {
+			sqlLines.add("AND mailing_list_entry_status_id=?");
+			parameters.add(MailingListEntryStatusId.SUBSCRIBED);
+		} else if (statusFilter == MailingListEntryStatusFilter.UNSUBSCRIBED) {
+			sqlLines.add("AND mailing_list_entry_status_id=?");
+			parameters.add(MailingListEntryStatusId.UNSUBSCRIBED);
+		}
+
+		sqlLines.add("ORDER BY mailing_list_entry_type_id, value");
+
+		String sql = sqlLines.stream().collect(Collectors.joining("\n"));
+
+		return getDatabase().queryForList(sql, MailingListEntry.class, sqlVaragsParameters(parameters));
 	}
 
 	@Nonnull

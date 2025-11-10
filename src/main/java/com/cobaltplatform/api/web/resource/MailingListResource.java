@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateMailingListEntryRequest;
 import com.cobaltplatform.api.model.api.request.UpdateMailingListEntryStatusRequest;
+import com.cobaltplatform.api.model.api.response.MailingListApiResponse.MailingListApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse.MailingListEntryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -77,6 +78,8 @@ public class MailingListResource {
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
+	private final MailingListApiResponseFactory mailingListApiResponseFactory;
+	@Nonnull
 	private final MailingListEntryApiResponseFactory mailingListEntryApiResponseFactory;
 	@Nonnull
 	private final PageApiResponseFactory pageApiResponseFactory;
@@ -91,6 +94,7 @@ public class MailingListResource {
 														 @Nonnull SystemService systemService,
 														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull RequestBodyParser requestBodyParser,
+														 @Nonnull MailingListApiResponseFactory mailingListApiResponseFactory,
 														 @Nonnull MailingListEntryApiResponseFactory mailingListEntryApiResponseFactory,
 														 @Nonnull PageApiResponseFactory pageApiResponseFactory,
 														 @Nonnull Provider<CurrentContext> currentContextProvider) {
@@ -99,6 +103,7 @@ public class MailingListResource {
 		requireNonNull(systemService);
 		requireNonNull(authorizationService);
 		requireNonNull(requestBodyParser);
+		requireNonNull(mailingListApiResponseFactory);
 		requireNonNull(mailingListEntryApiResponseFactory);
 		requireNonNull(pageApiResponseFactory);
 		requireNonNull(currentContextProvider);
@@ -108,6 +113,7 @@ public class MailingListResource {
 		this.systemService = systemService;
 		this.authorizationService = authorizationService;
 		this.requestBodyParser = requestBodyParser;
+		this.mailingListApiResponseFactory = mailingListApiResponseFactory;
 		this.mailingListEntryApiResponseFactory = mailingListEntryApiResponseFactory;
 		this.pageApiResponseFactory = pageApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
@@ -214,6 +220,11 @@ public class MailingListResource {
 	@Nonnull
 	protected RequestBodyParser getRequestBodyParser() {
 		return this.requestBodyParser;
+	}
+
+	@Nonnull
+	protected MailingListApiResponseFactory getMailingListApiResponseFactory() {
+		return this.mailingListApiResponseFactory;
 	}
 
 	@Nonnull

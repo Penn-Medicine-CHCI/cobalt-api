@@ -1556,7 +1556,8 @@ public class PageService {
 
 	@Nonnull
 	public Optional<PageRowTag> findPageRowTagByRowId(@Nullable UUID pageRowId) {
-		requireNonNull(pageRowId);
+		if (pageRowId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT *
@@ -1567,13 +1568,31 @@ public class PageService {
 
 	@Nonnull
 	public Optional<PageRowMailingList> findPageRowMailingListByRowId(@Nullable UUID pageRowId) {
-		requireNonNull(pageRowId);
+		if (pageRowId == null)
+			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT *
 				FROM v_page_row_mailing_list
 				WHERE page_row_id = ?
 				""", PageRowMailingList.class, pageRowId);
+	}
+
+	@Nonnull
+	public List<PageRowMailingList> findPageRowMailingListsByPageId(@Nullable UUID pageId) {
+		if (pageId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT v.*
+				FROM v_page_row_mailing_list AS v
+				JOIN v_page_section AS ps
+				  ON ps.page_section_id = v.page_section_id
+				JOIN v_page AS p
+				  ON p.page_id = ps.page_id
+				WHERE p.page_id = ?
+				ORDER BY ps.display_order, v.display_order, v.created
+				""", PageRowMailingList.class, pageId);
 	}
 
 	@Nonnull

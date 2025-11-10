@@ -37,6 +37,10 @@ public class PageRowMailingList {
 	@Nullable
 	private String description;
 
+	// Joined in by v_page_row_mailing_list
+	@Nullable
+	private UUID pageRowId;
+
 	@Nullable
 	public UUID getPageRowMailingListId() {
 		return this.pageRowMailingListId;
@@ -71,5 +75,14 @@ public class PageRowMailingList {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public UUID getPageRowId() {
+		return this.pageRowId;
+	}
+
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 }
