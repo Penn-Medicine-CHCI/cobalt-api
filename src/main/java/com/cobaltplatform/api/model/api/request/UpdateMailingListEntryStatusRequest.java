@@ -17,47 +17,40 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
+
+
+import com.cobaltplatform.api.model.db.MailingListEntryStatus.MailingListEntryStatusId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class RowType {
+public class UpdateMailingListEntryStatusRequest {
 	@Nullable
-	private RowTypeId rowTypeId;
+	private UUID mailingListEntryId;
 	@Nullable
-	private String description;
+	private MailingListEntryStatusId mailingListEntryStatusId;
 
-	public enum RowTypeId {
-		RESOURCES,
-		GROUP_SESSIONS,
-		TAG_GROUP,
-		TAG,
-		ONE_COLUMN_IMAGE,
-		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE,
-		MAILING_LIST
+	@Nullable
+	public UUID getMailingListEntryId() {
+		return this.mailingListEntryId;
+	}
+
+	public void setMailingListEntryId(@Nullable UUID mailingListEntryId) {
+		this.mailingListEntryId = mailingListEntryId;
 	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public MailingListEntryStatusId getMailingListEntryStatusId() {
+		return this.mailingListEntryStatusId;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setMailingListEntryStatusId(@Nullable MailingListEntryStatusId mailingListEntryStatusId) {
+		this.mailingListEntryStatusId = mailingListEntryStatusId;
 	}
 }

@@ -36,6 +36,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -382,5 +383,30 @@ public final class WebUtility {
 		} catch (URISyntaxException | UnsupportedEncodingException e) {
 			throw new IllegalArgumentException(format("Failed to append query parameters to URL: %s", inputUrl), e);
 		}
+	}
+
+	@Nonnull
+	public static String safeAttachmentContentDispositionHeaderForFilename(@Nonnull String rawFilename) {
+		requireNonNull(rawFilename);
+
+		// Step 1: Remove or replace unsafe characters
+		String sanitized = rawFilename
+				.replaceAll("[\\\\/:*?\"<>|\\r\\n]", "_")  // filesystem and header delimiters
+				.trim();
+
+		// Step 2: Optionally, enforce a simple ASCII fallback
+		String asciiFallback = sanitized.replaceAll("[^\\p{Print}]", "_");
+
+		// Step 3: RFC 5987 encode for HTTP header safety
+		String encoded = URLEncoder.encode(asciiFallback, StandardCharsets.UTF_8)
+				.replace("+", "%20"); // spaces should be %20 not +
+
+		// RFC 6266 suggests including both filename and filename*
+		String contentDisposition = String.format(
+				"attachment; filename=\"%s\"; filename*=UTF-8''%s",
+				asciiFallback, encoded
+		);
+
+		return contentDisposition;
 	}
 }

@@ -19,22 +19,22 @@
 
 package com.cobaltplatform.api.model.api.response;
 
-import com.cobaltplatform.api.model.db.Color;
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.Page;
-import com.cobaltplatform.api.model.db.PageRow;
-import com.cobaltplatform.api.model.db.PageRowColumn;
-import com.cobaltplatform.api.model.db.PageRowTag;
-import com.cobaltplatform.api.model.db.PageStatus;
-import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
+import com.cobaltplatform.api.model.db.Color.ColorId;
+import com.cobaltplatform.api.model.db.Page;
+import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.PageRowMailingList;
+import com.cobaltplatform.api.model.db.PageRowTag;
+import com.cobaltplatform.api.model.db.PageStatus;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.db.TagGroup;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.service.TagService;
@@ -47,6 +47,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -66,9 +67,9 @@ public class PageRowApiResponse {
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
-	private  List<ContentApiResponse> contents;
+	private List<ContentApiResponse> contents;
 	@Nullable
-	private  List<GroupSessionApiResponse> groupSessions;
+	private List<GroupSessionApiResponse> groupSessions;
 	@Nonnull
 	private PageRowColumn columnOne;
 	@Nonnull
@@ -76,11 +77,17 @@ public class PageRowApiResponse {
 	@Nonnull
 	private PageRowColumn columnThree;
 	@Nonnull
-	private  TagGroupApiResponse tagGroup;
+	private TagGroupApiResponse tagGroup;
 	@Nonnull
 	private TagApiResponse tag;
 	@Nonnull
-	private Color.ColorId tagGroupColorId;
+	private ColorId tagGroupColorId;
+	@Nullable
+	private UUID mailingListId;
+	@Nullable
+	private String title;
+	@Nullable
+	private String description;
 
 	@Nonnull
 	private Boolean displayRow;
@@ -158,6 +165,11 @@ public class PageRowApiResponse {
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 			this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 			this.columnThree = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
+		} else if (this.rowTypeId.equals(RowTypeId.MAILING_LIST)) {
+			PageRowMailingList pageRowMailingList = pageService.findPageRowMailingListByRowId(pageRow.getPageRowId()).orElse(null);
+			this.mailingListId = pageRowMailingList == null ? null : pageRowMailingList.getMailingListId();
+			this.title = pageRowMailingList == null ? null : pageRowMailingList.getTitle();
+			this.description = pageRowMailingList == null ? null : pageRowMailingList.getDescription();
 		}
 	}
 
@@ -217,13 +229,28 @@ public class PageRowApiResponse {
 	}
 
 	@Nonnull
-	public Color.ColorId getTagGroupColorId() {
+	public ColorId getTagGroupColorId() {
 		return tagGroupColorId;
 	}
 
 	@Nonnull
 	public Boolean getDisplayRow() {
 		return displayRow;
+	}
+
+	@Nonnull
+	public Optional<UUID> getMailingListId() {
+		return Optional.ofNullable(this.mailingListId);
+	}
+
+	@Nonnull
+	public Optional<String> getTitle() {
+		return Optional.ofNullable(this.title);
+	}
+
+	@Nonnull
+	public Optional<String> getDescription() {
+		return Optional.ofNullable(this.description);
 	}
 }
 

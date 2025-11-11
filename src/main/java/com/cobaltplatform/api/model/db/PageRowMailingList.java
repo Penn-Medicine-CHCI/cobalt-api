@@ -21,43 +21,68 @@ package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class RowType {
+public class PageRowMailingList {
 	@Nullable
-	private RowTypeId rowTypeId;
+	private UUID pageRowMailingListId;
+	@Nullable
+	private UUID mailingListId;
+	@Nullable
+	private String title;
 	@Nullable
 	private String description;
 
-	public enum RowTypeId {
-		RESOURCES,
-		GROUP_SESSIONS,
-		TAG_GROUP,
-		TAG,
-		ONE_COLUMN_IMAGE,
-		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE,
-		MAILING_LIST
+	// Joined in by v_page_row_mailing_list
+	@Nullable
+	private UUID pageRowId;
+
+	@Nullable
+	public UUID getPageRowMailingListId() {
+		return this.pageRowMailingListId;
+	}
+
+	public void setPageRowMailingListId(@Nullable UUID pageRowMailingListId) {
+		this.pageRowMailingListId = pageRowMailingListId;
 	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public UUID getMailingListId() {
+		return this.mailingListId;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
+	public void setMailingListId(@Nullable UUID mailingListId) {
+		this.mailingListId = mailingListId;
+	}
+
+	@Nullable
+	public String getTitle() {
+		return this.title;
+	}
+
+	public void setTitle(@Nullable String title) {
+		this.title = title;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public UUID getPageRowId() {
+		return this.pageRowId;
+	}
+
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 }

@@ -52,9 +52,9 @@ import com.cobaltplatform.api.messaging.MessageSerializer;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.email.AmazonSesEmailMessageSender;
-import com.cobaltplatform.api.messaging.email.ConsoleEmailMessageSender;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
+import com.cobaltplatform.api.messaging.email.MailpitEmailMessageSender;
 import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -130,6 +130,8 @@ import com.cobaltplatform.api.model.api.response.InteractionOptionApiResponse.In
 import com.cobaltplatform.api.model.api.response.IntroAssessmentApiResponse.IntroAssessmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.LogicalAvailabilityApiResponse.LogicalAvailabilityApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.MailingListApiResponse.MailingListApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse.MailingListEntryApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
@@ -138,6 +140,7 @@ import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiRespon
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowGroupSessionApiResponse.PageRowGroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowMailingListApiResponse.PageRowMailingListApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagGroupApiResponse.PageRowTagGroupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSectionApiResponseFactory;
@@ -404,6 +407,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(PageAutocompleteResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageSiteLocationApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PageRowTagApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(PageRowMailingListApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseModuleApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseUnitApiResponseFactory.class)));
@@ -411,6 +415,8 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(VideoApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CourseUnitDownloadableFileApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AnalyticsReportGroupApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(MailingListEntryApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(MailingListApiResponseFactory.class)));
 	}
 
 	@Provides
@@ -691,16 +697,16 @@ public class AppModule extends AbstractModule {
 		requireNonNull(institutionServiceProvider);
 		requireNonNull(configuration);
 
-		if (getConfiguration().getShouldSendRealEmailMessages()) {
-			HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/email"))
-					.viewsDirectoryName("views")
-					.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
-					.build();
+		HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/email"))
+				.viewsDirectoryName("views")
+				.shouldCacheTemplates(configuration.getShouldCacheHandlebarsTemplates())
+				.build();
 
+		if (getConfiguration().getShouldSendRealEmailMessages())
 			return new AmazonSesEmailMessageSender(institutionServiceProvider, handlebarsTemplater, configuration);
-		}
 
-		return new ConsoleEmailMessageSender();
+		// We now prefer MailpitEmailMessageSender to ConsoleEmailMessageSender
+		return new MailpitEmailMessageSender(institutionServiceProvider, handlebarsTemplater, configuration);
 	}
 
 	@Provides

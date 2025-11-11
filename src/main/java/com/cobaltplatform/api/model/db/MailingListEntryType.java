@@ -22,39 +22,40 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
- * @author Transmogrify, LLC.
+ * @author Transmogrify LLC.
  */
 @NotThreadSafe
-public class RowType {
+public class MailingListEntryType {
 	@Nullable
-	private RowTypeId rowTypeId;
+	private MailingListEntryTypeId mailingListEntryTypeId;
 	@Nullable
 	private String description;
 
-	public enum RowTypeId {
-		RESOURCES,
-		GROUP_SESSIONS,
-		TAG_GROUP,
-		TAG,
-		ONE_COLUMN_IMAGE,
-		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE,
-		MAILING_LIST
+	public enum MailingListEntryTypeId {
+		EMAIL_ADDRESS,
+		SMS
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{mailingListEntryTypeId=%s, description=%s}", getClass().getSimpleName(), getMailingListEntryTypeId(), getDescription());
 	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public MailingListEntryTypeId getMailingListEntryTypeId() {
+		return this.mailingListEntryTypeId;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
+	public void setMailingListEntryTypeId(@Nullable MailingListEntryTypeId mailingListEntryTypeId) {
+		this.mailingListEntryTypeId = mailingListEntryTypeId;
 	}
 
 	@Nullable
 	public String getDescription() {
-		return description;
+		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {

@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -82,6 +83,10 @@ public class PageApiResponse {
 	private final String lastUpdatedDescription;
 	@Nullable
 	private final Boolean editingLivePage;
+	@Nullable
+	private final Integer mailingListEntryCount;
+	@Nullable
+	private final String mailingListEntryCountDescription;
 	@Nullable
 	private final List<PageSectionApiResponse> pageSections;
 	@Nullable
@@ -129,6 +134,8 @@ public class PageApiResponse {
 		this.lastUpdated = page.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 		this.editingLivePage = page.getPageStatusId().equals(PageStatusId.COPY_FOR_EDITING);
+		this.mailingListEntryCount = page.getMailingListEntryCount();
+		this.mailingListEntryCountDescription = this.mailingListEntryCount == null ? null : formatter.formatInteger(this.mailingListEntryCount);
 
 		if (includeDetails) {
 			this.pageSections = pageService.findPageSectionsByPageId(page.getPageId(), page.getInstitutionId())
@@ -235,6 +242,16 @@ public class PageApiResponse {
 	@Nullable
 	public List<PageSiteLocationApiResponse> getLivePageSiteLocations() {
 		return this.livePageSiteLocations;
+	}
+
+	@Nonnull
+	public Optional<Integer> getMailingListEntryCount() {
+		return Optional.ofNullable(this.mailingListEntryCount);
+	}
+
+	@Nonnull
+	public Optional<String> getMailingListEntryCountDescription() {
+		return Optional.ofNullable(this.mailingListEntryCountDescription);
 	}
 }
 
