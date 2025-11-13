@@ -18,9 +18,7 @@ ALTER TABLE screening_answer
 ADD CONSTRAINT screening_answer_option_id_unique
 CHECK (screening_answer_option_id_only_one_valid(screening_answer_option_id, screening_session_answered_screening_question_id, valid));
 
-ALTER TABLE screening_answer ADD COLUMN answer_order INTEGER;
-UPDATE screening_answer SET answer_order = 1;
-ALTER TABLE screening_answer ALTER COLUMN answer_order SET NOT NULL;
+ALTER TABLE screening_answer ADD COLUMN answer_order INTEGER NOT NULL DEFAULT 1;
 
 CREATE OR REPLACE FUNCTION screening_answer_option_id_only_one_valid(screeningAnswerOptionId UUID, screeningSessionAnsweredScreeningQuestionId UUID, valid BOOLEAN) RETURNS BOOLEAN AS $$
 BEGIN
