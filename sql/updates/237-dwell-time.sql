@@ -1,6 +1,8 @@
 BEGIN;
 SELECT _v.register_patch('237-dwell-time', NULL, NULL);
 
+-- Dwell time is defined as how many heartbeats elapse between PAGE_VIEW events (each heartbeat is 5 seconds currently, so this is multiples of 5).
+-- For PAGE_VIEW events with no intervening heartbeats (that is, someone visited a page and then quickly went to another w/o heartbeat), we assume 2.5 seconds instead of 0.
 CREATE MATERIALIZED VIEW mv_analytics_dwell_time AS
 WITH relevant_events AS (
   SELECT
@@ -65,7 +67,7 @@ SELECT
   pv.dwell_num,
   pv.page_viewed_at,
   pv.page_view_type,
-  COALESCE(hc.dwell_time_seconds, 0) AS dwell_time_seconds,
+  COALESCE(hc.dwell_time_seconds, 2.5) AS dwell_time_seconds,
   pv.page_view_data,
   -- Extract course_unit_id for more efficient joins
   (pv.page_view_data->>'courseUnitId')::uuid AS course_unit_id

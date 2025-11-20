@@ -152,8 +152,10 @@ public class AnalyticsXrayResource {
 						widgets.add(getAnalyticsXrayService().createCourseAccountVisitsWidget(institutionId, startDate, endDate));
 //				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS -> throw new UnsupportedOperationException("TODO");
 //				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_DWELL_TIME ->
+						widgets.add(getAnalyticsXrayService().createCourseDwellTimeWidget(institutionId, startDate, endDate));
+//				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME ->
+//						widgets.addAll(getAnalyticsXrayService().createCourseModuleDwellTimeWidgets(institutionId, startDate, endDate));
 //				case ADMIN_ANALYTICS_COURSE_COMPLETION -> throw new UnsupportedOperationException("TODO");
 //				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS -> throw new UnsupportedOperationException("TODO");
 //				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> throw new UnsupportedOperationException("TODO");
@@ -163,7 +165,6 @@ public class AnalyticsXrayResource {
 //								ReportTypeId.class.getSimpleName(), report.getReportTypeId().name(), analyticsReportGroupId));
 			}
 		}
-
 
 		return new ApiResponse(
 				Map.of("widgets", widgets)
