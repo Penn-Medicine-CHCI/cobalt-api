@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsXrayService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.model.analytics.AnalyticsMultiChartWidget;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
@@ -166,7 +167,8 @@ public class AnalyticsXrayResource {
 						widgets.add(getAnalyticsXrayService().createCourseAccountVisitsWidget(institutionId, startDate, endDate));
 
 				// N of users doing more than one course
-				// case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS ->
+						widgets.add(getAnalyticsXrayService().createCourseAggregateVisitsWidget(institutionId, startDate, endDate));
 
 				// N of people that clicked/opened a unique module
 				// case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
@@ -178,13 +180,20 @@ public class AnalyticsXrayResource {
 				// case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
 
 				// N of people who complete each course
-				// case ADMIN_ANALYTICS_COURSE_COMPLETION -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_COMPLETION ->
+						widgets.add(getAnalyticsXrayService().createCourseCompletionWidget(institutionId, startDate, endDate));
 
 				// N of people completing one or more course
-				// case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS ->
+						widgets.add(getAnalyticsXrayService().createCourseAggregateCompletionsWidget(institutionId, startDate, endDate));
 
 				// N of people who complete a unique module
-				// case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> {
+					List<AnalyticsMultiChartWidget> widgetList =
+							getAnalyticsXrayService().createCourseModuleCompletionWidget(
+									institutionId, startDate, endDate);
+					widgets.addAll(widgetList);
+				}
 
 				// default ->
 				// 	throw new UnsupportedOperationException(format("Unsupported %s value '%s' for analytics_report_group_id %s",
