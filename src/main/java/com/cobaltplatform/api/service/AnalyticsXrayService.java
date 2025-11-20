@@ -1229,13 +1229,13 @@ public class AnalyticsXrayService {
 
 		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
 		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
-		Map<UUID, InstitutionColorValue> chartColorValuesByCourseId = new HashMap<>(courses.size());
+		Map<UUID, InstitutionColorValue> chartColorValuesByCourseModuleId = new HashMap<>(courses.size());
 
 		// "Stable" coloring based on institution's course sort order.
 		// This way colors don't change on page reload
 		for (int i = 0; i < courses.size(); ++i) {
 			Course course = courses.get(i);
-			chartColorValuesByCourseId.put(course.getCourseId(),
+			chartColorValuesByCourseModuleId.put(course.getCourseId(),
 					chartColorValues.get(i % chartColorValues.size()));
 		}
 
@@ -1263,7 +1263,7 @@ public class AnalyticsXrayService {
 					.map(rawData -> getFormatter().formatInteger(rawData))
 					.collect(Collectors.toUnmodifiableList());
 
-			InstitutionColorValue institutionColorValue = chartColorValuesByCourseId.get(course.getCourseId());
+			InstitutionColorValue institutionColorValue = chartColorValuesByCourseModuleId.get(course.getCourseId());
 
 			List<String> borderColors = data.stream()
 					.map(rawData -> institutionColorValue.getCssRepresentation())
@@ -1313,7 +1313,7 @@ public class AnalyticsXrayService {
 		List<CourseModule> modules = getCourseService().findCourseModulesByCourseId(courseId);
 		Map<UUID, InstitutionColorValue> chartColorValuesByCourseId = new HashMap<>(modules.size());
 
-		// "Stable" coloring based on institution's course sort order.
+		// "Stable" coloring based on course module sort order.
 		// This way colors don't change on page reload
 		for (int i = 0; i < modules.size(); ++i) {
 			CourseModule module = modules.get(i);
@@ -1334,22 +1334,23 @@ public class AnalyticsXrayService {
 				.collect(Collectors.toUnmodifiableList());
 
 		List<AnalyticsMultiChartWidget.Dataset> datasets = new ArrayList<>(modules.size());
-
-		AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
 		AnalyticsMultiChartWidget.WidgetData widgetData = new AnalyticsMultiChartWidget.WidgetData();
 
-		for (CourseModule courseModule : getCourseService().findCourseModulesByCourseId(courseId)) {
+		for (CourseModule courseModule : modules) {
 			List<Number> data = rows.stream()
 					.filter(row -> row.courseModuleId.equals(courseModule.getCourseModuleId()))
 					.map(ModuleAccountVisitsRow::getDistinctAccounts)
 					.collect(Collectors.toUnmodifiableList());
 
-			if (data.size() > 0) {
+			if (!data.isEmpty()) {
+				AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
+
 				List<String> dataDescriptions = data.stream()
 						.map(rawData -> getFormatter().formatInteger(rawData))
 						.collect(Collectors.toUnmodifiableList());
 
-				InstitutionColorValue institutionColorValue = chartColorValuesByCourseId.get(courseModule.getCourseModuleId());
+				InstitutionColorValue institutionColorValue =
+						chartColorValuesByCourseId.get(courseModule.getCourseModuleId());
 
 				List<String> borderColors = data.stream()
 						.map(rawData -> institutionColorValue.getCssRepresentation())
@@ -1369,6 +1370,7 @@ public class AnalyticsXrayService {
 				datasets.add(dataset);
 			}
 		}
+
 
 		widgetData.setLabels(labels);
 		widgetData.setDatasets(datasets);
