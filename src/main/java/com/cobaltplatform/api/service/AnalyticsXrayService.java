@@ -29,6 +29,8 @@ import com.cobaltplatform.api.model.db.AnalyticsReportGroup;
 import com.cobaltplatform.api.model.db.AnalyticsReportGroupReport;
 import com.cobaltplatform.api.model.db.ColorValue.ColorValueId;
 import com.cobaltplatform.api.model.db.Course;
+import com.cobaltplatform.api.model.db.CourseModule;
+import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionColorValue;
@@ -765,6 +767,460 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
+	public AnalyticsCounterWidget createCourseAggregateCompletionsWidget(@Nonnull InstitutionId institutionId,
+																																			 @Nonnull LocalDate startDate,
+																																			 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+
+		Long courseAggregateCompletions = getReadReplicaDatabase().queryForObject("""
+				WITH params AS (
+				    SELECT
+				        ? AS start_date,
+				        ? AS end_date,
+				        ? AS tz
+				),
+				bounds AS (
+				    SELECT
+				        (start_date::timestamp AT TIME ZONE tz) AS start_utc,
+				        ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc
+				    FROM params
+				)
+				SELECT COUNT(*)::bigint AS accounts_with_completed_courses
+				FROM (
+				    SELECT cs.account_id
+				    FROM bounds b
+				    JOIN course_session cs
+				      ON cs.last_updated >= b.start_utc
+				     AND cs.last_updated <  b.end_utc
+				    WHERE cs.course_session_status_id = ?
+				      AND EXISTS (
+				            SELECT 1
+				            FROM account a
+				            WHERE a.account_id   = cs.account_id
+				              AND a.role_id      = ?
+				              AND a.test_account = FALSE
+				              AND a.institution_id = ?
+				      )
+				    GROUP BY cs.account_id
+				) t		    
+				""", Long.class, startDate, endDate, timeZone, CourseSessionStatusId.COMPLETED, RoleId.PATIENT, institutionId).get();
+
+		AnalyticsCounterWidget counterWidget = new AnalyticsCounterWidget();
+		counterWidget.setWidgetTotal(courseAggregateCompletions);
+		counterWidget.setWidgetTotalDescription(getFormatter().formatInteger(courseAggregateCompletions));
+		counterWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS);
+		counterWidget.setWidgetTitle(getStrings().get("Aggregate Completions"));
+		counterWidget.setWidgetSubtitle(getStrings().get("Accounts completing one or more course"));
+
+		return counterWidget;
+	}
+
+	@Nonnull
+	public AnalyticsCounterWidget createCourseAggregateVisitsWidget(@Nonnull InstitutionId institutionId,
+																																	@Nonnull LocalDate startDate,
+																																	@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+
+		Long courseAggregateVisits = getReadReplicaDatabase().queryForObject("""
+				WITH params AS (
+				 SELECT
+						 ? AS start_date,
+						 ? AS end_date,
+						 ? AS tz
+				 ),
+				 bounds AS (
+						 SELECT
+								 (start_date::timestamp AT TIME ZONE tz)     AS start_utc,
+								 ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc
+						 FROM params
+				 )
+				 SELECT COUNT(*)::bigint AS accounts_with_multi_courses
+				 FROM (
+						 SELECT cs.account_id
+						 FROM bounds b
+						 JOIN course_session cs
+							 ON cs.created >= b.start_utc
+							AND cs.created <  b.end_utc
+						 WHERE EXISTS (
+										 SELECT 1
+										 FROM account a
+										 WHERE a.account_id     = cs.account_id
+											 AND a.role_id        = ?
+											 AND a.test_account   = FALSE
+											 AND a.institution_id = ?
+							 )
+						 GROUP BY cs.account_id
+						 HAVING COUNT(DISTINCT cs.course_id) > 1
+				 ) t
+				""", Long.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId).get();
+
+		AnalyticsCounterWidget counterWidget = new AnalyticsCounterWidget();
+		counterWidget.setWidgetTotal(courseAggregateVisits);
+		counterWidget.setWidgetTotalDescription(getFormatter().formatInteger(courseAggregateVisits));
+		counterWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS);
+		counterWidget.setWidgetTitle(getStrings().get("Aggregate Visits"));
+		counterWidget.setWidgetSubtitle(getStrings().get("Accounts doing more than one course"));
+
+		return counterWidget;
+	}
+
+	@Nonnull
+	public AnalyticsMultiChartWidget createCourseCompletionWidget(@Nonnull InstitutionId institutionId,
+																																@Nonnull LocalDate startDate,
+																																@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+
+		List<CourseAccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
+						WITH params AS (
+						    SELECT
+						            ?::date AS start_date,
+						            ?::date AS end_date,
+						            ?       AS tz
+						    ),
+						    bounds AS (
+						            SELECT
+						                    (start_date::timestamp AT TIME ZONE tz)                    AS start_utc,
+						                    ((end_date::timestamp + INTERVAL '1 day') AT TIME ZONE tz) AS end_utc,
+						                    start_date,
+						                    end_date,
+						                    tz
+						            FROM params
+						    ),
+						    -- All days in the requested (local) date range
+						    days AS (
+						            SELECT generate_series(
+						                             (SELECT start_date FROM params),
+						                             (SELECT end_date   FROM params),
+						                             INTERVAL '1 day'
+						                         )::date AS day
+						    ),
+						    -- All completions in the window, bucketed by course + local day
+						    completions AS (
+						            SELECT
+						                    cs.course_id,
+						                    (cs.last_updated AT TIME ZONE b.tz)::date AS completion_day,
+						                    COUNT(DISTINCT cs.account_id)             AS distinct_accounts
+						            FROM bounds b
+						            JOIN course_session cs
+						                    ON cs.completed_at >= b.start_utc
+						                 AND cs.completed_at <  b.end_utc
+						            JOIN account a
+						                    ON a.account_id     = cs.account_id
+						                 AND a.role_id        = ?
+						                 AND a.test_account   = FALSE
+						                 AND a.institution_id = ?
+						            WHERE cs.course_session_status_id = 'COMPLETED'
+						            GROUP BY cs.course_id, completion_day
+						    ),
+						    -- Only courses that have at least one completion in the range
+						    courses_in_range AS (
+						            SELECT DISTINCT
+						                    c.course_id,
+						                    c.title
+						            FROM course c
+						            JOIN completions comp
+						                    ON comp.course_id = c.course_id
+						    )
+						    SELECT
+						            d.day,
+						            cir.course_id,
+						            cir.title AS course_title,
+						            COALESCE(comp.distinct_accounts, 0) AS distinct_accounts
+						    FROM courses_in_range cir
+						    CROSS JOIN days d
+						    LEFT JOIN completions comp
+						            ON comp.course_id      = cir.course_id
+						           AND comp.completion_day = d.day
+						    ORDER BY
+						            d.day,
+						            cir.title
+						""",
+				CourseAccountVisitsRow.class,
+				startDate, endDate, timeZone,
+				RoleId.PATIENT, institutionId
+		);
+
+
+		return buildCourseMultiChartWidget(
+				institutionId,
+				rows,
+				ReportTypeId.ADMIN_ANALYTICS_COURSE_COMPLETION,
+				"Course Completions",
+				"The total number of accounts who have completed the course"
+		);
+	}
+
+
+	@Nonnull
+	public List<AnalyticsMultiChartWidget> createCourseModuleCompletionWidget(@Nonnull InstitutionId institutionId,
+																																						@Nonnull LocalDate startDate,
+																																						@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+		List<AnalyticsMultiChartWidget> widgets = new ArrayList<>();
+
+		for (Course course : getCourseService().findCoursesByInstitutionId(institutionId)) {
+
+			List<ModuleAccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
+							WITH params AS (
+							    SELECT
+							        ?::date AS start_date,
+							        ?::date AS end_date,
+							        ?       AS tz
+							),
+							bounds AS (
+							    SELECT
+							        (start_date::timestamp AT TIME ZONE tz)                    AS start_utc,
+							        ((end_date::timestamp + INTERVAL '1 day') AT TIME ZONE tz) AS end_utc,
+							        start_date,
+							        end_date,
+							        tz
+							    FROM params
+							),
+							-- All days in the requested (local) date range
+							days AS (
+							    SELECT generate_series(
+							                 (SELECT start_date FROM params),
+							                 (SELECT end_date   FROM params),
+							                 INTERVAL '1 day'
+							           )::date AS day
+							),
+							-- Number of required (non-optional) units per module
+							required_units AS (
+							    SELECT
+							        cu.course_module_id,
+							        COUNT(*) AS required_unit_count
+							    FROM course_unit cu
+							    WHERE cu.optional_unit = FALSE
+							    GROUP BY cu.course_module_id
+							),
+							-- For each course_session/module: how many required units completed & when
+							session_module_progress AS (
+							    SELECT
+							        cs.course_session_id,
+							        cs.account_id,
+							        cm.course_module_id,
+							        COUNT(DISTINCT cu.course_unit_id) AS completed_required_units,
+							        MAX(csu.completed_at)             AS module_completed_at
+							    FROM course_session cs
+							    JOIN account a
+							      ON a.account_id = cs.account_id
+							     AND a.role_id = ?
+							     AND a.test_account = FALSE
+							     AND a.institution_id = ?
+							    JOIN course_session_unit csu
+							      ON csu.course_session_id = cs.course_session_id
+							    JOIN course_unit cu
+							      ON cu.course_unit_id = csu.course_unit_id
+							     AND cu.optional_unit = FALSE       -- only required units
+							    JOIN course_module cm
+							      ON cm.course_module_id = cu.course_module_id
+							    WHERE csu.course_session_unit_status_id = 'COMPLETED'
+							      AND cm.course_id = ?              
+							    GROUP BY
+							        cs.course_session_id,
+							        cs.account_id,
+							        cm.course_module_id
+							),
+							-- Filter for sessions where all required units were completed
+							module_completions_raw AS (
+							    SELECT
+							        smp.account_id,
+							        smp.course_module_id,
+							        smp.module_completed_at
+							    FROM session_module_progress smp
+							    JOIN required_units ru
+							      ON ru.course_module_id = smp.course_module_id
+							    WHERE ru.required_unit_count > 0
+							      AND smp.completed_required_units = ru.required_unit_count
+							),
+							-- Bucket module completions by local day
+							module_completions AS (
+							    SELECT
+							        mcr.course_module_id,
+							        (mcr.module_completed_at AT TIME ZONE b.tz)::date AS completion_day,
+							        COUNT(DISTINCT mcr.account_id)                    AS distinct_accounts
+							    FROM module_completions_raw mcr
+							    JOIN bounds b ON TRUE
+							    WHERE mcr.module_completed_at >= b.start_utc
+							      AND mcr.module_completed_at <  b.end_utc
+							    GROUP BY
+							        mcr.course_module_id,
+							        completion_day
+							),
+							-- Modules that belong to the course and have at least one completion
+							modules_in_range AS (
+							    SELECT DISTINCT
+							        cm.course_module_id,
+							        cm.title AS module_title
+							    FROM course_module cm
+							    JOIN module_completions mc
+							      ON mc.course_module_id = cm.course_module_id
+							    WHERE cm.course_id = ? 
+							)
+							SELECT
+							    d.day,
+							    mir.course_module_id,
+							    mir.module_title,
+							    COALESCE(mc.distinct_accounts, 0) AS distinct_accounts
+							FROM modules_in_range mir
+							CROSS JOIN days d
+							LEFT JOIN module_completions mc
+							  ON mc.course_module_id = mir.course_module_id
+							 AND mc.completion_day   = d.day
+							ORDER BY
+							    d.day,
+							    mir.module_title					                      								                     
+							""",
+					ModuleAccountVisitsRow.class,
+					startDate, endDate, timeZone,
+					RoleId.PATIENT, institutionId,
+					course.getCourseId(), course.getCourseId()
+			);
+
+			widgets.add(buildModuleMultiChartWidget(
+					institutionId,
+					course.getCourseId(),
+					rows,
+					ReportTypeId.ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION,
+					format("%s: %s", "Module Completions", course.getTitle()),
+					"The total number of modules that were completed"
+			));
+		}
+
+		return widgets;
+	}
+
+	@Nonnull
+	public List<AnalyticsMultiChartWidget> createCourseModuleVisitWidget(@Nonnull InstitutionId institutionId,
+																																			 @Nonnull LocalDate startDate,
+																																			 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+		List<AnalyticsMultiChartWidget> widgets = new ArrayList<>();
+
+		for (Course course : getCourseService().findCoursesByInstitutionId(institutionId)) {
+
+			List<ModuleAccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
+									 WITH params AS (
+						 SELECT
+								 ? AS start_date,
+								 ? AS end_date,
+								 ? AS tz
+						 ),
+						 bounds AS (
+							 SELECT
+								 (start_date::timestamp AT TIME ZONE tz)     AS start_utc,
+								 ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc,
+								 start_date,
+								 end_date,
+								 tz
+							 FROM params
+						 ),
+						 -- Modules that appear in the window and belong to the requested course
+						 modules_in_scope AS (
+							 SELECT DISTINCT
+								 cm.course_module_id,
+								 cm.title AS module_title
+							 FROM bounds b
+							 JOIN analytics_native_event ane
+								 ON ane."timestamp" >= b.start_utc
+								AND ane."timestamp" <  b.end_utc
+								AND ane.institution_id = ?
+								AND ane.analytics_native_event_type_id = ?
+							 JOIN account a
+								 ON a.account_id = ane.account_id
+								AND a.role_id = ?
+								AND a.test_account = FALSE
+							 JOIN course_unit cu
+								 ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
+							 JOIN course_module cm
+								 ON cm.course_module_id = cu.course_module_id
+							 WHERE cm.course_id = ?        
+						 ),
+						 -- Daily visits (distinct accounts) per module
+						 daily AS (
+							 SELECT
+								 (timezone(b.tz, ane."timestamp"))::date AS day,
+								 cm.course_module_id,
+								 cm.title AS module_title,
+								 COUNT(DISTINCT ane.account_id) AS distinct_accounts
+							 FROM bounds b
+							 JOIN analytics_native_event ane
+								 ON ane."timestamp" >= b.start_utc
+								AND ane."timestamp" <  b.end_utc
+								AND ane.institution_id = ?
+								AND ane.analytics_native_event_type_id = ?
+							 JOIN account a
+								 ON a.account_id = ane.account_id
+								AND a.role_id = ?
+								AND a.test_account = FALSE
+							 JOIN course_unit cu
+								 ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
+							 JOIN course_module cm
+								 ON cm.course_module_id = cu.course_module_id
+							 WHERE cm.course_id = ?    
+							 GROUP BY 1, 2, 3
+						 ),
+						 days AS (
+							 SELECT generate_series(b.start_date, b.end_date, interval '1 day')::date AS day
+							 FROM bounds b
+						 )
+						 SELECT
+							 d.day,
+							 mis.course_module_id,
+							 mis.module_title,
+							 COALESCE(di.distinct_accounts, 0) AS distinct_accounts
+						 FROM days d
+						 CROSS JOIN modules_in_scope mis
+						 LEFT JOIN daily di
+							 ON di.day              = d.day
+							AND di.course_module_id = mis.course_module_id
+						 ORDER BY d.day, mis.module_title, mis.course_module_id                   								                     
+							""",
+					ModuleAccountVisitsRow.class,
+					startDate, endDate, timeZone,
+					institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
+					RoleId.PATIENT, course.getCourseId(),
+					institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
+					RoleId.PATIENT, course.getCourseId()
+			);
+
+			widgets.add(buildModuleMultiChartWidget(
+					institutionId,
+					course.getCourseId(),
+					rows,
+					ReportTypeId.ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS,
+					format("%s: %s", "Module Visits", course.getTitle()),
+					"The total number of modules that were visited"
+			));
+		}
+
+		return widgets;
+	}
+
+	@Nonnull
 	public AnalyticsMultiChartWidget createCourseAccountVisitsWidget(@Nonnull InstitutionId institutionId,
 																																	 @Nonnull LocalDate startDate,
 																																	 @Nonnull LocalDate endDate) {
@@ -858,19 +1314,41 @@ public class AnalyticsXrayService {
 						  ON di.day = d.day
 						 AND di.course_id = cis.course_id
 						ORDER BY d.day, cis.title, cis.course_id
-						""", CourseAccountVisitsRow.class, startDate, endDate, timeZone,
+						""",
+				CourseAccountVisitsRow.class,
+				startDate, endDate, timeZone,
 				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT,
-				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT);
+				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT
+		);
+
+		return buildCourseMultiChartWidget(
+				institutionId,
+				rows,
+				ReportTypeId.ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS,
+				"Course Visits",
+				"The total number of accounts who have viewed a course unit at least once"
+		);
+	}
+
+	/**
+	 * Shared chart-building logic for course-based multi-chart widgets.
+	 */
+	private AnalyticsMultiChartWidget buildCourseMultiChartWidget(@Nonnull InstitutionId institutionId,
+																																@Nonnull List<CourseAccountVisitsRow> rows,
+																																@Nonnull ReportTypeId reportTypeId,
+																																@Nonnull String titleKey,
+																																@Nonnull String subtitleKey) {
 
 		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
 		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
-		Map<UUID, InstitutionColorValue> chartColorValuesByCourseId = new HashMap<>(courses.size());
+		Map<UUID, InstitutionColorValue> chartColorValuesByCourseModuleId = new HashMap<>(courses.size());
 
 		// "Stable" coloring based on institution's course sort order.
 		// This way colors don't change on page reload
 		for (int i = 0; i < courses.size(); ++i) {
 			Course course = courses.get(i);
-			chartColorValuesByCourseId.put(course.getCourseId(), chartColorValues.get(i % chartColorValues.size()));
+			chartColorValuesByCourseModuleId.put(course.getCourseId(),
+					chartColorValues.get(i % chartColorValues.size()));
 		}
 
 		Long totalVisitingAccounts = rows.stream()
@@ -880,7 +1358,7 @@ public class AnalyticsXrayService {
 
 		// List of date labels for x axis
 		List<String> labels = rows.stream()
-				.map(row -> row.getDay())
+				.map(CourseAccountVisitsRow::getDay)
 				.distinct()
 				.map(day -> getFormatter().formatDate(day, FormatStyle.SHORT))
 				.collect(Collectors.toUnmodifiableList());
@@ -890,14 +1368,14 @@ public class AnalyticsXrayService {
 		for (Course course : courses) {
 			List<Number> data = rows.stream()
 					.filter(row -> row.getCourseId().equals(course.getCourseId()))
-					.map(row -> row.getDistinctAccounts())
+					.map(CourseAccountVisitsRow::getDistinctAccounts)
 					.collect(Collectors.toUnmodifiableList());
 
 			List<String> dataDescriptions = data.stream()
 					.map(rawData -> getFormatter().formatInteger(rawData))
 					.collect(Collectors.toUnmodifiableList());
 
-			InstitutionColorValue institutionColorValue = chartColorValuesByCourseId.get(course.getCourseId());
+			InstitutionColorValue institutionColorValue = chartColorValuesByCourseModuleId.get(course.getCourseId());
 
 			List<String> borderColors = data.stream()
 					.map(rawData -> institutionColorValue.getCssRepresentation())
@@ -923,9 +1401,102 @@ public class AnalyticsXrayService {
 		widgetData.setDatasets(datasets);
 
 		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
-		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS);
-		multiChartWidget.setWidgetTitle(getStrings().get("Course Visits"));
-		multiChartWidget.setWidgetSubtitle(getStrings().get("The total number of accounts who have viewed a course unit at least once"));
+		multiChartWidget.setWidgetReportId(reportTypeId);
+		multiChartWidget.setWidgetTitle(getStrings().get(titleKey));
+		multiChartWidget.setWidgetSubtitle(getStrings().get(subtitleKey));
+		multiChartWidget.setWidgetTotal(totalVisitingAccounts);
+		multiChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(totalVisitingAccounts));
+		multiChartWidget.setWidgetData(widgetData);
+
+		return multiChartWidget;
+	}
+
+	/**
+	 * Shared chart-building logic for module-based multi-chart widgets.
+	 */
+	private AnalyticsMultiChartWidget buildModuleMultiChartWidget(@Nonnull InstitutionId institutionId,
+																																@Nonnull UUID courseId,
+																																@Nonnull List<ModuleAccountVisitsRow> rows,
+																																@Nonnull ReportTypeId reportTypeId,
+																																@Nonnull String titleKey,
+																																@Nonnull String subtitleKey) {
+
+		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
+		List<CourseModule> modules = getCourseService().findCourseModulesByCourseId(courseId);
+		Map<UUID, InstitutionColorValue> chartColorValuesByCourseId = new HashMap<>(modules.size());
+
+		// "Stable" coloring based on course module sort order.
+		// This way colors don't change on page reload
+
+		if (modules.size() > chartColorValues.size()) {
+			throw new IllegalStateException("Not enough chart colors for modules");
+		}
+
+		for (int i = 0; i < modules.size(); ++i) {
+			CourseModule module = modules.get(i);
+			chartColorValuesByCourseId.put(module.getCourseModuleId(),
+					chartColorValues.get(i % chartColorValues.size()));
+
+			getLogger().debug(format("debug: %s %s", module.getTitle(), chartColorValues.get(i % chartColorValues.size()).getColorValueId()));
+		}
+
+		Long totalVisitingAccounts = rows.stream()
+				.map(ModuleAccountVisitsRow::getDistinctAccounts)
+				.mapToLong(Long::longValue)
+				.sum();
+
+		// List of date labels for x axis
+		List<String> labels = rows.stream()
+				.map(ModuleAccountVisitsRow::getDay)
+				.distinct()
+				.map(day -> getFormatter().formatDate(day, FormatStyle.SHORT))
+				.collect(Collectors.toUnmodifiableList());
+
+		List<AnalyticsMultiChartWidget.Dataset> datasets = new ArrayList<>(modules.size());
+		AnalyticsMultiChartWidget.WidgetData widgetData = new AnalyticsMultiChartWidget.WidgetData();
+
+		for (CourseModule courseModule : modules) {
+			List<Number> data = rows.stream()
+					.filter(row -> row.courseModuleId.equals(courseModule.getCourseModuleId()))
+					.map(ModuleAccountVisitsRow::getDistinctAccounts)
+					.collect(Collectors.toUnmodifiableList());
+
+			if (!data.isEmpty()) {
+				AnalyticsMultiChartWidget.Dataset dataset = new AnalyticsMultiChartWidget.Dataset();
+
+				List<String> dataDescriptions = data.stream()
+						.map(rawData -> getFormatter().formatInteger(rawData))
+						.collect(Collectors.toUnmodifiableList());
+
+				InstitutionColorValue institutionColorValue =
+						chartColorValuesByCourseId.get(courseModule.getCourseModuleId());
+
+				List<String> borderColors = data.stream()
+						.map(rawData -> institutionColorValue.getCssRepresentation())
+						.collect(Collectors.toUnmodifiableList());
+
+				List<String> backgroundColors = data.stream()
+						.map(rawData -> institutionColorValue.getCssRepresentation())
+						.collect(Collectors.toUnmodifiableList());
+
+				dataset.setData(data);
+				dataset.setDataDescriptions(dataDescriptions);
+				dataset.setLabel(getStrings().get(courseModule.getTitle()));
+				dataset.setType(AnalyticsMultiChartWidget.DatasetType.BAR);
+				dataset.setBorderColor(borderColors);
+				dataset.setBackgroundColor(backgroundColors);
+
+				datasets.add(dataset);
+			}
+		}
+
+		widgetData.setLabels(labels);
+		widgetData.setDatasets(datasets);
+
+		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
+		multiChartWidget.setWidgetReportId(reportTypeId);
+		multiChartWidget.setWidgetTitle(getStrings().get(titleKey));
+		multiChartWidget.setWidgetSubtitle(getStrings().get(subtitleKey));
 		multiChartWidget.setWidgetTotal(totalVisitingAccounts);
 		multiChartWidget.setWidgetTotalDescription(getFormatter().formatInteger(totalVisitingAccounts));
 		multiChartWidget.setWidgetData(widgetData);
@@ -981,6 +1552,65 @@ public class AnalyticsXrayService {
 		}
 	}
 
+	@NotThreadSafe
+	protected static class ModuleAccountVisitsRow {
+		@Nullable
+		private LocalDate day;
+		@Nullable
+		private UUID courseId;
+		@Nullable
+		private UUID courseModuleId;
+		@Nullable
+		private String moduleTitle;
+		@Nullable
+		private Long distinctAccounts;
+
+		@Nullable
+		public LocalDate getDay() {
+			return day;
+		}
+
+		public void setDay(@Nullable LocalDate day) {
+			this.day = day;
+		}
+
+		@Nullable
+		public UUID getCourseId() {
+			return courseId;
+		}
+
+		public void setCourseId(@Nullable UUID courseId) {
+			this.courseId = courseId;
+		}
+
+		@Nullable
+		public UUID getCourseModuleId() {
+			return courseModuleId;
+		}
+
+		public void setCourseModuleId(@Nullable UUID courseModuleId) {
+			this.courseModuleId = courseModuleId;
+		}
+
+		@Nullable
+		public String getModuleTitle() {
+			return moduleTitle;
+		}
+
+		public void setModuleTitle(@Nullable String moduleTitle) {
+			this.moduleTitle = moduleTitle;
+		}
+
+		@Nullable
+		public Long getDistinctAccounts() {
+			return distinctAccounts;
+		}
+
+		public void setDistinctAccounts(@Nullable Long distinctAccounts) {
+			this.distinctAccounts = distinctAccounts;
+		}
+	}
+
 	@Nonnull
 	protected List<InstitutionColorValue> findChartColorValuesByInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
@@ -1001,10 +1631,13 @@ public class AnalyticsXrayService {
 			InstitutionColorValue p500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.P500).findFirst().orElse(null);
 			InstitutionColorValue a500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.A500).findFirst().orElse(null);
 			InstitutionColorValue d500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.D500).findFirst().orElse(null);
-			InstitutionColorValue t500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.T500).findFirst().orElse(null);
 			InstitutionColorValue w500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.W500).findFirst().orElse(null);
-			InstitutionColorValue n500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.N500).findFirst().orElse(null);
-			InstitutionColorValue i500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.I500).findFirst().orElse(null);
+			InstitutionColorValue s500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.S500).findFirst().orElse(null);
+			InstitutionColorValue p700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.P700).findFirst().orElse(null);
+			InstitutionColorValue a700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.A700).findFirst().orElse(null);
+			InstitutionColorValue d700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.D700).findFirst().orElse(null);
+			InstitutionColorValue w700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.W700).findFirst().orElse(null);
+			InstitutionColorValue s700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.S700).findFirst().orElse(null);
 
 			if (p500 != null)
 				chartColors.add(p500);
@@ -1012,14 +1645,20 @@ public class AnalyticsXrayService {
 				chartColors.add(a500);
 			if (d500 != null)
 				chartColors.add(d500);
-			if (t500 != null)
-				chartColors.add(t500);
 			if (w500 != null)
 				chartColors.add(w500);
-			if (n500 != null)
-				chartColors.add(n500);
-			if (i500 != null)
-				chartColors.add(i500);
+			if (s500 != null)
+				chartColors.add(s500);
+			if (p700 != null)
+				chartColors.add(p700);
+			if (a700 != null)
+				chartColors.add(a700);
+			if (d700 != null)
+				chartColors.add(d700);
+			if (w700 != null)
+				chartColors.add(w700);
+			if (s700 != null)
+				chartColors.add(s700);
 
 			if (chartColors.size() == 0)
 				throw new IllegalStateException(format("No chart colors available for %s institution", institutionId.name()));

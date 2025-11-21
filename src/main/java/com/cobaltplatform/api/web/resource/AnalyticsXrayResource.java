@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsXrayService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.util.db.ReadReplica;
+import com.cobaltplatform.api.model.analytics.AnalyticsMultiChartWidget;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
@@ -134,36 +135,75 @@ public class AnalyticsXrayResource {
 		// Based on report type, pull data for it
 		for (AnalyticsReportGroupReport report : reports) {
 			switch (report.getReportTypeId()) {
-				// Account-related reports
+				// ** Account-related reports
+
+				// N of unique people that accessed the website
 				case ADMIN_ANALYTICS_ACCOUNT_VISITS ->
 						widgets.add(getAnalyticsXrayService().createAccountVisitsWidget(institutionId, startDate, endDate));
+
+				// N of people that created an account
 				case ADMIN_ANALYTICS_ACCOUNT_CREATION ->
 						widgets.add(getAnalyticsXrayService().createAccountsCreatedWidget(institutionId, startDate, endDate));
+
+				// N of repeat users (logged on more than once)
 				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS ->
 						widgets.add(getAnalyticsXrayService().createAccountRepeatVisitsWidget(institutionId, startDate, endDate));
-//				case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
+
+				// List of websites from which the user accessed the platform
 				case ADMIN_ANALYTICS_ACCOUNT_REFERRER ->
 						widgets.add(getAnalyticsXrayService().createAccountReferrersWidget(institutionId, startDate, endDate));
+
+				// N of people who started the onboarding screening flow and N of people who finished
 				case ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS ->
 						widgets.add(getAnalyticsXrayService().createAccountOnboardingResultsWidget(institutionId, startDate, endDate));
 
-				// Course-related reports
+				// Using IP address to organized by zip code
+				//	case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
+
+				// ** Course-related reports
+
+				// N of users per course
 				case ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS ->
 						widgets.add(getAnalyticsXrayService().createCourseAccountVisitsWidget(institutionId, startDate, endDate));
-//				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_COMPLETION -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS -> throw new UnsupportedOperationException("TODO");
-//				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> throw new UnsupportedOperationException("TODO");
-//
-//				default ->
-//						throw new UnsupportedOperationException(format("Unsupported %s value '%s' for analytics_report_group_id %s",
-//								ReportTypeId.class.getSimpleName(), report.getReportTypeId().name(), analyticsReportGroupId));
+
+				// N of users doing more than one course
+				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS ->
+						widgets.add(getAnalyticsXrayService().createCourseAggregateVisitsWidget(institutionId, startDate, endDate));
+
+				// N of people that clicked/opened a unique module
+				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> {
+					List<AnalyticsMultiChartWidget> widgetList =
+							getAnalyticsXrayService().createCourseModuleVisitWidget(
+									institutionId, startDate, endDate);
+					widgets.addAll(widgetList);
+				}
+				// N of minutes it takes for people to complete a course (mean, median, mode)
+				// case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+
+				// N of minutes it takes for people to get through a unique module (mean, median, mode)
+				// case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+
+				// N of people who complete each course
+				case ADMIN_ANALYTICS_COURSE_COMPLETION ->
+						widgets.add(getAnalyticsXrayService().createCourseCompletionWidget(institutionId, startDate, endDate));
+
+				// N of people completing one or more course
+				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS ->
+						widgets.add(getAnalyticsXrayService().createCourseAggregateCompletionsWidget(institutionId, startDate, endDate));
+
+				// N of people who complete a unique module
+				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> {
+					List<AnalyticsMultiChartWidget> widgetList =
+							getAnalyticsXrayService().createCourseModuleCompletionWidget(
+									institutionId, startDate, endDate);
+					widgets.addAll(widgetList);
+				}
+
+				// default ->
+				// 	throw new UnsupportedOperationException(format("Unsupported %s value '%s' for analytics_report_group_id %s",
+				// 		ReportTypeId.class.getSimpleName(), report.getReportTypeId().name(), analyticsReportGroupId));
 			}
 		}
-
 
 		return new ApiResponse(
 				Map.of("widgets", widgets)
