@@ -25,5 +25,13 @@ services:
       - pg-cobalt:/var/lib/postgresql/data
     command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c max_connections=200
 
+  # Access Mailpit web UI at http://localhost:8026
+  mailpit-cobalt:
+    image: axllent/mailpit:v1.27
+    container_name: mailpit-cobalt
+    ports:
+      - "8026:8025"
+      - "1026:1025"
+
 volumes:
   pg-cobalt:

@@ -1,0 +1,256 @@
+/*
+ * Copyright 2021 The University of Pennsylvania and Penn Medicine
+ *
+ * Originally created at the University of Pennsylvania and Penn Medicine by:
+ * Dr. David Asch; Dr. Lisa Bellini; Dr. Cecilia Livesey; Kelley Kugler; and Dr. Matthew Press.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.cobaltplatform.api.messaging.email;
+
+import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.messaging.MessageSender;
+import com.cobaltplatform.api.model.db.Institution;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
+import com.cobaltplatform.api.model.db.MessageVendor.MessageVendorId;
+import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.util.HandlebarsTemplater;
+import jakarta.activation.DataHandler;
+import jakarta.activation.DataSource;
+import jakarta.mail.Address;
+import jakarta.mail.BodyPart;
+import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
+import jakarta.mail.Session;
+import jakarta.mail.Transport;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.util.ByteArrayDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Provider;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
+
+/**
+ * @author Transmogrify, LLC.
+ */
+@ThreadSafe
+public class MailpitEmailMessageSender implements MessageSender<EmailMessage> {
+	@Nonnull
+	private final Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
+	private final HandlebarsTemplater handlebarsTemplater;
+	@Nonnull
+	private final Configuration configuration;
+	@Nonnull
+	private final String defaultFromAddress;
+	@Nonnull
+	private final String mailpitHost;
+	@Nonnull
+	private final Integer mailpitPort;
+	@Nonnull
+	private final Integer mailpitWebInterfacePort;
+	@Nonnull
+	private final Logger logger;
+
+	public MailpitEmailMessageSender(@Nonnull Provider<InstitutionService> institutionServiceProvider,
+																	 @Nonnull HandlebarsTemplater handlebarsTemplater,
+																	 @Nonnull Configuration configuration) {
+		requireNonNull(institutionServiceProvider);
+		requireNonNull(handlebarsTemplater);
+		requireNonNull(configuration);
+
+		this.institutionServiceProvider = institutionServiceProvider;
+		this.handlebarsTemplater = handlebarsTemplater;
+		this.configuration = configuration;
+		this.defaultFromAddress = configuration.getEmailDefaultFromAddress();
+		this.logger = LoggerFactory.getLogger(getClass());
+
+		// Hardcoded for now; can data-drive later if needed
+		this.mailpitHost = "localhost";
+		this.mailpitPort = 1026;
+		this.mailpitWebInterfacePort = 8026;
+	}
+
+	@Override
+	public String sendMessage(@Nonnull EmailMessage emailMessage) {
+		requireNonNull(emailMessage);
+
+		Map<String, Object> messageContext = emailMessage.getMessageContext();
+		String fromAddress = emailMessage.getFromAddress().isPresent() ? emailMessage.getFromAddress().get() : getDefaultFromAddress();
+		String replyToAddress = emailMessage.getReplyToAddress().orElse(null);
+		String subject = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "subject", emailMessage.getLocale(), messageContext).get();
+		String body = getHandlebarsTemplater().mergeTemplate(emailMessage.getMessageTemplate().name(), "body", emailMessage.getLocale(), messageContext).get();
+
+		List<String> logMessages = new ArrayList<>(7);
+		logMessages.add(format("Sending '%s' email to Mailpit...", emailMessage.getMessageTemplate()));
+		logMessages.add(format("From: %s", fromAddress));
+
+		if (replyToAddress != null)
+			logMessages.add(format("Reply-To: %s", replyToAddress));
+
+		if (emailMessage.getToAddresses().size() > 0)
+			logMessages.add(format("To: %s", emailMessage.getToAddresses().stream().collect(Collectors.joining(", "))));
+
+		if (emailMessage.getCcAddresses().size() > 0)
+			logMessages.add(format("CC: %s", emailMessage.getCcAddresses().stream().collect(Collectors.joining(", "))));
+
+		if (emailMessage.getBccAddresses().size() > 0)
+			logMessages.add(format("BCC: %s", emailMessage.getBccAddresses().stream().collect(Collectors.joining(", "))));
+
+		logMessages.add(format("Subject: %s", subject));
+		logMessages.add(format("Message Context:\n%s", messageContext));
+
+		getLogger().info(logMessages.stream().collect(Collectors.joining("\n")));
+
+		long time = System.currentTimeMillis();
+
+		try {
+			Institution institution = getInstitutionService().findInstitutionById(emailMessage.getInstitutionId()).get();
+			Address normalizedFromAddress = new InternetAddress(fromAddress, institution.getPlatformName());
+
+			Session session = Session.getDefaultInstance(new Properties());
+			MimeMessage mimeMessage = new MimeMessage(session);
+			mimeMessage.addFrom(new Address[]{normalizedFromAddress});
+
+			if (replyToAddress != null)
+				mimeMessage.setReplyTo(new Address[]{new InternetAddress(replyToAddress)});
+
+			mimeMessage.addRecipients(Message.RecipientType.TO, toAddresses(emailMessage.getToAddresses()));
+			mimeMessage.addRecipients(Message.RecipientType.CC, toAddresses(emailMessage.getCcAddresses()));
+			mimeMessage.addRecipients(Message.RecipientType.BCC, toAddresses(emailMessage.getBccAddresses()));
+			mimeMessage.setSubject(subject, "UTF-8");
+
+			MimeMultipart mimeMultipart = new MimeMultipart();
+			BodyPart bodyPart = new MimeBodyPart();
+			bodyPart.setContent(body, "text/html; charset=UTF-8");
+			mimeMultipart.addBodyPart(bodyPart);
+
+			for (EmailAttachment emailAttachment : emailMessage.getEmailAttachments()) {
+				MimeBodyPart attachmentPart = new MimeBodyPart();
+				attachmentPart.setFileName(emailAttachment.getFilename());
+				DataSource dataSource = new ByteArrayDataSource(emailAttachment.getData(), emailAttachment.getContentType());
+				attachmentPart.setDataHandler(new DataHandler(dataSource));
+				mimeMultipart.addBodyPart(attachmentPart);
+			}
+
+			mimeMessage.setContent(mimeMultipart);
+
+			if (mimeMessage.getSize() > 10_000_000)
+				throw new RuntimeException("Email is too large, must be smaller than 10MB");
+
+			Properties props = new Properties();
+			props.put("mail.smtp.host", getMailpitHost());
+			props.put("mail.smtp.port", String.valueOf(getMailpitPort()));
+
+			Session smtpSession = Session.getInstance(props);
+			Transport transport = smtpSession.getTransport("smtp");
+			transport.connect(getMailpitHost(), getMailpitPort(), null, null); // Mailpit uses no auth
+			transport.sendMessage(mimeMessage, mimeMessage.getAllRecipients());
+			transport.close();
+
+			getLogger().info("Successfully sent email to Mailpit in {} ms. Review at http://{}:{}", System.currentTimeMillis() - time, getMailpitHost(), getMailpitWebInterfacePort());
+
+			return UUID.randomUUID().toString();
+		} catch (IOException | MessagingException e) {
+			throw new RuntimeException(format("Unable to send %s", emailMessage), e);
+		}
+	}
+
+	@Nonnull
+	@Override
+	public MessageVendorId getMessageVendorId() {
+		return MessageVendorId.UNSPECIFIED;
+	}
+
+	@Nonnull
+	@Override
+	public MessageTypeId getMessageTypeId() {
+		return MessageTypeId.EMAIL;
+	}
+
+	@Nonnull
+	protected Address[] toAddresses(@Nonnull List<String> emailAddresses) {
+		requireNonNull(emailAddresses);
+
+		Address[] addresses = new Address[emailAddresses.size()];
+
+		for (int i = 0; i < emailAddresses.size(); ++i) {
+			String emailAddress = emailAddresses.get(i);
+			try {
+				if (emailAddress != null)
+					addresses[i] = new InternetAddress(emailAddress);
+			} catch (AddressException e) {
+				throw new RuntimeException(format("Unable to parse email address '%s'", emailAddress), e);
+			}
+		}
+
+		return addresses;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
+	}
+
+	@Nonnull
+	protected HandlebarsTemplater getHandlebarsTemplater() {
+		return handlebarsTemplater;
+	}
+
+	@Nonnull
+	protected Configuration getConfiguration() {
+		return configuration;
+	}
+
+	@Nonnull
+	protected String getDefaultFromAddress() {
+		return defaultFromAddress;
+	}
+
+	@Nonnull
+	protected String getMailpitHost() {
+		return this.mailpitHost;
+	}
+
+	@Nonnull
+	protected Integer getMailpitPort() {
+		return this.mailpitPort;
+	}
+
+	@Nonnull
+	protected Integer getMailpitWebInterfacePort() {
+		return this.mailpitWebInterfacePort;
+	}
+
+	@Nonnull
+	protected Logger getLogger() {
+		return logger;
+	}
+}

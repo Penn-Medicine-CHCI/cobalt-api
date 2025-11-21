@@ -123,6 +123,9 @@ public class FootprintEventGroupType {
 		// Courses
 		COURSE_SESSION_CREATE,
 		COURSE_UNIT_COMPLETE,
+		// Mailing Lists
+		MAILING_LIST_ENTRY_CREATE,
+		MAILING_LIST_ENTRY_UPDATE
 	}
 
 	@Override

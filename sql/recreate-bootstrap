@@ -223,6 +223,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/213-more
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/214-ic-self-referral-overrides.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/215-page-group.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/216-courses.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/216-courses-2.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/217-institution-customizations.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/218-courses-homepage.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/219-courses-complete-flag.sql
@@ -242,6 +243,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/232-data
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/233-sleep-image.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/234-platform-name.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/235-course-finalization.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/236-page-email-list.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

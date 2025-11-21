@@ -718,7 +718,9 @@ public class ProviderService {
 		// Special handling for native scheduling: precalculate all logical availability/appointment type data for the
 		// specified providers up-front so we can use it further down to build availability date/time slots
 		LocalDateTime nativeSchedulingStartDateTime = currentDateTime;
-		LocalDateTime nativeSchedulingEndDateTime = nativeSchedulingStartDateTime.plusMonths(1).toLocalDate().atStartOfDay(); /* arbitrarily cap at 1 month ahead */
+		LocalDateTime nativeSchedulingEndDateTime = (includePastAvailability || endDate == null)
+				? nativeSchedulingStartDateTime.plusMonths(1).toLocalDate().atStartOfDay() /* arbitrarily cap at 1 month ahead */
+				: endDate.plusDays(1).atStartOfDay();
 
 		NativeSchedulingAvailabilityData nativeSchedulingAvailabilityData = loadNativeSchedulingAvailabilityData(institutionId,
 				visitTypeIds, nativeSchedulingStartDateTime, nativeSchedulingEndDateTime);
