@@ -1241,21 +1241,33 @@ public class AnalyticsXrayService {
 		List<AnalyticsTableWidget> analyticsTableWidgets = new ArrayList<>(courses.size());
 
 		for (Course course : courses) {
+			List<AnalyticsWidgetTableRow> nestedTableRows = new ArrayList<>();
+			AnalyticsWidgetTableRow nestedTableRow = new AnalyticsWidgetTableRow();
+			nestedTableRow.setData(List.of(
+					"[unit title]",
+					"[unit total number of accounts]",
+					"[unit mean dwell time]",
+					"[unit median dwell time]"
+			));
+
+			nestedTableRows.add(nestedTableRow);
+
 			List<AnalyticsWidgetTableRow> tableRows = new ArrayList<>();
 
 			AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
 			tableRow.setData(List.of(
-					"one",
-					"two",
-					"three",
-					"four"
+					"[module title]",
+					"[module total number of accounts]",
+					"[module mean dwell time]",
+					"[module median dwell time]"
 			));
 
+			tableRow.setNestedRows(nestedTableRows);
 			tableRows.add(tableRow);
 
 			AnalyticsWidgetTableData tableData = new AnalyticsWidgetTableData();
 			tableData.setHeaders(List.of(
-					getStrings().get("Course"),
+					getStrings().get("Module"),
 					getStrings().get("Total Number of Accounts"),
 					getStrings().get("Mean Dwell Time"),
 					getStrings().get("Median Dwell Time")
@@ -1265,7 +1277,7 @@ public class AnalyticsXrayService {
 			AnalyticsTableWidget analyticsTableWidget = new AnalyticsTableWidget();
 			analyticsTableWidget.setWidgetTitle(course.getTitle());
 			analyticsTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_DWELL_TIME);
-			analyticsTableWidget.setWidgetTitle(getStrings().get("Course Module Dwell Time"));
+			analyticsTableWidget.setWidgetTitle(getStrings().get("Course Module Dwell Time: {{courseTitle}}", Map.of("courseTitle", course.getTitle())));
 			analyticsTableWidget.setWidgetSubtitle(getStrings().get("TODO"));
 			analyticsTableWidget.setWidgetData(tableData);
 
