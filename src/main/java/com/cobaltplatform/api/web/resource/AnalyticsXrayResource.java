@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.analytics.AnalyticsMultiChartWidget;
 import com.cobaltplatform.api.model.analytics.AnalyticsWidget;
 import com.cobaltplatform.api.model.api.response.AnalyticsReportGroupApiResponse.AnalyticsReportGroupApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -30,7 +31,6 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsXrayService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.util.db.ReadReplica;
-import com.cobaltplatform.api.model.analytics.AnalyticsMultiChartWidget;
 import com.soklet.web.annotation.GET;
 import com.soklet.web.annotation.PathParameter;
 import com.soklet.web.annotation.QueryParameter;
@@ -177,11 +177,14 @@ public class AnalyticsXrayResource {
 									institutionId, startDate, endDate);
 					widgets.addAll(widgetList);
 				}
+
 				// N of minutes it takes for people to complete a course (mean, median, mode)
-				// case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_DWELL_TIME ->
+						widgets.add(getAnalyticsXrayService().createCourseDwellTimeWidget(institutionId, startDate, endDate));
 
 				// N of minutes it takes for people to get through a unique module (mean, median, mode)
-				// case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
+				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME ->
+						widgets.addAll(getAnalyticsXrayService().createCourseUnitDwellTimeWidgets(institutionId, startDate, endDate));
 
 				// N of people who complete each course
 				case ADMIN_ANALYTICS_COURSE_COMPLETION ->

@@ -582,7 +582,7 @@ public final class Formatter {
 		if (durationInSecondsAsDouble >= 3600) {
 			double hours = Math.floor(durationInSecondsAsDouble / 3600);
 			durationComponents.add(getStrings().get("{{durationDescription}} hours", new HashMap<String, Object>() {{
-				put("durationDescription", formatNumber(hours, locale));
+				put("durationDescription", formatInteger(hours, locale));
 				put("duration", hours);
 			}}));
 
@@ -592,7 +592,7 @@ public final class Formatter {
 		if (durationInSecondsAsDouble >= 60) {
 			double minutes = Math.floor(durationInSecondsAsDouble / 60);
 			durationComponents.add(getStrings().get("{{durationDescription}} minutes", new HashMap<String, Object>() {{
-				put("durationDescription", formatNumber(minutes, locale));
+				put("durationDescription", formatInteger(minutes, locale));
 				put("duration", minutes);
 			}}));
 

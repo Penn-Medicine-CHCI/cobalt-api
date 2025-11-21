@@ -59,6 +59,7 @@ import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -66,6 +67,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -507,7 +509,7 @@ public class AnalyticsXrayService {
 					AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
 
 					tableRow.setData(List.of(
-							safeAnchorTagOrPlaintextFallback(row.getReferringUrl()),
+							safeAnchorTag(row.getReferringUrl()),
 							getFormatter().formatInteger(row.getEventCount())
 					));
 
@@ -915,7 +917,7 @@ public class AnalyticsXrayService {
 						                    COUNT(DISTINCT cs.account_id)             AS distinct_accounts
 						            FROM bounds b
 						            JOIN course_session cs
-						                    ON cs.completed_at >= b.start_utc
+						                  ON cs.completed_at >= b.start_utc
 						                 AND cs.completed_at <  b.end_utc
 						            JOIN account a
 						                    ON a.account_id     = cs.account_id
@@ -1124,12 +1126,12 @@ public class AnalyticsXrayService {
 
 			List<ModuleAccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
 									 WITH params AS (
-						 SELECT
+							SELECT
 								 ? AS start_date,
 								 ? AS end_date,
 								 ? AS tz
-						 ),
-						 bounds AS (
+							),
+							bounds AS (
 							 SELECT
 								 (start_date::timestamp AT TIME ZONE tz)     AS start_utc,
 								 ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc,
@@ -1137,9 +1139,9 @@ public class AnalyticsXrayService {
 								 end_date,
 								 tz
 							 FROM params
-						 ),
-						 -- Modules that appear in the window and belong to the requested course
-						 modules_in_scope AS (
+							),
+							-- Modules that appear in the window and belong to the requested course
+							modules_in_scope AS (
 							 SELECT DISTINCT
 								 cm.course_module_id,
 								 cm.title AS module_title
@@ -1158,9 +1160,9 @@ public class AnalyticsXrayService {
 							 JOIN course_module cm
 								 ON cm.course_module_id = cu.course_module_id
 							 WHERE cm.course_id = ?        
-						 ),
-						 -- Daily visits (distinct accounts) per module
-						 daily AS (
+							),
+							-- Daily visits (distinct accounts) per module
+							daily AS (
 							 SELECT
 								 (timezone(b.tz, ane."timestamp"))::date AS day,
 								 cm.course_module_id,
@@ -1182,22 +1184,22 @@ public class AnalyticsXrayService {
 								 ON cm.course_module_id = cu.course_module_id
 							 WHERE cm.course_id = ?    
 							 GROUP BY 1, 2, 3
-						 ),
-						 days AS (
+							),
+							days AS (
 							 SELECT generate_series(b.start_date, b.end_date, interval '1 day')::date AS day
 							 FROM bounds b
-						 )
-						 SELECT
+							)
+							SELECT
 							 d.day,
 							 mis.course_module_id,
 							 mis.module_title,
 							 COALESCE(di.distinct_accounts, 0) AS distinct_accounts
-						 FROM days d
-						 CROSS JOIN modules_in_scope mis
-						 LEFT JOIN daily di
+							FROM days d
+							CROSS JOIN modules_in_scope mis
+							LEFT JOIN daily di
 							 ON di.day              = d.day
 							AND di.course_module_id = mis.course_module_id
-						 ORDER BY d.day, mis.module_title, mis.course_module_id                   								                     
+							ORDER BY d.day, mis.module_title, mis.course_module_id                   								                     
 							""",
 					ModuleAccountVisitsRow.class,
 					startDate, endDate, timeZone,
@@ -1612,6 +1614,638 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
+	public AnalyticsTableWidget createCourseDwellTimeWidget(@Nonnull InstitutionId institutionId,
+																													@Nonnull LocalDate startDate,
+																													@Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+
+		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
+		List<AnalyticsWidgetTableRow> tableRows = new ArrayList<>(courses.size());
+
+		List<CourseDwellTimeRow> courseDwellTimeRows = getReadReplicaDatabase().queryForList("""
+						WITH filtered_events AS (
+						    SELECT
+						        mv.institution_id,
+						        mv.account_id,
+						        mv.course_unit_id,
+						        mv.dwell_time_seconds,
+						        mv.page_viewed_at
+						    FROM mv_analytics_dwell_time mv
+						    WHERE mv.institution_id = ?
+						      AND mv.page_view_type = ?
+						      -- convert timestamps to the caller's local time zone
+						      AND (mv.page_viewed_at AT TIME ZONE ?) >= ?::timestamp
+						      AND (mv.page_viewed_at AT TIME ZONE ?) <
+						          ((?::date + 1)::timestamp)     -- end_date inclusive
+						),
+						course_account_totals AS (
+						    SELECT
+						        fe.institution_id,
+						        c.course_id,
+						        fe.account_id,
+						        SUM(fe.dwell_time_seconds) AS total_dwell_seconds
+						    FROM filtered_events fe
+						    JOIN course_unit   cu ON cu.course_unit_id   = fe.course_unit_id
+						    JOIN course_module cm ON cm.course_module_id = cu.course_module_id
+						    JOIN course        c  ON c.course_id         = cm.course_id
+						    JOIN account       a  ON a.account_id        = fe.account_id
+						    WHERE a.role_id = ?
+						      AND a.test_account = FALSE
+						    GROUP BY
+						        fe.institution_id,
+						        c.course_id,
+						        fe.account_id
+						)
+						SELECT
+						    cat.institution_id,
+						    cat.course_id,
+						    AVG(cat.total_dwell_seconds) AS mean_dwell_seconds_per_account,
+						    percentile_cont(0.5)
+						         WITHIN GROUP (ORDER BY cat.total_dwell_seconds)
+						         AS median_dwell_seconds_per_account,
+						    COUNT(*) AS account_count
+						FROM course_account_totals cat
+						GROUP BY
+						    cat.institution_id,
+						    cat.course_id
+						ORDER BY
+						    cat.institution_id,
+						    cat.course_id
+						""", CourseDwellTimeRow.class,
+				institutionId,
+				AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
+				timeZone,
+				startDate,
+				timeZone,
+				endDate,
+				RoleId.PATIENT);
+
+		Map<UUID, CourseDwellTimeRow> courseDwellTimeRowsByCourseId =
+				courseDwellTimeRows.stream().collect(Collectors.toMap(CourseDwellTimeRow::getCourseId, Function.identity()));
+
+		// Show all courses, even if no data
+		for (Course course : courses) {
+			CourseDwellTimeRow courseDwellTimeRow = courseDwellTimeRowsByCourseId.get(course.getCourseId());
+
+			AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
+			tableRow.setData(List.of(
+					safeAnchorTag(format("/courses/%s", course.getUrlName()), course.getTitle()),
+					getFormatter().formatInteger(courseDwellTimeRow == null ? 0 : courseDwellTimeRow.getAccountCount()),
+					formatDuration(courseDwellTimeRow == null ? 0 : courseDwellTimeRow.getMeanDwellSecondsPerAccount()),
+					formatDuration(courseDwellTimeRow == null ? 0 : courseDwellTimeRow.getMedianDwellSecondsPerAccount())
+			));
+
+			tableRows.add(tableRow);
+		}
+
+		AnalyticsWidgetTableData tableData = new AnalyticsWidgetTableData();
+		tableData.setHeaders(List.of(
+				getStrings().get("Course"),
+				getStrings().get("Total Number of Accounts"),
+				getStrings().get("Mean Dwell Time"),
+				getStrings().get("Median Dwell Time")
+		));
+		tableData.setRows(tableRows);
+
+		AnalyticsTableWidget analyticsTableWidget = new AnalyticsTableWidget();
+		analyticsTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_DWELL_TIME);
+		analyticsTableWidget.setWidgetTitle(getStrings().get("Overall Course Dwell Time"));
+		analyticsTableWidget.setWidgetSubtitle(getStrings().get("Mean and median time (per account) spent on course unit pages within a course. Dwell times are determined by summing 'heartbeats' that occur every 5 seconds. If the user leaves a page before the first heartbeat, the dwell time is counted as 2.5 seconds."));
+		analyticsTableWidget.setWidgetData(tableData);
+
+		return analyticsTableWidget;
+	}
+
+	@NotThreadSafe
+	protected static class CourseDwellTimeRow {
+		@Nullable
+		private UUID courseId;
+		@Nullable
+		private Double meanDwellSecondsPerAccount;
+		@Nullable
+		private Double medianDwellSecondsPerAccount;
+		@Nullable
+		private Long accountCount;
+
+		@Nullable
+		public UUID getCourseId() {
+			return this.courseId;
+		}
+
+		public void setCourseId(@Nullable UUID courseId) {
+			this.courseId = courseId;
+		}
+
+		@Nullable
+		public Double getMeanDwellSecondsPerAccount() {
+			return this.meanDwellSecondsPerAccount;
+		}
+
+		public void setMeanDwellSecondsPerAccount(@Nullable Double meanDwellSecondsPerAccount) {
+			this.meanDwellSecondsPerAccount = meanDwellSecondsPerAccount;
+		}
+
+		@Nullable
+		public Double getMedianDwellSecondsPerAccount() {
+			return this.medianDwellSecondsPerAccount;
+		}
+
+		public void setMedianDwellSecondsPerAccount(@Nullable Double medianDwellSecondsPerAccount) {
+			this.medianDwellSecondsPerAccount = medianDwellSecondsPerAccount;
+		}
+
+		@Nullable
+		public Long getAccountCount() {
+			return this.accountCount;
+		}
+
+		public void setAccountCount(@Nullable Long accountCount) {
+			this.accountCount = accountCount;
+		}
+	}
+
+	@Nonnull
+	public List<AnalyticsTableWidget> createCourseUnitDwellTimeWidgets(@Nonnull InstitutionId institutionId,
+																																		 @Nonnull LocalDate startDate,
+																																		 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
+		ZoneId timeZone = institution.getTimeZone();
+
+		List<CourseModuleDwellTimeRow> courseModuleDwellTimeRows =
+				getReadReplicaDatabase().queryForList("""
+								WITH filtered_events AS (
+								    SELECT
+								        mv.institution_id,
+								        mv.account_id,
+								        mv.course_unit_id,
+								        mv.dwell_time_seconds,
+								        mv.page_viewed_at
+								    FROM mv_analytics_dwell_time mv
+								    WHERE mv.institution_id = ?
+								      AND mv.page_view_type = ?
+								      -- interpret start/end as local dates in the provided time zone
+								      AND (mv.page_viewed_at AT TIME ZONE ?) >= ?::timestamp
+								      AND (mv.page_viewed_at AT TIME ZONE ?) <
+								          ((?::date + 1)::timestamp) -- end_date inclusive
+								),
+								course_module_account_totals AS (
+								    -- Per-account total dwell time per course_module
+								    SELECT
+								        fe.institution_id,
+								        cm.course_module_id,
+								        fe.account_id,
+								        SUM(fe.dwell_time_seconds) AS total_dwell_seconds
+								    FROM filtered_events fe
+								    JOIN course_unit   cu ON cu.course_unit_id   = fe.course_unit_id
+								    JOIN course_module cm ON cm.course_module_id = cu.course_module_id
+								    JOIN course        c  ON c.course_id         = cm.course_id
+								    JOIN institution_course ic ON ic.course_id   = c.course_id
+								    JOIN account       a  ON a.account_id        = fe.account_id
+								    WHERE ic.institution_id = fe.institution_id
+								      AND a.role_id = ?
+								      AND a.test_account = FALSE
+								    GROUP BY
+								        fe.institution_id,
+								        cm.course_module_id,
+								        fe.account_id
+								),
+								course_module_stats AS (
+								    -- Aggregate per course_module across accounts: mean, median, count
+								    SELECT
+								        cmat.institution_id,
+								        c.course_id,
+								        c.title AS course_title,
+								        cm.course_module_id,
+								        cm.title AS course_module_title,
+								        cm.display_order AS course_module_display_order,
+								        AVG(cmat.total_dwell_seconds) AS mean_dwell_seconds_per_account,
+								        percentile_cont(0.5) WITHIN GROUP (ORDER BY cmat.total_dwell_seconds)
+								            AS median_dwell_seconds_per_account,
+								        COUNT(*) AS account_count  -- each row is one account
+								    FROM course_module_account_totals cmat
+								    JOIN course_module cm ON cm.course_module_id = cmat.course_module_id
+								    JOIN course        c  ON c.course_id        = cm.course_id
+								    GROUP BY
+								        cmat.institution_id,
+								        c.course_id,
+								        c.title,
+								        cm.course_module_id,
+								        cm.title,
+								        cm.display_order
+								)
+								SELECT
+								    ic.institution_id,
+								    cms.course_id,
+								    cms.course_title,
+								    cms.course_module_id,
+								    cms.course_module_title,
+								    cms.mean_dwell_seconds_per_account,
+								    cms.median_dwell_seconds_per_account,
+								    cms.account_count
+								FROM course_module_stats cms
+								JOIN institution_course ic
+								  ON ic.course_id = cms.course_id
+								 AND ic.institution_id = cms.institution_id
+								WHERE ic.institution_id = ?
+								ORDER BY
+								    ic.display_order,
+								    cms.course_module_display_order
+								""",
+						CourseModuleDwellTimeRow.class,
+						institutionId,
+						AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
+						timeZone,
+						startDate,
+						timeZone,
+						endDate,
+						RoleId.PATIENT,
+						institutionId);
+
+		List<CourseUnitDwellTimeRow> courseUnitDwellTimeRows = getReadReplicaDatabase().queryForList("""
+						WITH filtered_events AS (
+						    SELECT
+						        mv.institution_id,
+						        mv.account_id,
+						        mv.course_unit_id,
+						        mv.dwell_time_seconds,
+						        mv.page_viewed_at
+						    FROM mv_analytics_dwell_time mv
+						    WHERE mv.institution_id = ?
+						      AND mv.page_view_type = ?
+						      -- interpret start/end as local dates in the provided time zone
+						      AND (mv.page_viewed_at AT TIME ZONE ?) >= ?::timestamp
+						      AND (mv.page_viewed_at AT TIME ZONE ?) <
+						          ((?::date + 1)::timestamp) -- end_date inclusive
+						),
+						course_unit_account_totals AS (
+						    -- Per-account total dwell time per course_unit
+						    SELECT
+						        fe.institution_id,
+						        cu.course_unit_id,
+						        fe.account_id,
+						        SUM(fe.dwell_time_seconds) AS total_dwell_seconds
+						    FROM filtered_events fe
+						    JOIN course_unit   cu ON cu.course_unit_id   = fe.course_unit_id
+						    JOIN course_module cm ON cm.course_module_id = cu.course_module_id
+						    JOIN course        c  ON c.course_id         = cm.course_id
+						    JOIN institution_course ic ON ic.course_id   = c.course_id
+						    JOIN account       a  ON a.account_id        = fe.account_id
+						    WHERE ic.institution_id = fe.institution_id
+						      AND a.role_id = ?
+						      AND a.test_account = FALSE
+						    GROUP BY
+						        fe.institution_id,
+						        cu.course_unit_id,
+						        fe.account_id
+						),
+						course_unit_stats AS (
+						    -- Aggregate per course_unit across accounts: mean, median, count
+						    SELECT
+						        cuat.institution_id,
+						        cuat.course_unit_id,
+						        AVG(cuat.total_dwell_seconds) AS mean_dwell_seconds_per_account,
+						        percentile_cont(0.5) WITHIN GROUP (ORDER BY cuat.total_dwell_seconds)
+						            AS median_dwell_seconds_per_account,
+						        COUNT(*) AS account_count
+						    FROM course_unit_account_totals cuat
+						    GROUP BY
+						        cuat.institution_id,
+						        cuat.course_unit_id
+						)
+						SELECT
+						    ic.institution_id,
+						    c.course_id,
+						    c.title AS course_title,
+						    cm.course_module_id,
+						    cm.title AS course_module_title,
+						    cu.course_unit_id,
+						    cu.title AS course_unit_title,
+						    COALESCE(cus.mean_dwell_seconds_per_account, 0)    AS mean_dwell_seconds_per_account,
+						    COALESCE(cus.median_dwell_seconds_per_account, 0)  AS median_dwell_seconds_per_account,
+						    COALESCE(cus.account_count, 0)                     AS account_count
+						FROM institution_course ic
+						JOIN course c
+						    ON c.course_id = ic.course_id
+						LEFT JOIN course_module cm
+						    ON cm.course_id = c.course_id
+						LEFT JOIN course_unit cu
+						    ON cu.course_module_id = cm.course_module_id
+						LEFT JOIN course_unit_stats cus
+						    ON cus.institution_id = ic.institution_id
+						   AND cus.course_unit_id = cu.course_unit_id
+						WHERE ic.institution_id = ?
+						  AND cu.course_unit_id IS NOT NULL   -- one row per course_unit
+						ORDER BY
+						    ic.display_order,
+						    cm.display_order,
+						    cu.display_order
+						""", CourseUnitDwellTimeRow.class,
+				institutionId,
+				AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
+				timeZone,
+				startDate,
+				timeZone,
+				endDate,
+				RoleId.PATIENT,
+				institutionId);
+
+		// Group units by module, modules by course
+		Map<UUID, List<CourseUnitDwellTimeRow>> unitsByModuleId = courseUnitDwellTimeRows.stream()
+				.filter(row -> row.getCourseModuleId() != null)
+				.collect(Collectors.groupingBy(
+						CourseUnitDwellTimeRow::getCourseModuleId,
+						LinkedHashMap::new,
+						Collectors.toList()
+				));
+
+		Map<UUID, List<CourseModuleDwellTimeRow>> modulesByCourseId = courseModuleDwellTimeRows.stream()
+				.filter(row -> row.getCourseId() != null)
+				.collect(Collectors.groupingBy(
+						CourseModuleDwellTimeRow::getCourseId,
+						LinkedHashMap::new,
+						Collectors.toList()
+				));
+
+		List<AnalyticsTableWidget> analyticsTableWidgets = new ArrayList<>(courses.size());
+
+		for (Course course : courses) {
+			UUID courseId = course.getCourseId();
+			List<CourseModuleDwellTimeRow> modulesForCourse = modulesByCourseId.get(courseId);
+
+			// No data for this course, so skip
+			if (modulesForCourse == null || modulesForCourse.isEmpty())
+				continue;
+
+			List<AnalyticsWidgetTableRow> tableRows = new ArrayList<>();
+
+			for (CourseModuleDwellTimeRow moduleRowData : modulesForCourse) {
+				UUID moduleId = moduleRowData.getCourseModuleId();
+				List<CourseUnitDwellTimeRow> unitsForModule =
+						(moduleId != null) ? unitsByModuleId.get(moduleId) : null;
+
+				// Build nested rows = units in this module
+				List<AnalyticsWidgetTableRow> nestedRows = new ArrayList<>();
+
+				if (unitsForModule != null) {
+					for (CourseUnitDwellTimeRow unitRowData : unitsForModule) {
+						AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
+
+						nestedRow.setData(List.of(
+								safeAnchorTag(format("/courses/%s/course-units/%s", course.getUrlName(), unitRowData.getCourseUnitId()), unitRowData.getCourseUnitTitle()),
+								getFormatter().formatInteger(unitRowData.getAccountCount() == null ? 0 : unitRowData.getAccountCount()),
+								formatDuration(unitRowData.getMeanDwellSecondsPerAccount()),
+								formatDuration(unitRowData.getMedianDwellSecondsPerAccount())
+						));
+
+						nestedRows.add(nestedRow);
+					}
+				}
+
+				// Module row from *module* stats (no double-counting accounts)
+				AnalyticsWidgetTableRow moduleRow = new AnalyticsWidgetTableRow();
+
+				moduleRow.setData(List.of(
+						moduleRowData.getCourseModuleTitle(), // Not clickable HTML because clicks are used to expand/collapse nested unit display
+						getFormatter().formatInteger(moduleRowData.getAccountCount() == null ? 0 : moduleRowData.getAccountCount()),
+						formatDuration(moduleRowData.getMeanDwellSecondsPerAccount()),
+						formatDuration(moduleRowData.getMedianDwellSecondsPerAccount())
+				));
+
+				moduleRow.setNestedRows(nestedRows);
+
+				tableRows.add(moduleRow);
+			}
+
+			AnalyticsWidgetTableData tableData = new AnalyticsWidgetTableData();
+			tableData.setHeaders(List.of(
+					getStrings().get("Module"),
+					getStrings().get("Total Number of Accounts"),
+					getStrings().get("Mean Dwell Time"),
+					getStrings().get("Median Dwell Time")
+			));
+			tableData.setRows(tableRows);
+
+			AnalyticsTableWidget analyticsTableWidget = new AnalyticsTableWidget();
+			analyticsTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_DWELL_TIME);
+			analyticsTableWidget.setWidgetTitle(
+					getStrings().get("Course Module Dwell Time: {{courseTitle}}",
+							Map.of("courseTitle", course.getTitle()))
+			);
+			analyticsTableWidget.setWidgetSubtitle(getStrings().get("Mean and median time (per account) spent on course unit pages within a course, broken down by module and then per-unit. Dwell times are determined by summing 'heartbeats' that occur every 5 seconds. If the user leaves a page before the first heartbeat, the dwell time is counted as 2.5 seconds."));
+			analyticsTableWidget.setWidgetData(tableData);
+
+			analyticsTableWidgets.add(analyticsTableWidget);
+		}
+
+		return analyticsTableWidgets;
+	}
+
+	@Nonnull
+	private String formatDuration(@Nullable Number durationInSeconds) {
+		final String NO_DATA_PLACEHOLDER = "--";
+
+		if (durationInSeconds == null)
+			return NO_DATA_PLACEHOLDER;
+
+		String formatted = getFormatter().formatDuration(durationInSeconds);
+		return formatted != null && formatted.trim().length() > 0 ? formatted : NO_DATA_PLACEHOLDER;
+	}
+
+	@NotThreadSafe
+	protected static class CourseModuleDwellTimeRow {
+		@Nullable
+		private UUID courseId;
+		@Nullable
+		private String courseTitle;
+		@Nullable
+		private UUID courseModuleId;
+		@Nullable
+		private String courseModuleTitle;
+		@Nullable
+		private Double meanDwellSecondsPerAccount;
+		@Nullable
+		private Double medianDwellSecondsPerAccount;
+		@Nullable
+		private Long accountCount;
+
+		@Nullable
+		public UUID getCourseId() {
+			return this.courseId;
+		}
+
+		public void setCourseId(@Nullable UUID courseId) {
+			this.courseId = courseId;
+		}
+
+		@Nullable
+		public String getCourseTitle() {
+			return this.courseTitle;
+		}
+
+		public void setCourseTitle(@Nullable String courseTitle) {
+			this.courseTitle = courseTitle;
+		}
+
+		@Nullable
+		public UUID getCourseModuleId() {
+			return this.courseModuleId;
+		}
+
+		public void setCourseModuleId(@Nullable UUID courseModuleId) {
+			this.courseModuleId = courseModuleId;
+		}
+
+		@Nullable
+		public String getCourseModuleTitle() {
+			return this.courseModuleTitle;
+		}
+
+		public void setCourseModuleTitle(@Nullable String courseModuleTitle) {
+			this.courseModuleTitle = courseModuleTitle;
+		}
+
+		@Nullable
+		public Double getMeanDwellSecondsPerAccount() {
+			return this.meanDwellSecondsPerAccount;
+		}
+
+		public void setMeanDwellSecondsPerAccount(@Nullable Double meanDwellSecondsPerAccount) {
+			this.meanDwellSecondsPerAccount = meanDwellSecondsPerAccount;
+		}
+
+		@Nullable
+		public Double getMedianDwellSecondsPerAccount() {
+			return this.medianDwellSecondsPerAccount;
+		}
+
+		public void setMedianDwellSecondsPerAccount(@Nullable Double medianDwellSecondsPerAccount) {
+			this.medianDwellSecondsPerAccount = medianDwellSecondsPerAccount;
+		}
+
+		@Nullable
+		public Long getAccountCount() {
+			return this.accountCount;
+		}
+
+		public void setAccountCount(@Nullable Long accountCount) {
+			this.accountCount = accountCount;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class CourseUnitDwellTimeRow {
+		@Nullable
+		private UUID courseId;
+		@Nullable
+		private String courseTitle;
+		@Nullable
+		private UUID courseModuleId;
+		@Nullable
+		private String courseModuleTitle;
+		@Nullable
+		private UUID courseUnitId;
+		@Nullable
+		private String courseUnitTitle;
+		@Nullable
+		private Double meanDwellSecondsPerAccount;
+		@Nullable
+		private Double medianDwellSecondsPerAccount;
+		@Nullable
+		private Long accountCount;
+
+		@Nullable
+		public UUID getCourseId() {
+			return this.courseId;
+		}
+
+		public void setCourseId(@Nullable UUID courseId) {
+			this.courseId = courseId;
+		}
+
+		@Nullable
+		public String getCourseTitle() {
+			return this.courseTitle;
+		}
+
+		public void setCourseTitle(@Nullable String courseTitle) {
+			this.courseTitle = courseTitle;
+		}
+
+		@Nullable
+		public UUID getCourseModuleId() {
+			return this.courseModuleId;
+		}
+
+		public void setCourseModuleId(@Nullable UUID courseModuleId) {
+			this.courseModuleId = courseModuleId;
+		}
+
+		@Nullable
+		public String getCourseModuleTitle() {
+			return this.courseModuleTitle;
+		}
+
+		public void setCourseModuleTitle(@Nullable String courseModuleTitle) {
+			this.courseModuleTitle = courseModuleTitle;
+		}
+
+		@Nullable
+		public UUID getCourseUnitId() {
+			return this.courseUnitId;
+		}
+
+		public void setCourseUnitId(@Nullable UUID courseUnitId) {
+			this.courseUnitId = courseUnitId;
+		}
+
+		@Nullable
+		public String getCourseUnitTitle() {
+			return this.courseUnitTitle;
+		}
+
+		public void setCourseUnitTitle(@Nullable String courseUnitTitle) {
+			this.courseUnitTitle = courseUnitTitle;
+		}
+
+		@Nullable
+		public Double getMeanDwellSecondsPerAccount() {
+			return this.meanDwellSecondsPerAccount;
+		}
+
+		public void setMeanDwellSecondsPerAccount(@Nullable Double meanDwellSecondsPerAccount) {
+			this.meanDwellSecondsPerAccount = meanDwellSecondsPerAccount;
+		}
+
+		@Nullable
+		public Double getMedianDwellSecondsPerAccount() {
+			return this.medianDwellSecondsPerAccount;
+		}
+
+		public void setMedianDwellSecondsPerAccount(@Nullable Double medianDwellSecondsPerAccount) {
+			this.medianDwellSecondsPerAccount = medianDwellSecondsPerAccount;
+		}
+
+		@Nullable
+		public Long getAccountCount() {
+			return this.accountCount;
+		}
+
+		public void setAccountCount(@Nullable Long accountCount) {
+			this.accountCount = accountCount;
+		}
+	}
+
+	@Nonnull
 	protected List<InstitutionColorValue> findChartColorValuesByInstitutionId(@Nonnull InstitutionId institutionId) {
 		requireNonNull(institutionId);
 
@@ -1678,6 +2312,22 @@ public class AnalyticsXrayService {
 		if (rawUrl.chars().anyMatch(ch -> ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r'))
 			return Optional.empty();
 
+		// Allow site-relative URLs like "/courses/example"
+		if (rawUrl.startsWith("/")) {
+			// Reject things like "/\u0001evil"
+			try {
+				URI uri = new URI(rawUrl);
+				// Must be path-only: no scheme, no host, no authority
+				if (uri.getScheme() == null && uri.getHost() == null && uri.getRawSchemeSpecificPart() != null)
+					return Optional.of(uri.toString());
+			} catch (Exception ignored) {
+				return Optional.empty();
+			}
+
+			return Optional.empty();
+		}
+
+		// Otherwise it must be a valid http(s) absolute URL
 		try {
 			URI uri = new URI(rawUrl);
 			String scheme = (uri.getScheme() == null) ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
@@ -1692,21 +2342,43 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
-	private String safeAnchorTagOrPlaintextFallback(@Nullable String rawUrl) {
+	private String safeAnchorTag(@Nullable String rawUrl) {
+		return safeAnchorTag(rawUrl, null);
+	}
+
+	/**
+	 * Renders a safe <a> tag or plaintext fallback.
+	 *
+	 * @param rawUrl      The user-entered URL
+	 * @param rawLinkText Optional user-entered "friendly" text to use as the body of the <a> tag
+	 */
+	@Nonnull
+	private String safeAnchorTag(@Nullable String rawUrl,
+															 @Nullable String rawLinkText) {
 		rawUrl = trimToNull(rawUrl);
+		rawLinkText = trimToNull(rawLinkText);
 
 		if (rawUrl == null)
+			// No URL => empty string
 			return "";
 
 		String safeUrl = safeUrl(rawUrl).orElse(null);
 
-		if (safeUrl == null || !rawUrl.toLowerCase(Locale.ROOT).startsWith("https://"))
-			return Encode.forHtmlContent(rawUrl);
+		// If URL isn't safe or not http/https, fall back to plaintext.  Need 'http' to support local dev
+		if (safeUrl == null || !(rawUrl.startsWith("/") || rawUrl.toLowerCase(Locale.ROOT).startsWith("http://") || rawUrl.toLowerCase(Locale.ROOT).startsWith("https://"))) {
+			// Prefer the friendly text if present, otherwise show the raw URL
+			String fallbackText = (rawLinkText != null) ? rawLinkText : rawUrl;
+			return Encode.forHtmlContent(fallbackText);
+		}
+
+		// URL is safe; build an anchor tag.
+		// Use friendly text if present, otherwise show the sanitized URL.
+		String linkText = (rawLinkText != null) ? rawLinkText : safeUrl;
 
 		return format(
 				"<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">%s</a>",
 				Encode.forHtmlAttribute(safeUrl),
-				Encode.forHtmlContent(safeUrl)
+				Encode.forHtmlContent(linkText)
 		);
 	}
 

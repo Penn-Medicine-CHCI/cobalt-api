@@ -244,6 +244,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/233-sleep-imag
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/234-platform-name.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/235-course-finalization.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/236-page-email-list.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/237-dwell-time.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
