@@ -154,8 +154,9 @@ public class AnalyticsXrayResource {
 //				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
 				case ADMIN_ANALYTICS_COURSE_DWELL_TIME ->
 						widgets.add(getAnalyticsXrayService().createCourseDwellTimeWidget(institutionId, startDate, endDate));
-//				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME ->
-//						widgets.addAll(getAnalyticsXrayService().createCourseModuleDwellTimeWidgets(institutionId, startDate, endDate));
+				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME ->
+					// We actually pull data at the unit level since it's a clearer representation, but we include module rollups
+						widgets.addAll(getAnalyticsXrayService().createCourseUnitDwellTimeWidgets(institutionId, startDate, endDate));
 //				case ADMIN_ANALYTICS_COURSE_COMPLETION -> throw new UnsupportedOperationException("TODO");
 //				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS -> throw new UnsupportedOperationException("TODO");
 //				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> throw new UnsupportedOperationException("TODO");
