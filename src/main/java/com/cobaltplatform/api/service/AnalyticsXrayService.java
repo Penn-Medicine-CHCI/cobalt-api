@@ -56,10 +56,13 @@ import java.time.ZoneId;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -1238,32 +1241,92 @@ public class AnalyticsXrayService {
 				RoleId.PATIENT,
 				institutionId);
 
+		// Group all rows by course for easier lookup while we iterate over courses
+		Map<UUID, List<CourseUnitDwellTimeRow>> rowsByCourseId = courseUnitDwellTimeRows.stream()
+				.filter(row -> row.getCourseId() != null)
+				.collect(Collectors.groupingBy(
+						CourseUnitDwellTimeRow::getCourseId,
+						LinkedHashMap::new,
+						Collectors.toList()
+				));
+
 		List<AnalyticsTableWidget> analyticsTableWidgets = new ArrayList<>(courses.size());
 
 		for (Course course : courses) {
-			List<AnalyticsWidgetTableRow> nestedTableRows = new ArrayList<>();
-			AnalyticsWidgetTableRow nestedTableRow = new AnalyticsWidgetTableRow();
-			nestedTableRow.setData(List.of(
-					"[unit title]",
-					"[unit total number of accounts]",
-					"[unit mean dwell time]",
-					"[unit median dwell time]"
-			));
+			UUID courseId = course.getCourseId();
+			List<CourseUnitDwellTimeRow> rowsForCourse = rowsByCourseId.get(courseId);
 
-			nestedTableRows.add(nestedTableRow);
+			// If there are no units for this course, skip creating a widget
+			if (rowsForCourse == null || rowsForCourse.isEmpty())
+				continue;
+
+			// Within the course, group by module (order preserved because source rows are ordered)
+			Map<UUID, List<CourseUnitDwellTimeRow>> rowsByModuleId = new LinkedHashMap<>();
+			for (CourseUnitDwellTimeRow row : rowsForCourse) {
+				UUID moduleId = row.getCourseModuleId();
+				if (moduleId == null)
+					// Shouldn't happen with current query (we require course_unit), but be defensive
+					continue;
+
+				rowsByModuleId.computeIfAbsent(moduleId, id -> new ArrayList<>()).add(row);
+			}
 
 			List<AnalyticsWidgetTableRow> tableRows = new ArrayList<>();
 
-			AnalyticsWidgetTableRow tableRow = new AnalyticsWidgetTableRow();
-			tableRow.setData(List.of(
-					"[module title]",
-					"[module total number of accounts]",
-					"[module mean dwell time]",
-					"[module median dwell time]"
-			));
+			for (Map.Entry<UUID, List<CourseUnitDwellTimeRow>> entry : rowsByModuleId.entrySet()) {
+				List<CourseUnitDwellTimeRow> rowsForModule = entry.getValue();
+				if (rowsForModule.isEmpty()) {
+					continue;
+				}
 
-			tableRow.setNestedRows(nestedTableRows);
-			tableRows.add(tableRow);
+				// Nested rows: one per UNIT within the module
+				List<AnalyticsWidgetTableRow> nestedTableRows = new ArrayList<>();
+
+				for (CourseUnitDwellTimeRow unitRow : rowsForModule) {
+					AnalyticsWidgetTableRow nestedRow = new AnalyticsWidgetTableRow();
+					nestedRow.setData(List.of(
+							unitRow.getCourseUnitTitle(),
+							getFormatter().formatInteger(unitRow.getAccountCount()),
+							getFormatter().formatDuration(unitRow.getMeanDwellSecondsPerAccount()),
+							getFormatter().formatDuration(unitRow.getMedianDwellSecondsPerAccount())
+					));
+
+					nestedTableRows.add(nestedRow);
+				}
+
+				// Module-level aggregates
+				String moduleTitle = rowsForModule.get(0).getCourseModuleTitle();
+
+				long moduleAccountCount = rowsForModule.stream()
+						.map(CourseUnitDwellTimeRow::getAccountCount)
+						.mapToLong(Long::longValue)
+						.sum();
+
+				double moduleMeanSeconds = rowsForModule.stream()
+						.map(CourseUnitDwellTimeRow::getMeanDwellSecondsPerAccount)
+						.mapToDouble(Double::doubleValue)
+						.average()
+						.orElse(0.0d);
+
+				double moduleMedianSeconds = median(
+						rowsForModule.stream()
+								.map(CourseUnitDwellTimeRow::getMedianDwellSecondsPerAccount)
+								.filter(Objects::nonNull)
+								.collect(Collectors.toList())
+				);
+
+				AnalyticsWidgetTableRow moduleRow = new AnalyticsWidgetTableRow();
+				moduleRow.setData(List.of(
+						moduleTitle,
+						getFormatter().formatInteger(moduleAccountCount),
+						getFormatter().formatDuration(moduleMeanSeconds),
+						getFormatter().formatDuration(moduleMedianSeconds)
+				));
+
+				moduleRow.setNestedRows(nestedTableRows);
+
+				tableRows.add(moduleRow);
+			}
 
 			AnalyticsWidgetTableData tableData = new AnalyticsWidgetTableData();
 			tableData.setHeaders(List.of(
@@ -1275,9 +1338,11 @@ public class AnalyticsXrayService {
 			tableData.setRows(tableRows);
 
 			AnalyticsTableWidget analyticsTableWidget = new AnalyticsTableWidget();
-			analyticsTableWidget.setWidgetTitle(course.getTitle());
 			analyticsTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_DWELL_TIME);
-			analyticsTableWidget.setWidgetTitle(getStrings().get("Course Module Dwell Time: {{courseTitle}}", Map.of("courseTitle", course.getTitle())));
+			analyticsTableWidget.setWidgetTitle(
+					getStrings().get("Course Module Dwell Time: {{courseTitle}}",
+							Map.of("courseTitle", course.getTitle()))
+			);
 			analyticsTableWidget.setWidgetSubtitle(getStrings().get("TODO"));
 			analyticsTableWidget.setWidgetData(tableData);
 
@@ -1285,6 +1350,26 @@ public class AnalyticsXrayService {
 		}
 
 		return analyticsTableWidgets;
+	}
+
+	private static double median(@Nonnull List<Double> values) {
+		requireNonNull(values);
+
+		if (values.isEmpty())
+			return 0.0d;
+
+		List<Double> sorted = new ArrayList<>(values);
+		sorted.sort(Comparator.naturalOrder());
+
+		int size = sorted.size();
+		int mid = size / 2;
+
+		if ((size % 2) == 1)
+			// Odd count: middle element
+			return sorted.get(mid);
+
+		// Even count: average of two middle elements
+		return (sorted.get(mid - 1) + sorted.get(mid)) / 2.0d;
 	}
 
 	@NotThreadSafe
