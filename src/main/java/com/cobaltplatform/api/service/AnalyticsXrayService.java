@@ -1109,6 +1109,118 @@ public class AnalyticsXrayService {
 	}
 
 	@Nonnull
+	public List<AnalyticsMultiChartWidget> createCourseModuleVisitWidget(@Nonnull InstitutionId institutionId,
+																																			 @Nonnull LocalDate startDate,
+																																			 @Nonnull LocalDate endDate) {
+		requireNonNull(institutionId);
+		requireNonNull(startDate);
+		requireNonNull(endDate);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId timeZone = institution.getTimeZone();
+		List<AnalyticsMultiChartWidget> widgets = new ArrayList<>();
+
+		for (Course course : getCourseService().findCoursesByInstitutionId(institutionId)) {
+
+			List<ModuleAccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
+									 WITH params AS (
+						 SELECT
+								 ? AS start_date,
+								 ? AS end_date,
+								 ? AS tz
+						 ),
+						 bounds AS (
+							 SELECT
+								 (start_date::timestamp AT TIME ZONE tz)     AS start_utc,
+								 ((end_date + 1)::timestamp AT TIME ZONE tz) AS end_utc,
+								 start_date,
+								 end_date,
+								 tz
+							 FROM params
+						 ),
+						 -- Modules that appear in the window and belong to the requested course
+						 modules_in_scope AS (
+							 SELECT DISTINCT
+								 cm.course_module_id,
+								 cm.title AS module_title
+							 FROM bounds b
+							 JOIN analytics_native_event ane
+								 ON ane."timestamp" >= b.start_utc
+								AND ane."timestamp" <  b.end_utc
+								AND ane.institution_id = ?
+								AND ane.analytics_native_event_type_id = ?
+							 JOIN account a
+								 ON a.account_id = ane.account_id
+								AND a.role_id = ?
+								AND a.test_account = FALSE
+							 JOIN course_unit cu
+								 ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
+							 JOIN course_module cm
+								 ON cm.course_module_id = cu.course_module_id
+							 WHERE cm.course_id = ?        
+						 ),
+						 -- Daily visits (distinct accounts) per module
+						 daily AS (
+							 SELECT
+								 (timezone(b.tz, ane."timestamp"))::date AS day,
+								 cm.course_module_id,
+								 cm.title AS module_title,
+								 COUNT(DISTINCT ane.account_id) AS distinct_accounts
+							 FROM bounds b
+							 JOIN analytics_native_event ane
+								 ON ane."timestamp" >= b.start_utc
+								AND ane."timestamp" <  b.end_utc
+								AND ane.institution_id = ?
+								AND ane.analytics_native_event_type_id = ?
+							 JOIN account a
+								 ON a.account_id = ane.account_id
+								AND a.role_id = ?
+								AND a.test_account = FALSE
+							 JOIN course_unit cu
+								 ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
+							 JOIN course_module cm
+								 ON cm.course_module_id = cu.course_module_id
+							 WHERE cm.course_id = ?    
+							 GROUP BY 1, 2, 3
+						 ),
+						 days AS (
+							 SELECT generate_series(b.start_date, b.end_date, interval '1 day')::date AS day
+							 FROM bounds b
+						 )
+						 SELECT
+							 d.day,
+							 mis.course_module_id,
+							 mis.module_title,
+							 COALESCE(di.distinct_accounts, 0) AS distinct_accounts
+						 FROM days d
+						 CROSS JOIN modules_in_scope mis
+						 LEFT JOIN daily di
+							 ON di.day              = d.day
+							AND di.course_module_id = mis.course_module_id
+						 ORDER BY d.day, mis.module_title, mis.course_module_id                   								                     
+							""",
+					ModuleAccountVisitsRow.class,
+					startDate, endDate, timeZone,
+					institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
+					RoleId.PATIENT, course.getCourseId(),
+					institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
+					RoleId.PATIENT, course.getCourseId()
+			);
+
+			widgets.add(buildModuleMultiChartWidget(
+					institutionId,
+					course.getCourseId(),
+					rows,
+					ReportTypeId.ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS,
+					format("%s: %s", "Module Visits", course.getTitle()),
+					"The total number of modules that were visited"
+			));
+		}
+
+		return widgets;
+	}
+
+	@Nonnull
 	public AnalyticsMultiChartWidget createCourseAccountVisitsWidget(@Nonnull InstitutionId institutionId,
 																																	 @Nonnull LocalDate startDate,
 																																	 @Nonnull LocalDate endDate) {
@@ -1315,10 +1427,17 @@ public class AnalyticsXrayService {
 
 		// "Stable" coloring based on course module sort order.
 		// This way colors don't change on page reload
+
+		if (modules.size() > chartColorValues.size()) {
+			throw new IllegalStateException("Not enough chart colors for modules");
+		}
+
 		for (int i = 0; i < modules.size(); ++i) {
 			CourseModule module = modules.get(i);
 			chartColorValuesByCourseId.put(module.getCourseModuleId(),
 					chartColorValues.get(i % chartColorValues.size()));
+
+			getLogger().debug(format("debug: %s %s", module.getTitle(), chartColorValues.get(i % chartColorValues.size()).getColorValueId()));
 		}
 
 		Long totalVisitingAccounts = rows.stream()
@@ -1370,7 +1489,6 @@ public class AnalyticsXrayService {
 				datasets.add(dataset);
 			}
 		}
-
 
 		widgetData.setLabels(labels);
 		widgetData.setDatasets(datasets);
@@ -1513,10 +1631,13 @@ public class AnalyticsXrayService {
 			InstitutionColorValue p500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.P500).findFirst().orElse(null);
 			InstitutionColorValue a500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.A500).findFirst().orElse(null);
 			InstitutionColorValue d500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.D500).findFirst().orElse(null);
-			InstitutionColorValue t500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.T500).findFirst().orElse(null);
 			InstitutionColorValue w500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.W500).findFirst().orElse(null);
-			InstitutionColorValue n500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.N500).findFirst().orElse(null);
-			InstitutionColorValue i500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.I500).findFirst().orElse(null);
+			InstitutionColorValue s500 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.S500).findFirst().orElse(null);
+			InstitutionColorValue p700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.P700).findFirst().orElse(null);
+			InstitutionColorValue a700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.A700).findFirst().orElse(null);
+			InstitutionColorValue d700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.D700).findFirst().orElse(null);
+			InstitutionColorValue w700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.W700).findFirst().orElse(null);
+			InstitutionColorValue s700 = institutionColorValues.stream().filter(icv -> icv.getColorValueId() == ColorValueId.S700).findFirst().orElse(null);
 
 			if (p500 != null)
 				chartColors.add(p500);
@@ -1524,14 +1645,20 @@ public class AnalyticsXrayService {
 				chartColors.add(a500);
 			if (d500 != null)
 				chartColors.add(d500);
-			if (t500 != null)
-				chartColors.add(t500);
 			if (w500 != null)
 				chartColors.add(w500);
-			if (n500 != null)
-				chartColors.add(n500);
-			if (i500 != null)
-				chartColors.add(i500);
+			if (s500 != null)
+				chartColors.add(s500);
+			if (p700 != null)
+				chartColors.add(p700);
+			if (a700 != null)
+				chartColors.add(a700);
+			if (d700 != null)
+				chartColors.add(d700);
+			if (w700 != null)
+				chartColors.add(w700);
+			if (s700 != null)
+				chartColors.add(s700);
 
 			if (chartColors.size() == 0)
 				throw new IllegalStateException(format("No chart colors available for %s institution", institutionId.name()));

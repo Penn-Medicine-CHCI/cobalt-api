@@ -171,8 +171,12 @@ public class AnalyticsXrayResource {
 						widgets.add(getAnalyticsXrayService().createCourseAggregateVisitsWidget(institutionId, startDate, endDate));
 
 				// N of people that clicked/opened a unique module
-				// case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> throw new UnsupportedOperationException("TODO");
-
+				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> {
+					List<AnalyticsMultiChartWidget> widgetList =
+							getAnalyticsXrayService().createCourseModuleVisitWidget(
+									institutionId, startDate, endDate);
+					widgets.addAll(widgetList);
+				}
 				// N of minutes it takes for people to complete a course (mean, median, mode)
 				// case ADMIN_ANALYTICS_COURSE_DWELL_TIME -> throw new UnsupportedOperationException("TODO");
 
