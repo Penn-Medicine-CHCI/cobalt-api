@@ -1085,7 +1085,7 @@ public class AnalyticsXrayService {
 		AnalyticsTableWidget analyticsTableWidget = new AnalyticsTableWidget();
 		analyticsTableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_COURSE_DWELL_TIME);
 		analyticsTableWidget.setWidgetTitle(getStrings().get("Overall Course Dwell Time"));
-		analyticsTableWidget.setWidgetSubtitle(getStrings().get("Mean and median time (per account) spent on course unit pages within a course. Dwell times are determined by a 'heartbeat' every 5 seconds. If the user leaves before the first heartbeat, the dwell time is counted as 2.5 seconds."));
+		analyticsTableWidget.setWidgetSubtitle(getStrings().get("Mean and median time (per account) spent on course unit pages within a course. Dwell times are determined by a 'heartbeat' every 5 seconds. If the user leaves a page before the first heartbeat, the dwell time is counted as 2.5 seconds."));
 		analyticsTableWidget.setWidgetData(tableData);
 
 		return analyticsTableWidget;
@@ -1411,7 +1411,7 @@ public class AnalyticsXrayService {
 					getStrings().get("Course Module Dwell Time: {{courseTitle}}",
 							Map.of("courseTitle", course.getTitle()))
 			);
-			analyticsTableWidget.setWidgetSubtitle(getStrings().get("Mean and median time (per account) spent on course unit pages within a course, broken down by module and then per-unit. Dwell times are determined by a 'heartbeat' every 5 seconds. If the user leaves before the first heartbeat, the dwell time is counted as 2.5 seconds."));
+			analyticsTableWidget.setWidgetSubtitle(getStrings().get("Mean and median time (per account) spent on course unit pages within a course, broken down by module and then per-unit. Dwell times are determined by a 'heartbeat' every 5 seconds. If the user leaves a page before the first heartbeat, the dwell time is counted as 2.5 seconds."));
 			analyticsTableWidget.setWidgetData(tableData);
 
 			analyticsTableWidgets.add(analyticsTableWidget);
