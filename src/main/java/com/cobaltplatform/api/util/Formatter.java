@@ -603,7 +603,7 @@ public final class Formatter {
 
 		if (seconds > 0) {
 			durationComponents.add(getStrings().get("{{durationDescription}} seconds", new HashMap<String, Object>() {{
-				put("durationDescription", formatInteger(seconds, locale));
+				put("durationDescription", formatNumber(seconds, locale));
 				put("duration", seconds);
 			}}));
 		}
