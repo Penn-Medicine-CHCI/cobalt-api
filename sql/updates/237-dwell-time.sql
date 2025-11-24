@@ -92,4 +92,107 @@ ON mv_analytics_dwell_time (
 )
 WHERE page_view_type = 'PAGE_VIEW_COURSE_UNIT';
 
+ALTER TABLE course_session
+  ADD COLUMN completed_at timestamp with time zone NULL;
+
+UPDATE course_session
+SET completed_at = last_updated
+WHERE course_session_status_id = 'COMPLETED';
+
+CREATE OR REPLACE FUNCTION course_session_set_completed_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.course_session_status_id = 'COMPLETED' THEN
+    IF TG_OP = 'INSERT' THEN
+      -- On insert into COMPLETED, set completed_at if not provided
+      IF NEW.completed_at IS NULL THEN
+        NEW.completed_at := now();
+      END IF;
+    ELSIF TG_OP = 'UPDATE' THEN
+      -- Transition into COMPLETED: set completed_at to now
+      IF OLD.course_session_status_id <> 'COMPLETED' THEN
+        NEW.completed_at := now();
+      ELSIF NEW.completed_at IS NULL THEN
+        -- Still COMPLETED but somehow completed_at is null: fix it
+        NEW.completed_at := now();
+      END IF;
+    END IF;
+  ELSE
+    -- Any non-COMPLETED status: ensure completed_at is null
+    NEW.completed_at := NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_course_session_set_completed_at
+BEFORE INSERT OR UPDATE OF course_session_status_id
+ON course_session
+FOR EACH ROW
+EXECUTE FUNCTION course_session_set_completed_at();
+
+ALTER TABLE course_session
+  ADD CONSTRAINT course_session_completed_at_consistency_chk
+  CHECK (
+    (course_session_status_id = 'COMPLETED' AND completed_at IS NOT NULL)
+    OR
+    (course_session_status_id <> 'COMPLETED' AND completed_at IS NULL)
+  );
+
+
+ALTER TABLE course_session_unit
+  ADD COLUMN completed_at timestamp with time zone NULL;
+
+UPDATE course_session_unit
+SET completed_at = last_updated
+WHERE course_session_unit_status_id = 'COMPLETED';
+  
+
+CREATE OR REPLACE FUNCTION course_session_unit_set_completed_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.course_session_unit_status_id = 'COMPLETED' THEN
+    IF TG_OP = 'INSERT' THEN
+      -- On insert into COMPLETED, set completed_at if not provided
+      IF NEW.completed_at IS NULL THEN
+        NEW.completed_at := now();
+      END IF;
+    ELSIF TG_OP = 'UPDATE' THEN
+      -- Transition into COMPLETED: set completed_at to now
+      IF OLD.course_session_unit_status_id <> 'COMPLETED' THEN
+        NEW.completed_at := now();
+      ELSIF NEW.completed_at IS NULL THEN
+        -- Still COMPLETED but somehow completed_at is null: fix it
+        NEW.completed_at := now();
+      END IF;
+    END IF;
+  ELSE
+    -- Any non-COMPLETED status: ensure completed_at is null
+    NEW.completed_at := NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+CREATE TRIGGER trg_course_session_unit_set_completed_at
+BEFORE INSERT OR UPDATE OF course_session_unit_status_id
+ON course_session_unit
+FOR EACH ROW
+EXECUTE FUNCTION course_session_unit_set_completed_at();
+
+ALTER TABLE course_session_unit
+  ADD CONSTRAINT course_session_unit_completed_at_consistency_chk
+  CHECK (
+    (course_session_unit_status_id = 'COMPLETED' AND completed_at IS NOT NULL)
+    OR
+    (course_session_unit_status_id <> 'COMPLETED' AND completed_at IS NULL)
+  );
+
 COMMIT;
