@@ -4550,6 +4550,20 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public List<Account> findStudyOrderAutoAssignedAccounts(@Nullable UUID studyId) {
+		if (studyId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT a.*
+				FROM v_account a, study_order_auto_assigned_account soaaa
+				WHERE a.account_id=soaaa.auto_assigned_account_id
+				AND soaaa.study_id=?
+				ORDER BY a.account_id
+				""", Account.class, studyId);
+	}
+
+	@Nonnull
 	public List<Flowsheet> findFlowsheetsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
@@ -5640,16 +5654,32 @@ public class PatientOrderService implements AutoCloseable {
 
 			// Next, see if this order is part of any studies, and if so, store that off
 			List<UUID> studyIds = enterprisePlugin.determineApplicableStudyIdsForPatientOrder(importedPatientOrder);
-			int i = 0;
 
-			for (UUID studyId : studyIds)
-				getDatabase().execute("""
-						INSERT INTO patient_order_study (
-						  patient_order_id,
-						  study_id,
-						  display_order
-						) VALUES (?,?,?)
-						""", importedPatientOrder.getPatientOrderId(), studyId, ++i);
+			if (studyIds.size() > 0) {
+				int i = 0;
+				boolean assignedForStudy = false;
+
+				for (UUID studyId : studyIds) {
+					getDatabase().execute("""
+							INSERT INTO patient_order_study (
+							  patient_order_id,
+							  study_id,
+							  display_order
+							) VALUES (?,?,?)
+							""", importedPatientOrder.getPatientOrderId(), studyId, ++i);
+
+					// Some studies have specific panel accounts to assign to, check for that here
+					List<Account> autoAssignedAccounts = findStudyOrderAutoAssignedAccounts(studyId);
+
+					// If there are accounts available to assign, arbitrarily pick the first one.
+					// Later, we might add additional heuristics
+					if (autoAssignedAccounts.size() > 0 && !assignedForStudy) {
+						assignedForStudy = true;
+						Account autoAssignedAccount = autoAssignedAccounts.get(0);
+						assignPatientOrderToPanelAccount(importedPatientOrder.getPatientOrderId(), autoAssignedAccount.getAccountId(), accountId);
+					}
+				}
+			}
 		}
 
 		return new PatientOrderImportResult(patientOrderImportId, patientOrderIds);
