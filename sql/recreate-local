@@ -246,6 +246,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/235-course-fin
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/236-page-email-list.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/237-dwell-time.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/238-patient-order-study-autoassign.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/239-patient-order-scheduling-dept-override.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

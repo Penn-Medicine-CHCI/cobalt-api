@@ -632,6 +632,15 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canUpdatePatientOrderOverrideSchedulingEpicDepartment(@Nonnull RawPatientOrder patientOrder,
+																																			 @Nonnull Account account) {
+		requireNonNull(patientOrder);
+		requireNonNull(account);
+
+		return canUpdatePatientOrderTriages(patientOrder, account);
+	}
+
+	@Nonnull
 	public Boolean canViewPanelAccounts(@Nonnull InstitutionId institutionId,
 																			@Nonnull Account account) {
 		requireNonNull(institutionId);
@@ -639,6 +648,24 @@ public class AuthorizationService {
 
 		// Re-use existing logic
 		return canImportPatientOrders(institutionId, account);
+	}
+
+	@Nonnull
+	public Boolean canViewIcDepartments(@Nonnull InstitutionId institutionId,
+																			@Nonnull Account account) {
+		requireNonNull(institutionId);
+		requireNonNull(account);
+
+		if (!institutionId.equals(account.getInstitutionId()))
+			return false;
+
+		final Set PERMITTED_ROLE_IDS = Set.of(
+				RoleId.ADMINISTRATOR,
+				RoleId.MHIC,
+				RoleId.PROVIDER
+		);
+
+		return PERMITTED_ROLE_IDS.contains(account.getRoleId());
 	}
 
 	@Nonnull
