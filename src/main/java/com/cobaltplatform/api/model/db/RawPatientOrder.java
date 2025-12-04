@@ -235,6 +235,8 @@ public class RawPatientOrder {
 	@Nullable
 	private PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId;
 	@Nullable
+	private UUID overrideSchedulingEpicDepartmentId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -1056,5 +1058,14 @@ public class RawPatientOrder {
 
 	public void setPatientOrderIntakeInsuranceStatusId(@Nullable PatientOrderIntakeInsuranceStatusId patientOrderIntakeInsuranceStatusId) {
 		this.patientOrderIntakeInsuranceStatusId = patientOrderIntakeInsuranceStatusId;
+	}
+
+	@Nullable
+	public UUID getOverrideSchedulingEpicDepartmentId() {
+		return this.overrideSchedulingEpicDepartmentId;
+	}
+
+	public void setOverrideSchedulingEpicDepartmentId(@Nullable UUID overrideSchedulingEpicDepartmentId) {
+		this.overrideSchedulingEpicDepartmentId = overrideSchedulingEpicDepartmentId;
 	}
 }

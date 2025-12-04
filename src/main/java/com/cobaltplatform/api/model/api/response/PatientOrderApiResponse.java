@@ -593,7 +593,9 @@ public class PatientOrderApiResponse {
 	@Nullable
 	private ResourcePacketApiResponse resourcePacket;
 	@Nullable
-	Boolean resourcesSentFlag;
+	private Boolean resourcesSentFlag;
+	@Nullable
+	private UUID overrideSchedulingEpicDepartmentId;
 
 	public enum PatientOrderApiResponseSupplement {
 		MINIMAL,
@@ -988,6 +990,7 @@ public class PatientOrderApiResponse {
 		if (resourcePacket.isPresent())
 			this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
 
+		this.overrideSchedulingEpicDepartmentId = patientOrder.getOverrideSchedulingEpicDepartmentId();
 
 		// MHIC-only view of the data
 		if (format == PatientOrderApiResponseFormat.MHIC) {
@@ -2315,5 +2318,15 @@ public class PatientOrderApiResponse {
 	@Nullable
 	public ResourcePacketApiResponse getResourcePacket() {
 		return resourcePacket;
+	}
+
+	@Nonnull
+	public Optional<Boolean> getResourcesSentFlag() {
+		return Optional.ofNullable(this.resourcesSentFlag);
+	}
+
+	@Nonnull
+	public Optional<UUID> getOverrideSchedulingEpicDepartmentId() {
+		return Optional.ofNullable(this.overrideSchedulingEpicDepartmentId);
 	}
 }

@@ -84,6 +84,7 @@ import com.cobaltplatform.api.model.api.request.UpdatePatientOrderConsentStatusR
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderEncounterCsnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderNoteRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOutreachRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePatientOrderOverrideSchedulingEpicDepartmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourceCheckInResponseStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderResourcingStatusRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePatientOrderSafetyPlanningStatusRequest;
@@ -4574,6 +4575,44 @@ public class PatientOrderService implements AutoCloseable {
 				WHERE institution_id=?
 				ORDER BY flowsheet_type_id
 				""", Flowsheet.class, institutionId);
+	}
+
+	@Nonnull
+	public Boolean updatePatientOrderOverrideSchedulingEpicDepartment(@Nonnull UpdatePatientOrderOverrideSchedulingEpicDepartmentRequest request) {
+		requireNonNull(request);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		UUID overrideSchedulingEpicDepartmentId = request.getOverrideSchedulingEpicDepartmentId();
+		UUID accountId = request.getAccountId();
+
+		ValidationException validationException = new ValidationException();
+
+		if (patientOrderId == null) {
+			validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
+		} else {
+			RawPatientOrder patientOrder = findRawPatientOrderById(patientOrderId).orElse(null);
+
+			if (patientOrder == null)
+				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
+		}
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		// Note: we don't explicitly track account ID (it's implictly tracked in footprint data).
+		// We just collect it for this operation because we might need it in the future.
+
+		getLogger().info("Account ID {} is specifying Override Scheduling Epic Department ID {} for Patient Order ID {}...",
+				accountId, overrideSchedulingEpicDepartmentId, patientOrderId);
+
+		return getDatabase().execute("""
+				UPDATE patient_order
+				SET override_scheduling_epic_department_id=?
+				WHERE patient_order_id=?
+				""", overrideSchedulingEpicDepartmentId, patientOrderId) > 0;
 	}
 
 	@Nonnull
