@@ -4596,9 +4596,6 @@ public class PatientOrderService implements AutoCloseable {
 				validationException.add(new FieldError("patientOrderId", getStrings().get("Patient Order ID is invalid.")));
 		}
 
-		if (overrideSchedulingEpicDepartmentId == null)
-			validationException.add(new FieldError("overrideSchedulingEpicDepartmentId", getStrings().get("Override Scheduling Epic Department ID is required.")));
-
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
