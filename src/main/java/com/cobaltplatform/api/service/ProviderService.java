@@ -54,6 +54,7 @@ import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
+import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
@@ -144,6 +145,8 @@ public class ProviderService {
 	@Nonnull
 	private final javax.inject.Provider<AvailabilityService> availabilityServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
+	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
@@ -169,6 +172,7 @@ public class ProviderService {
 												 @Nonnull javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider,
 												 @Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
 												 @Nonnull javax.inject.Provider<AvailabilityService> availabilityServiceProvider,
+												 @Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
 												 @Nonnull DatabaseProvider databaseProvider,
 												 @Nonnull Configuration configuration,
@@ -183,6 +187,7 @@ public class ProviderService {
 		requireNonNull(assessmentScoringServiceProvider);
 		requireNonNull(clinicServiceProvider);
 		requireNonNull(availabilityServiceProvider);
+		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(enterprisePluginProvider);
 		requireNonNull(databaseProvider);
 		requireNonNull(configuration);
@@ -198,6 +203,7 @@ public class ProviderService {
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.clinicServiceProvider = clinicServiceProvider;
 		this.availabilityServiceProvider = availabilityServiceProvider;
+		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
 		this.databaseProvider = databaseProvider;
 		this.configuration = configuration;
@@ -559,15 +565,27 @@ public class ProviderService {
 			}
 
 			// If this is an IC order, only expose providers that are currently associated with the order's department.
-			// If the order's department has a scheduling override department, use that one instead.
+			// If there is an order-level department override, use it.
+			// Otherwise, if the order's department itself has a scheduling override department, use that one instead.
 			if (patientOrderId != null) {
-				UUID epicDepartmentIdForScheduling = getDatabase().queryForObject("""
-						SELECT COALESCE(ed.scheduling_override_epic_department_id, ed.epic_department_id) AS epic_department_id_for_scheduling
-						FROM epic_department ed, patient_order po
-						WHERE ed.epic_department_id=po.epic_department_id
-						AND po.patient_order_id=?
-						""", UUID.class, patientOrderId).get();
+				// Immediately unwrap the optional because we want to fail-fast and receive an error report if the
+				// patient order ID is invalid - the frontend should never provide an illegal one
+				RawPatientOrder rawPatientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).get();
 
+				// First, see if we have an order-level override and use that if so
+				UUID epicDepartmentIdForScheduling = rawPatientOrder.getOverrideSchedulingEpicDepartmentId();
+
+				// If no order-level override was found, pull from the order's department (which might have its own override)
+				if (epicDepartmentIdForScheduling == null) {
+					epicDepartmentIdForScheduling = getDatabase().queryForObject("""
+							SELECT COALESCE(ed.scheduling_override_epic_department_id, ed.epic_department_id) AS epic_department_id_for_scheduling
+							FROM epic_department ed, patient_order po
+							WHERE ed.epic_department_id=po.epic_department_id
+							AND po.patient_order_id=?
+							""", UUID.class, patientOrderId).get();
+				}
+
+				// Ensure only the providers in the specified department are shown
 				query.append("""
 						AND p.provider_id IN (
 						  SELECT ped.provider_id
@@ -2749,6 +2767,11 @@ public class ProviderService {
 	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
 		return availabilityServiceProvider.get();
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderServiceProvider.get();
 	}
 
 	@Nonnull
