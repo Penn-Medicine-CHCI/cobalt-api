@@ -19,6 +19,10 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
@@ -31,6 +35,10 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.inject.Provider;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -71,6 +79,8 @@ public class ScreeningQuestionApiResponse {
 	private final Boolean preferAutosubmit;
 	@Nonnull
 	private final Integer displayOrder;
+	@Nonnull
+	private final Map<String, Object> metadata;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -80,12 +90,20 @@ public class ScreeningQuestionApiResponse {
 	}
 
 	@AssistedInject
-	public ScreeningQuestionApiResponse(@Nonnull Formatter formatter,
+	public ScreeningQuestionApiResponse(@Nonnull Provider<CurrentContext> currentContextProvider,
+																			@Nonnull EnterprisePluginProvider enterprisePluginProvider,
+																			@Nonnull Formatter formatter,
 																			@Nonnull Strings strings,
 																			@Assisted @Nonnull ScreeningQuestion screeningQuestion) {
+		requireNonNull(currentContextProvider);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(screeningQuestion);
+
+		CurrentContext currentContext = currentContextProvider.get();
+		EnterprisePlugin enterprisePlugin = enterprisePluginProvider.enterprisePluginForInstitutionId(currentContext.getInstitutionId());
+		Account account = currentContext.getAccount().orElse(null);
 
 		this.screeningQuestionId = screeningQuestion.getScreeningQuestionId();
 		this.screeningVersionId = screeningQuestion.getScreeningVersionId();
@@ -102,6 +120,14 @@ public class ScreeningQuestionApiResponse {
 		this.maximumAnswerCountDescription = formatter.formatInteger(screeningQuestion.getMaximumAnswerCount());
 		this.preferAutosubmit = screeningQuestion.getPreferAutosubmit();
 		this.displayOrder = screeningQuestion.getDisplayOrder();
+
+		// Allow enterprise plugin to customize any metadata that might exist
+		Map<String, Object> mutableMetadata = screeningQuestion.getMetadata() == null
+				? new HashMap<>() : new HashMap<>(screeningQuestion.getMetadata());
+
+		mutableMetadata = enterprisePlugin.customizeScreeningQuestionMetadata(account, screeningQuestion, mutableMetadata);
+
+		this.metadata = Collections.unmodifiableMap(mutableMetadata);
 	}
 
 	@Nonnull
@@ -177,5 +203,10 @@ public class ScreeningQuestionApiResponse {
 	@Nonnull
 	public Integer getDisplayOrder() {
 		return this.displayOrder;
+	}
+
+	@Nonnull
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
 	}
 }
