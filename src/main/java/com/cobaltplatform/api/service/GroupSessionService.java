@@ -1608,12 +1608,16 @@ public class GroupSessionService implements AutoCloseable {
 				validationException.add(new FieldError("groupSessionId", getStrings().get("Group Session ID is invalid.")));
 			} else if (groupSession.getGroupSessionSchedulingSystemId() == GroupSessionSchedulingSystemId.COBALT) {
 				List<GroupSessionReservation> reservations = findGroupSessionReservationsByGroupSessionId(groupSessionId);
+				boolean validEmailAddress = emailAddress != null && isValidEmailAddress(emailAddress);
 
 				for (GroupSessionReservation reservation : reservations) {
 					if (reservation.getAccountId().equals(accountId)) {
 						getLogger().debug("Account ID {} already has an active reservation for Group Session ID {}, not creating...", accountId, groupSessionId);
 						return reservation.getGroupSessionReservationId();
 					}
+
+					if (validEmailAddress && reservation.getEmailAddress().equals(emailAddress))
+						validationException.add(new FieldError("emailAddress", getStrings().get("Email address {{emailAddress}} is already registered for this group session.", Map.of("emailAddress", emailAddress))));
 				}
 
 				if (groupSession.getSeats() != null && groupSession.getSeatsReserved() >= groupSession.getSeats())

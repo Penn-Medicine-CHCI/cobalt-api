@@ -25,6 +25,8 @@ import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.CronJob;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
+import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswerContentHintId;
+import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.service.ContentService;
 import com.cobaltplatform.api.service.InstitutionService;
@@ -40,7 +42,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.lang.String.format;
@@ -119,6 +123,25 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 			return List.of();
 
 		return institutionFeatureInstitutionReferrers;
+	}
+
+	@Nonnull
+	@Override
+	public Map<String, Object> customizeScreeningQuestionMetadata(@Nullable Account account,
+																																@Nonnull ScreeningQuestion screeningQuestion,
+																																@Nonnull Map<String, Object> metadata) {
+		requireNonNull(screeningQuestion);
+		requireNonNull(metadata);
+
+		if (account == null)
+			return metadata;
+
+		Map<String, Object> mutableMetadata = new HashMap<>(metadata);
+
+		if (screeningQuestion.getScreeningAnswerContentHintId() == ScreeningAnswerContentHintId.EMAIL_ADDRESS)
+			mutableMetadata.put("prepopulatedEmailAddress", account.getEmailAddress());
+
+		return mutableMetadata;
 	}
 
 	@Override

@@ -57,6 +57,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
+import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.CallToAction;
 import com.cobaltplatform.api.model.service.CallToActionDisplayAreaId;
@@ -327,5 +328,14 @@ public interface EnterprisePlugin {
 	@Nonnull
 	default List<UUID> determineApplicableStudyIdsForPatientOrder(@Nonnull PatientOrder patientOrder) {
 		return List.of();
+	}
+
+	// Opportunity to customize screening question metadata per-account
+	@Nonnull
+	default Map<String, Object> customizeScreeningQuestionMetadata(@Nullable Account account,
+																																 @Nonnull ScreeningQuestion screeningQuestion,
+																																 @Nonnull Map<String, Object> metadata) {
+		// No-op by default
+		return metadata;
 	}
 }
