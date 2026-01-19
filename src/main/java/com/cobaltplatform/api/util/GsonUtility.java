@@ -42,6 +42,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneRegion;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
@@ -203,6 +204,51 @@ public final class GsonUtility {
 					requireNonNull(jsonSerializationContext);
 
 					return zoneId == null ? null : new JsonPrimitive(zoneId.getId());
+				}
+			});
+		}
+
+		if (!excludedTypeAdapterTypesAsSet.contains(ZoneRegion.class)) {
+			gsonBuilder.registerTypeAdapter(ZoneRegion.class, new JsonDeserializer<ZoneRegion>() {
+				@Override
+				@Nullable
+				public ZoneRegion deserialize(@Nullable JsonElement json,
+																			@Nonnull Type type,
+																			@Nonnull JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+					requireNonNull(type);
+					requireNonNull(jsonDeserializationContext);
+
+					if (json == null)
+						return null;
+
+					JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
+
+					if (jsonPrimitive.isString()) {
+						String string = trimToNull(json.getAsString());
+
+						if (string == null)
+							return null;
+
+						ZoneId zoneId = ZoneId.of(string);
+
+						if (zoneId instanceof ZoneRegion)
+							return (ZoneRegion) zoneId;
+					}
+
+					throw new IllegalArgumentException(format("Unable to convert JSON value '%s' to %s", json, type));
+				}
+			});
+
+			gsonBuilder.registerTypeAdapter(ZoneRegion.class, new JsonSerializer<ZoneRegion>() {
+				@Override
+				@Nullable
+				public JsonElement serialize(@Nullable ZoneRegion zoneRegion,
+																		 @Nonnull Type type,
+																		 @Nonnull JsonSerializationContext jsonSerializationContext) {
+					requireNonNull(type);
+					requireNonNull(jsonSerializationContext);
+
+					return zoneRegion == null ? null : new JsonPrimitive(zoneRegion.getId());
 				}
 			});
 		}
