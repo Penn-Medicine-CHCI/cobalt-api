@@ -912,8 +912,11 @@ public class ReportingService {
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
 			addFilterDescription(csvPrinter, payorName, referringPracticeIds, patientAgeFrom, patientAgeTo, raceId, genderIdentityId, Optional.empty());
 
-			csvPrinter.printRecord("Patients Requiring Scheduling", Integer.toString(openPatientOrders.stream().filter(it -> it.getPatientOrderTriageStatusId() ==
-					PatientOrderTriageStatusId.MHP && it.getAppointmentScheduled() == false).collect(Collectors.toList()).size()));
+			csvPrinter.printRecord("Patients Requiring Scheduling", Integer.toString(openPatientOrders.stream().filter(it ->
+					(it.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.MHP
+							|| (it.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.SPECIALTY_CARE
+							&& it.getOverrideSchedulingEpicDepartmentId() != null))
+							&& it.getAppointmentScheduled() == false).collect(Collectors.toList()).size()));
 			csvPrinter.printRecord("Patients Requiring Resources", Integer.toString(openPatientOrders.stream().filter(it -> it.getPatientOrderResourcingStatusId() ==
 					PatientOrderResourcingStatusId.NEEDS_RESOURCES).collect(Collectors.toList()).size()));
 

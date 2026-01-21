@@ -45,6 +45,8 @@ public class EpicDepartment {
 	@Nullable
 	private String name; // e.g. "PBH OPC 3535 MARKET ST 2ND FLOOR"
 	@Nullable
+	private String connectWithSupportDescriptionOverride;
+	@Nullable
 	private Boolean patientOrderAutomaticImportEnabled;
 	@Nullable
 	private UUID schedulingOverrideEpicDepartmentId;
@@ -105,6 +107,15 @@ public class EpicDepartment {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public String getConnectWithSupportDescriptionOverride() {
+		return connectWithSupportDescriptionOverride;
+	}
+
+	public void setConnectWithSupportDescriptionOverride(@Nullable String connectWithSupportDescriptionOverride) {
+		this.connectWithSupportDescriptionOverride = connectWithSupportDescriptionOverride;
 	}
 
 	@Nullable

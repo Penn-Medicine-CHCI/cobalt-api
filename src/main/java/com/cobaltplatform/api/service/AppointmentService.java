@@ -374,6 +374,42 @@ public class AppointmentService {
 				"AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC", Appointment.class, providerId, startDate, endDate);
 	}
 
+	// Specifically for scenarios where the same Epic Provider ID is used across multiple institutions
+	@Nonnull
+	public List<Appointment> findAppointmentsByEpicProviderId(@Nullable String epicProviderId,
+																														@Nullable String epicProviderIdType,
+																														@Nullable LocalDate startDate,
+																														@Nullable LocalDate endDate) {
+		if (epicProviderId == null || startDate == null || endDate == null)
+			return Collections.emptyList();
+
+		StringBuilder sql = new StringBuilder("""
+				SELECT a.*
+				FROM appointment a
+				JOIN provider p ON p.provider_id=a.provider_id
+				WHERE p.scheduling_system_id=?
+				AND p.epic_provider_id=?
+				AND a.canceled=FALSE
+				AND a.start_time >= ?
+				AND a.start_time <= ?
+				""");
+
+		List<Object> parameters = new ArrayList<>();
+		parameters.add(SchedulingSystemId.EPIC);
+		parameters.add(epicProviderId);
+		parameters.add(startDate);
+		parameters.add(endDate);
+
+		if (epicProviderIdType != null) {
+			sql.append(" AND p.epic_provider_id_type=?");
+			parameters.add(epicProviderIdType);
+		}
+
+		sql.append(" ORDER BY a.start_time DESC");
+
+		return getDatabase().queryForList(sql.toString(), Appointment.class, parameters.toArray(new Object[]{}));
+	}
+
 	@Nonnull
 	public List<Appointment> findUpcomingAppointmentsByAccountIdAndProviderId(@Nullable UUID accountId,
 																																						@Nullable UUID providerId,
@@ -961,7 +997,16 @@ public class AppointmentService {
 				throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time."), Map.of("appointmentTimeslotUnavailable", true));
 			}
 		} else {
-			List<Appointment> existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
+			List<Appointment> existingAppointmentsForDate;
+
+			// For scenarios where the same Epic Provider ID might be used across multiple institutions
+			if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC && provider.getEpicProviderId() != null) {
+				existingAppointmentsForDate = findAppointmentsByEpicProviderId(provider.getEpicProviderId(), provider.getEpicProviderIdType(),
+						date, date.plusDays(1));
+			} else {
+				existingAppointmentsForDate = findAppointmentsByProviderId(providerId, date, date.plusDays(1));
+			}
+
 			LocalDateTime appointmentStartTime = LocalDateTime.of(date, time);
 
 			for (Appointment existingAppointmentForDate : existingAppointmentsForDate) {

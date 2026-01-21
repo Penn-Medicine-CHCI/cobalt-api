@@ -170,7 +170,7 @@ public final class GsonUtility {
 		}
 
 		if (!excludedTypeAdapterTypesAsSet.contains(ZoneId.class)) {
-			gsonBuilder.registerTypeAdapter(ZoneId.class, new JsonDeserializer<ZoneId>() {
+			gsonBuilder.registerTypeHierarchyAdapter(ZoneId.class, new JsonDeserializer<ZoneId>() {
 				@Override
 				@Nullable
 				public ZoneId deserialize(@Nullable JsonElement json,
@@ -193,7 +193,7 @@ public final class GsonUtility {
 				}
 			});
 
-			gsonBuilder.registerTypeAdapter(ZoneId.class, new JsonSerializer<ZoneId>() {
+			gsonBuilder.registerTypeHierarchyAdapter(ZoneId.class, new JsonSerializer<ZoneId>() {
 				@Override
 				@Nullable
 				public JsonElement serialize(@Nullable ZoneId zoneId,
