@@ -6829,8 +6829,8 @@ public class PatientOrderService implements AutoCloseable {
 
 			LocalDateTime now = LocalDateTime.now(institution.getTimeZone());
 
-			// Transition from "closed" -> "archived": if episode_closed_at >= 30 days ago, it's moved to ARCHIVED disposition
-			LocalDateTime archivedThreshold = now.minusDays(30);
+			// Transition from "closed" -> "archived": if episode_closed_at >= 45 days ago, it's moved to ARCHIVED disposition
+			LocalDateTime archivedThreshold = now.minusDays(45);
 
 			List<RawPatientOrder> archivablePatientOrders = getDatabase().queryForList("""
 					     SELECT *
