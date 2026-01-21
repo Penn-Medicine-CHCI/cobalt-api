@@ -22,10 +22,14 @@ package com.cobaltplatform.api.util;
 import com.cobaltplatform.api.util.JsonMapper.MappingFormat;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Engine;
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Singleton;
 import java.util.ArrayList;
@@ -106,13 +110,13 @@ public class JavascriptExecutor {
 				(function() {
 				const input = {};
 				const output = {};
-				    
+				
 				// Input values set
 				%s
-								
+				
 				// User-provided JS				    
 				%s
-
+				
 				return JSON.stringify(output);
 				})();
 				""", contextDeclarations.stream().collect(Collectors.joining("\n")), javascript).trim();
@@ -122,10 +126,112 @@ public class JavascriptExecutor {
 			T result = getJsonMapper().fromJson(outputValue.toString(), outputType);
 
 			return result;
+		} catch (PolyglotException polyglotException) {
+			if (polyglotException.isGuestException()) {
+				Value thrown = polyglotException.getGuestObject();
+
+				// If custom JS threw a string: throw "..." or throw new Error("...")
+				if (thrown != null && thrown.isString())
+					throw new JavascriptExecutionException(polyglotException, new HashMap<>(input), javascript, executedJavascript /* plus msg somewhere */);
+
+				// If custom JS threw an object: throw { ... }
+				if (thrown != null && thrown.hasMembers()) {
+					// Convert to JSON for logging/transport
+					// (simple approach: call JSON.stringify on the guest value)
+					String json = context.eval("js", "JSON.stringify").execute(thrown).asString();
+
+					// Attempt to parse out a validation exception if we see an object with { "type": "VALIDATION_EXCEPTION" }
+					ValidationException validationException = null;
+
+					try {
+						CustomJsValidationException result = getJsonMapper().fromJson(json, CustomJsValidationException.class);
+
+						if (result != null && result.getType() == CustomJsExceptionType.VALIDATION_EXCEPTION) {
+							List<ValidationException.FieldError> fieldErrors = result.getFieldErrors() == null ? List.of() : result.getFieldErrors();
+							List<String> globalErrors = result.getGlobalErrors() == null ? List.of() : result.getGlobalErrors();
+							Map<String, Object> metadata = result.getMetadata() == null ? Map.of() : result.getMetadata();
+
+							validationException = new ValidationException(globalErrors, fieldErrors);
+							validationException.setMetadata(metadata);
+						}
+					} catch (Exception ignored) {
+						// Can't parse; fall through
+					}
+
+					if (validationException != null && validationException.hasErrors())
+						throw validationException;
+
+					// Now we have a real string payload
+					throw new JavascriptExecutionException(
+							new RuntimeException("JS threw object: " + json, polyglotException),
+							new HashMap<>(input),
+							javascript,
+							executedJavascript
+					);
+				}
+			}
+
+			throw new JavascriptExecutionException(polyglotException, new HashMap<>(input), javascript, executedJavascript);
 		} catch (Exception e) {
-			throw new JavascriptExecutionException(e, new HashMap<>(input) /* defensive copy */, javascript, executedJavascript);
+			throw new JavascriptExecutionException(e, new HashMap<>(input), javascript, executedJavascript);
 		} finally {
 			getLogger().debug("JS function execution took {}ms.", System.currentTimeMillis() - startTime);
+		}
+	}
+
+	private enum CustomJsExceptionType {
+		VALIDATION_EXCEPTION
+	}
+
+	@NotThreadSafe
+	private static abstract class CustomJsException {
+		@Nullable
+		private CustomJsExceptionType type;
+
+		@Nullable
+		public CustomJsExceptionType getType() {
+			return this.type;
+		}
+
+		public void setType(@Nullable CustomJsExceptionType type) {
+			this.type = type;
+		}
+	}
+
+	@NotThreadSafe
+	private static final class CustomJsValidationException extends CustomJsException {
+		@Nullable
+		private List<ValidationException.FieldError> fieldErrors;
+		@Nullable
+		private List<String> globalErrors;
+		@Nullable
+		private Map<String, Object> metadata;
+
+		@Nullable
+		public List<ValidationException.FieldError> getFieldErrors() {
+			return this.fieldErrors;
+		}
+
+		public void setFieldErrors(@Nullable List<ValidationException.FieldError> fieldErrors) {
+			this.fieldErrors = fieldErrors;
+		}
+
+		@Nullable
+		public List<String> getGlobalErrors() {
+			return this.globalErrors;
+		}
+
+		public void setGlobalErrors(@Nullable List<String> globalErrors) {
+			this.globalErrors = globalErrors;
+		}
+
+		@Nullable
+		public Map<String, Object> getMetadata() {
+			return this.metadata;
+		}
+
+		public void setMetadata(@Nullable Map<String, Object> metadata) {
+			this.metadata = metadata;
 		}
 	}
 
