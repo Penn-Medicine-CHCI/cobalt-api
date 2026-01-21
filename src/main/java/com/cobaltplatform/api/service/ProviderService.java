@@ -2050,8 +2050,37 @@ public class ProviderService {
 		if (command.getAvailability() == ProviderFindAvailability.ALL) {
 			// Next, fill in "booked" slots using appointments on file in our DB.
 			// Ignore times before now!
-			LocalDateTime rightNow = LocalDateTime.now(command.getProvider().getTimeZone());
-			List<Appointment> appointments = getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND start_time > ? AND canceled=FALSE", Appointment.class, command.getProvider().getProviderId(), rightNow);
+			Provider provider = command.getProvider();
+			LocalDateTime rightNow = LocalDateTime.now(provider.getTimeZone());
+			List<Appointment> appointments;
+
+			if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC && provider.getEpicProviderId() != null) {
+				// For scenarios where the same Epic Provider ID might be used across multiple institutions
+				StringBuilder sql = new StringBuilder("""
+						SELECT a.*
+						FROM appointment a
+						JOIN provider p ON p.provider_id=a.provider_id
+						WHERE p.scheduling_system_id=?
+						AND p.epic_provider_id=?
+						AND a.start_time > ?
+						AND a.canceled=FALSE
+						""");
+
+				List<Object> parameters = new ArrayList<>();
+				parameters.add(SchedulingSystemId.EPIC);
+				parameters.add(provider.getEpicProviderId());
+				parameters.add(rightNow);
+
+				if (provider.getEpicProviderIdType() != null) {
+					sql.append(" AND p.epic_provider_id_type=?");
+					parameters.add(provider.getEpicProviderIdType());
+				}
+
+				appointments = getDatabase().queryForList(sql.toString(), Appointment.class, parameters.toArray(new Object[]{}));
+			} else {
+				appointments = getDatabase().queryForList("SELECT * FROM appointment WHERE provider_id=? AND start_time > ? AND canceled=FALSE",
+						Appointment.class, provider.getProviderId(), rightNow);
+			}
 
 			for (Appointment appointment : appointments) {
 				LocalDateTime dateTime = appointment.getStartTime();
