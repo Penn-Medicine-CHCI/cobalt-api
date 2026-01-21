@@ -79,6 +79,7 @@ import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.FeatureService;
 import com.cobaltplatform.api.service.FollowupService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.PatientOrderService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
@@ -165,6 +166,8 @@ public class ProviderResource {
 	@Nonnull
 	private final ScreeningService screeningService;
 	@Nonnull
+	private final PatientOrderService patientOrderService;
+	@Nonnull
 	private final ProviderApiResponseFactory providerApiResponseFactory;
 	@Nonnull
 	private final ClinicApiResponseFactory clinicApiResponseFactory;
@@ -214,6 +217,7 @@ public class ProviderResource {
 													@Nonnull AvailabilityService availabilityService,
 													@Nonnull InstitutionService institutionService,
 													@Nonnull ScreeningService screeningService,
+													@Nonnull PatientOrderService patientOrderService,
 													@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 													@Nonnull ClinicApiResponseFactory clinicApiResponseFactory,
 													@Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
@@ -242,6 +246,7 @@ public class ProviderResource {
 		requireNonNull(availabilityService);
 		requireNonNull(institutionService);
 		requireNonNull(screeningService);
+		requireNonNull(patientOrderService);
 		requireNonNull(providerApiResponseFactory);
 		requireNonNull(clinicApiResponseFactory);
 		requireNonNull(appointmentApiResponseFactory);
@@ -271,6 +276,7 @@ public class ProviderResource {
 		this.availabilityService = availabilityService;
 		this.institutionService = institutionService;
 		this.screeningService = screeningService;
+		this.patientOrderService = patientOrderService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
 		this.clinicApiResponseFactory = clinicApiResponseFactory;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
@@ -312,6 +318,12 @@ public class ProviderResource {
 		// Prevent non-IC institutions from specifying order information
 		if (!institution.getIntegratedCareEnabled())
 			request.setPatientOrderId(null);
+
+		UUID patientOrderId = request.getPatientOrderId();
+		String connectWithSupportDescriptionOverride = null;
+
+		if (patientOrderId != null)
+			connectWithSupportDescriptionOverride = getPatientOrderService().findConnectWithSupportDescriptionOverrideForPatientOrderId(patientOrderId).orElse(null);
 
 		if (request.getStartDate() != null && request.getEndDate() == null)
 			request.setEndDate(request.getStartDate().plusDays(DEFAULT_NUMBER_OF_DAYS_TO_SEARCH));
@@ -749,7 +761,12 @@ public class ProviderResource {
 			return CustomResponse.instance();
 		}
 
+		String pinnedConnectWithSupportDescriptionOverride = connectWithSupportDescriptionOverride;
+
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			if (pinnedConnectWithSupportDescriptionOverride != null)
+				put("connectWithSupportDescriptionOverride", pinnedConnectWithSupportDescriptionOverride);
+
 			put("sections", finalSections);
 			put("appointmentTypes", appointmentTypesJson);
 			put("epicDepartments", epicDepartmentsJson);
@@ -1179,6 +1196,11 @@ public class ProviderResource {
 	@Nonnull
 	protected ScreeningService getScreeningService() {
 		return this.screeningService;
+	}
+
+	@Nonnull
+	protected PatientOrderService getPatientOrderService() {
+		return this.patientOrderService;
 	}
 
 	@Nonnull

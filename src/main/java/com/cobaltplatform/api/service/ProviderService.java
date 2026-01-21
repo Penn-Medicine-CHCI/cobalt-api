@@ -54,7 +54,6 @@ import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
-import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
@@ -568,22 +567,8 @@ public class ProviderService {
 			// If there is an order-level department override, use it.
 			// Otherwise, if the order's department itself has a scheduling override department, use that one instead.
 			if (patientOrderId != null) {
-				// Immediately unwrap the optional because we want to fail-fast and receive an error report if the
-				// patient order ID is invalid - the frontend should never provide an illegal one
-				RawPatientOrder rawPatientOrder = getPatientOrderService().findRawPatientOrderById(patientOrderId).get();
-
-				// First, see if we have an order-level override and use that if so
-				UUID epicDepartmentIdForScheduling = rawPatientOrder.getOverrideSchedulingEpicDepartmentId();
-
-				// If no order-level override was found, pull from the order's department (which might have its own override)
-				if (epicDepartmentIdForScheduling == null) {
-					epicDepartmentIdForScheduling = getDatabase().queryForObject("""
-							SELECT COALESCE(ed.scheduling_override_epic_department_id, ed.epic_department_id) AS epic_department_id_for_scheduling
-							FROM epic_department ed, patient_order po
-							WHERE ed.epic_department_id=po.epic_department_id
-							AND po.patient_order_id=?
-							""", UUID.class, patientOrderId).get();
-				}
+				UUID epicDepartmentIdForScheduling =
+						getPatientOrderService().findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
 
 				// Ensure only the providers in the specified department are shown
 				query.append("""

@@ -482,6 +482,42 @@ public class PatientOrderService implements AutoCloseable {
 	}
 
 	@Nonnull
+	public UUID findSchedulingEpicDepartmentIdForPatientOrderId(@Nonnull UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		// Fail fast if the order doesn't exist
+		RawPatientOrder rawPatientOrder = findRawPatientOrderById(patientOrderId).get();
+
+		// First, see if we have an order-level override and use that if so
+		UUID epicDepartmentIdForScheduling = rawPatientOrder.getOverrideSchedulingEpicDepartmentId();
+
+		// If no order-level override was found, pull from the order's department (which might have its own override)
+		if (epicDepartmentIdForScheduling == null) {
+			epicDepartmentIdForScheduling = getDatabase().queryForObject("""
+					SELECT COALESCE(ed.scheduling_override_epic_department_id, ed.epic_department_id) AS epic_department_id_for_scheduling
+					FROM epic_department ed, patient_order po
+					WHERE ed.epic_department_id=po.epic_department_id
+					AND po.patient_order_id=?
+					""", UUID.class, patientOrderId).get();
+		}
+
+		return epicDepartmentIdForScheduling;
+	}
+
+	@Nonnull
+	public Optional<String> findConnectWithSupportDescriptionOverrideForPatientOrderId(@Nonnull UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		UUID epicDepartmentIdForScheduling = findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
+
+		return getDatabase().queryForObject("""
+				SELECT connect_with_support_description_override
+				FROM epic_department
+				WHERE epic_department_id=?
+				""", String.class, epicDepartmentIdForScheduling);
+	}
+
+	@Nonnull
 	public Optional<PatientOrder> findPatientOrderById(@Nullable UUID patientOrderId) {
 		if (patientOrderId == null)
 			return Optional.empty();
