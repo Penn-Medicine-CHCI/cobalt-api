@@ -770,13 +770,10 @@ public class ProviderService {
 			datesCommand.setAvailability(availability);
 			datesCommand.setEpicDepartmentIds(Set.of());
 
-			// For IC, we discard any availability slots that are not relevant for the order's Epic department
+			// For IC, we discard any availability slots that are not relevant for the order's scheduling Epic department
 			if (patientOrderId != null) {
-				UUID patientOrderEpicDepartmentId = getDatabase().queryForObject("""
-									SELECT epic_department_id
-									FROM patient_order
-									WHERE patient_order_id=?
-						""", UUID.class, patientOrderId).orElse(null);
+				UUID patientOrderEpicDepartmentId =
+						getPatientOrderService().findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
 
 				if (patientOrderEpicDepartmentId != null)
 					datesCommand.setEpicDepartmentIds(Set.of(patientOrderEpicDepartmentId));
