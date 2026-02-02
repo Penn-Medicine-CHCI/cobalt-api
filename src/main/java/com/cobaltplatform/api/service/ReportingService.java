@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.AppointmentTypeAssessment;
@@ -185,6 +186,9 @@ public class ReportingService {
 
 					if (reportType.getReportTypeId() == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
 						return accountCapabilityFlags.isCanAdministerGroupSessions();
+
+					if (reportType.getReportTypeId() == ReportTypeId.SIGN_IN_PAGEVIEW_NO_ACCOUNT)
+						return accountCapabilityFlags.isCanViewAnalytics();
 
 					// TODO: We might re-enable this later
 					// throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
@@ -1463,6 +1467,237 @@ public class ReportingService {
 			csvPrinter.flush();
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
+		}
+	}
+
+	public void runAdminAnalyticsSignInPageviewNoAccountReportCsv(@Nonnull InstitutionId institutionId,
+																																@Nonnull LocalDateTime startDateTime,
+																																@Nonnull LocalDateTime endDateTime,
+																																@Nonnull ZoneId reportTimeZone,
+																																@Nonnull Locale reportLocale,
+																																@Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
+
+		Instant startInstant = startDateTime.atZone(institutionTimeZone).toInstant();
+		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
+
+		List<AdminAnalyticsSignInPageviewNoAccountReportRecord> records = getDatabase().queryForList("""
+						SELECT
+							ane.analytics_native_event_id,
+							ane.timestamp,
+							ane.analytics_native_event_type_id,
+							ane.client_device_id,
+							ane.session_id,
+							ane.webapp_url,
+							ane.referring_message_id,
+							ane.referring_campaign,
+							ane.user_agent,
+							ane.app_name,
+							ane.app_version,
+							ane.client_device_time_zone
+						FROM analytics_native_event ane
+						WHERE ane.institution_id = ?
+							AND ane.timestamp >= ?
+							AND ane.timestamp <= ?
+							AND ane.analytics_native_event_type_id IN (?, ?)
+							AND ane.analytics_native_event_type_id <> ?
+							AND ane.account_id IS NULL
+							AND NOT EXISTS (
+								SELECT 1
+								FROM account_client_device acd
+								WHERE acd.client_device_id = ane.client_device_id
+							)
+						ORDER BY ane.timestamp
+						""", AdminAnalyticsSignInPageviewNoAccountReportRecord.class, institutionId, startInstant, endInstant,
+				AnalyticsNativeEventTypeId.PAGE_VIEW_SIGN_IN, AnalyticsNativeEventTypeId.PAGE_VIEW_SIGN_IN_EMAIL,
+				AnalyticsNativeEventTypeId.HEARTBEAT);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+				.withZone(institutionTimeZone)
+				.withLocale(reportLocale);
+
+		List<String> headerColumns = List.of(
+				getStrings().get("Event ID"),
+				getStrings().get("Event Timestamp ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Event Type"),
+				getStrings().get("Client Device ID"),
+				getStrings().get("Session ID"),
+				getStrings().get("Webapp URL"),
+				getStrings().get("Referring Message ID"),
+				getStrings().get("Referring Campaign"),
+				getStrings().get("User Agent"),
+				getStrings().get("App Name"),
+				getStrings().get("App Version"),
+				getStrings().get("Client Device Time Zone")
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			for (AdminAnalyticsSignInPageviewNoAccountReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(12);
+
+				recordElements.add(record.getAnalyticsNativeEventId() == null ? "" : record.getAnalyticsNativeEventId().toString());
+				recordElements.add(record.getTimestamp() == null ? "" : dateTimeFormatter.format(record.getTimestamp()));
+				recordElements.add(record.getAnalyticsNativeEventTypeId() == null ? "" : record.getAnalyticsNativeEventTypeId().name());
+				recordElements.add(record.getClientDeviceId() == null ? "" : record.getClientDeviceId().toString());
+				recordElements.add(record.getSessionId() == null ? "" : record.getSessionId().toString());
+				recordElements.add(record.getWebappUrl());
+				recordElements.add(record.getReferringMessageId() == null ? "" : record.getReferringMessageId().toString());
+				recordElements.add(record.getReferringCampaign());
+				recordElements.add(record.getUserAgent());
+				recordElements.add(record.getAppName());
+				recordElements.add(record.getAppVersion());
+				recordElements.add(record.getClientDeviceTimeZone());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AdminAnalyticsSignInPageviewNoAccountReportRecord {
+		@Nullable
+		private UUID analyticsNativeEventId;
+		@Nullable
+		private Instant timestamp;
+		@Nullable
+		private AnalyticsNativeEventTypeId analyticsNativeEventTypeId;
+		@Nullable
+		private UUID clientDeviceId;
+		@Nullable
+		private UUID sessionId;
+		@Nullable
+		private String webappUrl;
+		@Nullable
+		private UUID referringMessageId;
+		@Nullable
+		private String referringCampaign;
+		@Nullable
+		private String userAgent;
+		@Nullable
+		private String appName;
+		@Nullable
+		private String appVersion;
+		@Nullable
+		private String clientDeviceTimeZone;
+
+		@Nullable
+		public UUID getAnalyticsNativeEventId() {
+			return analyticsNativeEventId;
+		}
+
+		public void setAnalyticsNativeEventId(@Nullable UUID analyticsNativeEventId) {
+			this.analyticsNativeEventId = analyticsNativeEventId;
+		}
+
+		@Nullable
+		public Instant getTimestamp() {
+			return timestamp;
+		}
+
+		public void setTimestamp(@Nullable Instant timestamp) {
+			this.timestamp = timestamp;
+		}
+
+		@Nullable
+		public AnalyticsNativeEventTypeId getAnalyticsNativeEventTypeId() {
+			return analyticsNativeEventTypeId;
+		}
+
+		public void setAnalyticsNativeEventTypeId(@Nullable AnalyticsNativeEventTypeId analyticsNativeEventTypeId) {
+			this.analyticsNativeEventTypeId = analyticsNativeEventTypeId;
+		}
+
+		@Nullable
+		public UUID getClientDeviceId() {
+			return clientDeviceId;
+		}
+
+		public void setClientDeviceId(@Nullable UUID clientDeviceId) {
+			this.clientDeviceId = clientDeviceId;
+		}
+
+		@Nullable
+		public UUID getSessionId() {
+			return sessionId;
+		}
+
+		public void setSessionId(@Nullable UUID sessionId) {
+			this.sessionId = sessionId;
+		}
+
+		@Nullable
+		public String getWebappUrl() {
+			return webappUrl;
+		}
+
+		public void setWebappUrl(@Nullable String webappUrl) {
+			this.webappUrl = webappUrl;
+		}
+
+		@Nullable
+		public UUID getReferringMessageId() {
+			return referringMessageId;
+		}
+
+		public void setReferringMessageId(@Nullable UUID referringMessageId) {
+			this.referringMessageId = referringMessageId;
+		}
+
+		@Nullable
+		public String getReferringCampaign() {
+			return referringCampaign;
+		}
+
+		public void setReferringCampaign(@Nullable String referringCampaign) {
+			this.referringCampaign = referringCampaign;
+		}
+
+		@Nullable
+		public String getUserAgent() {
+			return userAgent;
+		}
+
+		public void setUserAgent(@Nullable String userAgent) {
+			this.userAgent = userAgent;
+		}
+
+		@Nullable
+		public String getAppName() {
+			return appName;
+		}
+
+		public void setAppName(@Nullable String appName) {
+			this.appName = appName;
+		}
+
+		@Nullable
+		public String getAppVersion() {
+			return appVersion;
+		}
+
+		public void setAppVersion(@Nullable String appVersion) {
+			this.appVersion = appVersion;
+		}
+
+		@Nullable
+		public String getClientDeviceTimeZone() {
+			return clientDeviceTimeZone;
+		}
+
+		public void setClientDeviceTimeZone(@Nullable String clientDeviceTimeZone) {
+			this.clientDeviceTimeZone = clientDeviceTimeZone;
 		}
 	}
 
