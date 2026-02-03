@@ -190,6 +190,9 @@ public class ReportingService {
 					if (reportType.getReportTypeId() == ReportTypeId.SIGN_IN_PAGEVIEW_NO_ACCOUNT)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
+					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_SIGNUP_UNVERIFIED)
+						return accountCapabilityFlags.isCanViewAnalytics();
+
 					// TODO: We might re-enable this later
 					// throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
 					//		ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
@@ -1565,6 +1568,85 @@ public class ReportingService {
 		}
 	}
 
+	public void runAdminAnalyticsAccountSignupUnverifiedReportCsv(@Nonnull InstitutionId institutionId,
+																																@Nonnull LocalDateTime startDateTime,
+																																@Nonnull LocalDateTime endDateTime,
+																																@Nonnull ZoneId reportTimeZone,
+																																@Nonnull Locale reportLocale,
+																																@Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
+
+		Instant startInstant = startDateTime.atZone(institutionTimeZone).toInstant();
+		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
+
+		List<AdminAnalyticsAccountSignupUnverifiedReportRecord> records = getDatabase().queryForList("""
+				SELECT
+					a.account_id,
+					a.created,
+					a.email_address,
+					a.first_name,
+					a.last_name,
+					a.role_id,
+					a.account_source_id
+				FROM account a
+				WHERE a.institution_id = ?
+					AND a.created >= ?
+					AND a.created <= ?
+					AND a.account_source_id = ?
+					AND a.email_address IS NOT NULL
+					AND NOT EXISTS (
+						SELECT 1
+						FROM account_email_verification aev
+						WHERE aev.account_id = a.account_id
+						AND aev.verified = TRUE
+					)
+				ORDER BY a.created
+				""", AdminAnalyticsAccountSignupUnverifiedReportRecord.class, institutionId, startInstant, endInstant,
+				AccountSource.AccountSourceId.EMAIL_PASSWORD);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+				.withZone(institutionTimeZone)
+				.withLocale(reportLocale);
+
+		List<String> headerColumns = List.of(
+				getStrings().get("Account ID"),
+				getStrings().get("Created At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Email Address"),
+				getStrings().get("First Name"),
+				getStrings().get("Last Name"),
+				getStrings().get("Role ID"),
+				getStrings().get("Account Source ID")
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			for (AdminAnalyticsAccountSignupUnverifiedReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(7);
+
+				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
+				recordElements.add(record.getCreated() == null ? "" : dateTimeFormatter.format(record.getCreated()));
+				recordElements.add(record.getEmailAddress());
+				recordElements.add(record.getFirstName());
+				recordElements.add(record.getLastName());
+				recordElements.add(record.getRoleId());
+				recordElements.add(record.getAccountSourceId() == null ? "" : record.getAccountSourceId().name());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
 	@NotThreadSafe
 	protected static class AdminAnalyticsSignInPageviewNoAccountReportRecord {
 		@Nullable
@@ -1698,6 +1780,87 @@ public class ReportingService {
 
 		public void setClientDeviceTimeZone(@Nullable String clientDeviceTimeZone) {
 			this.clientDeviceTimeZone = clientDeviceTimeZone;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AdminAnalyticsAccountSignupUnverifiedReportRecord {
+		@Nullable
+		private UUID accountId;
+		@Nullable
+		private Instant created;
+		@Nullable
+		private String emailAddress;
+		@Nullable
+		private String firstName;
+		@Nullable
+		private String lastName;
+		@Nullable
+		private String roleId;
+		@Nullable
+		private AccountSource.AccountSourceId accountSourceId;
+
+		@Nullable
+		public UUID getAccountId() {
+			return accountId;
+		}
+
+		public void setAccountId(@Nullable UUID accountId) {
+			this.accountId = accountId;
+		}
+
+		@Nullable
+		public Instant getCreated() {
+			return created;
+		}
+
+		public void setCreated(@Nullable Instant created) {
+			this.created = created;
+		}
+
+		@Nullable
+		public String getEmailAddress() {
+			return emailAddress;
+		}
+
+		public void setEmailAddress(@Nullable String emailAddress) {
+			this.emailAddress = emailAddress;
+		}
+
+		@Nullable
+		public String getFirstName() {
+			return firstName;
+		}
+
+		public void setFirstName(@Nullable String firstName) {
+			this.firstName = firstName;
+		}
+
+		@Nullable
+		public String getLastName() {
+			return lastName;
+		}
+
+		public void setLastName(@Nullable String lastName) {
+			this.lastName = lastName;
+		}
+
+		@Nullable
+		public String getRoleId() {
+			return roleId;
+		}
+
+		public void setRoleId(@Nullable String roleId) {
+			this.roleId = roleId;
+		}
+
+		@Nullable
+		public AccountSource.AccountSourceId getAccountSourceId() {
+			return accountSourceId;
+		}
+
+		public void setAccountSourceId(@Nullable AccountSource.AccountSourceId accountSourceId) {
+			this.accountSourceId = accountSourceId;
 		}
 	}
 
