@@ -10,4 +10,7 @@ VALUES ('ACCOUNT_SIGNUP_UNVERIFIED', 'Analytics - Account Signups (Unverified)',
 INSERT INTO report_type (report_type_id, description, display_order)
 VALUES ('ACCOUNT_ONBOARDING_INCOMPLETE', 'Analytics - Onboarding Incomplete Accounts', 116);
 
+INSERT INTO report_type (report_type_id, description, display_order)
+VALUES ('ACCOUNT_ONBOARDING_COMPLETE', 'Analytics - Onboarding Complete Accounts', 117);
+
 COMMIT;
