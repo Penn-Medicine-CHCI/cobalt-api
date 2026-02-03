@@ -1638,9 +1638,9 @@ public class ReportingService {
 
 				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
 				recordElements.add(record.getCreated() == null ? "" : dateTimeFormatter.format(record.getCreated()));
-				recordElements.add(record.getEmailAddress());
-				recordElements.add(record.getFirstName());
-				recordElements.add(record.getLastName());
+				recordElements.add(obfuscateEmailAddress(record.getEmailAddress()));
+				recordElements.add(obfuscateName(record.getFirstName()));
+				recordElements.add(obfuscateName(record.getLastName()));
 				recordElements.add(record.getRoleId());
 				recordElements.add(record.getAccountSourceId() == null ? "" : record.getAccountSourceId().name());
 
@@ -1769,9 +1769,9 @@ public class ReportingService {
 
 				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
 				recordElements.add(record.getAccountCreatedAt() == null ? "" : dateTimeFormatter.format(record.getAccountCreatedAt()));
-				recordElements.add(record.getEmailAddress());
-				recordElements.add(record.getFirstName());
-				recordElements.add(record.getLastName());
+				recordElements.add(obfuscateEmailAddress(record.getEmailAddress()));
+				recordElements.add(obfuscateName(record.getFirstName()));
+				recordElements.add(obfuscateName(record.getLastName()));
 				recordElements.add(record.getRoleId());
 				recordElements.add(record.getAccountSourceId() == null ? "" : record.getAccountSourceId().name());
 				recordElements.add(record.getOnboardingScreeningFlowId() == null ? "" : record.getOnboardingScreeningFlowId().toString());
@@ -1906,9 +1906,9 @@ public class ReportingService {
 
 				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
 				recordElements.add(record.getAccountCreatedAt() == null ? "" : dateTimeFormatter.format(record.getAccountCreatedAt()));
-				recordElements.add(record.getEmailAddress());
-				recordElements.add(record.getFirstName());
-				recordElements.add(record.getLastName());
+				recordElements.add(obfuscateEmailAddress(record.getEmailAddress()));
+				recordElements.add(obfuscateName(record.getFirstName()));
+				recordElements.add(obfuscateName(record.getLastName()));
 				recordElements.add(record.getRoleId());
 				recordElements.add(record.getAccountSourceId() == null ? "" : record.getAccountSourceId().name());
 				recordElements.add(record.getOnboardingScreeningFlowId() == null ? "" : record.getOnboardingScreeningFlowId().toString());
@@ -1933,6 +1933,44 @@ public class ReportingService {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	@Nonnull
+	private String obfuscateEmailAddress(@Nullable String emailAddress) {
+		if (emailAddress == null)
+			return "";
+
+		String trimmed = emailAddress.trim();
+
+		if (trimmed.isEmpty())
+			return "";
+
+		int atIndex = trimmed.indexOf('@');
+
+		if (atIndex <= 0)
+			return obfuscateName(trimmed);
+
+		String username = trimmed.substring(0, atIndex);
+		String domain = trimmed.substring(atIndex + 1);
+		String initial = username.substring(0, 1);
+
+		if (domain.isBlank())
+			return format("%s***@", initial);
+
+		return format("%s***@%s", initial, domain);
+	}
+
+	@Nonnull
+	private String obfuscateName(@Nullable String name) {
+		if (name == null)
+			return "";
+
+		String trimmed = name.trim();
+
+		if (trimmed.isEmpty())
+			return "";
+
+		return format("%s***", trimmed.substring(0, 1));
 	}
 
 	@NotThreadSafe
