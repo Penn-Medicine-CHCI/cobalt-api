@@ -210,6 +210,8 @@ public class ReportingResource {
 				getReportingService().runAdminAnalyticsSignInPageviewNoAccountReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.ACCOUNT_SIGNUP_UNVERIFIED)
 				getReportingService().runAdminAnalyticsAccountSignupUnverifiedReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.ACCOUNT_ONBOARDING_INCOMPLETE)
+				getReportingService().runAdminAnalyticsAccountOnboardingIncompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else
 				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));
 		}

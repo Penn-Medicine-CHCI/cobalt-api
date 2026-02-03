@@ -193,6 +193,9 @@ public class ReportingService {
 					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_SIGNUP_UNVERIFIED)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
+					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_ONBOARDING_INCOMPLETE)
+						return accountCapabilityFlags.isCanViewAnalytics();
+
 					// TODO: We might re-enable this later
 					// throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
 					//		ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
@@ -1647,6 +1650,151 @@ public class ReportingService {
 		}
 	}
 
+	public void runAdminAnalyticsAccountOnboardingIncompleteReportCsv(@Nonnull InstitutionId institutionId,
+																																	@Nonnull LocalDateTime startDateTime,
+																																	@Nonnull LocalDateTime endDateTime,
+																																	@Nonnull ZoneId reportTimeZone,
+																																	@Nonnull Locale reportLocale,
+																																	@Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
+
+		Instant startInstant = startDateTime.atZone(institutionTimeZone).toInstant();
+		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
+
+		List<AdminAnalyticsAccountOnboardingIncompleteReportRecord> records = getDatabase().queryForList("""
+				SELECT
+					a.account_id,
+					a.created AS account_created_at,
+					a.email_address,
+					a.first_name,
+					a.last_name,
+					a.role_id,
+					a.account_source_id,
+					i.onboarding_screening_flow_id,
+					ss.screening_session_id,
+					ss.created AS screening_session_created_at,
+					ss.completed AS screening_session_completed,
+					ss.completed_at AS screening_session_completed_at,
+					ss.skipped AS screening_session_skipped,
+					ss.skipped_at AS screening_session_skipped_at,
+					sss.screening_session_screening_id,
+					s.name AS screening_name,
+					sq.question_text,
+					sao.answer_option_text,
+					sa.text AS answer_freeform_text,
+					sao.score AS answer_score,
+					sa.created AS answer_created_at
+				FROM account a
+				JOIN institution i
+					ON a.institution_id = i.institution_id
+				LEFT JOIN screening_session ss
+					ON ss.target_account_id = a.account_id
+					AND ss.screening_flow_version_id IN (
+						SELECT screening_flow_version_id
+						FROM screening_flow_version
+						WHERE screening_flow_id = i.onboarding_screening_flow_id
+					)
+				LEFT JOIN v_screening_session_screening sss
+					ON sss.screening_session_id = ss.screening_session_id
+				LEFT JOIN v_screening_session_answered_screening_question ssasq
+					ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+				LEFT JOIN screening_question sq
+					ON ssasq.screening_question_id = sq.screening_question_id
+				LEFT JOIN v_screening_answer sa
+					ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+				LEFT JOIN screening_answer_option sao
+					ON sa.screening_answer_option_id = sao.screening_answer_option_id
+				LEFT JOIN screening_version sv
+					ON sss.screening_version_id = sv.screening_version_id
+				LEFT JOIN screening s
+					ON sv.screening_id = s.screening_id
+				WHERE a.institution_id = ?
+					AND i.onboarding_screening_flow_id IS NOT NULL
+					AND a.created >= ?
+					AND a.created <= ?
+					AND NOT EXISTS (
+						SELECT 1
+						FROM screening_session ss_completed
+						JOIN screening_flow_version sfv_completed
+							ON sfv_completed.screening_flow_version_id = ss_completed.screening_flow_version_id
+						WHERE ss_completed.target_account_id = a.account_id
+							AND sfv_completed.screening_flow_id = i.onboarding_screening_flow_id
+							AND ss_completed.completed = TRUE
+					)
+				ORDER BY a.created, ss.created, sa.created
+				""", AdminAnalyticsAccountOnboardingIncompleteReportRecord.class, institutionId, startInstant, endInstant);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+				.withZone(institutionTimeZone)
+				.withLocale(reportLocale);
+
+		List<String> headerColumns = List.of(
+				getStrings().get("Account ID"),
+				getStrings().get("Account Created At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Email Address"),
+				getStrings().get("First Name"),
+				getStrings().get("Last Name"),
+				getStrings().get("Role ID"),
+				getStrings().get("Account Source ID"),
+				getStrings().get("Onboarding Screening Flow ID"),
+				getStrings().get("Screening Session ID"),
+				getStrings().get("Screening Session Created At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Screening Session Completed"),
+				getStrings().get("Screening Session Completed At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Screening Session Skipped"),
+				getStrings().get("Screening Session Skipped At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Screening Session Screening ID"),
+				getStrings().get("Screening Name"),
+				getStrings().get("Question"),
+				getStrings().get("Answer Option"),
+				getStrings().get("Answer Freeform Text"),
+				getStrings().get("Answer Score"),
+				getStrings().get("Answer Created At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId()))
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			for (AdminAnalyticsAccountOnboardingIncompleteReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(21);
+
+				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
+				recordElements.add(record.getAccountCreatedAt() == null ? "" : dateTimeFormatter.format(record.getAccountCreatedAt()));
+				recordElements.add(record.getEmailAddress());
+				recordElements.add(record.getFirstName());
+				recordElements.add(record.getLastName());
+				recordElements.add(record.getRoleId());
+				recordElements.add(record.getAccountSourceId() == null ? "" : record.getAccountSourceId().name());
+				recordElements.add(record.getOnboardingScreeningFlowId() == null ? "" : record.getOnboardingScreeningFlowId().toString());
+				recordElements.add(record.getScreeningSessionId() == null ? "" : record.getScreeningSessionId().toString());
+				recordElements.add(record.getScreeningSessionCreatedAt() == null ? "" : dateTimeFormatter.format(record.getScreeningSessionCreatedAt()));
+				recordElements.add(record.getScreeningSessionCompleted() == null ? "" : record.getScreeningSessionCompleted().toString());
+				recordElements.add(record.getScreeningSessionCompletedAt() == null ? "" : dateTimeFormatter.format(record.getScreeningSessionCompletedAt()));
+				recordElements.add(record.getScreeningSessionSkipped() == null ? "" : record.getScreeningSessionSkipped().toString());
+				recordElements.add(record.getScreeningSessionSkippedAt() == null ? "" : dateTimeFormatter.format(record.getScreeningSessionSkippedAt()));
+				recordElements.add(record.getScreeningSessionScreeningId() == null ? "" : record.getScreeningSessionScreeningId().toString());
+				recordElements.add(record.getScreeningName());
+				recordElements.add(record.getQuestionText());
+				recordElements.add(record.getAnswerOptionText());
+				recordElements.add(record.getAnswerFreeformText());
+				recordElements.add(record.getAnswerScore() == null ? "" : record.getAnswerScore().toString());
+				recordElements.add(record.getAnswerCreatedAt() == null ? "" : dateTimeFormatter.format(record.getAnswerCreatedAt()));
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
 	@NotThreadSafe
 	protected static class AdminAnalyticsSignInPageviewNoAccountReportRecord {
 		@Nullable
@@ -1861,6 +2009,241 @@ public class ReportingService {
 
 		public void setAccountSourceId(@Nullable AccountSource.AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AdminAnalyticsAccountOnboardingIncompleteReportRecord {
+		@Nullable
+		private UUID accountId;
+		@Nullable
+		private Instant accountCreatedAt;
+		@Nullable
+		private String emailAddress;
+		@Nullable
+		private String firstName;
+		@Nullable
+		private String lastName;
+		@Nullable
+		private String roleId;
+		@Nullable
+		private AccountSource.AccountSourceId accountSourceId;
+		@Nullable
+		private UUID onboardingScreeningFlowId;
+		@Nullable
+		private UUID screeningSessionId;
+		@Nullable
+		private Instant screeningSessionCreatedAt;
+		@Nullable
+		private Boolean screeningSessionCompleted;
+		@Nullable
+		private Instant screeningSessionCompletedAt;
+		@Nullable
+		private Boolean screeningSessionSkipped;
+		@Nullable
+		private Instant screeningSessionSkippedAt;
+		@Nullable
+		private UUID screeningSessionScreeningId;
+		@Nullable
+		private String screeningName;
+		@Nullable
+		private String questionText;
+		@Nullable
+		private String answerOptionText;
+		@Nullable
+		private String answerFreeformText;
+		@Nullable
+		private Integer answerScore;
+		@Nullable
+		private Instant answerCreatedAt;
+
+		@Nullable
+		public UUID getAccountId() {
+			return accountId;
+		}
+
+		public void setAccountId(@Nullable UUID accountId) {
+			this.accountId = accountId;
+		}
+
+		@Nullable
+		public Instant getAccountCreatedAt() {
+			return accountCreatedAt;
+		}
+
+		public void setAccountCreatedAt(@Nullable Instant accountCreatedAt) {
+			this.accountCreatedAt = accountCreatedAt;
+		}
+
+		@Nullable
+		public String getEmailAddress() {
+			return emailAddress;
+		}
+
+		public void setEmailAddress(@Nullable String emailAddress) {
+			this.emailAddress = emailAddress;
+		}
+
+		@Nullable
+		public String getFirstName() {
+			return firstName;
+		}
+
+		public void setFirstName(@Nullable String firstName) {
+			this.firstName = firstName;
+		}
+
+		@Nullable
+		public String getLastName() {
+			return lastName;
+		}
+
+		public void setLastName(@Nullable String lastName) {
+			this.lastName = lastName;
+		}
+
+		@Nullable
+		public String getRoleId() {
+			return roleId;
+		}
+
+		public void setRoleId(@Nullable String roleId) {
+			this.roleId = roleId;
+		}
+
+		@Nullable
+		public AccountSource.AccountSourceId getAccountSourceId() {
+			return accountSourceId;
+		}
+
+		public void setAccountSourceId(@Nullable AccountSource.AccountSourceId accountSourceId) {
+			this.accountSourceId = accountSourceId;
+		}
+
+		@Nullable
+		public UUID getOnboardingScreeningFlowId() {
+			return onboardingScreeningFlowId;
+		}
+
+		public void setOnboardingScreeningFlowId(@Nullable UUID onboardingScreeningFlowId) {
+			this.onboardingScreeningFlowId = onboardingScreeningFlowId;
+		}
+
+		@Nullable
+		public UUID getScreeningSessionId() {
+			return screeningSessionId;
+		}
+
+		public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
+			this.screeningSessionId = screeningSessionId;
+		}
+
+		@Nullable
+		public Instant getScreeningSessionCreatedAt() {
+			return screeningSessionCreatedAt;
+		}
+
+		public void setScreeningSessionCreatedAt(@Nullable Instant screeningSessionCreatedAt) {
+			this.screeningSessionCreatedAt = screeningSessionCreatedAt;
+		}
+
+		@Nullable
+		public Boolean getScreeningSessionCompleted() {
+			return screeningSessionCompleted;
+		}
+
+		public void setScreeningSessionCompleted(@Nullable Boolean screeningSessionCompleted) {
+			this.screeningSessionCompleted = screeningSessionCompleted;
+		}
+
+		@Nullable
+		public Instant getScreeningSessionCompletedAt() {
+			return screeningSessionCompletedAt;
+		}
+
+		public void setScreeningSessionCompletedAt(@Nullable Instant screeningSessionCompletedAt) {
+			this.screeningSessionCompletedAt = screeningSessionCompletedAt;
+		}
+
+		@Nullable
+		public Boolean getScreeningSessionSkipped() {
+			return screeningSessionSkipped;
+		}
+
+		public void setScreeningSessionSkipped(@Nullable Boolean screeningSessionSkipped) {
+			this.screeningSessionSkipped = screeningSessionSkipped;
+		}
+
+		@Nullable
+		public Instant getScreeningSessionSkippedAt() {
+			return screeningSessionSkippedAt;
+		}
+
+		public void setScreeningSessionSkippedAt(@Nullable Instant screeningSessionSkippedAt) {
+			this.screeningSessionSkippedAt = screeningSessionSkippedAt;
+		}
+
+		@Nullable
+		public UUID getScreeningSessionScreeningId() {
+			return screeningSessionScreeningId;
+		}
+
+		public void setScreeningSessionScreeningId(@Nullable UUID screeningSessionScreeningId) {
+			this.screeningSessionScreeningId = screeningSessionScreeningId;
+		}
+
+		@Nullable
+		public String getScreeningName() {
+			return screeningName;
+		}
+
+		public void setScreeningName(@Nullable String screeningName) {
+			this.screeningName = screeningName;
+		}
+
+		@Nullable
+		public String getQuestionText() {
+			return questionText;
+		}
+
+		public void setQuestionText(@Nullable String questionText) {
+			this.questionText = questionText;
+		}
+
+		@Nullable
+		public String getAnswerOptionText() {
+			return answerOptionText;
+		}
+
+		public void setAnswerOptionText(@Nullable String answerOptionText) {
+			this.answerOptionText = answerOptionText;
+		}
+
+		@Nullable
+		public String getAnswerFreeformText() {
+			return answerFreeformText;
+		}
+
+		public void setAnswerFreeformText(@Nullable String answerFreeformText) {
+			this.answerFreeformText = answerFreeformText;
+		}
+
+		@Nullable
+		public Integer getAnswerScore() {
+			return answerScore;
+		}
+
+		public void setAnswerScore(@Nullable Integer answerScore) {
+			this.answerScore = answerScore;
+		}
+
+		@Nullable
+		public Instant getAnswerCreatedAt() {
+			return answerCreatedAt;
+		}
+
+		public void setAnswerCreatedAt(@Nullable Instant answerCreatedAt) {
+			this.answerCreatedAt = answerCreatedAt;
 		}
 	}
 
