@@ -21,7 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
-import com.cobaltplatform.api.model.db.AccountSource;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
@@ -1594,29 +1594,29 @@ public class ReportingService {
 		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
 
 		List<AdminAnalyticsAccountSignupUnverifiedReportRecord> records = getDatabase().queryForList("""
-				SELECT
-					a.account_id,
-					a.created,
-					a.email_address,
-					a.first_name,
-					a.last_name,
-					a.role_id,
-					a.account_source_id
-				FROM account a
-				WHERE a.institution_id = ?
-					AND a.created >= ?
-					AND a.created <= ?
-					AND a.account_source_id = ?
-					AND a.email_address IS NOT NULL
-					AND NOT EXISTS (
-						SELECT 1
-						FROM account_email_verification aev
-						WHERE aev.account_id = a.account_id
-						AND aev.verified = TRUE
-					)
-				ORDER BY a.created
-				""", AdminAnalyticsAccountSignupUnverifiedReportRecord.class, institutionId, startInstant, endInstant,
-				AccountSource.AccountSourceId.EMAIL_PASSWORD);
+						SELECT
+							a.account_id,
+							a.created,
+							a.email_address,
+							a.first_name,
+							a.last_name,
+							a.role_id,
+							a.account_source_id
+						FROM account a
+						WHERE a.institution_id = ?
+							AND a.created >= ?
+							AND a.created <= ?
+							AND a.account_source_id = ?
+							AND a.email_address IS NOT NULL
+							AND NOT EXISTS (
+								SELECT 1
+								FROM account_email_verification aev
+								WHERE aev.account_id = a.account_id
+								AND aev.verified = TRUE
+							)
+						ORDER BY a.created
+						""", AdminAnalyticsAccountSignupUnverifiedReportRecord.class, institutionId, startInstant, endInstant,
+				AccountSourceId.EMAIL_PASSWORD);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(institutionTimeZone)
@@ -1654,11 +1654,11 @@ public class ReportingService {
 	}
 
 	public void runAdminAnalyticsAccountOnboardingIncompleteReportCsv(@Nonnull InstitutionId institutionId,
-																																	@Nonnull LocalDateTime startDateTime,
-																																	@Nonnull LocalDateTime endDateTime,
-																																	@Nonnull ZoneId reportTimeZone,
-																																	@Nonnull Locale reportLocale,
-																																	@Nonnull Writer writer) {
+																																		@Nonnull LocalDateTime startDateTime,
+																																		@Nonnull LocalDateTime endDateTime,
+																																		@Nonnull ZoneId reportTimeZone,
+																																		@Nonnull Locale reportLocale,
+																																		@Nonnull Writer writer) {
 		requireNonNull(institutionId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
@@ -1799,11 +1799,11 @@ public class ReportingService {
 	}
 
 	public void runAdminAnalyticsAccountOnboardingCompleteReportCsv(@Nonnull InstitutionId institutionId,
-																																@Nonnull LocalDateTime startDateTime,
-																																@Nonnull LocalDateTime endDateTime,
-																																@Nonnull ZoneId reportTimeZone,
-																																@Nonnull Locale reportLocale,
-																																@Nonnull Writer writer) {
+																																	@Nonnull LocalDateTime startDateTime,
+																																	@Nonnull LocalDateTime endDateTime,
+																																	@Nonnull ZoneId reportTimeZone,
+																																	@Nonnull Locale reportLocale,
+																																	@Nonnull Writer writer) {
 		requireNonNull(institutionId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
@@ -2124,7 +2124,7 @@ public class ReportingService {
 		@Nullable
 		private String roleId;
 		@Nullable
-		private AccountSource.AccountSourceId accountSourceId;
+		private AccountSourceId accountSourceId;
 
 		@Nullable
 		public UUID getAccountId() {
@@ -2181,11 +2181,11 @@ public class ReportingService {
 		}
 
 		@Nullable
-		public AccountSource.AccountSourceId getAccountSourceId() {
+		public AccountSourceId getAccountSourceId() {
 			return accountSourceId;
 		}
 
-		public void setAccountSourceId(@Nullable AccountSource.AccountSourceId accountSourceId) {
+		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
 		}
 	}
@@ -2205,7 +2205,7 @@ public class ReportingService {
 		@Nullable
 		private String roleId;
 		@Nullable
-		private AccountSource.AccountSourceId accountSourceId;
+		private AccountSourceId accountSourceId;
 		@Nullable
 		private UUID onboardingScreeningFlowId;
 		@Nullable
@@ -2290,11 +2290,11 @@ public class ReportingService {
 		}
 
 		@Nullable
-		public AccountSource.AccountSourceId getAccountSourceId() {
+		public AccountSourceId getAccountSourceId() {
 			return accountSourceId;
 		}
 
-		public void setAccountSourceId(@Nullable AccountSource.AccountSourceId accountSourceId) {
+		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
 		}
 
@@ -2893,7 +2893,7 @@ public class ReportingService {
 		@Nullable
 		private String accountEmailAddress;
 		@Nullable
-		private AccountSource.AccountSourceId accountSourceId;
+		private AccountSourceId accountSourceId;
 		@Nullable
 		private AssessmentAnswer firstNameAnswer;
 		@Nullable
@@ -2913,11 +2913,11 @@ public class ReportingService {
 		}
 
 		@Nullable
-		public AccountSource.AccountSourceId getAccountSourceId() {
+		public AccountSourceId getAccountSourceId() {
 			return this.accountSourceId;
 		}
 
-		public void setAccountSourceId(@Nullable AccountSource.AccountSourceId accountSourceId) {
+		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
 		}
 
