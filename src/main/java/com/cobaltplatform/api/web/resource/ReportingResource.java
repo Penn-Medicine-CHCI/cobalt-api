@@ -206,6 +206,14 @@ public class ReportingResource {
 				getReportingService().runIcTriageReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.GROUP_SESSION_RESERVATION_EMAILS)
 				getReportingService().runGroupSessionReservationEmailsReportCsv(groupSessionId.get(), reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.SIGN_IN_PAGEVIEW_NO_ACCOUNT)
+				getReportingService().runAdminAnalyticsSignInPageviewNoAccountReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.ACCOUNT_SIGNUP_UNVERIFIED)
+				getReportingService().runAdminAnalyticsAccountSignupUnverifiedReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.ACCOUNT_ONBOARDING_INCOMPLETE)
+				getReportingService().runAdminAnalyticsAccountOnboardingIncompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.ACCOUNT_ONBOARDING_COMPLETE)
+				getReportingService().runAdminAnalyticsAccountOnboardingCompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else
 				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));
 		}
