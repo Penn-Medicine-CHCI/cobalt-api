@@ -42,6 +42,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
@@ -1519,6 +1520,10 @@ public class ReportingService {
 							AND ane.analytics_native_event_type_id IN (?, ?)
 							AND ane.analytics_native_event_type_id <> ?
 							AND ane.account_id IS NULL
+							AND ane.user_agent_device_family IS NOT NULL
+							AND ane.user_agent_device_family <> ALL (
+								ARRAY['Googlebot'::text, 'Spider'::text, 'Baiduspider'::text, 'facebookexternalhit'::text]
+							)
 							AND NOT EXISTS (
 								SELECT 1
 								FROM account_client_device acd
@@ -1596,27 +1601,33 @@ public class ReportingService {
 		List<AdminAnalyticsAccountSignupUnverifiedReportRecord> records = getDatabase().queryForList("""
 						SELECT
 							a.account_id,
-							a.created,
-							a.email_address,
+							ai.created,
+							ai.email_address,
 							a.first_name,
 							a.last_name,
 							a.role_id,
 							a.account_source_id
-						FROM account a
-						WHERE a.institution_id = ?
-							AND a.created >= ?
-							AND a.created <= ?
-							AND a.account_source_id = ?
-							AND a.email_address IS NOT NULL
+						FROM account_invite ai
+						LEFT JOIN account a
+							ON a.institution_id = ai.institution_id
+							AND LOWER(a.email_address) = LOWER(ai.email_address)
+						WHERE ai.institution_id = ?
+							AND ai.created >= ?
+							AND ai.created <= ?
+							AND ai.claimed = FALSE
 							AND NOT EXISTS (
 								SELECT 1
-								FROM account_email_verification aev
-								WHERE aev.account_id = a.account_id
-								AND aev.verified = TRUE
+								FROM account_invite ai_claimed
+								WHERE ai_claimed.institution_id = ai.institution_id
+									AND LOWER(ai_claimed.email_address) = LOWER(ai.email_address)
+									AND ai_claimed.claimed = TRUE
 							)
-						ORDER BY a.created
+							AND (a.account_id IS NULL OR a.role_id = ?)
+							AND (a.account_id IS NULL OR a.test_account = FALSE)
+							AND (a.account_id IS NULL OR a.account_source_id = ?)
+						ORDER BY ai.created
 						""", AdminAnalyticsAccountSignupUnverifiedReportRecord.class, institutionId, startInstant, endInstant,
-				AccountSourceId.EMAIL_PASSWORD);
+				RoleId.PATIENT, AccountSourceId.EMAIL_PASSWORD);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(institutionTimeZone)
@@ -1723,6 +1734,8 @@ public class ReportingService {
 					AND i.onboarding_screening_flow_id IS NOT NULL
 					AND a.created >= ?
 					AND a.created <= ?
+					AND a.role_id = ?
+					AND a.test_account = FALSE
 					AND NOT EXISTS (
 						SELECT 1
 						FROM screening_session ss_completed
@@ -1733,7 +1746,8 @@ public class ReportingService {
 							AND ss_completed.completed = TRUE
 					)
 				ORDER BY a.created, ss.created, sa.created
-				""", AdminAnalyticsAccountOnboardingIncompleteReportRecord.class, institutionId, startInstant, endInstant);
+				""", AdminAnalyticsAccountOnboardingIncompleteReportRecord.class, institutionId, startInstant, endInstant,
+				RoleId.PATIENT);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(institutionTimeZone)
@@ -1869,8 +1883,11 @@ public class ReportingService {
 					AND i.onboarding_screening_flow_id IS NOT NULL
 					AND a.created >= ?
 					AND a.created <= ?
+					AND a.role_id = ?
+					AND a.test_account = FALSE
 				ORDER BY a.created, ss.created, sa.created
-				""", AdminAnalyticsAccountOnboardingCompleteReportRecord.class, institutionId, startInstant, endInstant);
+				""", AdminAnalyticsAccountOnboardingCompleteReportRecord.class, institutionId, startInstant, endInstant,
+				RoleId.PATIENT);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(institutionTimeZone)
