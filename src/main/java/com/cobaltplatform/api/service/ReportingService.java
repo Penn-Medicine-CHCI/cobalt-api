@@ -1673,7 +1673,7 @@ public class ReportingService {
 
 				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
 				recordElements.add(record.getInviteCreatedAt() == null ? "" : dateTimeFormatter.format(record.getInviteCreatedAt()));
-				recordElements.add(obfuscateEmailAddress(record.getEmailAddress()));
+				recordElements.add(record.getEmailAddress() == null ? "" : record.getEmailAddress());
 				recordElements.add(obfuscateName(record.getFirstName()));
 				recordElements.add(obfuscateName(record.getLastName()));
 				recordElements.add(record.getRoleId());
@@ -1813,7 +1813,7 @@ public class ReportingService {
 
 				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
 				recordElements.add(record.getAccountCreatedAt() == null ? "" : dateTimeFormatter.format(record.getAccountCreatedAt()));
-				recordElements.add(obfuscateEmailAddress(record.getEmailAddress()));
+				recordElements.add(record.getEmailAddress() == null ? "" : record.getEmailAddress());
 				recordElements.add(obfuscateName(record.getFirstName()));
 				recordElements.add(obfuscateName(record.getLastName()));
 				recordElements.add(record.getRoleId());
@@ -1953,7 +1953,7 @@ public class ReportingService {
 
 				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
 				recordElements.add(record.getAccountCreatedAt() == null ? "" : dateTimeFormatter.format(record.getAccountCreatedAt()));
-				recordElements.add(obfuscateEmailAddress(record.getEmailAddress()));
+				recordElements.add(record.getEmailAddress() == null ? "" : record.getEmailAddress());
 				recordElements.add(obfuscateName(record.getFirstName()));
 				recordElements.add(obfuscateName(record.getLastName()));
 				recordElements.add(record.getRoleId());
@@ -1980,31 +1980,6 @@ public class ReportingService {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
-	}
-
-	@Nonnull
-	private String obfuscateEmailAddress(@Nullable String emailAddress) {
-		if (emailAddress == null)
-			return "";
-
-		String trimmed = emailAddress.trim();
-
-		if (trimmed.isEmpty())
-			return "";
-
-		int atIndex = trimmed.indexOf('@');
-
-		if (atIndex <= 0)
-			return obfuscateName(trimmed);
-
-		String username = trimmed.substring(0, atIndex);
-		String domain = trimmed.substring(atIndex + 1);
-		String initial = username.substring(0, 1);
-
-		if (domain.isBlank())
-			return format("%s***@", initial);
-
-		return format("%s***@%s", initial, domain);
 	}
 
 	@Nonnull
