@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.GenderIdentity.GenderIdentityId;
 import com.cobaltplatform.api.model.db.GroupSessionReservation;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MessageType.MessageTypeId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
@@ -42,7 +43,9 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -1519,6 +1522,10 @@ public class ReportingService {
 							AND ane.analytics_native_event_type_id IN (?, ?)
 							AND ane.analytics_native_event_type_id <> ?
 							AND ane.account_id IS NULL
+							AND ane.user_agent_device_family IS NOT NULL
+							AND ane.user_agent_device_family <> ALL (
+								ARRAY['Googlebot'::text, 'Spider'::text, 'Baiduspider'::text, 'facebookexternalhit'::text]
+							)
 							AND NOT EXISTS (
 								SELECT 1
 								FROM account_client_device acd
@@ -1596,27 +1603,49 @@ public class ReportingService {
 		List<AdminAnalyticsAccountSignupUnverifiedReportRecord> records = getDatabase().queryForList("""
 						SELECT
 							a.account_id,
-							a.created,
-							a.email_address,
+							ai.created AS invite_created_at,
+							ai.email_address,
 							a.first_name,
 							a.last_name,
 							a.role_id,
-							a.account_source_id
-						FROM account a
-						WHERE a.institution_id = ?
-							AND a.created >= ?
-							AND a.created <= ?
-							AND a.account_source_id = ?
-							AND a.email_address IS NOT NULL
+							a.account_source_id,
+							ml.message_id,
+							ml.created AS message_created_at,
+							ml.message_status_id,
+							ml.delivered,
+							ml.delivery_failed,
+							ml.delivery_failed_reason
+						FROM account_invite ai
+						LEFT JOIN account a
+							ON a.institution_id = ai.institution_id
+							AND LOWER(a.email_address) = LOWER(ai.email_address)
+						LEFT JOIN message_log ml
+							ON ml.institution_id = ai.institution_id
+							AND ml.message_type_id = ?
+							AND ml.serialized_message->>'messageTemplate' = ?
+							AND jsonb_typeof(ml.serialized_message->'toAddresses') = 'array'
+							AND EXISTS (
+								SELECT 1
+								FROM jsonb_array_elements_text(ml.serialized_message->'toAddresses') addr
+								WHERE LOWER(addr) = LOWER(ai.email_address)
+							)
+						WHERE ai.institution_id = ?
+							AND ai.created >= ?
+							AND ai.created <= ?
+							AND ai.claimed = FALSE
 							AND NOT EXISTS (
 								SELECT 1
-								FROM account_email_verification aev
-								WHERE aev.account_id = a.account_id
-								AND aev.verified = TRUE
+								FROM account_invite ai_claimed
+								WHERE ai_claimed.institution_id = ai.institution_id
+									AND LOWER(ai_claimed.email_address) = LOWER(ai.email_address)
+									AND ai_claimed.claimed = TRUE
 							)
-						ORDER BY a.created
-						""", AdminAnalyticsAccountSignupUnverifiedReportRecord.class, institutionId, startInstant, endInstant,
-				AccountSourceId.EMAIL_PASSWORD);
+							AND (a.account_id IS NULL OR a.role_id = ?)
+							AND (a.account_id IS NULL OR a.test_account = FALSE)
+							AND (a.account_id IS NULL OR a.account_source_id = ?)
+						ORDER BY ai.created, ml.created
+						""", AdminAnalyticsAccountSignupUnverifiedReportRecord.class, MessageTypeId.EMAIL, EmailMessageTemplate.ACCOUNT_VERIFICATION,
+				institutionId, startInstant, endInstant, RoleId.PATIENT, AccountSourceId.EMAIL_PASSWORD);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(institutionTimeZone)
@@ -1624,25 +1653,37 @@ public class ReportingService {
 
 		List<String> headerColumns = List.of(
 				getStrings().get("Account ID"),
-				getStrings().get("Created At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Invite Created At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
 				getStrings().get("Email Address"),
 				getStrings().get("First Name"),
 				getStrings().get("Last Name"),
 				getStrings().get("Role ID"),
-				getStrings().get("Account Source ID")
+				getStrings().get("Account Source ID"),
+				getStrings().get("Message ID"),
+				getStrings().get("Message Created At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Message Status ID"),
+				getStrings().get("Delivered At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Delivery Failed At ({{timeZone}})", Map.of("timeZone", institutionTimeZone.getId())),
+				getStrings().get("Delivery Failed Reason")
 		);
 
 		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
 			for (AdminAnalyticsAccountSignupUnverifiedReportRecord record : records) {
-				List<String> recordElements = new ArrayList<>(7);
+				List<String> recordElements = new ArrayList<>(13);
 
 				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
-				recordElements.add(record.getCreated() == null ? "" : dateTimeFormatter.format(record.getCreated()));
+				recordElements.add(record.getInviteCreatedAt() == null ? "" : dateTimeFormatter.format(record.getInviteCreatedAt()));
 				recordElements.add(obfuscateEmailAddress(record.getEmailAddress()));
 				recordElements.add(obfuscateName(record.getFirstName()));
 				recordElements.add(obfuscateName(record.getLastName()));
 				recordElements.add(record.getRoleId());
 				recordElements.add(record.getAccountSourceId() == null ? "" : record.getAccountSourceId().name());
+				recordElements.add(record.getMessageId() == null ? "" : record.getMessageId().toString());
+				recordElements.add(record.getMessageCreatedAt() == null ? "" : dateTimeFormatter.format(record.getMessageCreatedAt()));
+				recordElements.add(record.getMessageStatusId());
+				recordElements.add(record.getDelivered() == null ? "" : dateTimeFormatter.format(record.getDelivered()));
+				recordElements.add(record.getDeliveryFailed() == null ? "" : dateTimeFormatter.format(record.getDeliveryFailed()));
+				recordElements.add(record.getDeliveryFailedReason());
 
 				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
 			}
@@ -1723,6 +1764,8 @@ public class ReportingService {
 					AND i.onboarding_screening_flow_id IS NOT NULL
 					AND a.created >= ?
 					AND a.created <= ?
+					AND a.role_id = ?
+					AND a.test_account = FALSE
 					AND NOT EXISTS (
 						SELECT 1
 						FROM screening_session ss_completed
@@ -1733,7 +1776,8 @@ public class ReportingService {
 							AND ss_completed.completed = TRUE
 					)
 				ORDER BY a.created, ss.created, sa.created
-				""", AdminAnalyticsAccountOnboardingIncompleteReportRecord.class, institutionId, startInstant, endInstant);
+				""", AdminAnalyticsAccountOnboardingIncompleteReportRecord.class, institutionId, startInstant, endInstant,
+				RoleId.PATIENT);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(institutionTimeZone)
@@ -1869,8 +1913,11 @@ public class ReportingService {
 					AND i.onboarding_screening_flow_id IS NOT NULL
 					AND a.created >= ?
 					AND a.created <= ?
+					AND a.role_id = ?
+					AND a.test_account = FALSE
 				ORDER BY a.created, ss.created, sa.created
-				""", AdminAnalyticsAccountOnboardingCompleteReportRecord.class, institutionId, startInstant, endInstant);
+				""", AdminAnalyticsAccountOnboardingCompleteReportRecord.class, institutionId, startInstant, endInstant,
+				RoleId.PATIENT);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 				.withZone(institutionTimeZone)
@@ -2114,7 +2161,7 @@ public class ReportingService {
 		@Nullable
 		private UUID accountId;
 		@Nullable
-		private Instant created;
+		private Instant inviteCreatedAt;
 		@Nullable
 		private String emailAddress;
 		@Nullable
@@ -2125,6 +2172,18 @@ public class ReportingService {
 		private String roleId;
 		@Nullable
 		private AccountSourceId accountSourceId;
+		@Nullable
+		private UUID messageId;
+		@Nullable
+		private Instant messageCreatedAt;
+		@Nullable
+		private String messageStatusId;
+		@Nullable
+		private Instant delivered;
+		@Nullable
+		private Instant deliveryFailed;
+		@Nullable
+		private String deliveryFailedReason;
 
 		@Nullable
 		public UUID getAccountId() {
@@ -2136,12 +2195,12 @@ public class ReportingService {
 		}
 
 		@Nullable
-		public Instant getCreated() {
-			return created;
+		public Instant getInviteCreatedAt() {
+			return inviteCreatedAt;
 		}
 
-		public void setCreated(@Nullable Instant created) {
-			this.created = created;
+		public void setInviteCreatedAt(@Nullable Instant inviteCreatedAt) {
+			this.inviteCreatedAt = inviteCreatedAt;
 		}
 
 		@Nullable
@@ -2187,6 +2246,60 @@ public class ReportingService {
 
 		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
 			this.accountSourceId = accountSourceId;
+		}
+
+		@Nullable
+		public UUID getMessageId() {
+			return messageId;
+		}
+
+		public void setMessageId(@Nullable UUID messageId) {
+			this.messageId = messageId;
+		}
+
+		@Nullable
+		public Instant getMessageCreatedAt() {
+			return messageCreatedAt;
+		}
+
+		public void setMessageCreatedAt(@Nullable Instant messageCreatedAt) {
+			this.messageCreatedAt = messageCreatedAt;
+		}
+
+		@Nullable
+		public String getMessageStatusId() {
+			return messageStatusId;
+		}
+
+		public void setMessageStatusId(@Nullable String messageStatusId) {
+			this.messageStatusId = messageStatusId;
+		}
+
+		@Nullable
+		public Instant getDelivered() {
+			return delivered;
+		}
+
+		public void setDelivered(@Nullable Instant delivered) {
+			this.delivered = delivered;
+		}
+
+		@Nullable
+		public Instant getDeliveryFailed() {
+			return deliveryFailed;
+		}
+
+		public void setDeliveryFailed(@Nullable Instant deliveryFailed) {
+			this.deliveryFailed = deliveryFailed;
+		}
+
+		@Nullable
+		public String getDeliveryFailedReason() {
+			return deliveryFailedReason;
+		}
+
+		public void setDeliveryFailedReason(@Nullable String deliveryFailedReason) {
+			this.deliveryFailedReason = deliveryFailedReason;
 		}
 	}
 
