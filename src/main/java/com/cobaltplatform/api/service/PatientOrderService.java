@@ -1486,12 +1486,10 @@ public class PatientOrderService implements AutoCloseable {
 		Integer offset = pageNumber * pageSize;
 		Integer limit = pageSize;
 		List<String> whereClauseLines = new ArrayList<>();
-		List<String> rawPatientOrderWhereClauseLines = new ArrayList<>();
 		List<String> orderByColumns = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
-		List<Object> rawPatientOrderParameters = new ArrayList<>();
-
-		rawPatientOrderParameters.add(institutionId);
+		parameters.add(institutionId);
+		whereClauseLines.add("AND po.institution_id=?");
 
 		// Only include complete/valid sort order rules.
 		patientOrderSortRules = patientOrderSortRules.stream()
@@ -1527,8 +1525,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Assessment Status = Scheduled
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
 				parameters.add(PatientOrderScreeningStatusId.SCHEDULED);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_DOCUMENTATION) {
@@ -1536,8 +1534,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Encounter Documentation Status = Needs Documentation
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_encounter_documentation_status_id=?");
 				parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED_OUTREACH) {
@@ -1545,8 +1543,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.next_contact_type_id IN (?,?,?,?)");
 				parameters.add(PatientOrderContactTypeId.ASSESSMENT_OUTREACH);
 				parameters.add(PatientOrderContactTypeId.ASSESSMENT);
@@ -1562,20 +1560,20 @@ public class PatientOrderService implements AutoCloseable {
 				// Assessment Status = In Progress
 				// Consent = None
 				// Consent = Yes
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.total_outreach_count > 0");
 				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
 				parameters.add(PatientOrderScreeningStatusId.NOT_SCREENED);
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_consent_status_id IN (?,?)");
-				rawPatientOrderParameters.addAll(List.of(PatientOrderConsentStatusId.UNKNOWN, PatientOrderConsentStatusId.CONSENTED));
+				whereClauseLines.add("AND po.patient_order_consent_status_id IN (?,?)");
+				parameters.addAll(List.of(PatientOrderConsentStatusId.UNKNOWN, PatientOrderConsentStatusId.CONSENTED));
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SUBCLINICAL) {
 				// Subclinical: Patients triaged to subclinical
 				// Definition:
 				// Order State = Open
 				// Triage = Subclinical
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
 				parameters.add(PatientOrderTriageStatusId.SUBCLINICAL);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.MHP) {
@@ -1583,8 +1581,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Triage = MHP
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
 				parameters.add(PatientOrderTriageStatusId.MHP);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SPECIALTY_CARE) {
@@ -1592,16 +1590,16 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Triage = Specialty Care
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
 				parameters.add(PatientOrderTriageStatusId.SPECIALTY_CARE);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.CLOSED) {
 				// Closed: Orders that have been closed. Order closed for more than 30 days will be archived.
 				// Definition:
 				// Order State = Closed
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
-				rawPatientOrderParameters.add(PatientOrderDispositionId.CLOSED);
+				whereClauseLines.add("AND po.patient_order_disposition_id=?");
+				parameters.add(PatientOrderDispositionId.CLOSED);
 			} else {
 				throw new IllegalStateException(format("Not sure how to handle %s.%s",
 						PatientOrderViewTypeId.class.getSimpleName(), patientOrderViewTypeId.name()));
@@ -1609,8 +1607,8 @@ public class PatientOrderService implements AutoCloseable {
 
 			// We still support filtering per-account for PatientOrderViewTypeId requests
 			if (panelAccountIds.size() > 0) {
-				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-				rawPatientOrderParameters.addAll(panelAccountIds);
+				whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				parameters.addAll(panelAccountIds);
 			}
 		} else {
 			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
@@ -1619,12 +1617,12 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderDispositionIds.size() == 0)
 				patientOrderDispositionIds = Set.of(PatientOrderDispositionId.OPEN);
 
-			rawPatientOrderWhereClauseLines.add(format("AND raw_po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
-			rawPatientOrderParameters.addAll(patientOrderDispositionIds);
+			whereClauseLines.add(format("AND po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
+			parameters.addAll(patientOrderDispositionIds);
 
 			if (patientOrderConsentStatusId != null) {
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_consent_status_id=?");
-				rawPatientOrderParameters.add(patientOrderConsentStatusId);
+				whereClauseLines.add("AND po.patient_order_consent_status_id=?");
+				parameters.add(patientOrderConsentStatusId);
 			}
 
 			if (patientOrderScreeningStatusId != null) {
@@ -1639,9 +1637,9 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientOrderAssignmentStatusId != null) {
 				if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.UNASSIGNED)
-					rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id IS NULL");
+					whereClauseLines.add("AND po.panel_account_id IS NULL");
 				else if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.ASSIGNED)
-					rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id IS NOT NULL");
+					whereClauseLines.add("AND po.panel_account_id IS NOT NULL");
 			}
 
 			if (patientOrderOutreachStatusId != null) {
@@ -1659,8 +1657,8 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			if (patientOrderSafetyPlanningStatusId != null) {
-				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_safety_planning_status_id=?");
-				rawPatientOrderParameters.add(patientOrderSafetyPlanningStatusId);
+				whereClauseLines.add("AND po.patient_order_safety_planning_status_id=?");
+				parameters.add(patientOrderSafetyPlanningStatusId);
 			}
 
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
@@ -1726,38 +1724,38 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			if (referringPracticeIds.size() > 0) {
-				rawPatientOrderWhereClauseLines.add(format("AND raw_po.referring_practice_id IN %s", sqlInListPlaceholders(referringPracticeIds)));
-				rawPatientOrderParameters.addAll(referringPracticeIds);
+				whereClauseLines.add(format("AND po.referring_practice_id IN %s", sqlInListPlaceholders(referringPracticeIds)));
+				parameters.addAll(referringPracticeIds);
 			}
 
 			if (panelAccountIds.size() > 0) {
-				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-				rawPatientOrderParameters.addAll(panelAccountIds);
+				whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				parameters.addAll(panelAccountIds);
 			}
 
 			// Search query is trumped by Patient MRN
 			if (patientMrn != null) {
-				rawPatientOrderWhereClauseLines.add("AND LOWER(raw_po.patient_mrn)=LOWER(?)");
-				rawPatientOrderParameters.add(patientMrn);
+				whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
+				parameters.add(patientMrn);
 			} else if (searchQuery != null) {
 				// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
-				rawPatientOrderWhereClauseLines.add("""
+				whereClauseLines.add("""
 						      AND (
-						      CAST (raw_po.reference_number AS TEXT) like CONCAT(?,'%')
-						      OR raw_po.patient_first_name ILIKE CONCAT('%',?,'%')
-						      OR raw_po.patient_last_name ILIKE CONCAT('%',?,'%')
-						      OR raw_po.patient_mrn=?
-						      OR (raw_po.patient_phone_number IS NOT NULL AND raw_po.patient_phone_number ILIKE CONCAT('%',?,'%'))
-						      OR (raw_po.patient_email_address IS NOT NULL AND raw_po.patient_email_address ILIKE CONCAT('%',?,'%'))
+						      CAST (po.reference_number AS TEXT) like CONCAT(?,'%')
+						      OR po.patient_first_name ILIKE CONCAT('%',?,'%')
+						      OR po.patient_last_name ILIKE CONCAT('%',?,'%')
+						      OR po.patient_mrn=?
+						      OR (po.patient_phone_number IS NOT NULL AND po.patient_phone_number ILIKE CONCAT('%',?,'%'))
+						      OR (po.patient_email_address IS NOT NULL AND po.patient_email_address ILIKE CONCAT('%',?,'%'))
 						      )
 						""");
 
-				rawPatientOrderParameters.add(searchQuery);
-				rawPatientOrderParameters.add(searchQuery);
-				rawPatientOrderParameters.add(searchQuery);
-				rawPatientOrderParameters.add(searchQuery);
-				rawPatientOrderParameters.add(searchQuery);
-				rawPatientOrderParameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
+				parameters.add(searchQuery);
 			}
 		}
 
@@ -1811,10 +1809,6 @@ public class PatientOrderService implements AutoCloseable {
 				  	FROM {{patientOrderViewName}} po
 				  	WHERE 1=1
 				  	{{whereClauseLines}}
-				  	AND po.patient_order_id IN (
-				  		SELECT patient_order_id FROM patient_order raw_po WHERE raw_po.institution_id=?
-				  		{{rawPatientOrderWhereClauseLines}}
-				  	)
 				  )
 				  SELECT
 				  bq.*,
@@ -1828,13 +1822,11 @@ public class PatientOrderService implements AutoCloseable {
 				""".trim()
 				.replace("{{patientOrderViewName}}", patientOrderViewName)
 				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
-				.replace("{{rawPatientOrderWhereClauseLines}}", rawPatientOrderWhereClauseLines.stream().collect(Collectors.joining("\n")))
 				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
 				.trim();
 
-		List<Object> finalParameters = new ArrayList<>(parameters.size() + rawPatientOrderParameters.size() + limitOffsetParameters.size());
+		List<Object> finalParameters = new ArrayList<>(parameters.size() + limitOffsetParameters.size());
 		finalParameters.addAll(parameters);
-		finalParameters.addAll(rawPatientOrderParameters);
 		finalParameters.addAll(limitOffsetParameters);
 
 		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(finalParameters));
