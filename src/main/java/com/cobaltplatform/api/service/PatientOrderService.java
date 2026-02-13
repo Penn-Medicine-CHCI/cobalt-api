@@ -247,6 +247,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1471,6 +1472,8 @@ public class PatientOrderService implements AutoCloseable {
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		List<PatientOrderSortRule> patientOrderSortRules = request.getPatientOrderSortRules() == null ? List.of() : request.getPatientOrderSortRules();
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		boolean shouldUseDirectVPatientOrderFilterPath = Boolean.TRUE.equals(institution.getIntegratedCareFilterFirstPatientOrderQueryEnabled());
 
 		final int DEFAULT_PAGE_SIZE = 50;
 		final int MAXIMUM_PAGE_SIZE = 100;
@@ -1517,6 +1520,10 @@ public class PatientOrderService implements AutoCloseable {
 						setSortNullsId(SortNullsId.NULLS_LAST);
 					}}
 			);
+
+		Set<PatientOrderDispositionId> effectivePatientOrderDispositionIds = patientOrderDispositionIds.size() == 0
+				? Set.of(PatientOrderDispositionId.OPEN)
+				: patientOrderDispositionIds;
 
 		// If patientOrderViewTypeId is specified, it provides "fixed" views, largely ignoring other parameters that might be specified
 		if (patientOrderViewTypeId != null) {
@@ -1614,8 +1621,7 @@ public class PatientOrderService implements AutoCloseable {
 			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
 
 			// Default to OPEN orders unless specified otherwise
-			if (patientOrderDispositionIds.size() == 0)
-				patientOrderDispositionIds = Set.of(PatientOrderDispositionId.OPEN);
+			patientOrderDispositionIds = effectivePatientOrderDispositionIds;
 
 			whereClauseLines.add(format("AND po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
 			parameters.addAll(patientOrderDispositionIds);
@@ -1802,8 +1808,7 @@ public class PatientOrderService implements AutoCloseable {
 
 		// Use special 'v_all_patient_order' if a request comes in for ARCHIVED orders
 		String patientOrderViewName = patientOrderDispositionIds.contains(PatientOrderDispositionId.ARCHIVED) ? "v_all_patient_order" : "v_patient_order";
-
-		String sql = """
+		String sqlTemplate = """
 				  WITH base_query AS (
 				  	SELECT po.*
 				  	FROM {{patientOrderViewName}} po
@@ -1819,15 +1824,68 @@ public class PatientOrderService implements AutoCloseable {
 				  ORDER BY {{orderByColumns}}
 				  LIMIT ?
 				  OFFSET ?
-				""".trim()
-				.replace("{{patientOrderViewName}}", patientOrderViewName)
-				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
-				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
-				.trim();
+				""".trim();
+		String sql;
+		List<Object> finalParameters;
 
-		List<Object> finalParameters = new ArrayList<>(parameters.size() + limitOffsetParameters.size());
-		finalParameters.addAll(parameters);
-		finalParameters.addAll(limitOffsetParameters);
+		if (shouldUseDirectVPatientOrderFilterPath) {
+			sql = sqlTemplate
+					.replace("{{patientOrderViewName}}", patientOrderViewName)
+					.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
+					.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
+					.trim();
+
+			finalParameters = new ArrayList<>(parameters.size() + limitOffsetParameters.size());
+			finalParameters.addAll(parameters);
+			finalParameters.addAll(limitOffsetParameters);
+		} else {
+			List<String> legacyWhereClauseLines = new ArrayList<>(whereClauseLines);
+			List<Object> legacyParameters = new ArrayList<>(parameters);
+			List<String> legacyRawWhereClauseLines = new ArrayList<>();
+			List<Object> legacyRawParameters = new ArrayList<>();
+			Set<PatientOrderDispositionId> legacyRawPatientOrderDispositionIds = new LinkedHashSet<>();
+
+			legacyRawWhereClauseLines.add("AND raw_po.institution_id=?");
+			legacyRawParameters.add(institutionId);
+
+			if (patientOrderViewTypeId == null) {
+				legacyRawPatientOrderDispositionIds.addAll(effectivePatientOrderDispositionIds);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.CLOSED) {
+				legacyRawPatientOrderDispositionIds.add(PatientOrderDispositionId.CLOSED);
+			} else {
+				legacyRawPatientOrderDispositionIds.add(PatientOrderDispositionId.OPEN);
+			}
+
+			legacyRawWhereClauseLines.add(format("AND raw_po.patient_order_disposition_id IN %s", sqlInListPlaceholders(legacyRawPatientOrderDispositionIds)));
+			legacyRawParameters.addAll(legacyRawPatientOrderDispositionIds);
+
+			if (panelAccountIds.size() > 0) {
+				legacyRawWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				legacyRawParameters.addAll(panelAccountIds);
+			}
+
+			legacyWhereClauseLines.add("""
+					AND po.patient_order_id IN (
+					  SELECT raw_po.patient_order_id
+					  FROM patient_order raw_po
+					  WHERE 1=1
+					  {{legacyRawWhereClauseLines}}
+					)
+					""".trim()
+					.replace("{{legacyRawWhereClauseLines}}", legacyRawWhereClauseLines.stream().collect(Collectors.joining("\n")))
+					.trim());
+			legacyParameters.addAll(legacyRawParameters);
+
+			sql = sqlTemplate
+					.replace("{{patientOrderViewName}}", patientOrderViewName)
+					.replace("{{whereClauseLines}}", legacyWhereClauseLines.stream().collect(Collectors.joining("\n")))
+					.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
+					.trim();
+
+			finalParameters = new ArrayList<>(legacyParameters.size() + limitOffsetParameters.size());
+			finalParameters.addAll(legacyParameters);
+			finalParameters.addAll(limitOffsetParameters);
+		}
 
 		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(finalParameters));
 
