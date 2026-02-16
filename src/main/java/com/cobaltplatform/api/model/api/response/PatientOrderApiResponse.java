@@ -849,7 +849,9 @@ public class PatientOrderApiResponse {
 		// Always available to both patients and MHICs
 		this.patientOrderId = patientOrder.getPatientOrderId();
 		this.referenceNumber = patientOrder.getReferenceNumber();
-		this.referenceNumberDescription = Integer.toString(patientOrder.getReferenceNumber(), 10); // Not localized - it's just the digits
+		this.referenceNumberDescription = patientOrder.getReferenceNumber() == null
+				? null
+				: Integer.toString(patientOrder.getReferenceNumber(), 10); // Not localized - it's just the digits
 		this.patientOrderTriageStatusId = patientOrder.getPatientOrderTriageStatusId();
 		this.patientOrderDispositionId = patientOrder.getPatientOrderDispositionId();
 		this.patientOrderScreeningStatusId = patientOrder.getPatientOrderScreeningStatusId();
@@ -1020,7 +1022,9 @@ public class PatientOrderApiResponse {
 
 			// Safe cast, int can always hold enough
 			this.episodeDurationInDays = patientOrder.getEpisodeDurationInDays();
-			this.episodeDurationInDaysDescription = strings.get("{{episodeDurationInDays}} days", Map.of("episodeDurationInDays", this.episodeDurationInDays));
+			this.episodeDurationInDaysDescription = this.episodeDurationInDays == null
+					? null
+					: strings.get("{{episodeDurationInDays}} days", Map.of("episodeDurationInDays", this.episodeDurationInDays));
 
 			this.patientOrderResourcingStatusId = patientOrder.getPatientOrderResourcingStatusId();
 			this.resourcesSentAt = patientOrder.getResourcesSentAt();

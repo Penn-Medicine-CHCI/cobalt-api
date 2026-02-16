@@ -96,6 +96,8 @@ public class Institution {
 	@Nullable
 	private Boolean integratedCareEnabled;
 	@Nullable
+	private Boolean integratedCareFilterFirstPatientOrderQueryEnabled;
+	@Nullable
 	private String metadata;
 	@Nonnull
 	private Long accessTokenExpirationInMinutes;
@@ -750,6 +752,15 @@ public class Institution {
 
 	public void setIntegratedCareEnabled(@Nullable Boolean integratedCareEnabled) {
 		this.integratedCareEnabled = integratedCareEnabled;
+	}
+
+	@Nullable
+	public Boolean getIntegratedCareFilterFirstPatientOrderQueryEnabled() {
+		return this.integratedCareFilterFirstPatientOrderQueryEnabled;
+	}
+
+	public void setIntegratedCareFilterFirstPatientOrderQueryEnabled(@Nullable Boolean integratedCareFilterFirstPatientOrderQueryEnabled) {
+		this.integratedCareFilterFirstPatientOrderQueryEnabled = integratedCareFilterFirstPatientOrderQueryEnabled;
 	}
 
 	@Nonnull

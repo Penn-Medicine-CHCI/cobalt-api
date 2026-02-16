@@ -53,3 +53,6 @@ sql/initial/bootstrap.sql
 # All Localstack secrets ignored except for the .gitkeep file
 localstack/secrets/*
 !localstack/secrets/.gitkeep
+
+
+scratchpad
