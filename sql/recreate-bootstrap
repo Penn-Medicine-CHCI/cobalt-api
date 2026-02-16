@@ -249,6 +249,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/238-pati
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/239-patient-order-scheduling-dept-override.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/240-epic-department-connect-with-support-description-override.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/241-additional-reporting.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/242-filter-first-patient-order-query-toggle.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
