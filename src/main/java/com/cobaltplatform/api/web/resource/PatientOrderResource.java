@@ -1755,7 +1755,11 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
-		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = getPatientOrderService().findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(institutionId, account.getAccountId());
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		boolean usePanelCountsPerfOptimization = Boolean.TRUE.equals(institution.getIntegratedCarePanelCountsPerfOptimizationEnabled());
+
+		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = getPatientOrderService()
+				.findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(institutionId, account.getAccountId(), usePanelCountsPerfOptimization);
 		Map<PatientOrderViewTypeId, Map<String, Object>> patientOrderCountsByPatientOrderViewTypeIdJson = new HashMap<>(patientOrderCountsByPatientOrderViewTypeId.size());
 
 		for (Entry<PatientOrderViewTypeId, Integer> entry : patientOrderCountsByPatientOrderViewTypeId.entrySet()) {

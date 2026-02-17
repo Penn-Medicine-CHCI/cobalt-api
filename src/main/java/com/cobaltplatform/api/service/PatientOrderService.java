@@ -949,6 +949,13 @@ public class PatientOrderService implements AutoCloseable {
 	@Nonnull
 	public Map<PatientOrderViewTypeId, Integer> findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(@Nullable InstitutionId institutionId,
 																																																						 @Nullable UUID panelAccountId) {
+		return findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(institutionId, panelAccountId, false);
+	}
+
+	@Nonnull
+	public Map<PatientOrderViewTypeId, Integer> findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(@Nullable InstitutionId institutionId,
+																																																						 @Nullable UUID panelAccountId,
+																																																						 boolean usePanelCountsPerfOptimization) {
 		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = new ConcurrentHashMap<>(PatientOrderViewTypeId.values().length);
 
 		// Seed the map with zeroes for all possible view types
@@ -958,80 +965,286 @@ public class PatientOrderService implements AutoCloseable {
 		if (institutionId == null || panelAccountId == null)
 			return patientOrderCountsByPatientOrderViewTypeId;
 
-		// Instead of running a bunch of queries in parallel, it's faster to pull all the open orders for the panel account and filter in code here.
-		// TODO: would be nice to put this in v_patient_order eventually.
-		List<PatientOrder> openPatientOrders = findOpenPatientOrdersForPanelAccountId(panelAccountId);
+		if (usePanelCountsPerfOptimization) {
+			PatientOrderViewTypeCounts patientOrderViewTypeCounts = getDatabase().queryForObject("""
+					WITH inst AS (
+					  SELECT
+					    institution_id,
+					    time_zone,
+					    integrated_care_outreach_followup_day_offset AS followup_days,
+					    integrated_care_screening_flow_id,
+					    integrated_care_intake_screening_flow_id
+					  FROM institution
+					  WHERE institution_id=?
+					),
+					base_orders AS (
+					  SELECT
+					    po.patient_order_id,
+					    po.patient_order_consent_status_id,
+					    po.encounter_synced_at
+					  FROM patient_order po
+					  WHERE po.institution_id=?
+					  AND po.panel_account_id=?
+					  AND po.patient_order_disposition_id='OPEN'
+					),
+					poo AS (
+					  SELECT
+					    poo.patient_order_id,
+					    COUNT(*) AS outreach_count,
+					    MAX(poo.outreach_date_time) AS max_outreach_date_time
+					  FROM patient_order_outreach poo
+					  JOIN base_orders bo ON bo.patient_order_id=poo.patient_order_id
+					  WHERE poo.deleted=FALSE
+					  GROUP BY poo.patient_order_id
+					),
+					smg AS (
+					  SELECT
+					    posmg.patient_order_id,
+					    COUNT(*) AS scheduled_message_group_delivered_count,
+					    MAX(posmg.scheduled_at_date_time) AS max_delivered_scheduled_message_group_date_time
+					  FROM patient_order_scheduled_message_group posmg
+					  JOIN base_orders bo ON bo.patient_order_id=posmg.patient_order_id
+					  WHERE posmg.deleted=FALSE
+					  AND EXISTS (
+					    SELECT 1
+					    FROM patient_order_scheduled_message posm
+					    JOIN scheduled_message sm ON sm.scheduled_message_id=posm.scheduled_message_id
+					    JOIN message_log ml ON ml.message_id=sm.message_id
+					    WHERE posm.patient_order_scheduled_message_group_id=posmg.patient_order_scheduled_message_group_id
+					    AND ml.message_status_id='DELIVERED'
+					  )
+					  GROUP BY posmg.patient_order_id
+					),
+					ss_query AS (
+					  SELECT DISTINCT ON (ss.patient_order_id)
+					    ss.patient_order_id,
+					    ss.screening_session_id,
+					    ss.completed,
+					    ss.created
+					  FROM screening_session ss
+					  JOIN screening_flow_version sfv ON sfv.screening_flow_version_id=ss.screening_flow_version_id
+					  JOIN inst i ON sfv.screening_flow_id=i.integrated_care_screening_flow_id
+					  JOIN account a ON ss.created_by_account_id=a.account_id
+					  JOIN base_orders bo ON bo.patient_order_id=ss.patient_order_id
+					  WHERE a.institution_id=i.institution_id
+					  AND ss.skipped=FALSE
+					  ORDER BY ss.patient_order_id, ss.created DESC
+					),
+					ss_intake_query AS (
+					  SELECT DISTINCT ON (ss.patient_order_id)
+					    ss.patient_order_id,
+					    ss.screening_session_id,
+					    ss.created
+					  FROM screening_session ss
+					  JOIN screening_flow_version sfv ON sfv.screening_flow_version_id=ss.screening_flow_version_id
+					  JOIN inst i ON sfv.screening_flow_id=i.integrated_care_intake_screening_flow_id
+					  JOIN account a ON ss.created_by_account_id=a.account_id
+					  JOIN base_orders bo ON bo.patient_order_id=ss.patient_order_id
+					  WHERE a.institution_id=i.institution_id
+					  AND ss.skipped=FALSE
+					  ORDER BY ss.patient_order_id, ss.created DESC
+					),
+					recent_scheduled_screening_query AS (
+					  SELECT DISTINCT ON (poss.patient_order_id)
+					    poss.patient_order_id,
+					    poss.scheduled_date_time
+					  FROM patient_order_scheduled_screening poss
+					  JOIN base_orders bo ON bo.patient_order_id=poss.patient_order_id
+					  WHERE poss.canceled=FALSE
+					  ORDER BY poss.patient_order_id, poss.scheduled_date_time
+					),
+					next_scheduled_outreach_query AS (
+					  SELECT DISTINCT ON (poso.patient_order_id)
+					    poso.patient_order_id,
+					    poso.scheduled_at_date_time AS next_scheduled_outreach_scheduled_at_date_time,
+					    poso.patient_order_scheduled_outreach_reason_id AS next_scheduled_outreach_reason_id
+					  FROM patient_order_scheduled_outreach poso
+					  JOIN base_orders bo ON bo.patient_order_id=poso.patient_order_id
+					  WHERE poso.patient_order_scheduled_outreach_status_id='SCHEDULED'
+					  ORDER BY poso.patient_order_id, poso.scheduled_at_date_time, poso.patient_order_scheduled_outreach_id
+					),
+					triage AS (
+					  SELECT
+					    bo.patient_order_id,
+					    CASE
+					      WHEN potg.patient_order_care_type_id='SPECIALTY' THEN 'SPECIALTY_CARE'
+					      WHEN potg.patient_order_care_type_id='SUBCLINICAL' THEN 'SUBCLINICAL'
+					      WHEN potg.patient_order_care_type_id='COLLABORATIVE' THEN 'MHP'
+					      ELSE 'NOT_TRIAGED'
+					    END AS patient_order_triage_status_id
+					  FROM base_orders bo
+					  LEFT JOIN patient_order_triage_group potg ON potg.patient_order_id=bo.patient_order_id AND potg.active=TRUE
+					),
+					per_order AS (
+					  SELECT
+					    bo.patient_order_id,
+					    bo.patient_order_consent_status_id,
+					    bo.encounter_synced_at,
+					    CASE
+					      WHEN ssq.completed=TRUE THEN 'COMPLETE'
+					      WHEN ssq.screening_session_id IS NOT NULL THEN 'IN_PROGRESS'
+					      WHEN rssq.scheduled_date_time IS NOT NULL THEN 'SCHEDULED'
+					      ELSE 'NOT_SCREENED'
+					    END AS patient_order_screening_status_id,
+					    CASE
+					      WHEN ssq.completed=TRUE AND bo.encounter_synced_at IS NULL THEN 'NEEDS_DOCUMENTATION'
+					      WHEN ssq.completed=TRUE AND bo.encounter_synced_at IS NOT NULL THEN 'DOCUMENTED'
+					      ELSE 'NOT_DOCUMENTED'
+					    END AS patient_order_encounter_documentation_status_id,
+					    COALESCE(poo.outreach_count, 0::bigint) + COALESCE(smg.scheduled_message_group_delivered_count, 0::bigint) AS total_outreach_count,
+					    t.patient_order_triage_status_id,
+					    CASE
+					      WHEN ssq.screening_session_id IS NULL
+					        AND rssq.scheduled_date_time=LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time) THEN 'ASSESSMENT'
+					      WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(
+					         CASE
+					           WHEN ssq.screening_session_id IS NULL THEN rssq.scheduled_date_time::timestamptz
+					           ELSE '9999-12-31 23:59:59+00'::timestamptz
+					         END, nsoq.next_scheduled_outreach_scheduled_at_date_time::timestamptz)
+					        AND nsoq.next_scheduled_outreach_reason_id='RESOURCE_FOLLOWUP' THEN 'RESOURCE_FOLLOWUP'
+					      WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time=LEAST(
+					         CASE
+					           WHEN ssq.screening_session_id IS NULL THEN rssq.scheduled_date_time::timestamptz
+					           ELSE '9999-12-31 23:59:59+00'::timestamptz
+					         END, nsoq.next_scheduled_outreach_scheduled_at_date_time::timestamptz)
+					        AND nsoq.next_scheduled_outreach_reason_id='OTHER' THEN 'OTHER'
+					      WHEN poo.max_outreach_date_time IS NULL
+					        AND smg.max_delivered_scheduled_message_group_date_time IS NULL
+					        AND ssiq.screening_session_id IS NULL THEN 'WELCOME_MESSAGE'
+					      WHEN ssq.screening_session_id IS NULL
+					        AND rssq.scheduled_date_time IS NULL
+					        AND (poo.max_outreach_date_time IS NOT NULL OR smg.max_delivered_scheduled_message_group_date_time IS NOT NULL)
+					        AND ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + make_interval(days => i.followup_days)) AT TIME ZONE i.time_zone) <= NOW()
+					        THEN 'ASSESSMENT_OUTREACH'
+					      ELSE NULL
+					    END AS next_contact_type_id
+					  FROM base_orders bo
+					  CROSS JOIN inst i
+					  LEFT JOIN ss_query ssq ON ssq.patient_order_id=bo.patient_order_id
+					  LEFT JOIN ss_intake_query ssiq ON ssiq.patient_order_id=bo.patient_order_id
+					  LEFT JOIN recent_scheduled_screening_query rssq ON rssq.patient_order_id=bo.patient_order_id
+					  LEFT JOIN next_scheduled_outreach_query nsoq ON nsoq.patient_order_id=bo.patient_order_id
+					  LEFT JOIN poo ON poo.patient_order_id=bo.patient_order_id
+					  LEFT JOIN smg ON smg.patient_order_id=bo.patient_order_id
+					  LEFT JOIN triage t ON t.patient_order_id=bo.patient_order_id
+					)
+					SELECT
+					  COUNT(*) FILTER (
+					    WHERE po.patient_order_screening_status_id='SCHEDULED'
+					  ) AS scheduled_count,
+					  COUNT(*) FILTER (
+					    WHERE po.total_outreach_count > 0
+					    AND po.patient_order_screening_status_id='NOT_SCREENED'
+					    AND po.patient_order_consent_status_id IN ('UNKNOWN', 'CONSENTED')
+					  ) AS need_assessment_count,
+					  COUNT(*) FILTER (
+					    WHERE po.patient_order_encounter_documentation_status_id='NEEDS_DOCUMENTATION'
+					  ) AS need_documentation_count,
+					  COUNT(*) FILTER (
+					    WHERE po.next_contact_type_id IN ('ASSESSMENT_OUTREACH', 'ASSESSMENT', 'OTHER', 'RESOURCE_FOLLOWUP')
+					  ) AS scheduled_outreach_count,
+					  COUNT(*) FILTER (
+					    WHERE po.patient_order_triage_status_id='SUBCLINICAL'
+					  ) AS subclinical_count,
+					  COUNT(*) FILTER (
+					    WHERE po.patient_order_triage_status_id='MHP'
+					  ) AS mhp_count,
+					  COUNT(*) FILTER (
+					    WHERE po.patient_order_triage_status_id='SPECIALTY_CARE'
+					  ) AS specialty_care_count
+					FROM per_order po
+					""", PatientOrderViewTypeCounts.class, institutionId, institutionId, panelAccountId).orElse(new PatientOrderViewTypeCounts());
 
-		for (PatientOrder openPatientOrder : openPatientOrders) {
-			// SCHEDULED
-			// Patients scheduled to take the assessment by phone
-			// Definition:
-			// Order State = Open
-			// Assessment Status = Scheduled
-			if (openPatientOrder.getPatientOrderScreeningStatusId() == PatientOrderScreeningStatusId.SCHEDULED) {
-				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SCHEDULED) + 1;
-				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, updatedCount);
-			}
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED,
+					patientOrderViewTypeCounts.getScheduledCount() == null ? 0 : patientOrderViewTypeCounts.getScheduledCount().intValue());
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT,
+					patientOrderViewTypeCounts.getNeedAssessmentCount() == null ? 0 : patientOrderViewTypeCounts.getNeedAssessmentCount().intValue());
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION,
+					patientOrderViewTypeCounts.getNeedDocumentationCount() == null ? 0 : patientOrderViewTypeCounts.getNeedDocumentationCount().intValue());
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH,
+					patientOrderViewTypeCounts.getScheduledOutreachCount() == null ? 0 : patientOrderViewTypeCounts.getScheduledOutreachCount().intValue());
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL,
+					patientOrderViewTypeCounts.getSubclinicalCount() == null ? 0 : patientOrderViewTypeCounts.getSubclinicalCount().intValue());
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP,
+					patientOrderViewTypeCounts.getMhpCount() == null ? 0 : patientOrderViewTypeCounts.getMhpCount().intValue());
+			patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE,
+					patientOrderViewTypeCounts.getSpecialtyCareCount() == null ? 0 : patientOrderViewTypeCounts.getSpecialtyCareCount().intValue());
+		} else {
+			// Instead of running a bunch of queries in parallel, it's faster to pull all the open orders for the panel account and filter in code here.
+			// TODO: would be nice to put this in v_patient_order eventually.
+			List<PatientOrder> openPatientOrders = findOpenPatientOrdersForPanelAccountId(panelAccountId);
 
-			// NEED_ASSESSMENT
-			// Patients that have not started or been scheduled for an assessment
-			// Definition:
-			// Order State = Open
-			// Outreach = 1 or greater
-			// Assessment Status = Not Started
-			// Assessment Status = In Progress
-			// Consent = None
-			// Consent = Yes
-			if (openPatientOrder.getTotalOutreachCount() != null
-					&& openPatientOrder.getTotalOutreachCount() > 0
-					&& openPatientOrder.getPatientOrderScreeningStatusId() == PatientOrderScreeningStatusId.NOT_SCREENED
-					&& (openPatientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.UNKNOWN
-					|| openPatientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.CONSENTED)) {
-				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.NEED_ASSESSMENT) + 1;
-				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, updatedCount);
-			}
+			for (PatientOrder openPatientOrder : openPatientOrders) {
+				// SCHEDULED
+				// Patients scheduled to take the assessment by phone
+				// Definition:
+				// Order State = Open
+				// Assessment Status = Scheduled
+				if (openPatientOrder.getPatientOrderScreeningStatusId() == PatientOrderScreeningStatusId.SCHEDULED) {
+					int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SCHEDULED) + 1;
+					patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED, updatedCount);
+				}
 
-			// NEED_DOCUMENTATION
-			// Patients scheduled to take the assessment by phone
-			// Definition:
-			// Order State = Open
-			// Encounter Documentation Status = Needs Documentation
-			if (openPatientOrder.getPatientOrderEncounterDocumentationStatusId() == PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION) {
-				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.NEED_DOCUMENTATION) + 1;
-				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, updatedCount);
-			}
+				// NEED_ASSESSMENT
+				// Patients that have not started or been scheduled for an assessment
+				// Definition:
+				// Order State = Open
+				// Outreach = 1 or greater
+				// Assessment Status = Not Started
+				// Assessment Status = In Progress
+				// Consent = None
+				// Consent = Yes
+				if (openPatientOrder.getTotalOutreachCount() != null
+						&& openPatientOrder.getTotalOutreachCount() > 0
+						&& openPatientOrder.getPatientOrderScreeningStatusId() == PatientOrderScreeningStatusId.NOT_SCREENED
+						&& (openPatientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.UNKNOWN
+						|| openPatientOrder.getPatientOrderConsentStatusId() == PatientOrderConsentStatusId.CONSENTED)) {
+					int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.NEED_ASSESSMENT) + 1;
+					patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_ASSESSMENT, updatedCount);
+				}
 
-			// SCHEDULED_OUTREACH
-			// If there is a scheduled outreach
-			// Definition:
-			// Order State = Open
-			// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
-			if (openPatientOrder.getNextContactTypeId() != null && (
-					openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.ASSESSMENT_OUTREACH
-							|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.ASSESSMENT
-							|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.OTHER
-							|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.RESOURCE_FOLLOWUP
-			)) {
-				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SCHEDULED_OUTREACH) + 1;
-				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, updatedCount);
-			}
+				// NEED_DOCUMENTATION
+				// Patients scheduled to take the assessment by phone
+				// Definition:
+				// Order State = Open
+				// Encounter Documentation Status = Needs Documentation
+				if (openPatientOrder.getPatientOrderEncounterDocumentationStatusId() == PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION) {
+					int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.NEED_DOCUMENTATION) + 1;
+					patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.NEED_DOCUMENTATION, updatedCount);
+				}
 
-			// SUBCLINICAL
-			if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.SUBCLINICAL) {
-				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SUBCLINICAL) + 1;
-				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, updatedCount);
-			}
+				// SCHEDULED_OUTREACH
+				// If there is a scheduled outreach
+				// Definition:
+				// Order State = Open
+				// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
+				if (openPatientOrder.getNextContactTypeId() != null && (
+						openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.ASSESSMENT_OUTREACH
+								|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.ASSESSMENT
+								|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.OTHER
+								|| openPatientOrder.getNextContactTypeId() == PatientOrderContactTypeId.RESOURCE_FOLLOWUP
+				)) {
+					int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SCHEDULED_OUTREACH) + 1;
+					patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SCHEDULED_OUTREACH, updatedCount);
+				}
 
-			// MHP
-			if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.MHP) {
-				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.MHP) + 1;
-				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, updatedCount);
-			}
+				// SUBCLINICAL
+				if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.SUBCLINICAL) {
+					int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SUBCLINICAL) + 1;
+					patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SUBCLINICAL, updatedCount);
+				}
 
-			// SPECIALTY_CARE
-			if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.SPECIALTY_CARE) {
-				int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SPECIALTY_CARE) + 1;
-				patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, updatedCount);
+				// MHP
+				if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.MHP) {
+					int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.MHP) + 1;
+					patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.MHP, updatedCount);
+				}
+
+				// SPECIALTY_CARE
+				if (openPatientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.SPECIALTY_CARE) {
+					int updatedCount = patientOrderCountsByPatientOrderViewTypeId.get(PatientOrderViewTypeId.SPECIALTY_CARE) + 1;
+					patientOrderCountsByPatientOrderViewTypeId.put(PatientOrderViewTypeId.SPECIALTY_CARE, updatedCount);
+				}
 			}
 		}
 
@@ -7152,6 +7365,87 @@ public class PatientOrderService implements AutoCloseable {
 		@Nonnull
 		public Optional<String> getMiddleName() {
 			return Optional.ofNullable(this.middleName);
+		}
+	}
+
+	@NotThreadSafe
+	protected static class PatientOrderViewTypeCounts {
+		@Nullable
+		private Long scheduledCount;
+		@Nullable
+		private Long needAssessmentCount;
+		@Nullable
+		private Long needDocumentationCount;
+		@Nullable
+		private Long scheduledOutreachCount;
+		@Nullable
+		private Long subclinicalCount;
+		@Nullable
+		private Long mhpCount;
+		@Nullable
+		private Long specialtyCareCount;
+
+		@Nullable
+		public Long getScheduledCount() {
+			return this.scheduledCount;
+		}
+
+		public void setScheduledCount(@Nullable Long scheduledCount) {
+			this.scheduledCount = scheduledCount;
+		}
+
+		@Nullable
+		public Long getNeedAssessmentCount() {
+			return this.needAssessmentCount;
+		}
+
+		public void setNeedAssessmentCount(@Nullable Long needAssessmentCount) {
+			this.needAssessmentCount = needAssessmentCount;
+		}
+
+		@Nullable
+		public Long getNeedDocumentationCount() {
+			return this.needDocumentationCount;
+		}
+
+		public void setNeedDocumentationCount(@Nullable Long needDocumentationCount) {
+			this.needDocumentationCount = needDocumentationCount;
+		}
+
+		@Nullable
+		public Long getScheduledOutreachCount() {
+			return this.scheduledOutreachCount;
+		}
+
+		public void setScheduledOutreachCount(@Nullable Long scheduledOutreachCount) {
+			this.scheduledOutreachCount = scheduledOutreachCount;
+		}
+
+		@Nullable
+		public Long getSubclinicalCount() {
+			return this.subclinicalCount;
+		}
+
+		public void setSubclinicalCount(@Nullable Long subclinicalCount) {
+			this.subclinicalCount = subclinicalCount;
+		}
+
+		@Nullable
+		public Long getMhpCount() {
+			return this.mhpCount;
+		}
+
+		public void setMhpCount(@Nullable Long mhpCount) {
+			this.mhpCount = mhpCount;
+		}
+
+		@Nullable
+		public Long getSpecialtyCareCount() {
+			return this.specialtyCareCount;
+		}
+
+		public void setSpecialtyCareCount(@Nullable Long specialtyCareCount) {
+			this.specialtyCareCount = specialtyCareCount;
 		}
 	}
 

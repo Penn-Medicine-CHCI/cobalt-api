@@ -98,6 +98,8 @@ public class Institution {
 	@Nullable
 	private Boolean integratedCareFilterFirstPatientOrderQueryEnabled;
 	@Nullable
+	private Boolean integratedCarePanelCountsPerfOptimizationEnabled;
+	@Nullable
 	private Boolean integratedCarePanelTodayPerfOptimizationEnabled;
 	@Nullable
 	private String metadata;
@@ -763,6 +765,15 @@ public class Institution {
 
 	public void setIntegratedCareFilterFirstPatientOrderQueryEnabled(@Nullable Boolean integratedCareFilterFirstPatientOrderQueryEnabled) {
 		this.integratedCareFilterFirstPatientOrderQueryEnabled = integratedCareFilterFirstPatientOrderQueryEnabled;
+	}
+
+	@Nullable
+	public Boolean getIntegratedCarePanelCountsPerfOptimizationEnabled() {
+		return this.integratedCarePanelCountsPerfOptimizationEnabled;
+	}
+
+	public void setIntegratedCarePanelCountsPerfOptimizationEnabled(@Nullable Boolean integratedCarePanelCountsPerfOptimizationEnabled) {
+		this.integratedCarePanelCountsPerfOptimizationEnabled = integratedCarePanelCountsPerfOptimizationEnabled;
 	}
 
 	@Nullable
