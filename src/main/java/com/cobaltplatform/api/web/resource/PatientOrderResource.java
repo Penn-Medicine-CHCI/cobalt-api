@@ -86,6 +86,7 @@ import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
 import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.GenderIdentity;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
@@ -173,6 +174,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
@@ -1608,30 +1610,19 @@ public class PatientOrderResource {
 		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
 			throw new AuthorizationException();
 
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		boolean usePanelTodayPerfOptimization = Boolean.TRUE.equals(institution.getIntegratedCarePanelTodayPerfOptimizationEnabled());
 		LocalDateTime today = LocalDateTime.now(account.getTimeZone());
 		LocalDateTime endOfDayToday = LocalDateTime.of(today.toLocalDate(), LocalTime.MAX);
 
 		// Pull all the orders for the "today" view and chunk them up into the sections needed for the UI
 		List<PatientOrder> patientOrders = getPatientOrderService().findOpenPatientOrdersForPanelAccountId(account.getAccountId());
-
-		// "Safety Planning": patient_order_safety_planning_status_id == NEEDS_SAFETY_PLANNING
-		List<PatientOrderApiResponse> safetyPlanningPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getPatientOrderSafetyPlanningStatusId() == PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING)
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
-
-		// "Outreach Review": total_outreach_count == 0
-		List<PatientOrderApiResponse> outreachReviewPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getTotalOutreachCount() == 0)
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
-
-		// "Voicemails": most recent voicemail task exists, but is incomplete
-		List<PatientOrderApiResponse> voicemailTaskPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getMostRecentPatientOrderVoicemailTaskId() != null
-						&& !patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted())
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
+		List<PatientOrderApiResponse> safetyPlanningPatientOrders;
+		List<PatientOrderApiResponse> outreachReviewPatientOrders;
+		List<PatientOrderApiResponse> voicemailTaskPatientOrders;
+		List<PatientOrderApiResponse> outreachFollowupNeededPatientOrders;
+		List<PatientOrderApiResponse> scheduledAssessmentPatientOrders;
+		List<PatientOrderApiResponse> needResourcesPatientOrders;
 
 		Set<PatientOrderContactTypeId> validFollowUpContactTypeIds = Set.of(
 				PatientOrderContactTypeId.ASSESSMENT_OUTREACH,
@@ -1640,42 +1631,99 @@ public class PatientOrderResource {
 				PatientOrderContactTypeId.RESOURCE_FOLLOWUP
 		);
 
-		// "Follow Up"
-		List<PatientOrderApiResponse> outreachFollowupNeededPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> {
-					boolean overdueForOutreach = patientOrder.getNextContactScheduledAt() != null
-							&& patientOrder.getNextContactTypeId() != null
-							&& validFollowUpContactTypeIds.contains(patientOrder.getNextContactTypeId())
-							&& patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday);
+		if (usePanelTodayPerfOptimization) {
+			Map<UUID, PatientOrderApiResponse> patientOrderApiResponsesById = new HashMap<>(patientOrders.size());
+			Function<PatientOrder, PatientOrderApiResponse> patientOrderApiResponseFor = patientOrder ->
+					patientOrderApiResponsesById.computeIfAbsent(patientOrder.getPatientOrderId(), ignored ->
+							getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC));
 
-					if (overdueForOutreach)
-						return true;
+			safetyPlanningPatientOrders = new ArrayList<>();
+			outreachReviewPatientOrders = new ArrayList<>();
+			voicemailTaskPatientOrders = new ArrayList<>();
+			outreachFollowupNeededPatientOrders = new ArrayList<>();
+			scheduledAssessmentPatientOrders = new ArrayList<>();
+			needResourcesPatientOrders = new ArrayList<>();
 
-					// If screening session has been started but abandoned and no upcoming contact is scheduled, show the order in "follow up"
-					boolean startedButAbandonedScreeningSession = patientOrder.getMostRecentIntakeScreeningSessionAppearsAbandoned()
-							|| patientOrder.getMostRecentScreeningSessionAppearsAbandoned();
+			for (PatientOrder patientOrder : patientOrders) {
+				if (patientOrder.getPatientOrderSafetyPlanningStatusId() == PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING)
+					safetyPlanningPatientOrders.add(patientOrderApiResponseFor.apply(patientOrder));
 
-					if (startedButAbandonedScreeningSession && patientOrder.getNextContactScheduledAt() == null)
-						return true;
+				if (patientOrder.getTotalOutreachCount() == 0)
+					outreachReviewPatientOrders.add(patientOrderApiResponseFor.apply(patientOrder));
 
-					return false;
-				})
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
+				if (patientOrder.getMostRecentPatientOrderVoicemailTaskId() != null
+						&& !patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted())
+					voicemailTaskPatientOrders.add(patientOrderApiResponseFor.apply(patientOrder));
 
-		// "Assessments": status == NOT_TRIAGED && patient_order_scheduled_screening_scheduled_date_time <= TODAY
-		List<PatientOrderApiResponse> scheduledAssessmentPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NOT_TRIAGED
+				boolean overdueForOutreach = patientOrder.getNextContactScheduledAt() != null
+						&& patientOrder.getNextContactTypeId() != null
+						&& validFollowUpContactTypeIds.contains(patientOrder.getNextContactTypeId())
+						&& patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday);
+
+				boolean startedButAbandonedScreeningSession = patientOrder.getMostRecentIntakeScreeningSessionAppearsAbandoned()
+						|| patientOrder.getMostRecentScreeningSessionAppearsAbandoned();
+
+				if (overdueForOutreach || (startedButAbandonedScreeningSession && patientOrder.getNextContactScheduledAt() == null))
+					outreachFollowupNeededPatientOrders.add(patientOrderApiResponseFor.apply(patientOrder));
+
+				if (patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NOT_TRIAGED
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() != null
 						&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().isBefore(endOfDayToday))
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
+					scheduledAssessmentPatientOrders.add(patientOrderApiResponseFor.apply(patientOrder));
 
-		// "Resources": patient_order_resourcing_status_id == NEEDS_RESOURCES
-		List<PatientOrderApiResponse> needResourcesPatientOrders = patientOrders.stream()
-				.filter(patientOrder -> patientOrder.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.NEEDS_RESOURCES)
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-				.collect(Collectors.toList());
+				if (patientOrder.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.NEEDS_RESOURCES)
+					needResourcesPatientOrders.add(patientOrderApiResponseFor.apply(patientOrder));
+			}
+		} else {
+			safetyPlanningPatientOrders = patientOrders.stream()
+					.filter(patientOrder -> patientOrder.getPatientOrderSafetyPlanningStatusId() == PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING)
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+					.collect(Collectors.toList());
+
+			outreachReviewPatientOrders = patientOrders.stream()
+					.filter(patientOrder -> patientOrder.getTotalOutreachCount() == 0)
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+					.collect(Collectors.toList());
+
+			voicemailTaskPatientOrders = patientOrders.stream()
+					.filter(patientOrder -> patientOrder.getMostRecentPatientOrderVoicemailTaskId() != null
+							&& !patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted())
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+					.collect(Collectors.toList());
+
+			outreachFollowupNeededPatientOrders = patientOrders.stream()
+					.filter(patientOrder -> {
+						boolean overdueForOutreach = patientOrder.getNextContactScheduledAt() != null
+								&& patientOrder.getNextContactTypeId() != null
+								&& validFollowUpContactTypeIds.contains(patientOrder.getNextContactTypeId())
+								&& patientOrder.getNextContactScheduledAt().isBefore(endOfDayToday);
+
+						if (overdueForOutreach)
+							return true;
+
+						boolean startedButAbandonedScreeningSession = patientOrder.getMostRecentIntakeScreeningSessionAppearsAbandoned()
+								|| patientOrder.getMostRecentScreeningSessionAppearsAbandoned();
+
+						if (startedButAbandonedScreeningSession && patientOrder.getNextContactScheduledAt() == null)
+							return true;
+
+						return false;
+					})
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+					.collect(Collectors.toList());
+
+			scheduledAssessmentPatientOrders = patientOrders.stream()
+					.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NOT_TRIAGED
+							&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() != null
+							&& patientOrder.getPatientOrderScheduledScreeningScheduledDateTime().isBefore(endOfDayToday))
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+					.collect(Collectors.toList());
+
+			needResourcesPatientOrders = patientOrders.stream()
+					.filter(patientOrder -> patientOrder.getPatientOrderResourcingStatusId() == PatientOrderResourcingStatusId.NEEDS_RESOURCES)
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+					.collect(Collectors.toList());
+		}
 
 		return new ApiResponse(new HashMap<>() {{
 			put("safetyPlanningPatientOrders", safetyPlanningPatientOrders);
