@@ -801,11 +801,12 @@ public class AccountService {
 		UUID accountId = request.getAccountId();
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		ValidationException validationException = new ValidationException();
+		Account account = null;
 
 		if (accountId == null) {
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 		} else {
-			Account account = findAccountById(accountId).orElse(null);
+			account = findAccountById(accountId).orElse(null);
 
 			if (account == null)
 				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
@@ -815,6 +816,16 @@ public class AccountService {
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
 		else if (!isValidEmailAddress(emailAddress))
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
+
+		if (account != null
+				&& emailAddress != null
+				&& isValidEmailAddress(emailAddress)
+				&& account.getAccountSourceId() == AccountSourceId.EMAIL_PASSWORD
+				&& account.getEmailAddress() != null
+				&& !account.getEmailAddress().equalsIgnoreCase(emailAddress))
+			validationException.add(new FieldError("emailAddress", getStrings().get(
+					"You cannot change the email address for this account.  The email address on file is {{emailAddress}}.",
+					Map.of("emailAddress", account.getEmailAddress()))));
 
 		if (validationException.hasErrors())
 			throw validationException;
