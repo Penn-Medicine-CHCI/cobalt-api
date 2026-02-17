@@ -107,6 +107,7 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -171,6 +172,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -1594,29 +1596,127 @@ public class PatientOrderResource {
 	@GET("/integrated-care/panel-today")
 	@AuthenticationRequired
 	@ReadReplica
-	public ApiResponse panelToday(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
+	public ApiResponse panelToday(@Nonnull @QueryParameter Optional<UUID> panelAccountId,
+																@Nonnull @QueryParameter Optional<PanelPerfMode> mode) {
 		requireNonNull(panelAccountId);
+		requireNonNull(mode);
 
-		Account account = getCurrentContext().getAccount().get();
-		InstitutionId institutionId = account.getInstitutionId();
+		Account requestingAccount = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = requestingAccount.getInstitutionId();
+		Account panelAccount = panelAccountFor(panelAccountId, requestingAccount);
+		PanelPerfMode panelPerfMode = panelPerfModeFor(mode, requestingAccount);
 
-		if (panelAccountId.isPresent()) {
-			account = getAccountService().findAccountById(panelAccountId.get()).orElse(null);
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		boolean defaultUsePanelTodayPerfOptimization = Boolean.TRUE.equals(institution.getIntegratedCarePanelTodayPerfOptimizationEnabled());
 
-			if (account == null)
+		Map<String, Object> responseBody;
+
+		if (panelPerfMode == PanelPerfMode.DEFAULT) {
+			responseBody = panelTodayResponseBodyFor(panelAccount, defaultUsePanelTodayPerfOptimization);
+		} else if (panelPerfMode == PanelPerfMode.LEGACY) {
+			responseBody = panelTodayResponseBodyFor(panelAccount, false);
+		} else if (panelPerfMode == PanelPerfMode.OPTIMIZED) {
+			responseBody = panelTodayResponseBodyFor(panelAccount, true);
+		} else if (panelPerfMode == PanelPerfMode.COMPARE) {
+			Map<String, Object> legacyResponseBody = panelTodayResponseBodyFor(panelAccount, false);
+			Map<String, Object> optimizedResponseBody = panelTodayResponseBodyFor(panelAccount, true);
+			responseBody = comparisonResponseBodyFor(legacyResponseBody, optimizedResponseBody);
+		} else {
+			throw new IllegalStateException(format("Unexpected panel perf mode: %s", panelPerfMode));
+		}
+
+		return new ApiResponse(responseBody);
+	}
+
+	@Nonnull
+	@GET("/integrated-care/panel-counts")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse panelCounts(@Nonnull @QueryParameter Optional<UUID> panelAccountId,
+																 @Nonnull @QueryParameter Optional<PanelPerfMode> mode) {
+		requireNonNull(panelAccountId);
+		requireNonNull(mode);
+
+		Account requestingAccount = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = requestingAccount.getInstitutionId();
+		Account panelAccount = panelAccountFor(panelAccountId, requestingAccount);
+		PanelPerfMode panelPerfMode = panelPerfModeFor(mode, requestingAccount);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		boolean defaultUsePanelCountsPerfOptimization = Boolean.TRUE.equals(institution.getIntegratedCarePanelCountsPerfOptimizationEnabled());
+
+		Map<String, Object> responseBody;
+
+		if (panelPerfMode == PanelPerfMode.DEFAULT) {
+			responseBody = panelCountsResponseBodyFor(institutionId, panelAccount.getAccountId(), defaultUsePanelCountsPerfOptimization);
+		} else if (panelPerfMode == PanelPerfMode.LEGACY) {
+			responseBody = panelCountsResponseBodyFor(institutionId, panelAccount.getAccountId(), false);
+		} else if (panelPerfMode == PanelPerfMode.OPTIMIZED) {
+			responseBody = panelCountsResponseBodyFor(institutionId, panelAccount.getAccountId(), true);
+		} else if (panelPerfMode == PanelPerfMode.COMPARE) {
+			Map<String, Object> legacyResponseBody = panelCountsResponseBodyFor(institutionId, panelAccount.getAccountId(), false);
+			Map<String, Object> optimizedResponseBody = panelCountsResponseBodyFor(institutionId, panelAccount.getAccountId(), true);
+			responseBody = comparisonResponseBodyFor(legacyResponseBody, optimizedResponseBody);
+		} else {
+			throw new IllegalStateException(format("Unexpected panel perf mode: %s", panelPerfMode));
+		}
+
+		return new ApiResponse(responseBody);
+	}
+
+	@Nonnull
+	protected Account panelAccountFor(@Nonnull Optional<UUID> providedPanelAccountId,
+																		@Nonnull Account requestingAccount) {
+		requireNonNull(providedPanelAccountId);
+		requireNonNull(requestingAccount);
+
+		InstitutionId institutionId = requestingAccount.getInstitutionId();
+
+		if (!getAuthorizationService().canViewPanelAccounts(institutionId, requestingAccount))
+			throw new AuthorizationException();
+
+		Account panelAccount = requestingAccount;
+
+		if (providedPanelAccountId.isPresent()) {
+			panelAccount = getAccountService().findAccountById(providedPanelAccountId.get()).orElse(null);
+
+			if (panelAccount == null)
 				throw new NotFoundException();
 		}
 
-		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
+		if (!institutionId.equals(panelAccount.getInstitutionId()))
 			throw new AuthorizationException();
 
-		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
-		boolean usePanelTodayPerfOptimization = Boolean.TRUE.equals(institution.getIntegratedCarePanelTodayPerfOptimizationEnabled());
-		LocalDateTime today = LocalDateTime.now(account.getTimeZone());
+		return panelAccount;
+	}
+
+	@Nonnull
+	protected PanelPerfMode panelPerfModeFor(@Nonnull Optional<PanelPerfMode> providedMode,
+																					 @Nonnull Account requestingAccount) {
+		requireNonNull(providedMode);
+		requireNonNull(requestingAccount);
+
+		PanelPerfMode mode = providedMode.orElse(null);
+
+		if (mode == null)
+			return PanelPerfMode.DEFAULT;
+
+		if (requestingAccount.getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		return mode;
+	}
+
+	@Nonnull
+	protected Map<String, Object> panelTodayResponseBodyFor(@Nonnull Account panelAccount,
+																													boolean usePanelTodayPerfOptimization) {
+		requireNonNull(panelAccount);
+
+		LocalDateTime today = LocalDateTime.now(panelAccount.getTimeZone());
 		LocalDateTime endOfDayToday = LocalDateTime.of(today.toLocalDate(), LocalTime.MAX);
 
 		// Pull all the orders for the "today" view and chunk them up into the sections needed for the UI
-		List<PatientOrder> patientOrders = getPatientOrderService().findOpenPatientOrdersForPanelAccountId(account.getAccountId());
+		List<PatientOrder> patientOrders = getPatientOrderService().findOpenPatientOrdersForPanelAccountId(panelAccount.getAccountId());
 		List<PatientOrderApiResponse> safetyPlanningPatientOrders;
 		List<PatientOrderApiResponse> outreachReviewPatientOrders;
 		List<PatientOrderApiResponse> voicemailTaskPatientOrders;
@@ -1725,41 +1825,25 @@ public class PatientOrderResource {
 					.collect(Collectors.toList());
 		}
 
-		return new ApiResponse(new HashMap<>() {{
+		return new HashMap<String, Object>() {{
 			put("safetyPlanningPatientOrders", safetyPlanningPatientOrders);
 			put("outreachReviewPatientOrders", outreachReviewPatientOrders);
 			put("voicemailTaskPatientOrders", voicemailTaskPatientOrders);
 			put("scheduledAssessmentPatientOrders", scheduledAssessmentPatientOrders);
 			put("needResourcesPatientOrders", needResourcesPatientOrders);
 			put("outreachFollowupNeededPatientOrders", outreachFollowupNeededPatientOrders);
-		}});
+		}};
 	}
 
 	@Nonnull
-	@GET("/integrated-care/panel-counts")
-	@AuthenticationRequired
-	@ReadReplica
-	public ApiResponse panelCounts(@Nonnull @QueryParameter Optional<UUID> panelAccountId) {
+	protected Map<String, Object> panelCountsResponseBodyFor(@Nonnull InstitutionId institutionId,
+																												 @Nonnull UUID panelAccountId,
+																												 boolean usePanelCountsPerfOptimization) {
+		requireNonNull(institutionId);
 		requireNonNull(panelAccountId);
 
-		Account account = getCurrentContext().getAccount().get();
-		InstitutionId institutionId = account.getInstitutionId();
-
-		if (panelAccountId.isPresent()) {
-			account = getAccountService().findAccountById(panelAccountId.get()).orElse(null);
-
-			if (account == null)
-				throw new NotFoundException();
-		}
-
-		if (!getAuthorizationService().canViewPanelAccounts(institutionId, account))
-			throw new AuthorizationException();
-
-		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
-		boolean usePanelCountsPerfOptimization = Boolean.TRUE.equals(institution.getIntegratedCarePanelCountsPerfOptimizationEnabled());
-
 		Map<PatientOrderViewTypeId, Integer> patientOrderCountsByPatientOrderViewTypeId = getPatientOrderService()
-				.findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(institutionId, account.getAccountId(), usePanelCountsPerfOptimization);
+				.findPatientOrderCountsByPatientOrderViewTypeIdForInstitutionId(institutionId, panelAccountId, usePanelCountsPerfOptimization);
 		Map<PatientOrderViewTypeId, Map<String, Object>> patientOrderCountsByPatientOrderViewTypeIdJson = new HashMap<>(patientOrderCountsByPatientOrderViewTypeId.size());
 
 		for (Entry<PatientOrderViewTypeId, Integer> entry : patientOrderCountsByPatientOrderViewTypeId.entrySet()) {
@@ -1771,9 +1855,26 @@ public class PatientOrderResource {
 			));
 		}
 
-		return new ApiResponse(new HashMap<String, Object>() {{
+		return new HashMap<String, Object>() {{
 			put("patientOrderCountsByPatientOrderViewTypeId", patientOrderCountsByPatientOrderViewTypeIdJson);
-		}});
+		}};
+	}
+
+	@Nonnull
+	protected Map<String, Object> comparisonResponseBodyFor(@Nonnull Map<String, Object> legacyResponseBody,
+																													@Nonnull Map<String, Object> optimizedResponseBody) {
+		requireNonNull(legacyResponseBody);
+		requireNonNull(optimizedResponseBody);
+
+		Map<String, Object> normalizedLegacyResponseBody = getJsonMapper().toMap(legacyResponseBody);
+		Map<String, Object> normalizedOptimizedResponseBody = getJsonMapper().toMap(optimizedResponseBody);
+		boolean equal = Objects.equals(normalizedLegacyResponseBody, normalizedOptimizedResponseBody);
+
+		return new HashMap<String, Object>() {{
+			put("equal", equal);
+			put("legacy", legacyResponseBody);
+			put("optimized", optimizedResponseBody);
+		}};
 	}
 
 	@Nonnull
@@ -2293,6 +2394,13 @@ public class PatientOrderResource {
 		}
 
 		return CustomResponse.instance();
+	}
+
+	protected enum PanelPerfMode {
+		DEFAULT,
+		LEGACY,
+		OPTIMIZED,
+		COMPARE
 	}
 
 	@Nonnull
