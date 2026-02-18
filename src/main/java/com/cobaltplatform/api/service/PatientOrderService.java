@@ -247,7 +247,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1667,6 +1666,21 @@ public class PatientOrderService implements AutoCloseable {
 	public FindResult<PatientOrder> findPatientOrders(@Nonnull FindPatientOrdersRequest request) {
 		requireNonNull(request);
 
+		FindPatientOrdersRequest.PatientOrdersQueryMode patientOrdersQueryMode = request.getPatientOrdersQueryMode();
+
+		if (patientOrdersQueryMode == null || patientOrdersQueryMode == FindPatientOrdersRequest.PatientOrdersQueryMode.LEGACY)
+			return findPatientOrdersLegacy(request);
+
+		if (patientOrdersQueryMode == FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED)
+			return findPatientOrdersOptimized(request);
+
+		throw new IllegalStateException(format("Unsupported patient orders query mode %s", patientOrdersQueryMode));
+	}
+
+	@Nonnull
+	protected FindResult<PatientOrder> findPatientOrdersLegacy(@Nonnull FindPatientOrdersRequest request) {
+		requireNonNull(request);
+
 		InstitutionId institutionId = request.getInstitutionId();
 		PatientOrderViewTypeId patientOrderViewTypeId = request.getPatientOrderViewTypeId();
 		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
@@ -1685,8 +1699,6 @@ public class PatientOrderService implements AutoCloseable {
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		List<PatientOrderSortRule> patientOrderSortRules = request.getPatientOrderSortRules() == null ? List.of() : request.getPatientOrderSortRules();
-		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
-		boolean shouldUseDirectVPatientOrderFilterPath = Boolean.TRUE.equals(institution.getIntegratedCareFilterFirstPatientOrderQueryEnabled());
 
 		final int DEFAULT_PAGE_SIZE = 50;
 		final int MAXIMUM_PAGE_SIZE = 100;
@@ -1702,10 +1714,12 @@ public class PatientOrderService implements AutoCloseable {
 		Integer offset = pageNumber * pageSize;
 		Integer limit = pageSize;
 		List<String> whereClauseLines = new ArrayList<>();
+		List<String> rawPatientOrderWhereClauseLines = new ArrayList<>();
 		List<String> orderByColumns = new ArrayList<>();
 		List<Object> parameters = new ArrayList<>();
-		parameters.add(institutionId);
-		whereClauseLines.add("AND po.institution_id=?");
+		List<Object> rawPatientOrderParameters = new ArrayList<>();
+
+		rawPatientOrderParameters.add(institutionId);
 
 		// Only include complete/valid sort order rules.
 		patientOrderSortRules = patientOrderSortRules.stream()
@@ -1734,10 +1748,6 @@ public class PatientOrderService implements AutoCloseable {
 					}}
 			);
 
-		Set<PatientOrderDispositionId> effectivePatientOrderDispositionIds = patientOrderDispositionIds.size() == 0
-				? Set.of(PatientOrderDispositionId.OPEN)
-				: patientOrderDispositionIds;
-
 		// If patientOrderViewTypeId is specified, it provides "fixed" views, largely ignoring other parameters that might be specified
 		if (patientOrderViewTypeId != null) {
 			if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED) {
@@ -1745,8 +1755,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Assessment Status = Scheduled
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.OPEN);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
 				parameters.add(PatientOrderScreeningStatusId.SCHEDULED);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_DOCUMENTATION) {
@@ -1754,8 +1764,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Encounter Documentation Status = Needs Documentation
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.OPEN);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_encounter_documentation_status_id=?");
 				parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED_OUTREACH) {
@@ -1763,8 +1773,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.OPEN);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.next_contact_type_id IN (?,?,?,?)");
 				parameters.add(PatientOrderContactTypeId.ASSESSMENT_OUTREACH);
 				parameters.add(PatientOrderContactTypeId.ASSESSMENT);
@@ -1780,20 +1790,20 @@ public class PatientOrderService implements AutoCloseable {
 				// Assessment Status = In Progress
 				// Consent = None
 				// Consent = Yes
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.OPEN);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.total_outreach_count > 0");
 				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
 				parameters.add(PatientOrderScreeningStatusId.NOT_SCREENED);
-				whereClauseLines.add("AND po.patient_order_consent_status_id IN (?,?)");
-				parameters.addAll(List.of(PatientOrderConsentStatusId.UNKNOWN, PatientOrderConsentStatusId.CONSENTED));
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_consent_status_id IN (?,?)");
+				rawPatientOrderParameters.addAll(List.of(PatientOrderConsentStatusId.UNKNOWN, PatientOrderConsentStatusId.CONSENTED));
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SUBCLINICAL) {
 				// Subclinical: Patients triaged to subclinical
 				// Definition:
 				// Order State = Open
 				// Triage = Subclinical
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.OPEN);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
 				parameters.add(PatientOrderTriageStatusId.SUBCLINICAL);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.MHP) {
@@ -1801,8 +1811,8 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Triage = MHP
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.OPEN);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
 				parameters.add(PatientOrderTriageStatusId.MHP);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SPECIALTY_CARE) {
@@ -1810,16 +1820,16 @@ public class PatientOrderService implements AutoCloseable {
 				// Definition:
 				// Order State = Open
 				// Triage = Specialty Care
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.OPEN);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
 				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
 				parameters.add(PatientOrderTriageStatusId.SPECIALTY_CARE);
 			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.CLOSED) {
 				// Closed: Orders that have been closed. Order closed for more than 30 days will be archived.
 				// Definition:
 				// Order State = Closed
-				whereClauseLines.add("AND po.patient_order_disposition_id=?");
-				parameters.add(PatientOrderDispositionId.CLOSED);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.CLOSED);
 			} else {
 				throw new IllegalStateException(format("Not sure how to handle %s.%s",
 						PatientOrderViewTypeId.class.getSimpleName(), patientOrderViewTypeId.name()));
@@ -1827,21 +1837,22 @@ public class PatientOrderService implements AutoCloseable {
 
 			// We still support filtering per-account for PatientOrderViewTypeId requests
 			if (panelAccountIds.size() > 0) {
-				whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-				parameters.addAll(panelAccountIds);
+				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				rawPatientOrderParameters.addAll(panelAccountIds);
 			}
 		} else {
 			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
 
 			// Default to OPEN orders unless specified otherwise
-			patientOrderDispositionIds = effectivePatientOrderDispositionIds;
+			if (patientOrderDispositionIds.size() == 0)
+				patientOrderDispositionIds = Set.of(PatientOrderDispositionId.OPEN);
 
-			whereClauseLines.add(format("AND po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
-			parameters.addAll(patientOrderDispositionIds);
+			rawPatientOrderWhereClauseLines.add(format("AND raw_po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
+			rawPatientOrderParameters.addAll(patientOrderDispositionIds);
 
 			if (patientOrderConsentStatusId != null) {
-				whereClauseLines.add("AND po.patient_order_consent_status_id=?");
-				parameters.add(patientOrderConsentStatusId);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_consent_status_id=?");
+				rawPatientOrderParameters.add(patientOrderConsentStatusId);
 			}
 
 			if (patientOrderScreeningStatusId != null) {
@@ -1856,9 +1867,9 @@ public class PatientOrderService implements AutoCloseable {
 
 			if (patientOrderAssignmentStatusId != null) {
 				if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.UNASSIGNED)
-					whereClauseLines.add("AND po.panel_account_id IS NULL");
+					rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id IS NULL");
 				else if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.ASSIGNED)
-					whereClauseLines.add("AND po.panel_account_id IS NOT NULL");
+					rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id IS NOT NULL");
 			}
 
 			if (patientOrderOutreachStatusId != null) {
@@ -1876,8 +1887,8 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			if (patientOrderSafetyPlanningStatusId != null) {
-				whereClauseLines.add("AND po.patient_order_safety_planning_status_id=?");
-				parameters.add(patientOrderSafetyPlanningStatusId);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_safety_planning_status_id=?");
+				rawPatientOrderParameters.add(patientOrderSafetyPlanningStatusId);
 			}
 
 			if (patientOrderFilterFlagTypeIds.size() > 0) {
@@ -1943,38 +1954,38 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			if (referringPracticeIds.size() > 0) {
-				whereClauseLines.add(format("AND po.referring_practice_id IN %s", sqlInListPlaceholders(referringPracticeIds)));
-				parameters.addAll(referringPracticeIds);
+				rawPatientOrderWhereClauseLines.add(format("AND raw_po.referring_practice_id IN %s", sqlInListPlaceholders(referringPracticeIds)));
+				rawPatientOrderParameters.addAll(referringPracticeIds);
 			}
 
 			if (panelAccountIds.size() > 0) {
-				whereClauseLines.add(format("AND po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-				parameters.addAll(panelAccountIds);
+				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				rawPatientOrderParameters.addAll(panelAccountIds);
 			}
 
 			// Search query is trumped by Patient MRN
 			if (patientMrn != null) {
-				whereClauseLines.add("AND LOWER(po.patient_mrn)=LOWER(?)");
-				parameters.add(patientMrn);
+				rawPatientOrderWhereClauseLines.add("AND LOWER(raw_po.patient_mrn)=LOWER(?)");
+				rawPatientOrderParameters.add(patientMrn);
 			} else if (searchQuery != null) {
 				// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
-				whereClauseLines.add("""
+				rawPatientOrderWhereClauseLines.add("""
 						      AND (
-						      CAST (po.reference_number AS TEXT) like CONCAT(?,'%')
-						      OR po.patient_first_name ILIKE CONCAT('%',?,'%')
-						      OR po.patient_last_name ILIKE CONCAT('%',?,'%')
-						      OR po.patient_mrn=?
-						      OR (po.patient_phone_number IS NOT NULL AND po.patient_phone_number ILIKE CONCAT('%',?,'%'))
-						      OR (po.patient_email_address IS NOT NULL AND po.patient_email_address ILIKE CONCAT('%',?,'%'))
+						      CAST (raw_po.reference_number AS TEXT) like CONCAT(?,'%')
+						      OR raw_po.patient_first_name ILIKE CONCAT('%',?,'%')
+						      OR raw_po.patient_last_name ILIKE CONCAT('%',?,'%')
+						      OR raw_po.patient_mrn=?
+						      OR (raw_po.patient_phone_number IS NOT NULL AND raw_po.patient_phone_number ILIKE CONCAT('%',?,'%'))
+						      OR (raw_po.patient_email_address IS NOT NULL AND raw_po.patient_email_address ILIKE CONCAT('%',?,'%'))
 						      )
 						""");
 
-				parameters.add(searchQuery);
-				parameters.add(searchQuery);
-				parameters.add(searchQuery);
-				parameters.add(searchQuery);
-				parameters.add(searchQuery);
-				parameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
 			}
 		}
 
@@ -2021,12 +2032,17 @@ public class PatientOrderService implements AutoCloseable {
 
 		// Use special 'v_all_patient_order' if a request comes in for ARCHIVED orders
 		String patientOrderViewName = patientOrderDispositionIds.contains(PatientOrderDispositionId.ARCHIVED) ? "v_all_patient_order" : "v_patient_order";
-		String sqlTemplate = """
+
+		String sql = """
 				  WITH base_query AS (
 				  	SELECT po.*
 				  	FROM {{patientOrderViewName}} po
 				  	WHERE 1=1
 				  	{{whereClauseLines}}
+				  	AND po.patient_order_id IN (
+				  		SELECT patient_order_id FROM patient_order raw_po WHERE raw_po.institution_id=?
+				  		{{rawPatientOrderWhereClauseLines}}
+				  	)
 				  )
 				  SELECT
 				  bq.*,
@@ -2037,68 +2053,17 @@ public class PatientOrderService implements AutoCloseable {
 				  ORDER BY {{orderByColumns}}
 				  LIMIT ?
 				  OFFSET ?
-				""".trim();
-		String sql;
-		List<Object> finalParameters;
+				""".trim()
+				.replace("{{patientOrderViewName}}", patientOrderViewName)
+				.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
+				.replace("{{rawPatientOrderWhereClauseLines}}", rawPatientOrderWhereClauseLines.stream().collect(Collectors.joining("\n")))
+				.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
+				.trim();
 
-		if (shouldUseDirectVPatientOrderFilterPath) {
-			sql = sqlTemplate
-					.replace("{{patientOrderViewName}}", patientOrderViewName)
-					.replace("{{whereClauseLines}}", whereClauseLines.stream().collect(Collectors.joining("\n")))
-					.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
-					.trim();
-
-			finalParameters = new ArrayList<>(parameters.size() + limitOffsetParameters.size());
-			finalParameters.addAll(parameters);
-			finalParameters.addAll(limitOffsetParameters);
-		} else {
-			List<String> legacyWhereClauseLines = new ArrayList<>(whereClauseLines);
-			List<Object> legacyParameters = new ArrayList<>(parameters);
-			List<String> legacyRawWhereClauseLines = new ArrayList<>();
-			List<Object> legacyRawParameters = new ArrayList<>();
-			Set<PatientOrderDispositionId> legacyRawPatientOrderDispositionIds = new LinkedHashSet<>();
-
-			legacyRawWhereClauseLines.add("AND raw_po.institution_id=?");
-			legacyRawParameters.add(institutionId);
-
-			if (patientOrderViewTypeId == null) {
-				legacyRawPatientOrderDispositionIds.addAll(effectivePatientOrderDispositionIds);
-			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.CLOSED) {
-				legacyRawPatientOrderDispositionIds.add(PatientOrderDispositionId.CLOSED);
-			} else {
-				legacyRawPatientOrderDispositionIds.add(PatientOrderDispositionId.OPEN);
-			}
-
-			legacyRawWhereClauseLines.add(format("AND raw_po.patient_order_disposition_id IN %s", sqlInListPlaceholders(legacyRawPatientOrderDispositionIds)));
-			legacyRawParameters.addAll(legacyRawPatientOrderDispositionIds);
-
-			if (panelAccountIds.size() > 0) {
-				legacyRawWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-				legacyRawParameters.addAll(panelAccountIds);
-			}
-
-			legacyWhereClauseLines.add("""
-					AND po.patient_order_id IN (
-					  SELECT raw_po.patient_order_id
-					  FROM patient_order raw_po
-					  WHERE 1=1
-					  {{legacyRawWhereClauseLines}}
-					)
-					""".trim()
-					.replace("{{legacyRawWhereClauseLines}}", legacyRawWhereClauseLines.stream().collect(Collectors.joining("\n")))
-					.trim());
-			legacyParameters.addAll(legacyRawParameters);
-
-			sql = sqlTemplate
-					.replace("{{patientOrderViewName}}", patientOrderViewName)
-					.replace("{{whereClauseLines}}", legacyWhereClauseLines.stream().collect(Collectors.joining("\n")))
-					.replace("{{orderByColumns}}", orderByColumns.stream().collect(Collectors.joining(", ")))
-					.trim();
-
-			finalParameters = new ArrayList<>(legacyParameters.size() + limitOffsetParameters.size());
-			finalParameters.addAll(legacyParameters);
-			finalParameters.addAll(limitOffsetParameters);
-		}
+		List<Object> finalParameters = new ArrayList<>(parameters.size() + rawPatientOrderParameters.size() + limitOffsetParameters.size());
+		finalParameters.addAll(parameters);
+		finalParameters.addAll(rawPatientOrderParameters);
+		finalParameters.addAll(limitOffsetParameters);
 
 		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(finalParameters));
 
@@ -2110,6 +2075,928 @@ public class PatientOrderService implements AutoCloseable {
 
 		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
 		return (FindResult<PatientOrder>) findResult;
+	}
+
+	@Nonnull
+	protected FindResult<PatientOrder> findPatientOrdersOptimized(@Nonnull FindPatientOrdersRequest request) {
+		requireNonNull(request);
+
+		FindPatientOrdersQueryContext queryContext = createFindPatientOrdersQueryContext(request);
+
+		String sql = """
+				WITH raw_base AS MATERIALIZED (
+					SELECT raw_po.*
+					FROM patient_order raw_po
+					WHERE raw_po.institution_id=?
+					{{rawPatientOrderWhereClauseLines}}
+				),
+				inst AS (
+					SELECT i.*
+					FROM institution i
+					JOIN (SELECT DISTINCT institution_id FROM raw_base) raw_inst
+					  ON raw_inst.institution_id = i.institution_id
+				),
+				permitted_regions_query AS (
+					SELECT iicr.institution_id,
+								 ARRAY_AGG(iicr.region_abbreviation) AS permitted_region_abbreviations
+					FROM institution_integrated_care_region iicr
+					JOIN (SELECT DISTINCT institution_id FROM raw_base) raw_inst
+					  ON raw_inst.institution_id = iicr.institution_id
+					GROUP BY iicr.institution_id
+				),
+				poo AS (
+					SELECT patient_order_outreach.patient_order_id,
+								 COUNT(*) AS outreach_count,
+								 MAX(patient_order_outreach.outreach_date_time) AS max_outreach_date_time
+					FROM patient_order_outreach
+					JOIN raw_base bo
+					  ON bo.patient_order_id = patient_order_outreach.patient_order_id
+					WHERE patient_order_outreach.deleted = FALSE
+					GROUP BY patient_order_outreach.patient_order_id
+				),
+				reason_for_referral_query AS (
+					SELECT por.patient_order_id,
+								 STRING_AGG(porr.description, ', ' ORDER BY por.display_order) AS reason_for_referral
+					FROM patient_order_referral por
+					JOIN raw_base bo
+					  ON bo.patient_order_id = por.patient_order_id
+					JOIN patient_order_referral_reason porr
+					  ON por.patient_order_referral_reason_id = porr.patient_order_referral_reason_id
+					GROUP BY por.patient_order_id
+				),
+				smg AS (
+					SELECT posmg_1.patient_order_id,
+								 COUNT(*) AS scheduled_message_group_delivered_count,
+								 MAX(posmg_1.scheduled_at_date_time) AS max_delivered_scheduled_message_group_date_time
+					FROM patient_order_scheduled_message_group posmg_1
+					JOIN raw_base bo
+					  ON bo.patient_order_id = posmg_1.patient_order_id
+					WHERE posmg_1.deleted = FALSE
+						AND EXISTS (
+							SELECT 1
+							FROM patient_order_scheduled_message posm
+							JOIN scheduled_message sm
+							  ON sm.scheduled_message_id = posm.scheduled_message_id
+							JOIN message_log ml
+							  ON ml.message_id = sm.message_id
+							 AND ml.message_status_id = 'DELIVERED'
+							WHERE posm.patient_order_scheduled_message_group_id = posmg_1.patient_order_scheduled_message_group_id
+							LIMIT 1
+						)
+					GROUP BY posmg_1.patient_order_id
+				),
+				next_resource_check_in_scheduled_message_group_query AS (
+					SELECT DISTINCT ON (posmg_1.patient_order_id)
+						posmg_1.patient_order_id,
+						posmg_1.patient_order_scheduled_message_group_id AS next_resource_check_in_scheduled_message_group_id,
+						posmg_1.scheduled_at_date_time AS next_resource_check_in_scheduled_at_date_time
+					FROM patient_order_scheduled_message_group posmg_1
+					JOIN raw_base bo
+					  ON bo.patient_order_id = posmg_1.patient_order_id
+					JOIN inst i_1
+					  ON bo.institution_id = i_1.institution_id
+					LEFT JOIN patient_order_scheduled_message posm
+					  ON posmg_1.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
+					LEFT JOIN scheduled_message sm
+					  ON posm.scheduled_message_id = sm.scheduled_message_id
+					LEFT JOIN message_log ml
+					  ON sm.message_id = ml.message_id
+					WHERE posmg_1.patient_order_scheduled_message_type_id = 'RESOURCE_CHECK_IN'
+						AND posmg_1.deleted = FALSE
+						AND (posmg_1.scheduled_at_date_time AT TIME ZONE i_1.time_zone) > NOW()
+						AND (ml.message_status_id IS NULL OR ml.message_status_id <> 'DELIVERED')
+					ORDER BY posmg_1.patient_order_id, posmg_1.scheduled_at_date_time, posmg_1.patient_order_scheduled_message_group_id
+				),
+				next_appt_query AS (
+					SELECT DISTINCT ON (app.patient_order_id)
+						app.patient_order_id,
+						app.appointment_id,
+						app.canceled,
+						p.provider_id,
+						p.name AS provider_name,
+						app.start_time AS appointment_start_time,
+						app.created_by_account_id
+					FROM appointment app
+					JOIN raw_base bo
+					  ON bo.patient_order_id = app.patient_order_id
+					JOIN provider p
+					  ON app.provider_id = p.provider_id
+					WHERE app.canceled = FALSE
+					ORDER BY app.patient_order_id, app.start_time, app.appointment_id
+				),
+				recent_voicemail_task_query AS (
+					SELECT DISTINCT ON (povt.patient_order_id)
+						povt.patient_order_id,
+						povt.patient_order_voicemail_task_id,
+						povt.completed AS patient_order_voicemail_task_completed
+					FROM patient_order_voicemail_task povt
+					JOIN raw_base bo
+					  ON bo.patient_order_id = povt.patient_order_id
+					WHERE povt.deleted = FALSE
+					ORDER BY povt.patient_order_id, povt.created DESC, povt.patient_order_voicemail_task_id
+				),
+				next_scheduled_outreach_query AS (
+					SELECT DISTINCT ON (poso.patient_order_id)
+						poso.patient_order_id,
+						poso.patient_order_scheduled_outreach_id AS next_scheduled_outreach_id,
+						poso.scheduled_at_date_time AS next_scheduled_outreach_scheduled_at_date_time,
+						poso.patient_order_outreach_type_id AS next_scheduled_outreach_type_id,
+						poso.patient_order_scheduled_outreach_reason_id AS next_scheduled_outreach_reason_id
+					FROM patient_order_scheduled_outreach poso
+					JOIN raw_base bo
+					  ON bo.patient_order_id = poso.patient_order_id
+					WHERE poso.patient_order_scheduled_outreach_status_id = 'SCHEDULED'
+					ORDER BY poso.patient_order_id, poso.scheduled_at_date_time, poso.patient_order_scheduled_outreach_id
+				),
+				most_recent_message_delivered_query AS (
+					SELECT DISTINCT ON (posmg_1.patient_order_id)
+						posmg_1.patient_order_id,
+						ml.delivered AS most_recent_message_delivered_at
+					FROM patient_order_scheduled_message_group posmg_1
+					JOIN raw_base bo
+					  ON bo.patient_order_id = posmg_1.patient_order_id
+					JOIN patient_order_scheduled_message posm
+					  ON posmg_1.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
+					JOIN scheduled_message sm
+					  ON posm.scheduled_message_id = sm.scheduled_message_id
+					JOIN message_log ml
+					  ON sm.message_id = ml.message_id
+					WHERE ml.message_status_id = 'DELIVERED'
+					ORDER BY posmg_1.patient_order_id, ml.delivered DESC
+				),
+				ss_query AS (
+					SELECT DISTINCT ON (ss.patient_order_id)
+						ss.screening_session_id,
+						ss.screening_flow_version_id,
+						ss.target_account_id,
+						ss.created_by_account_id,
+						ss.completed,
+						ss.crisis_indicated,
+						ss.created,
+						ss.last_updated,
+						ss.skipped,
+						ss.skipped_at,
+						ss.completed_at,
+						ss.crisis_indicated_at,
+						ss.patient_order_id,
+						ss.group_session_id,
+						ss.account_check_in_action_id,
+						ss.metadata,
+						a.first_name,
+						a.last_name,
+						a.role_id
+					FROM screening_session ss
+					JOIN screening_flow_version sfv
+					  ON ss.screening_flow_version_id = sfv.screening_flow_version_id
+					JOIN inst i_1
+					  ON sfv.screening_flow_id = i_1.integrated_care_screening_flow_id
+					JOIN raw_base bo
+					  ON bo.patient_order_id = ss.patient_order_id
+					JOIN account a
+					  ON ss.created_by_account_id = a.account_id
+					WHERE i_1.institution_id = a.institution_id
+						AND ss.skipped = FALSE
+					ORDER BY ss.patient_order_id, ss.created DESC
+				),
+				ss_intake_query AS (
+					SELECT DISTINCT ON (ss.patient_order_id)
+						ss.screening_session_id,
+						ss.screening_flow_version_id,
+						ss.target_account_id,
+						ss.created_by_account_id,
+						ss.completed,
+						ss.crisis_indicated,
+						ss.created,
+						ss.last_updated,
+						ss.skipped,
+						ss.skipped_at,
+						ss.completed_at,
+						ss.crisis_indicated_at,
+						ss.patient_order_id,
+						ss.group_session_id,
+						ss.account_check_in_action_id,
+						ss.metadata,
+						a.first_name,
+						a.last_name,
+						a.role_id
+					FROM screening_session ss
+					JOIN screening_flow_version sfv
+					  ON ss.screening_flow_version_id = sfv.screening_flow_version_id
+					JOIN inst i_1
+					  ON sfv.screening_flow_id = i_1.integrated_care_intake_screening_flow_id
+					JOIN raw_base bo
+					  ON bo.patient_order_id = ss.patient_order_id
+					JOIN account a
+					  ON ss.created_by_account_id = a.account_id
+					WHERE i_1.institution_id = a.institution_id
+						AND ss.skipped = FALSE
+					ORDER BY ss.patient_order_id, ss.created DESC
+				),
+				recent_scheduled_screening_query AS (
+					SELECT DISTINCT ON (poss.patient_order_id)
+						poss.patient_order_scheduled_screening_id,
+						poss.patient_order_id,
+						poss.account_id,
+						poss.scheduled_date_time,
+						poss.calendar_url,
+						poss.canceled,
+						poss.canceled_at,
+						poss.created,
+						poss.last_updated
+					FROM patient_order_scheduled_screening poss
+					JOIN raw_base bo
+					  ON bo.patient_order_id = poss.patient_order_id
+					WHERE poss.canceled = FALSE
+					ORDER BY poss.patient_order_id, poss.scheduled_date_time
+				),
+				recent_po_query AS (
+					SELECT bo.patient_order_id,
+								 prev.episode_closed_at AS most_recent_episode_closed_at
+					FROM raw_base bo
+					LEFT JOIN LATERAL (
+						SELECT po_prev.episode_closed_at
+						FROM patient_order po_prev
+						WHERE po_prev.institution_id = bo.institution_id
+							AND po_prev.patient_mrn = bo.patient_mrn
+							AND (
+								po_prev.order_date < bo.order_date
+								OR (po_prev.order_date = bo.order_date AND po_prev.patient_order_id < bo.patient_order_id)
+							)
+						ORDER BY po_prev.order_date DESC, po_prev.patient_order_id DESC
+						LIMIT 1
+					) prev ON TRUE
+				),
+				enriched AS (
+					SELECT
+						tr.patient_order_care_type_id,
+						poct.description AS patient_order_care_type_description,
+						tr.patient_order_triage_source_id,
+						COALESCE(poo.outreach_count, 0::bigint) AS outreach_count,
+						poo.max_outreach_date_time AS most_recent_outreach_date_time,
+						COALESCE(smg.scheduled_message_group_delivered_count, 0::bigint) AS scheduled_message_group_delivered_count,
+						smg.max_delivered_scheduled_message_group_date_time AS most_recent_delivered_scheduled_message_group_date_time,
+						COALESCE(poo.outreach_count, 0::bigint) + COALESCE(smg.scheduled_message_group_delivered_count, 0::bigint) AS total_outreach_count,
+						GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
+						ssq.screening_session_id AS most_recent_screening_session_id,
+						ssq.created AS most_recent_screening_session_created_at,
+						ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
+						ssq.role_id AS most_recent_screening_session_created_by_account_role_id,
+						ssq.first_name AS most_recent_screening_session_created_by_account_first_name,
+						ssq.last_name AS most_recent_screening_session_created_by_account_last_name,
+						ssq.completed AS most_recent_screening_session_completed,
+						ssq.completed_at AS most_recent_screening_session_completed_at,
+						CASE
+							WHEN ssq.completed = TRUE THEN 'COMPLETE'
+							WHEN ssq.screening_session_id IS NOT NULL THEN 'IN_PROGRESS'
+							WHEN rssq.scheduled_date_time IS NOT NULL THEN 'SCHEDULED'
+							ELSE 'NOT_SCREENED'
+						END AS patient_order_screening_status_id,
+						CASE
+							WHEN ssq.completed = TRUE THEN 'Complete'
+							WHEN ssq.screening_session_id IS NOT NULL THEN 'In Progress'
+							WHEN rssq.scheduled_date_time IS NOT NULL THEN 'Scheduled'
+							ELSE 'Not Screened'
+						END AS patient_order_screening_status_description,
+						CASE
+							WHEN bo.patient_account_id = ssq.created_by_account_id THEN TRUE
+							ELSE FALSE
+						END AS most_recent_screening_session_by_patient,
+						(ssq.screening_session_id IS NOT NULL AND ssq.completed = FALSE AND ssq.created < (NOW() - INTERVAL '1 hour')) AS most_recent_screening_session_appears_abandoned,
+						CASE
+							WHEN ssq.completed = TRUE AND bo.encounter_synced_at IS NULL THEN 'NEEDS_DOCUMENTATION'
+							WHEN ssq.completed = TRUE AND bo.encounter_synced_at IS NOT NULL THEN 'DOCUMENTED'
+							ELSE 'NOT_DOCUMENTED'
+						END AS patient_order_encounter_documentation_status_id,
+						ssiq.screening_session_id AS most_recent_intake_screening_session_id,
+						ssiq.created AS most_recent_intake_screening_session_created_at,
+						ssiq.created_by_account_id AS most_recent_intake_screening_session_created_by_account_id,
+						ssiq.role_id AS most_recent_intake_screening_session_created_by_account_role_id,
+						ssiq.first_name AS most_recent_intake_screening_session_created_by_account_fn,
+						ssiq.last_name AS most_recent_intake_screening_session_created_by_account_ln,
+						ssiq.completed AS most_recent_intake_screening_session_completed,
+						ssiq.completed_at AS most_recent_intake_screening_session_completed_at,
+						CASE
+							WHEN ssiq.completed = TRUE THEN 'COMPLETE'
+							WHEN ssiq.screening_session_id IS NOT NULL THEN 'IN_PROGRESS'
+							ELSE 'NOT_SCREENED'
+						END AS patient_order_intake_screening_status_id,
+						CASE
+							WHEN ssiq.completed = TRUE THEN 'Complete'
+							WHEN ssiq.screening_session_id IS NOT NULL THEN 'In Progress'
+							ELSE 'Not Screened'
+						END AS patient_order_intake_screening_status_description,
+						CASE
+							WHEN bo.patient_account_id = ssiq.created_by_account_id THEN TRUE
+							ELSE FALSE
+						END AS most_recent_intake_screening_session_by_patient,
+						(ssiq.screening_session_id IS NOT NULL AND ssiq.completed = FALSE AND ssiq.created < (NOW() - INTERVAL '1 hour')) AS most_recent_intake_screening_session_appears_abandoned,
+						(ssiq.screening_session_id IS NOT NULL AND ssiq.completed = TRUE
+							AND ((ssq.screening_session_id IS NOT NULL AND ssq.completed = TRUE)
+								OR ssq.screening_session_id IS NULL
+								OR (ssq.screening_session_id IS NOT NULL AND ssq.completed = FALSE AND ssiq.created > ssq.created))) AS most_recent_intake_and_clinical_screenings_satisfied,
+						panel_account.first_name AS panel_account_first_name,
+						panel_account.last_name AS panel_account_last_name,
+						pod.description AS patient_order_disposition_description,
+						CASE
+							WHEN tr.patient_order_care_type_id = 'SPECIALTY' THEN 'SPECIALTY_CARE'
+							WHEN tr.patient_order_care_type_id = 'SUBCLINICAL' THEN 'SUBCLINICAL'
+							WHEN tr.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
+							ELSE 'NOT_TRIAGED'
+						END AS patient_order_triage_status_id,
+						CASE
+							WHEN tr.patient_order_care_type_id = 'SPECIALTY' THEN 'Specialty Care'
+							WHEN tr.patient_order_care_type_id = 'SUBCLINICAL' THEN 'Subclinical'
+							WHEN tr.patient_order_care_type_id = 'COLLABORATIVE' THEN 'MHP'
+							ELSE 'Not Triaged'
+						END AS patient_order_triage_status_description,
+						pocr.description AS patient_order_closure_reason_description,
+						DATE_PART('year', AGE(bo.order_date::timestamptz, bo.patient_birthdate::timestamptz))::integer AS patient_age_on_order_date,
+						(DATE_PART('year', AGE(bo.order_date::timestamptz, bo.patient_birthdate::timestamptz))::integer < 18) AS patient_below_age_threshold,
+						rpq.most_recent_episode_closed_at,
+						(DATE_PART('day', NOW() - rpq.most_recent_episode_closed_at)::integer < 30) AS most_recent_episode_closed_within_date_threshold,
+						rssq.patient_order_scheduled_screening_id,
+						rssq.scheduled_date_time AS patient_order_scheduled_screening_scheduled_date_time,
+						rssq.calendar_url AS patient_order_scheduled_screening_calendar_url,
+						(
+							(bo.patient_order_disposition_id = 'OPEN'
+								AND (bo.patient_order_intake_wants_services_status_id = 'NO'
+									OR bo.patient_order_intake_location_status_id = 'INVALID'
+									OR bo.patient_order_intake_insurance_status_id IN ('INVALID', 'CHANGED_RECENTLY')))
+							OR (bo.patient_order_disposition_id = 'OPEN'
+								AND ssq.screening_session_id IS NULL
+								AND rssq.scheduled_date_time IS NULL
+								AND (COALESCE(poo.outreach_count, 0::bigint) + COALESCE(smg.scheduled_message_group_delivered_count, 0::bigint)) > 0
+								AND ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW())
+						) AS outreach_followup_needed,
+						naq.appointment_start_time,
+						naq.provider_id,
+						naq.provider_name,
+						naq.appointment_id,
+						(naq.appointment_id IS NOT NULL) AS appointment_scheduled,
+						(naq.created_by_account_id = bo.patient_account_id) AS appointment_scheduled_by_patient,
+						rvtq.patient_order_voicemail_task_id AS most_recent_patient_order_voicemail_task_id,
+						rvtq.patient_order_voicemail_task_completed AS most_recent_patient_order_voicemail_task_completed,
+						rfrq.reason_for_referral,
+						patient_address.street_address_1 AS patient_address_street_address_1,
+						patient_address.locality AS patient_address_locality,
+						patient_address.region AS patient_address_region,
+						patient_address.postal_code AS patient_address_postal_code,
+						patient_address.country_code AS patient_address_country_code,
+						(patient_address.region = ANY (prq.permitted_region_abbreviations)) AS patient_address_region_accepted,
+						(bo.patient_first_name IS NOT NULL
+							AND bo.patient_last_name IS NOT NULL
+							AND bo.patient_phone_number IS NOT NULL
+							AND bo.patient_email_address IS NOT NULL
+							AND bo.patient_birthdate IS NOT NULL
+							AND patient_address.street_address_1 IS NOT NULL
+							AND patient_address.locality IS NOT NULL
+							AND patient_address.region IS NOT NULL
+							AND patient_address.postal_code IS NOT NULL) AS patient_demographics_completed,
+						(bo.patient_first_name IS NOT NULL
+							AND bo.patient_last_name IS NOT NULL
+							AND bo.patient_phone_number IS NOT NULL
+							AND bo.patient_email_address IS NOT NULL
+							AND bo.patient_birthdate IS NOT NULL
+							AND patient_address.street_address_1 IS NOT NULL
+							AND patient_address.locality IS NOT NULL
+							AND (patient_address.region = ANY (prq.permitted_region_abbreviations))
+							AND patient_address.postal_code IS NOT NULL) AS patient_demographics_accepted,
+						posmg.scheduled_at_date_time AS resource_check_in_scheduled_at_date_time,
+						(bo.patient_order_resource_check_in_response_status_id = 'NONE'
+							AND posmg.scheduled_at_date_time IS NOT NULL
+							AND (posmg.scheduled_at_date_time AT TIME ZONE i.time_zone) < NOW()) AS resource_check_in_response_needed,
+						porcirs.description AS patient_order_resource_check_in_response_status_description,
+						(bo.patient_demographics_confirmed_at IS NOT NULL) AS patient_demographics_confirmed,
+						DATE_PART('day', COALESCE(bo.episode_closed_at, NOW()) - (bo.order_date + MAKE_INTERVAL(mins => bo.order_age_in_minutes))::timestamptz) AS episode_duration_in_days,
+						ed.name AS epic_department_name,
+						ed.department_id AS epic_department_department_id,
+						mrmdq.most_recent_message_delivered_at,
+						nsoq.next_scheduled_outreach_id,
+						nsoq.next_scheduled_outreach_scheduled_at_date_time,
+						nsoq.next_scheduled_outreach_type_id,
+						nsoq.next_scheduled_outreach_reason_id,
+						GREATEST(
+							mrmdq.most_recent_message_delivered_at,
+							CASE
+								WHEN (poo.max_outreach_date_time AT TIME ZONE i.time_zone) < NOW() THEN (poo.max_outreach_date_time AT TIME ZONE i.time_zone)
+								ELSE NULL::timestamptz
+							END,
+							CASE
+								WHEN ssq.screening_session_id IS NOT NULL
+									AND (ssq.target_account_id IS NULL OR ssq.target_account_id <> ssq.created_by_account_id)
+								THEN ssq.created
+								ELSE NULL::timestamptz
+							END
+						) AS last_contacted_at,
+						CASE
+							WHEN ssq.screening_session_id IS NULL
+								AND rssq.scheduled_date_time = LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time)
+							THEN 'ASSESSMENT'
+							WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time = LEAST(
+								CASE
+									WHEN ssq.screening_session_id IS NULL THEN rssq.scheduled_date_time::timestamptz
+									ELSE '9999-12-31 23:59:59+00'::timestamptz
+								END,
+								nsoq.next_scheduled_outreach_scheduled_at_date_time::timestamptz
+							) AND nsoq.next_scheduled_outreach_reason_id = 'RESOURCE_FOLLOWUP'
+							THEN 'RESOURCE_FOLLOWUP'
+							WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time = LEAST(
+								CASE
+									WHEN ssq.screening_session_id IS NULL THEN rssq.scheduled_date_time::timestamptz
+									ELSE '9999-12-31 23:59:59+00'::timestamptz
+								END,
+								nsoq.next_scheduled_outreach_scheduled_at_date_time::timestamptz
+							) AND nsoq.next_scheduled_outreach_reason_id = 'OTHER'
+							THEN 'OTHER'
+							WHEN poo.max_outreach_date_time IS NULL
+								AND smg.max_delivered_scheduled_message_group_date_time IS NULL
+								AND ssiq.screening_session_id IS NULL
+							THEN 'WELCOME_MESSAGE'
+							WHEN ssq.screening_session_id IS NULL
+								AND rssq.scheduled_date_time IS NULL
+								AND (poo.max_outreach_date_time IS NOT NULL OR smg.max_delivered_scheduled_message_group_date_time IS NOT NULL)
+								AND ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW()
+							THEN 'ASSESSMENT_OUTREACH'
+							WHEN nrcismgq.next_resource_check_in_scheduled_message_group_id IS NOT NULL
+							THEN 'RESOURCE_CHECK_IN'
+							ELSE NULL
+						END AS next_contact_type_id,
+						CASE
+							WHEN ssq.screening_session_id IS NULL
+								AND rssq.scheduled_date_time = LEAST(rssq.scheduled_date_time, nsoq.next_scheduled_outreach_scheduled_at_date_time)
+							THEN rssq.scheduled_date_time
+							WHEN nsoq.next_scheduled_outreach_scheduled_at_date_time = LEAST(
+								CASE
+									WHEN ssq.screening_session_id IS NULL THEN rssq.scheduled_date_time::timestamptz
+									ELSE '9999-12-31 23:59:59+00'::timestamptz
+								END,
+								nsoq.next_scheduled_outreach_scheduled_at_date_time::timestamptz
+							) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
+							WHEN poo.max_outreach_date_time IS NULL
+								AND smg.max_delivered_scheduled_message_group_date_time IS NULL
+								AND ssiq.screening_session_id IS NULL
+							THEN NULL::timestamp
+							WHEN ssq.screening_session_id IS NULL
+								AND rssq.scheduled_date_time IS NULL
+								AND (poo.max_outreach_date_time IS NOT NULL OR smg.max_delivered_scheduled_message_group_date_time IS NOT NULL)
+								AND ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW()
+							THEN NULL::timestamp
+							WHEN nrcismgq.next_resource_check_in_scheduled_message_group_id IS NOT NULL
+							THEN nrcismgq.next_resource_check_in_scheduled_at_date_time
+							ELSE NULL::timestamp
+						END AS next_contact_scheduled_at,
+						bo.*
+					FROM raw_base bo
+					LEFT JOIN patient_order_disposition pod
+						ON bo.patient_order_disposition_id = pod.patient_order_disposition_id
+					LEFT JOIN patient_order_closure_reason pocr
+						ON bo.patient_order_closure_reason_id = pocr.patient_order_closure_reason_id
+					LEFT JOIN inst i
+						ON bo.institution_id = i.institution_id
+					LEFT JOIN permitted_regions_query prq
+						ON bo.institution_id = prq.institution_id
+					LEFT JOIN patient_order_resource_check_in_response_status porcirs
+						ON bo.patient_order_resource_check_in_response_status_id = porcirs.patient_order_resource_check_in_response_status_id
+					LEFT JOIN epic_department ed
+						ON bo.epic_department_id = ed.epic_department_id
+					LEFT JOIN address patient_address
+						ON bo.patient_address_id = patient_address.address_id
+					LEFT JOIN poo
+						ON bo.patient_order_id = poo.patient_order_id
+					LEFT JOIN smg
+						ON bo.patient_order_id = smg.patient_order_id
+					LEFT JOIN ss_query ssq
+						ON bo.patient_order_id = ssq.patient_order_id
+					LEFT JOIN ss_intake_query ssiq
+						ON bo.patient_order_id = ssiq.patient_order_id
+					LEFT JOIN patient_order_triage_group tr
+						ON bo.patient_order_id = tr.patient_order_id
+					 AND tr.active = TRUE
+					LEFT JOIN patient_order_care_type poct
+						ON tr.patient_order_care_type_id = poct.patient_order_care_type_id::text
+					LEFT JOIN account panel_account
+						ON bo.panel_account_id = panel_account.account_id
+					LEFT JOIN recent_po_query rpq
+						ON bo.patient_order_id = rpq.patient_order_id
+					LEFT JOIN recent_scheduled_screening_query rssq
+						ON bo.patient_order_id = rssq.patient_order_id
+					LEFT JOIN next_appt_query naq
+						ON bo.patient_order_id = naq.patient_order_id
+					LEFT JOIN recent_voicemail_task_query rvtq
+						ON bo.patient_order_id = rvtq.patient_order_id
+					LEFT JOIN reason_for_referral_query rfrq
+						ON bo.patient_order_id = rfrq.patient_order_id
+					LEFT JOIN next_scheduled_outreach_query nsoq
+						ON bo.patient_order_id = nsoq.patient_order_id
+					LEFT JOIN most_recent_message_delivered_query mrmdq
+						ON bo.patient_order_id = mrmdq.patient_order_id
+					LEFT JOIN next_resource_check_in_scheduled_message_group_query nrcismgq
+						ON bo.patient_order_id = nrcismgq.patient_order_id
+					LEFT JOIN patient_order_scheduled_message_group posmg
+						ON bo.resource_check_in_scheduled_message_group_id = posmg.patient_order_scheduled_message_group_id
+					 AND posmg.deleted = FALSE
+				),
+				base_query AS (
+					SELECT po.*
+					FROM enriched po
+					WHERE 1=1
+					{{whereClauseLines}}
+				)
+				SELECT
+					bq.*,
+					tcq.total_count
+				FROM
+					(SELECT COUNT(*) AS total_count FROM base_query) tcq,
+					base_query bq
+				ORDER BY {{orderByColumns}}
+				LIMIT ?
+				OFFSET ?
+				""".trim()
+				.replace("{{whereClauseLines}}", queryContext.whereClauseLines.stream().collect(Collectors.joining("\n")))
+				.replace("{{rawPatientOrderWhereClauseLines}}", queryContext.rawPatientOrderWhereClauseLines.stream().collect(Collectors.joining("\n")))
+				.replace("{{orderByColumns}}", queryContext.orderByColumns.stream().collect(Collectors.joining(", ")))
+				.trim();
+
+		List<Object> finalParameters = new ArrayList<>(queryContext.rawPatientOrderParameters.size() + queryContext.parameters.size() + queryContext.limitOffsetParameters.size());
+		finalParameters.addAll(queryContext.rawPatientOrderParameters);
+		finalParameters.addAll(queryContext.parameters);
+		finalParameters.addAll(queryContext.limitOffsetParameters);
+
+		List<PatientOrderWithTotalCount> patientOrders = getDatabase().queryForList(sql, PatientOrderWithTotalCount.class, sqlVaragsParameters(finalParameters));
+
+		Integer totalCount = patientOrders.stream()
+				.filter(patientOrder -> patientOrder.getTotalCount() != null)
+				.mapToInt(PatientOrderWithTotalCount::getTotalCount)
+				.findFirst()
+				.orElse(0);
+
+		FindResult<? extends PatientOrder> findResult = new FindResult<>(patientOrders, totalCount);
+		return (FindResult<PatientOrder>) findResult;
+	}
+
+	@Nonnull
+	protected FindPatientOrdersQueryContext createFindPatientOrdersQueryContext(@Nonnull FindPatientOrdersRequest request) {
+		requireNonNull(request);
+
+		InstitutionId institutionId = request.getInstitutionId();
+		PatientOrderViewTypeId patientOrderViewTypeId = request.getPatientOrderViewTypeId();
+		PatientOrderConsentStatusId patientOrderConsentStatusId = request.getPatientOrderConsentStatusId();
+		Set<PatientOrderDispositionId> patientOrderDispositionIds = request.getPatientOrderDispositionIds() == null ? Set.of() : request.getPatientOrderDispositionIds();
+		PatientOrderScreeningStatusId patientOrderScreeningStatusId = request.getPatientOrderScreeningStatusId();
+		Set<PatientOrderTriageStatusId> patientOrderTriageStatusIds = request.getPatientOrderTriageStatusIds() == null ? Set.of() : request.getPatientOrderTriageStatusIds();
+		PatientOrderAssignmentStatusId patientOrderAssignmentStatusId = request.getPatientOrderAssignmentStatusId();
+		PatientOrderOutreachStatusId patientOrderOutreachStatusId = request.getPatientOrderOutreachStatusId();
+		PatientOrderResponseStatusId patientOrderResponseStatusId = request.getPatientOrderResponseStatusId();
+		PatientOrderSafetyPlanningStatusId patientOrderSafetyPlanningStatusId = request.getPatientOrderSafetyPlanningStatusId();
+		Set<PatientOrderFilterFlagTypeId> patientOrderFilterFlagTypeIds = request.getPatientOrderFilterFlagTypeIds() == null ? Set.of() : request.getPatientOrderFilterFlagTypeIds();
+		Set<String> referringPracticeIds = request.getReferringPracticeIds() == null ? Set.of() : request.getReferringPracticeIds();
+		Set<UUID> panelAccountIds = request.getPanelAccountIds() == null ? Set.of() : request.getPanelAccountIds();
+		String patientMrn = trimToNull(request.getPatientMrn());
+		String searchQuery = trimToNull(request.getSearchQuery());
+		Integer pageNumber = request.getPageNumber();
+		Integer pageSize = request.getPageSize();
+		List<PatientOrderSortRule> patientOrderSortRules = request.getPatientOrderSortRules() == null ? List.of() : request.getPatientOrderSortRules();
+
+		final int DEFAULT_PAGE_SIZE = 50;
+		final int MAXIMUM_PAGE_SIZE = 100;
+
+		if (pageNumber == null || pageNumber < 0)
+			pageNumber = 0;
+
+		if (pageSize == null || pageSize <= 0)
+			pageSize = DEFAULT_PAGE_SIZE;
+		else if (pageSize > MAXIMUM_PAGE_SIZE)
+			pageSize = MAXIMUM_PAGE_SIZE;
+
+		Integer offset = pageNumber * pageSize;
+		Integer limit = pageSize;
+		List<String> whereClauseLines = new ArrayList<>();
+		List<String> rawPatientOrderWhereClauseLines = new ArrayList<>();
+		List<String> orderByColumns = new ArrayList<>();
+		List<Object> parameters = new ArrayList<>();
+		List<Object> rawPatientOrderParameters = new ArrayList<>();
+
+		rawPatientOrderParameters.add(institutionId);
+
+		// Only include complete/valid sort order rules.
+		patientOrderSortRules = patientOrderSortRules.stream()
+				.filter(patientOrderSortRule -> patientOrderSortRule.getPatientOrderSortColumnId() != null
+						&& patientOrderSortRule.getSortDirectionId() != null
+						&& patientOrderSortRule.getSortNullsId() != null)
+				.collect(Collectors.toList());
+
+		// If no rules available, pick a safe default
+		if (patientOrderSortRules.size() == 0)
+			patientOrderSortRules = List.of(
+					new PatientOrderSortRule() {{
+						setPatientOrderSortColumnId(PatientOrderSortColumnId.ORDER_DATE);
+						setSortDirectionId(SortDirectionId.DESCENDING);
+						setSortNullsId(SortNullsId.NULLS_LAST);
+					}},
+					new PatientOrderSortRule() {{
+						setPatientOrderSortColumnId(PatientOrderSortColumnId.PATIENT_FIRST_NAME);
+						setSortDirectionId(SortDirectionId.ASCENDING);
+						setSortNullsId(SortNullsId.NULLS_LAST);
+					}},
+					new PatientOrderSortRule() {{
+						setPatientOrderSortColumnId(PatientOrderSortColumnId.PATIENT_LAST_NAME);
+						setSortDirectionId(SortDirectionId.ASCENDING);
+						setSortNullsId(SortNullsId.NULLS_LAST);
+					}}
+			);
+
+		// If patientOrderViewTypeId is specified, it provides "fixed" views, largely ignoring other parameters that might be specified
+		if (patientOrderViewTypeId != null) {
+			if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED) {
+				// Scheduled: Patients scheduled to take the assessment by phone
+				// Definition:
+				// Order State = Open
+				// Assessment Status = Scheduled
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
+				parameters.add(PatientOrderScreeningStatusId.SCHEDULED);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_DOCUMENTATION) {
+				// Need Documentation: Patients scheduled to take the assessment by phone
+				// Definition:
+				// Order State = Open
+				// Encounter Documentation Status = Needs Documentation
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_encounter_documentation_status_id=?");
+				parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SCHEDULED_OUTREACH) {
+				// Scheduled Outreach: If there is a scheduled outreach
+				// Definition:
+				// Order State = Open
+				// next_contact_type_id IS NOT NULL and is a scheduled outreach that requires a phone call
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.next_contact_type_id IN (?,?,?,?)");
+				parameters.add(PatientOrderContactTypeId.ASSESSMENT_OUTREACH);
+				parameters.add(PatientOrderContactTypeId.ASSESSMENT);
+				parameters.add(PatientOrderContactTypeId.OTHER);
+				parameters.add(PatientOrderContactTypeId.RESOURCE_FOLLOWUP);
+
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.NEED_ASSESSMENT) {
+				// Need Assessment: Patients that have not started or been scheduled for an assessment
+				// Definition:
+				// Order State = Open
+				// Outreach = 1 or greater
+				// Assessment Status = Not Started
+				// Assessment Status = In Progress
+				// Consent = None
+				// Consent = Yes
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.total_outreach_count > 0");
+				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
+				parameters.add(PatientOrderScreeningStatusId.NOT_SCREENED);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_consent_status_id IN (?,?)");
+				rawPatientOrderParameters.addAll(List.of(PatientOrderConsentStatusId.UNKNOWN, PatientOrderConsentStatusId.CONSENTED));
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SUBCLINICAL) {
+				// Subclinical: Patients triaged to subclinical
+				// Definition:
+				// Order State = Open
+				// Triage = Subclinical
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
+				parameters.add(PatientOrderTriageStatusId.SUBCLINICAL);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.MHP) {
+				// MHP: Patients triaged to MHP
+				// Definition:
+				// Order State = Open
+				// Triage = MHP
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
+				parameters.add(PatientOrderTriageStatusId.MHP);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.SPECIALTY_CARE) {
+				// Specialty Care: Patients triaged to specialty care
+				// Definition:
+				// Order State = Open
+				// Triage = Specialty Care
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.OPEN);
+				whereClauseLines.add("AND po.patient_order_triage_status_id=?");
+				parameters.add(PatientOrderTriageStatusId.SPECIALTY_CARE);
+			} else if (patientOrderViewTypeId == PatientOrderViewTypeId.CLOSED) {
+				// Closed: Orders that have been closed. Order closed for more than 30 days will be archived.
+				// Definition:
+				// Order State = Closed
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id=?");
+				rawPatientOrderParameters.add(PatientOrderDispositionId.CLOSED);
+			} else {
+				throw new IllegalStateException(format("Not sure how to handle %s.%s",
+						PatientOrderViewTypeId.class.getSimpleName(), patientOrderViewTypeId.name()));
+			}
+
+			// We still support filtering per-account for PatientOrderViewTypeId requests
+			if (panelAccountIds.size() > 0) {
+				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				rawPatientOrderParameters.addAll(panelAccountIds);
+			}
+		} else {
+			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
+
+			// Default to OPEN orders unless specified otherwise
+			if (patientOrderDispositionIds.size() == 0)
+				patientOrderDispositionIds = Set.of(PatientOrderDispositionId.OPEN);
+
+			rawPatientOrderWhereClauseLines.add(format("AND raw_po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
+			rawPatientOrderParameters.addAll(patientOrderDispositionIds);
+
+			if (patientOrderConsentStatusId != null) {
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_consent_status_id=?");
+				rawPatientOrderParameters.add(patientOrderConsentStatusId);
+			}
+
+			if (patientOrderScreeningStatusId != null) {
+				whereClauseLines.add("AND po.patient_order_screening_status_id=?");
+				parameters.add(patientOrderScreeningStatusId);
+			}
+
+			if (patientOrderTriageStatusIds.size() > 0) {
+				whereClauseLines.add(format("AND po.patient_order_triage_status_id IN %s", sqlInListPlaceholders(patientOrderTriageStatusIds)));
+				parameters.addAll(patientOrderTriageStatusIds);
+			}
+
+			if (patientOrderAssignmentStatusId != null) {
+				if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.UNASSIGNED)
+					rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id IS NULL");
+				else if (patientOrderAssignmentStatusId == PatientOrderAssignmentStatusId.ASSIGNED)
+					rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id IS NOT NULL");
+			}
+
+			if (patientOrderOutreachStatusId != null) {
+				if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.HAS_OUTREACH)
+					whereClauseLines.add("AND po.total_outreach_count > 0");
+				else if (patientOrderOutreachStatusId == PatientOrderOutreachStatusId.NO_OUTREACH)
+					whereClauseLines.add("AND po.total_outreach_count = 0");
+			}
+
+			if (patientOrderResponseStatusId != null) {
+//			if (patientOrderResponseStatusId == PatientOrderResponseStatusId.WAITING_FOR_RESPONSE)
+//				whereClauseLines.add("TODO");
+//			else if (patientOrderResponseStatusId == PatientOrderResponseStatusId.NOT_WAITING_FOR_RESPONSE)
+//				whereClauseLines.add("TODO");
+			}
+
+			if (patientOrderSafetyPlanningStatusId != null) {
+				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_safety_planning_status_id=?");
+				rawPatientOrderParameters.add(patientOrderSafetyPlanningStatusId);
+			}
+
+			if (patientOrderFilterFlagTypeIds.size() > 0) {
+				List<String> filterFlagWhereClauseLines = new ArrayList<>();
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_NEVER_CONTACTED))
+					filterFlagWhereClauseLines.add("po.last_contacted_at IS NULL");
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NO_INTEREST)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_wants_services_status_id=?");
+					parameters.add(PatientOrderIntakeWantsServicesStatusId.NO);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.LOCATION_INVALID)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_location_status_id=?");
+					parameters.add(PatientOrderIntakeLocationStatusId.INVALID);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_CHANGED_RECENTLY)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.CHANGED_RECENTLY);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.INSURANCE_INVALID)) {
+					filterFlagWhereClauseLines.add("po.patient_order_intake_insurance_status_id=?");
+					parameters.add(PatientOrderIntakeInsuranceStatusId.INVALID);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.CONSENT_REJECTED)) {
+					filterFlagWhereClauseLines.add("po.patient_order_consent_status_id=?");
+					parameters.add(PatientOrderConsentStatusId.REJECTED);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_SAFETY_PLANNING)) {
+					filterFlagWhereClauseLines.add("po.patient_order_safety_planning_status_id=?");
+					parameters.add(PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_RESOURCES)) {
+					filterFlagWhereClauseLines.add("po.patient_order_resourcing_status_id=?");
+					parameters.add(PatientOrderResourcingStatusId.NEEDS_RESOURCES);
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.SESSION_ABANDONED)) {
+					filterFlagWhereClauseLines.add("(po.most_recent_intake_screening_session_appears_abandoned=TRUE OR po.most_recent_screening_session_appears_abandoned=TRUE)");
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.MOST_RECENT_EPISODE_CLOSED_WITHIN_DATE_THRESHOLD)) {
+					filterFlagWhereClauseLines.add("po.most_recent_episode_closed_within_date_threshold=TRUE");
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.PATIENT_BELOW_AGE_THRESHOLD)) {
+					filterFlagWhereClauseLines.add("po.patient_below_age_threshold=TRUE");
+				}
+
+				if (patientOrderFilterFlagTypeIds.contains(PatientOrderFilterFlagTypeId.NEEDS_DOCUMENTATION)) {
+					filterFlagWhereClauseLines.add("po.patient_order_encounter_documentation_status_id=?");
+					parameters.add(PatientOrderEncounterDocumentationStatusId.NEEDS_DOCUMENTATION);
+				}
+
+				if (filterFlagWhereClauseLines.size() > 0)
+					whereClauseLines.add(format("AND (%s)", filterFlagWhereClauseLines.stream().collect(Collectors.joining(" OR "))));
+			}
+
+			if (referringPracticeIds.size() > 0) {
+				rawPatientOrderWhereClauseLines.add(format("AND raw_po.referring_practice_id IN %s", sqlInListPlaceholders(referringPracticeIds)));
+				rawPatientOrderParameters.addAll(referringPracticeIds);
+			}
+
+			if (panelAccountIds.size() > 0) {
+				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
+				rawPatientOrderParameters.addAll(panelAccountIds);
+			}
+
+			// Search query is trumped by Patient MRN
+			if (patientMrn != null) {
+				rawPatientOrderWhereClauseLines.add("AND LOWER(raw_po.patient_mrn)=LOWER(?)");
+				rawPatientOrderParameters.add(patientMrn);
+			} else if (searchQuery != null) {
+				// TODO: this is quick and dirty so FE can build.  Need to significantly improve matching
+				rawPatientOrderWhereClauseLines.add("""
+						      AND (
+						      CAST (raw_po.reference_number AS TEXT) like CONCAT(?,'%')
+						      OR raw_po.patient_first_name ILIKE CONCAT('%',?,'%')
+						      OR raw_po.patient_last_name ILIKE CONCAT('%',?,'%')
+						      OR raw_po.patient_mrn=?
+						      OR (raw_po.patient_phone_number IS NOT NULL AND raw_po.patient_phone_number ILIKE CONCAT('%',?,'%'))
+						      OR (raw_po.patient_email_address IS NOT NULL AND raw_po.patient_email_address ILIKE CONCAT('%',?,'%'))
+						      )
+						""");
+
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+				rawPatientOrderParameters.add(searchQuery);
+			}
+		}
+
+		// Apply ORDER BY rules
+		for (PatientOrderSortRule patientOrderSortRule : patientOrderSortRules) {
+			String sortDirection = patientOrderSortRule.getSortDirectionId() == SortDirectionId.ASCENDING ? "ASC" : "DESC";
+			String nullsFirst = patientOrderSortRule.getSortNullsId() == SortNullsId.NULLS_FIRST ? "NULLS FIRST" : "NULLS LAST";
+			String orderByColumn;
+
+			if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.ORDER_DATE)
+				orderByColumn = "bq.order_date";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.PATIENT_FIRST_NAME)
+				orderByColumn = "bq.patient_first_name";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.PATIENT_LAST_NAME)
+				orderByColumn = "bq.patient_last_name";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCREENING_SESSION_COMPLETED_AT)
+				orderByColumn = "bq.most_recent_screening_session_completed_at";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_OUTREACH_DATE_TIME)
+				orderByColumn = "bq.most_recent_total_outreach_date_time";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.MOST_RECENT_SCHEDULED_SCREENING_SCHEDULED_DATE_TIME)
+				orderByColumn = "bq.patient_order_scheduled_screening_scheduled_date_time";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_CLOSED_AT)
+				orderByColumn = "bq.episode_closed_at";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.PRACTICE)
+				orderByColumn = "bq.referring_practice_name";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.INSURANCE)
+				orderByColumn = "bq.primary_payor_name";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.OUTREACH_NUMBER)
+				orderByColumn = "bq.total_outreach_count";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.EPISODE_LENGTH)
+				orderByColumn = "bq.episode_duration_in_days";
+			else if (patientOrderSortRule.getPatientOrderSortColumnId() == PatientOrderSortColumnId.NEXT_CONTACT_SCHEDULED_AT)
+				orderByColumn = "bq.next_contact_scheduled_at";
+			else
+				throw new IllegalStateException(format("Not sure what to do with %s.%s", PatientOrderSortColumnId.class.getSimpleName(), patientOrderSortRule.getPatientOrderSortColumnId().name()));
+
+			orderByColumns.add(format("%s %s %s", orderByColumn, sortDirection, nullsFirst));
+		}
+
+		List<Object> limitOffsetParameters = new ArrayList<>(2);
+
+		limitOffsetParameters.add(limit);
+		limitOffsetParameters.add(offset);
+
+		FindPatientOrdersQueryContext queryContext = new FindPatientOrdersQueryContext();
+		queryContext.patientOrderDispositionIds = patientOrderDispositionIds;
+		queryContext.whereClauseLines = whereClauseLines;
+		queryContext.rawPatientOrderWhereClauseLines = rawPatientOrderWhereClauseLines;
+		queryContext.orderByColumns = orderByColumns;
+		queryContext.parameters = parameters;
+		queryContext.rawPatientOrderParameters = rawPatientOrderParameters;
+		queryContext.limitOffsetParameters = limitOffsetParameters;
+
+		return queryContext;
 	}
 
 	@Nonnull
@@ -7271,6 +8158,24 @@ public class PatientOrderService implements AutoCloseable {
 		protected Logger getLogger() {
 			return this.logger;
 		}
+	}
+
+	@NotThreadSafe
+	protected static class FindPatientOrdersQueryContext {
+		@Nonnull
+		private Set<PatientOrderDispositionId> patientOrderDispositionIds = Set.of();
+		@Nonnull
+		private List<String> whereClauseLines = List.of();
+		@Nonnull
+		private List<String> rawPatientOrderWhereClauseLines = List.of();
+		@Nonnull
+		private List<String> orderByColumns = List.of();
+		@Nonnull
+		private List<Object> parameters = List.of();
+		@Nonnull
+		private List<Object> rawPatientOrderParameters = List.of();
+		@Nonnull
+		private List<Object> limitOffsetParameters = List.of();
 	}
 
 	@NotThreadSafe

@@ -739,7 +739,8 @@ public class PatientOrderResource {
 																			 // These 3 are used to construct a single sort rule
 																			 @Nonnull @QueryParameter Optional<PatientOrderSortColumnId> patientOrderSortColumnId,
 																			 @Nonnull @QueryParameter Optional<SortDirectionId> sortDirectionId,
-																			 @Nonnull @QueryParameter Optional<SortNullsId> sortNullsId) {
+																			 @Nonnull @QueryParameter Optional<SortNullsId> sortNullsId,
+																			 @Nonnull @QueryParameter Optional<PatientOrdersPerfMode> mode) {
 		requireNonNull(patientOrderViewTypeId);
 		requireNonNull(patientOrderDispositionIds);
 		requireNonNull(patientOrderConsentStatusId);
@@ -759,6 +760,7 @@ public class PatientOrderResource {
 		requireNonNull(patientOrderSortColumnId);
 		requireNonNull(sortDirectionId);
 		requireNonNull(sortNullsId);
+		requireNonNull(mode);
 
 		CurrentContext currentContext = getCurrentContext();
 		Account account = currentContext.getAccount().get();
@@ -798,6 +800,95 @@ public class PatientOrderResource {
 			}});
 		}
 
+		PatientOrdersPerfMode patientOrdersPerfMode = patientOrdersPerfModeFor(mode, account);
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		boolean defaultUsePatientOrdersPerfOptimization = Boolean.TRUE.equals(institution.getIntegratedCarePatientOrdersPerfOptimizationEnabled());
+		Map<String, Object> responseBody;
+
+		if (patientOrdersPerfMode == PatientOrdersPerfMode.DEFAULT) {
+			responseBody = findPatientOrdersResponseBodyFor(account, institutionId, patientOrderViewTypeId, patientOrderDispositionIds,
+					patientOrderConsentStatusId, patientOrderScreeningStatusId, patientOrderTriageStatusIds,
+					patientOrderAssignmentStatusId, patientOrderOutreachStatusId, patientOrderResponseStatusId,
+					patientOrderSafetyPlanningStatusId, patientOrderFilterFlagTypeIds, referringPracticeIds,
+					panelAccountIds, patientMrn, searchQuery, pageNumber, pageSize, patientOrderSortRules,
+					defaultUsePatientOrdersPerfOptimization ? FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED : FindPatientOrdersRequest.PatientOrdersQueryMode.LEGACY);
+		} else if (patientOrdersPerfMode == PatientOrdersPerfMode.LEGACY) {
+			responseBody = findPatientOrdersResponseBodyFor(account, institutionId, patientOrderViewTypeId, patientOrderDispositionIds,
+					patientOrderConsentStatusId, patientOrderScreeningStatusId, patientOrderTriageStatusIds,
+					patientOrderAssignmentStatusId, patientOrderOutreachStatusId, patientOrderResponseStatusId,
+					patientOrderSafetyPlanningStatusId, patientOrderFilterFlagTypeIds, referringPracticeIds,
+					panelAccountIds, patientMrn, searchQuery, pageNumber, pageSize, patientOrderSortRules,
+					FindPatientOrdersRequest.PatientOrdersQueryMode.LEGACY);
+		} else if (patientOrdersPerfMode == PatientOrdersPerfMode.OPTIMIZED) {
+			responseBody = findPatientOrdersResponseBodyFor(account, institutionId, patientOrderViewTypeId, patientOrderDispositionIds,
+					patientOrderConsentStatusId, patientOrderScreeningStatusId, patientOrderTriageStatusIds,
+					patientOrderAssignmentStatusId, patientOrderOutreachStatusId, patientOrderResponseStatusId,
+					patientOrderSafetyPlanningStatusId, patientOrderFilterFlagTypeIds, referringPracticeIds,
+					panelAccountIds, patientMrn, searchQuery, pageNumber, pageSize, patientOrderSortRules,
+					FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED);
+		} else if (patientOrdersPerfMode == PatientOrdersPerfMode.COMPARE) {
+			Map<String, Object> legacyResponseBody = findPatientOrdersResponseBodyFor(account, institutionId, patientOrderViewTypeId, patientOrderDispositionIds,
+					patientOrderConsentStatusId, patientOrderScreeningStatusId, patientOrderTriageStatusIds,
+					patientOrderAssignmentStatusId, patientOrderOutreachStatusId, patientOrderResponseStatusId,
+					patientOrderSafetyPlanningStatusId, patientOrderFilterFlagTypeIds, referringPracticeIds,
+					panelAccountIds, patientMrn, searchQuery, pageNumber, pageSize, patientOrderSortRules,
+					FindPatientOrdersRequest.PatientOrdersQueryMode.LEGACY);
+			Map<String, Object> optimizedResponseBody = findPatientOrdersResponseBodyFor(account, institutionId, patientOrderViewTypeId, patientOrderDispositionIds,
+					patientOrderConsentStatusId, patientOrderScreeningStatusId, patientOrderTriageStatusIds,
+					patientOrderAssignmentStatusId, patientOrderOutreachStatusId, patientOrderResponseStatusId,
+					patientOrderSafetyPlanningStatusId, patientOrderFilterFlagTypeIds, referringPracticeIds,
+					panelAccountIds, patientMrn, searchQuery, pageNumber, pageSize, patientOrderSortRules,
+					FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED);
+			responseBody = comparisonResponseBodyFor(legacyResponseBody, optimizedResponseBody);
+		} else {
+			throw new IllegalStateException(format("Unexpected patient orders perf mode: %s", patientOrdersPerfMode));
+		}
+
+		return new ApiResponse(responseBody);
+	}
+
+	@Nonnull
+	protected Map<String, Object> findPatientOrdersResponseBodyFor(@Nonnull Account account,
+																												 @Nonnull InstitutionId institutionId,
+																												 @Nonnull Optional<PatientOrderViewTypeId> patientOrderViewTypeId,
+																												 @Nonnull Optional<List<PatientOrderDispositionId>> patientOrderDispositionIds,
+																												 @Nonnull Optional<PatientOrderConsentStatusId> patientOrderConsentStatusId,
+																												 @Nonnull Optional<PatientOrderScreeningStatusId> patientOrderScreeningStatusId,
+																												 @Nonnull Optional<List<PatientOrderTriageStatusId>> patientOrderTriageStatusIds,
+																												 @Nonnull Optional<PatientOrderAssignmentStatusId> patientOrderAssignmentStatusId,
+																												 @Nonnull Optional<PatientOrderOutreachStatusId> patientOrderOutreachStatusId,
+																												 @Nonnull Optional<PatientOrderResponseStatusId> patientOrderResponseStatusId,
+																												 @Nonnull Optional<PatientOrderSafetyPlanningStatusId> patientOrderSafetyPlanningStatusId,
+																												 @Nonnull Optional<List<PatientOrderFilterFlagTypeId>> patientOrderFilterFlagTypeIds,
+																												 @Nonnull Optional<List<String>> referringPracticeIds,
+																												 @Nonnull Optional<List<UUID>> panelAccountIds,
+																												 @Nonnull Optional<String> patientMrn,
+																												 @Nonnull Optional<String> searchQuery,
+																												 @Nonnull Optional<Integer> pageNumber,
+																												 @Nonnull Optional<Integer> pageSize,
+																												 @Nonnull List<PatientOrderSortRule> patientOrderSortRules,
+																												 @Nonnull FindPatientOrdersRequest.PatientOrdersQueryMode patientOrdersQueryMode) {
+		requireNonNull(account);
+		requireNonNull(institutionId);
+		requireNonNull(patientOrderViewTypeId);
+		requireNonNull(patientOrderDispositionIds);
+		requireNonNull(patientOrderConsentStatusId);
+		requireNonNull(patientOrderScreeningStatusId);
+		requireNonNull(patientOrderTriageStatusIds);
+		requireNonNull(patientOrderAssignmentStatusId);
+		requireNonNull(patientOrderOutreachStatusId);
+		requireNonNull(patientOrderResponseStatusId);
+		requireNonNull(patientOrderSafetyPlanningStatusId);
+		requireNonNull(patientOrderFilterFlagTypeIds);
+		requireNonNull(referringPracticeIds);
+		requireNonNull(panelAccountIds);
+		requireNonNull(patientMrn);
+		requireNonNull(searchQuery);
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+		requireNonNull(patientOrderSortRules);
+		requireNonNull(patientOrdersQueryMode);
+
 		FindResult<PatientOrder> findResult = getPatientOrderService().findPatientOrders(new FindPatientOrdersRequest() {
 			{
 				setInstitutionId(account.getInstitutionId());
@@ -818,6 +909,7 @@ public class PatientOrderResource {
 				setPageNumber(pageNumber.orElse(0));
 				setPageSize(pageSize.orElse(0));
 				setPatientOrderSortRules(patientOrderSortRules);
+				setPatientOrdersQueryMode(patientOrdersQueryMode);
 			}
 		});
 
@@ -836,10 +928,10 @@ public class PatientOrderResource {
 		// We assume this one is just whatever the first result is...
 		PatientOrderAutocompleteResult patientOrderAutocompleteResult = patientMrn.isPresent() ? getPatientOrderService().findPatientOrderAutocompleteResultByMrn(patientMrn.get(), institutionId).orElse(null) : null;
 
-		return new ApiResponse(new HashMap<String, Object>() {{
+		return new HashMap<String, Object>() {{
 			put("findResult", findResultJson);
 			put("patientOrderAutocompleteResult", patientOrderAutocompleteResult == null ? null : getPatientOrderAutocompleteResultApiResponseFactory().create(patientOrderAutocompleteResult));
-		}});
+		}};
 	}
 
 	@Nonnull
@@ -1708,6 +1800,23 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
+	protected PatientOrdersPerfMode patientOrdersPerfModeFor(@Nonnull Optional<PatientOrdersPerfMode> providedMode,
+																													 @Nonnull Account requestingAccount) {
+		requireNonNull(providedMode);
+		requireNonNull(requestingAccount);
+
+		PatientOrdersPerfMode mode = providedMode.orElse(null);
+
+		if (mode == null)
+			return PatientOrdersPerfMode.DEFAULT;
+
+		if (requestingAccount.getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		return mode;
+	}
+
+	@Nonnull
 	protected Map<String, Object> panelTodayResponseBodyFor(@Nonnull Account panelAccount,
 																													boolean usePanelTodayPerfOptimization) {
 		requireNonNull(panelAccount);
@@ -2397,6 +2506,13 @@ public class PatientOrderResource {
 	}
 
 	protected enum PanelPerfMode {
+		DEFAULT,
+		LEGACY,
+		OPTIMIZED,
+		COMPARE
+	}
+
+	protected enum PatientOrdersPerfMode {
 		DEFAULT,
 		LEGACY,
 		OPTIMIZED,
