@@ -96,8 +96,6 @@ public class Institution {
 	@Nullable
 	private Boolean integratedCareEnabled;
 	@Nullable
-	private Boolean integratedCareFilterFirstPatientOrderQueryEnabled;
-	@Nullable
 	private Boolean integratedCarePanelCountsPerfOptimizationEnabled;
 	@Nullable
 	private Boolean integratedCarePanelTodayPerfOptimizationEnabled;
@@ -756,15 +754,6 @@ public class Institution {
 
 	public void setIntegratedCareEnabled(@Nullable Boolean integratedCareEnabled) {
 		this.integratedCareEnabled = integratedCareEnabled;
-	}
-
-	@Nullable
-	public Boolean getIntegratedCareFilterFirstPatientOrderQueryEnabled() {
-		return this.integratedCareFilterFirstPatientOrderQueryEnabled;
-	}
-
-	public void setIntegratedCareFilterFirstPatientOrderQueryEnabled(@Nullable Boolean integratedCareFilterFirstPatientOrderQueryEnabled) {
-		this.integratedCareFilterFirstPatientOrderQueryEnabled = integratedCareFilterFirstPatientOrderQueryEnabled;
 	}
 
 	@Nullable
