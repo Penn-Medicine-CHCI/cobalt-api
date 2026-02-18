@@ -100,6 +100,8 @@ public class Institution {
 	@Nullable
 	private Boolean integratedCarePanelTodayPerfOptimizationEnabled;
 	@Nullable
+	private Boolean integratedCarePatientOrdersPerfOptimizationEnabled;
+	@Nullable
 	private String metadata;
 	@Nonnull
 	private Long accessTokenExpirationInMinutes;
@@ -772,6 +774,15 @@ public class Institution {
 
 	public void setIntegratedCarePanelTodayPerfOptimizationEnabled(@Nullable Boolean integratedCarePanelTodayPerfOptimizationEnabled) {
 		this.integratedCarePanelTodayPerfOptimizationEnabled = integratedCarePanelTodayPerfOptimizationEnabled;
+	}
+
+	@Nullable
+	public Boolean getIntegratedCarePatientOrdersPerfOptimizationEnabled() {
+		return this.integratedCarePatientOrdersPerfOptimizationEnabled;
+	}
+
+	public void setIntegratedCarePatientOrdersPerfOptimizationEnabled(@Nullable Boolean integratedCarePatientOrdersPerfOptimizationEnabled) {
+		this.integratedCarePatientOrdersPerfOptimizationEnabled = integratedCarePatientOrdersPerfOptimizationEnabled;
 	}
 
 	@Nonnull

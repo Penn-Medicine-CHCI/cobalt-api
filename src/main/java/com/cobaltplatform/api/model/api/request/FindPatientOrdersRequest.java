@@ -90,6 +90,13 @@ public class FindPatientOrdersRequest {
 	private Integer pageSize;
 	@Nullable
 	private List<PatientOrderSortRule> patientOrderSortRules;
+	@Nullable
+	private PatientOrdersQueryMode patientOrdersQueryMode;
+
+	public enum PatientOrdersQueryMode {
+		LEGACY,
+		OPTIMIZED
+	}
 
 	public enum PatientOrderSortColumnId {
 		ORDER_DATE,
@@ -339,5 +346,14 @@ public class FindPatientOrdersRequest {
 
 	public void setPatientOrderSortRules(@Nullable List<PatientOrderSortRule> patientOrderSortRules) {
 		this.patientOrderSortRules = patientOrderSortRules;
+	}
+
+	@Nullable
+	public PatientOrdersQueryMode getPatientOrdersQueryMode() {
+		return this.patientOrdersQueryMode;
+	}
+
+	public void setPatientOrdersQueryMode(@Nullable PatientOrdersQueryMode patientOrdersQueryMode) {
+		this.patientOrdersQueryMode = patientOrdersQueryMode;
 	}
 }
