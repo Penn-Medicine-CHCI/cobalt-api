@@ -61,7 +61,9 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -462,6 +464,28 @@ public class CareResourceService {
 				WHERE patient_order_id = ?
 				AND current_flag=true
 				""", ResourcePacket.class, patientOrderId);
+	}
+
+	@Nonnull
+	public Map<UUID, ResourcePacket> findCurrentResourcePacketsByPatientOrderIds(@Nonnull Set<UUID> patientOrderIds) {
+		requireNonNull(patientOrderIds);
+
+		if (patientOrderIds.isEmpty())
+			return Map.of();
+
+		List<ResourcePacket> resourcePackets = getDatabase().queryForList(format("""
+				SELECT *
+				FROM resource_packet
+				WHERE patient_order_id IN %s
+				AND current_flag=true
+				""", sqlInListPlaceholders(patientOrderIds)), ResourcePacket.class, patientOrderIds.toArray(new Object[0]));
+
+		Map<UUID, ResourcePacket> resourcePacketsByPatientOrderId = new LinkedHashMap<>(resourcePackets.size());
+
+		for (ResourcePacket resourcePacket : resourcePackets)
+			resourcePacketsByPatientOrderId.put(resourcePacket.getPatientOrderId(), resourcePacket);
+
+		return resourcePacketsByPatientOrderId;
 	}
 
 	@Nonnull

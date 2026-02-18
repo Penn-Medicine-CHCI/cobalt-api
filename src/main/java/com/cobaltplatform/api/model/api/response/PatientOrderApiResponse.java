@@ -618,6 +618,61 @@ public class PatientOrderApiResponse {
 		}
 	}
 
+	@Immutable
+	public static class PatientOrderApiResponseBatchContext {
+		@Nonnull
+		private final Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId;
+		private final boolean currentResourcePacketsPreloaded;
+		@Nonnull
+		private final Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId;
+		private final boolean scheduledMessageGroupsPreloaded;
+
+		@Nonnull
+		public static PatientOrderApiResponseBatchContext empty() {
+			return new PatientOrderApiResponseBatchContext(Map.of(), false, Map.of(), false);
+		}
+
+		public PatientOrderApiResponseBatchContext(@Nonnull Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId,
+																							 boolean currentResourcePacketsPreloaded,
+																							 @Nonnull Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId,
+																							 boolean scheduledMessageGroupsPreloaded) {
+			requireNonNull(currentResourcePacketsByPatientOrderId);
+			requireNonNull(scheduledMessageGroupsByPatientOrderId);
+
+			this.currentResourcePacketsByPatientOrderId = new LinkedHashMap<>(currentResourcePacketsByPatientOrderId);
+			this.currentResourcePacketsPreloaded = currentResourcePacketsPreloaded;
+			this.scheduledMessageGroupsByPatientOrderId = new LinkedHashMap<>();
+
+			for (Entry<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> entry : scheduledMessageGroupsByPatientOrderId.entrySet()) {
+				UUID patientOrderId = entry.getKey();
+				List<PatientOrderScheduledMessageGroupApiResponse> groupApiResponses = entry.getValue() == null ? List.of() : List.copyOf(entry.getValue());
+				this.scheduledMessageGroupsByPatientOrderId.put(patientOrderId, groupApiResponses);
+			}
+
+			this.scheduledMessageGroupsPreloaded = scheduledMessageGroupsPreloaded;
+		}
+
+		@Nullable
+		public ResourcePacket getCurrentResourcePacketByPatientOrderId(@Nonnull UUID patientOrderId) {
+			requireNonNull(patientOrderId);
+			return currentResourcePacketsByPatientOrderId.get(patientOrderId);
+		}
+
+		@Nonnull
+		public List<PatientOrderScheduledMessageGroupApiResponse> getScheduledMessageGroupsByPatientOrderId(@Nonnull UUID patientOrderId) {
+			requireNonNull(patientOrderId);
+			return scheduledMessageGroupsByPatientOrderId.getOrDefault(patientOrderId, List.of());
+		}
+
+		public boolean isCurrentResourcePacketsPreloaded() {
+			return currentResourcePacketsPreloaded;
+		}
+
+		public boolean isScheduledMessageGroupsPreloaded() {
+			return scheduledMessageGroupsPreloaded;
+		}
+	}
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface PatientOrderApiResponseFactory {
@@ -627,8 +682,14 @@ public class PatientOrderApiResponse {
 
 		@Nonnull
 		PatientOrderApiResponse create(@Nonnull PatientOrder patientOrder,
-																	 @Nonnull PatientOrderApiResponseFormat format,
-																	 @Nonnull Set<PatientOrderApiResponseSupplement> supplements);
+																		 @Nonnull PatientOrderApiResponseFormat format,
+																		 @Nonnull Set<PatientOrderApiResponseSupplement> supplements);
+
+		@Nonnull
+		PatientOrderApiResponse create(@Nonnull PatientOrder patientOrder,
+																		 @Nonnull PatientOrderApiResponseFormat format,
+																		 @Nonnull Set<PatientOrderApiResponseSupplement> supplements,
+																		 @Nonnull PatientOrderApiResponseBatchContext batchContext);
 	}
 
 	@AssistedInject
@@ -664,19 +725,20 @@ public class PatientOrderApiResponse {
 				patientOrderNoteApiResponseFactory,
 				patientOrderOutreachApiResponseFactory,
 				patientOrderDiagnosisApiResponseFactory,
-				patientOrderMedicationApiResponseFactory,
-				patientOrderScheduledMessageGroupApiResponseFactory,
-				patientOrderScheduledOutreachApiResponseFactory,
-				screeningSessionApiResponseFactory,
-				addressApiResponseFactory,
-				patientOrderVoicemailTaskApiResponseFactory,
-				resourcePacketApiResponseFactory,
-				formatter,
-				strings,
-				currentContextProvider,
-				patientOrder,
-				format,
-				Set.of());
+					patientOrderMedicationApiResponseFactory,
+					patientOrderScheduledMessageGroupApiResponseFactory,
+					patientOrderScheduledOutreachApiResponseFactory,
+					screeningSessionApiResponseFactory,
+					addressApiResponseFactory,
+					patientOrderVoicemailTaskApiResponseFactory,
+					resourcePacketApiResponseFactory,
+					formatter,
+					strings,
+					currentContextProvider,
+					patientOrder,
+					format,
+					Set.of(),
+					PatientOrderApiResponseBatchContext.empty());
 	}
 
 	@AssistedInject
@@ -703,6 +765,57 @@ public class PatientOrderApiResponse {
 																 @Assisted @Nonnull PatientOrder patientOrder,
 																 @Assisted @Nonnull PatientOrderApiResponseFormat format,
 																 @Assisted @Nonnull Set<PatientOrderApiResponseSupplement> supplements) {
+		this(patientOrderService,
+				accountService,
+				addressService,
+				institutionService,
+				screeningService,
+				careResourceService,
+				accountApiResponseFactory,
+				patientOrderNoteApiResponseFactory,
+				patientOrderOutreachApiResponseFactory,
+				patientOrderDiagnosisApiResponseFactory,
+				patientOrderMedicationApiResponseFactory,
+				patientOrderScheduledMessageGroupApiResponseFactory,
+				patientOrderScheduledOutreachApiResponseFactory,
+				screeningSessionApiResponseFactory,
+				addressApiResponseFactory,
+				patientOrderVoicemailTaskApiResponseFactory,
+				resourcePacketApiResponseFactory,
+				formatter,
+				strings,
+				currentContextProvider,
+				patientOrder,
+				format,
+				supplements,
+				PatientOrderApiResponseBatchContext.empty());
+	}
+
+	@AssistedInject
+	public PatientOrderApiResponse(@Nonnull PatientOrderService patientOrderService,
+																 @Nonnull AccountService accountService,
+																 @Nonnull AddressService addressService,
+																 @Nonnull InstitutionService institutionService,
+																 @Nonnull ScreeningService screeningService,
+																 @Nonnull CareResourceService careResourceService,
+																 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
+																 @Nonnull PatientOrderNoteApiResponseFactory patientOrderNoteApiResponseFactory,
+																 @Nonnull PatientOrderOutreachApiResponseFactory patientOrderOutreachApiResponseFactory,
+																 @Nonnull PatientOrderDiagnosisApiResponseFactory patientOrderDiagnosisApiResponseFactory,
+																 @Nonnull PatientOrderMedicationApiResponseFactory patientOrderMedicationApiResponseFactory,
+																 @Nonnull PatientOrderScheduledMessageGroupApiResponseFactory patientOrderScheduledMessageGroupApiResponseFactory,
+																 @Nonnull PatientOrderScheduledOutreachApiResponseFactory patientOrderScheduledOutreachApiResponseFactory,
+																 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
+																 @Nonnull AddressApiResponseFactory addressApiResponseFactory,
+																 @Nonnull PatientOrderVoicemailTaskApiResponseFactory patientOrderVoicemailTaskApiResponseFactory,
+																 @Nonnull ResourcePacketApiResponseFactory resourcePacketApiResponseFactory,
+																 @Nonnull Formatter formatter,
+																 @Nonnull Strings strings,
+																 @Nonnull Provider<CurrentContext> currentContextProvider,
+																 @Assisted @Nonnull PatientOrder patientOrder,
+																 @Assisted @Nonnull PatientOrderApiResponseFormat format,
+																 @Assisted @Nonnull Set<PatientOrderApiResponseSupplement> supplements,
+																 @Assisted @Nonnull PatientOrderApiResponseBatchContext batchContext) {
 		requireNonNull(patientOrderService);
 		requireNonNull(accountService);
 		requireNonNull(addressService);
@@ -726,6 +839,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(patientOrder);
 		requireNonNull(format);
 		requireNonNull(supplements);
+		requireNonNull(batchContext);
 
 		CurrentContext currentContext = currentContextProvider.get();
 
@@ -987,7 +1101,9 @@ public class PatientOrderApiResponse {
 		this.epicDepartmentName = patientOrder.getEpicDepartmentName();
 		this.epicDepartmentDepartmentId = patientOrder.getEpicDepartmentDepartmentId();
 
-		Optional<ResourcePacket> resourcePacket = careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
+		Optional<ResourcePacket> resourcePacket = batchContext.isCurrentResourcePacketsPreloaded()
+				? Optional.ofNullable(batchContext.getCurrentResourcePacketByPatientOrderId(patientOrderId))
+				: careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
 		this.resourcesSentFlag = patientOrder.getResourcesSentAt() != null;
 		if (resourcePacket.isPresent())
 			this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
@@ -1080,8 +1196,9 @@ public class PatientOrderApiResponse {
 			this.resourceCheckInResponseStatusUpdatedAt = patientOrder.getResourceCheckInResponseStatusUpdatedAt();
 			this.resourceCheckInResponseStatusUpdatedAtDescription = patientOrder.getResourceCheckInResponseStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getResourceCheckInResponseStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
-			List<PatientOrderScheduledMessage> patientOrderScheduledMessages = patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId());
-			this.patientOrderScheduledMessageGroups = patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderScheduledMessages);
+			this.patientOrderScheduledMessageGroups = batchContext.isScheduledMessageGroupsPreloaded()
+					? batchContext.getScheduledMessageGroupsByPatientOrderId(patientOrder.getPatientOrderId())
+					: patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId()));
 
 			this.patientOrderVoicemailTasks = patientOrderVoicemailTasks;
 			this.patientOrderResourcingTypeId = patientOrder.getPatientOrderResourcingTypeId();

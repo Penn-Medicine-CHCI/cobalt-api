@@ -66,6 +66,7 @@ import com.cobaltplatform.api.model.api.response.EpicDepartmentApiResponse.EpicD
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse;
 import com.cobaltplatform.api.model.api.response.LanguageApiResponse.LanguageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse;
+import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseFormat;
 import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.PatientOrderApiResponseSupplement;
@@ -913,10 +914,22 @@ public class PatientOrderResource {
 			}
 		});
 
+		Set<UUID> patientOrderIds = findResult.getResults().stream()
+				.map(PatientOrder::getPatientOrderId)
+				.collect(Collectors.toSet());
+
+		PatientOrderApiResponseBatchContext batchContext = new PatientOrderApiResponseBatchContext(
+				getPatientOrderService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds),
+				true,
+				getPatientOrderService().findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(patientOrderIds),
+				true
+		);
+
 		List<PatientOrderApiResponse> patientOrders = findResult.getResults().stream()
 				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
 						PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
-						Set.of(PatientOrderApiResponseSupplement.PANEL)))
+						Set.of(PatientOrderApiResponseSupplement.PANEL),
+						batchContext))
 				.collect(Collectors.toList());
 
 		Map<String, Object> findResultJson = new HashMap<>();
