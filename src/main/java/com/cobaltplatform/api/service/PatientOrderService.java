@@ -2124,26 +2124,36 @@ public class PatientOrderService implements AutoCloseable {
 					  ON por.patient_order_referral_reason_id = porr.patient_order_referral_reason_id
 					GROUP BY por.patient_order_id
 				),
-				smg AS (
-					SELECT posmg_1.patient_order_id,
-								 COUNT(*) AS scheduled_message_group_delivered_count,
-								 MAX(posmg_1.scheduled_at_date_time) AS max_delivered_scheduled_message_group_date_time
+				delivered_message_groups AS MATERIALIZED (
+					SELECT
+						posmg_1.patient_order_scheduled_message_group_id,
+						posmg_1.patient_order_id,
+						posmg_1.scheduled_at_date_time,
+						MAX(ml.delivered) AS most_recent_message_delivered_at
 					FROM patient_order_scheduled_message_group posmg_1
 					JOIN raw_base bo
 					  ON bo.patient_order_id = posmg_1.patient_order_id
+					JOIN patient_order_scheduled_message posm
+					  ON posm.patient_order_scheduled_message_group_id = posmg_1.patient_order_scheduled_message_group_id
+					JOIN scheduled_message sm
+					  ON sm.scheduled_message_id = posm.scheduled_message_id
+					JOIN message_log ml
+					  ON ml.message_id = sm.message_id
+					 AND ml.message_status_id = 'DELIVERED'
 					WHERE posmg_1.deleted = FALSE
-						AND EXISTS (
-							SELECT 1
-							FROM patient_order_scheduled_message posm
-							JOIN scheduled_message sm
-							  ON sm.scheduled_message_id = posm.scheduled_message_id
-							JOIN message_log ml
-							  ON ml.message_id = sm.message_id
-							 AND ml.message_status_id = 'DELIVERED'
-							WHERE posm.patient_order_scheduled_message_group_id = posmg_1.patient_order_scheduled_message_group_id
-							LIMIT 1
-						)
-					GROUP BY posmg_1.patient_order_id
+					GROUP BY
+						posmg_1.patient_order_scheduled_message_group_id,
+						posmg_1.patient_order_id,
+						posmg_1.scheduled_at_date_time
+				),
+				message_rollup AS MATERIALIZED (
+					SELECT
+						dmg.patient_order_id,
+						COUNT(*) AS scheduled_message_group_delivered_count,
+						MAX(dmg.scheduled_at_date_time) AS max_delivered_scheduled_message_group_date_time,
+						MAX(dmg.most_recent_message_delivered_at) AS most_recent_message_delivered_at
+					FROM delivered_message_groups dmg
+					GROUP BY dmg.patient_order_id
 				),
 				next_resource_check_in_scheduled_message_group_query AS (
 					SELECT DISTINCT ON (posmg_1.patient_order_id)
@@ -2155,16 +2165,12 @@ public class PatientOrderService implements AutoCloseable {
 					  ON bo.patient_order_id = posmg_1.patient_order_id
 					JOIN inst i_1
 					  ON bo.institution_id = i_1.institution_id
-					LEFT JOIN patient_order_scheduled_message posm
-					  ON posmg_1.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
-					LEFT JOIN scheduled_message sm
-					  ON posm.scheduled_message_id = sm.scheduled_message_id
-					LEFT JOIN message_log ml
-					  ON sm.message_id = ml.message_id
+					LEFT JOIN delivered_message_groups dmg
+					  ON dmg.patient_order_scheduled_message_group_id = posmg_1.patient_order_scheduled_message_group_id
 					WHERE posmg_1.patient_order_scheduled_message_type_id = 'RESOURCE_CHECK_IN'
 						AND posmg_1.deleted = FALSE
 						AND (posmg_1.scheduled_at_date_time AT TIME ZONE i_1.time_zone) > NOW()
-						AND (ml.message_status_id IS NULL OR ml.message_status_id <> 'DELIVERED')
+						AND dmg.patient_order_scheduled_message_group_id IS NULL
 					ORDER BY posmg_1.patient_order_id, posmg_1.scheduled_at_date_time, posmg_1.patient_order_scheduled_message_group_id
 				),
 				next_appt_query AS (
@@ -2207,22 +2213,6 @@ public class PatientOrderService implements AutoCloseable {
 					  ON bo.patient_order_id = poso.patient_order_id
 					WHERE poso.patient_order_scheduled_outreach_status_id = 'SCHEDULED'
 					ORDER BY poso.patient_order_id, poso.scheduled_at_date_time, poso.patient_order_scheduled_outreach_id
-				),
-				most_recent_message_delivered_query AS (
-					SELECT DISTINCT ON (posmg_1.patient_order_id)
-						posmg_1.patient_order_id,
-						ml.delivered AS most_recent_message_delivered_at
-					FROM patient_order_scheduled_message_group posmg_1
-					JOIN raw_base bo
-					  ON bo.patient_order_id = posmg_1.patient_order_id
-					JOIN patient_order_scheduled_message posm
-					  ON posmg_1.patient_order_scheduled_message_group_id = posm.patient_order_scheduled_message_group_id
-					JOIN scheduled_message sm
-					  ON posm.scheduled_message_id = sm.scheduled_message_id
-					JOIN message_log ml
-					  ON sm.message_id = ml.message_id
-					WHERE ml.message_status_id = 'DELIVERED'
-					ORDER BY posmg_1.patient_order_id, ml.delivered DESC
 				),
 				ss_query AS (
 					SELECT DISTINCT ON (ss.patient_order_id)
@@ -2309,22 +2299,33 @@ public class PatientOrderService implements AutoCloseable {
 					WHERE poss.canceled = FALSE
 					ORDER BY poss.patient_order_id, poss.scheduled_date_time
 				),
-				recent_po_query AS (
-					SELECT bo.patient_order_id,
-								 prev.episode_closed_at AS most_recent_episode_closed_at
+				patient_mrns AS MATERIALIZED (
+					SELECT DISTINCT
+						bo.institution_id,
+						bo.patient_mrn
 					FROM raw_base bo
-					LEFT JOIN LATERAL (
-						SELECT po_prev.episode_closed_at
-						FROM patient_order po_prev
-						WHERE po_prev.institution_id = bo.institution_id
-							AND po_prev.patient_mrn = bo.patient_mrn
-							AND (
-								po_prev.order_date < bo.order_date
-								OR (po_prev.order_date = bo.order_date AND po_prev.patient_order_id < bo.patient_order_id)
-							)
-						ORDER BY po_prev.order_date DESC, po_prev.patient_order_id DESC
-						LIMIT 1
-					) prev ON TRUE
+				),
+				patient_order_history AS MATERIALIZED (
+					SELECT
+						po.patient_order_id,
+						po.institution_id,
+						po.patient_mrn,
+						LAG(po.episode_closed_at) OVER (
+							PARTITION BY po.institution_id, po.patient_mrn
+							ORDER BY po.order_date, po.patient_order_id
+						) AS most_recent_episode_closed_at
+					FROM patient_order po
+					JOIN patient_mrns pm
+					  ON pm.institution_id = po.institution_id
+					 AND pm.patient_mrn = po.patient_mrn
+				),
+				recent_po_query AS (
+					SELECT
+						bo.patient_order_id,
+						poh.most_recent_episode_closed_at
+					FROM raw_base bo
+					LEFT JOIN patient_order_history poh
+					  ON poh.patient_order_id = bo.patient_order_id
 				),
 				enriched AS (
 					SELECT
@@ -2333,10 +2334,10 @@ public class PatientOrderService implements AutoCloseable {
 						tr.patient_order_triage_source_id,
 						COALESCE(poo.outreach_count, 0::bigint) AS outreach_count,
 						poo.max_outreach_date_time AS most_recent_outreach_date_time,
-						COALESCE(smg.scheduled_message_group_delivered_count, 0::bigint) AS scheduled_message_group_delivered_count,
-						smg.max_delivered_scheduled_message_group_date_time AS most_recent_delivered_scheduled_message_group_date_time,
-						COALESCE(poo.outreach_count, 0::bigint) + COALESCE(smg.scheduled_message_group_delivered_count, 0::bigint) AS total_outreach_count,
-						GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
+						COALESCE(mrq.scheduled_message_group_delivered_count, 0::bigint) AS scheduled_message_group_delivered_count,
+						mrq.max_delivered_scheduled_message_group_date_time AS most_recent_delivered_scheduled_message_group_date_time,
+						COALESCE(poo.outreach_count, 0::bigint) + COALESCE(mrq.scheduled_message_group_delivered_count, 0::bigint) AS total_outreach_count,
+						GREATEST(poo.max_outreach_date_time, mrq.max_delivered_scheduled_message_group_date_time) AS most_recent_total_outreach_date_time,
 						ssq.screening_session_id AS most_recent_screening_session_id,
 						ssq.created AS most_recent_screening_session_created_at,
 						ssq.created_by_account_id AS most_recent_screening_session_created_by_account_id,
@@ -2425,8 +2426,8 @@ public class PatientOrderService implements AutoCloseable {
 							OR (bo.patient_order_disposition_id = 'OPEN'
 								AND ssq.screening_session_id IS NULL
 								AND rssq.scheduled_date_time IS NULL
-								AND (COALESCE(poo.outreach_count, 0::bigint) + COALESCE(smg.scheduled_message_group_delivered_count, 0::bigint)) > 0
-								AND ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW())
+								AND (COALESCE(poo.outreach_count, 0::bigint) + COALESCE(mrq.scheduled_message_group_delivered_count, 0::bigint)) > 0
+								AND ((GREATEST(poo.max_outreach_date_time, mrq.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW())
 						) AS outreach_followup_needed,
 						naq.appointment_start_time,
 						naq.provider_id,
@@ -2470,13 +2471,13 @@ public class PatientOrderService implements AutoCloseable {
 						DATE_PART('day', COALESCE(bo.episode_closed_at, NOW()) - (bo.order_date + MAKE_INTERVAL(mins => bo.order_age_in_minutes))::timestamptz) AS episode_duration_in_days,
 						ed.name AS epic_department_name,
 						ed.department_id AS epic_department_department_id,
-						mrmdq.most_recent_message_delivered_at,
+						mrq.most_recent_message_delivered_at,
 						nsoq.next_scheduled_outreach_id,
 						nsoq.next_scheduled_outreach_scheduled_at_date_time,
 						nsoq.next_scheduled_outreach_type_id,
 						nsoq.next_scheduled_outreach_reason_id,
 						GREATEST(
-							mrmdq.most_recent_message_delivered_at,
+							mrq.most_recent_message_delivered_at,
 							CASE
 								WHEN (poo.max_outreach_date_time AT TIME ZONE i.time_zone) < NOW() THEN (poo.max_outreach_date_time AT TIME ZONE i.time_zone)
 								ELSE NULL::timestamptz
@@ -2509,13 +2510,13 @@ public class PatientOrderService implements AutoCloseable {
 							) AND nsoq.next_scheduled_outreach_reason_id = 'OTHER'
 							THEN 'OTHER'
 							WHEN poo.max_outreach_date_time IS NULL
-								AND smg.max_delivered_scheduled_message_group_date_time IS NULL
+								AND mrq.max_delivered_scheduled_message_group_date_time IS NULL
 								AND ssiq.screening_session_id IS NULL
 							THEN 'WELCOME_MESSAGE'
 							WHEN ssq.screening_session_id IS NULL
 								AND rssq.scheduled_date_time IS NULL
-								AND (poo.max_outreach_date_time IS NOT NULL OR smg.max_delivered_scheduled_message_group_date_time IS NOT NULL)
-								AND ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW()
+								AND (poo.max_outreach_date_time IS NOT NULL OR mrq.max_delivered_scheduled_message_group_date_time IS NOT NULL)
+								AND ((GREATEST(poo.max_outreach_date_time, mrq.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW()
 							THEN 'ASSESSMENT_OUTREACH'
 							WHEN nrcismgq.next_resource_check_in_scheduled_message_group_id IS NOT NULL
 							THEN 'RESOURCE_CHECK_IN'
@@ -2533,13 +2534,13 @@ public class PatientOrderService implements AutoCloseable {
 								nsoq.next_scheduled_outreach_scheduled_at_date_time::timestamptz
 							) THEN nsoq.next_scheduled_outreach_scheduled_at_date_time
 							WHEN poo.max_outreach_date_time IS NULL
-								AND smg.max_delivered_scheduled_message_group_date_time IS NULL
+								AND mrq.max_delivered_scheduled_message_group_date_time IS NULL
 								AND ssiq.screening_session_id IS NULL
 							THEN NULL::timestamp
 							WHEN ssq.screening_session_id IS NULL
 								AND rssq.scheduled_date_time IS NULL
-								AND (poo.max_outreach_date_time IS NOT NULL OR smg.max_delivered_scheduled_message_group_date_time IS NOT NULL)
-								AND ((GREATEST(poo.max_outreach_date_time, smg.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW()
+								AND (poo.max_outreach_date_time IS NOT NULL OR mrq.max_delivered_scheduled_message_group_date_time IS NOT NULL)
+								AND ((GREATEST(poo.max_outreach_date_time, mrq.max_delivered_scheduled_message_group_date_time) + MAKE_INTERVAL(days => i.integrated_care_outreach_followup_day_offset)) AT TIME ZONE i.time_zone) <= NOW()
 							THEN NULL::timestamp
 							WHEN nrcismgq.next_resource_check_in_scheduled_message_group_id IS NOT NULL
 							THEN nrcismgq.next_resource_check_in_scheduled_at_date_time
@@ -2563,8 +2564,8 @@ public class PatientOrderService implements AutoCloseable {
 						ON bo.patient_address_id = patient_address.address_id
 					LEFT JOIN poo
 						ON bo.patient_order_id = poo.patient_order_id
-					LEFT JOIN smg
-						ON bo.patient_order_id = smg.patient_order_id
+					LEFT JOIN message_rollup mrq
+						ON bo.patient_order_id = mrq.patient_order_id
 					LEFT JOIN ss_query ssq
 						ON bo.patient_order_id = ssq.patient_order_id
 					LEFT JOIN ss_intake_query ssiq
@@ -2588,8 +2589,6 @@ public class PatientOrderService implements AutoCloseable {
 						ON bo.patient_order_id = rfrq.patient_order_id
 					LEFT JOIN next_scheduled_outreach_query nsoq
 						ON bo.patient_order_id = nsoq.patient_order_id
-					LEFT JOIN most_recent_message_delivered_query mrmdq
-						ON bo.patient_order_id = mrmdq.patient_order_id
 					LEFT JOIN next_resource_check_in_scheduled_message_group_query nrcismgq
 						ON bo.patient_order_id = nrcismgq.patient_order_id
 					LEFT JOIN patient_order_scheduled_message_group posmg
@@ -2601,16 +2600,20 @@ public class PatientOrderService implements AutoCloseable {
 					FROM enriched po
 					WHERE 1=1
 					{{whereClauseLines}}
+				),
+				paged AS (
+					SELECT
+						bq.*,
+						COUNT(*) OVER () AS total_count
+					FROM base_query bq
+					ORDER BY {{orderByColumns}}
+					LIMIT ?
+					OFFSET ?
 				)
 				SELECT
-					bq.*,
-					tcq.total_count
-				FROM
-					(SELECT COUNT(*) AS total_count FROM base_query) tcq,
-					base_query bq
+					bq.*
+				FROM paged bq
 				ORDER BY {{orderByColumns}}
-				LIMIT ?
-				OFFSET ?
 				""".trim()
 				.replace("{{whereClauseLines}}", queryContext.whereClauseLines.stream().collect(Collectors.joining("\n")))
 				.replace("{{rawPatientOrderWhereClauseLines}}", queryContext.rawPatientOrderWhereClauseLines.stream().collect(Collectors.joining("\n")))
