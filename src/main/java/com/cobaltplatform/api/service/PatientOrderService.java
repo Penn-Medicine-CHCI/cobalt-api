@@ -163,6 +163,7 @@ import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
+import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
@@ -5202,9 +5203,75 @@ public class PatientOrderService implements AutoCloseable {
 				SELECT *
 				FROM v_patient_order_scheduled_message
 				WHERE patient_order_id=?
+					AND scheduled_message_status_id != ?
+					ORDER BY scheduled_at DESC
+					""", PatientOrderScheduledMessage.class, patientOrderId, ScheduledMessageStatusId.CANCELED);
+	}
+
+	@Nonnull
+	public Map<UUID, List<PatientOrderScheduledMessage>> findPatientOrderScheduledMessagesByPatientOrderIds(@Nonnull Set<UUID> patientOrderIds) {
+		requireNonNull(patientOrderIds);
+
+		if (patientOrderIds.isEmpty())
+			return Map.of();
+
+		List<Object> parameters = new ArrayList<>(patientOrderIds.size() + 1);
+		parameters.addAll(patientOrderIds);
+		parameters.add(ScheduledMessageStatusId.CANCELED);
+
+		List<PatientOrderScheduledMessage> patientOrderScheduledMessages = getDatabase().queryForList(format("""
+				SELECT *
+				FROM v_patient_order_scheduled_message
+				WHERE patient_order_id IN %s
 				AND scheduled_message_status_id != ?
-				ORDER BY scheduled_at DESC
-				""", PatientOrderScheduledMessage.class, patientOrderId, ScheduledMessageStatusId.CANCELED);
+				ORDER BY patient_order_id, scheduled_at DESC
+				""", sqlInListPlaceholders(patientOrderIds)), PatientOrderScheduledMessage.class, parameters.toArray(new Object[0]));
+
+		Map<UUID, List<PatientOrderScheduledMessage>> patientOrderScheduledMessagesByPatientOrderId = new LinkedHashMap<>();
+
+		for (PatientOrderScheduledMessage patientOrderScheduledMessage : patientOrderScheduledMessages) {
+			List<PatientOrderScheduledMessage> messagesForPatientOrder = patientOrderScheduledMessagesByPatientOrderId.get(patientOrderScheduledMessage.getPatientOrderId());
+
+			if (messagesForPatientOrder == null) {
+				messagesForPatientOrder = new ArrayList<>();
+				patientOrderScheduledMessagesByPatientOrderId.put(patientOrderScheduledMessage.getPatientOrderId(), messagesForPatientOrder);
+			}
+
+			messagesForPatientOrder.add(patientOrderScheduledMessage);
+		}
+
+		return patientOrderScheduledMessagesByPatientOrderId;
+	}
+
+	@Nonnull
+	public Map<UUID, ResourcePacket> findCurrentResourcePacketsByPatientOrderIds(@Nonnull Set<UUID> patientOrderIds) {
+		requireNonNull(patientOrderIds);
+		return getCareResourceService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds);
+	}
+
+	@Nonnull
+	public Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(@Nonnull Set<UUID> patientOrderIds) {
+		requireNonNull(patientOrderIds);
+
+		Map<UUID, List<PatientOrderScheduledMessage>> patientOrderScheduledMessagesByPatientOrderId = findPatientOrderScheduledMessagesByPatientOrderIds(patientOrderIds);
+
+		if (patientOrderScheduledMessagesByPatientOrderId.isEmpty())
+			return Map.of();
+
+		Set<UUID> patientOrderScheduledMessageGroupIds = patientOrderScheduledMessagesByPatientOrderId.values().stream()
+				.flatMap(List::stream)
+				.map(PatientOrderScheduledMessage::getPatientOrderScheduledMessageGroupId)
+				.collect(Collectors.toSet());
+
+		Map<UUID, PatientOrderScheduledMessageGroup> groupsByGroupId = findPatientOrderScheduledMessageGroupsByIds(patientOrderScheduledMessageGroupIds);
+		Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> groupApiResponsesByPatientOrderId = new LinkedHashMap<>();
+
+		for (Entry<UUID, List<PatientOrderScheduledMessage>> entry : patientOrderScheduledMessagesByPatientOrderId.entrySet()) {
+			Map<UUID, List<PatientOrderScheduledMessage>> messagesByPatientOrderScheduledMessageGroupId = groupPatientOrderScheduledMessagesByGroupId(entry.getValue());
+			groupApiResponsesByPatientOrderId.put(entry.getKey(), generatePatientOrderScheduledMessageGroupApiResponses(messagesByPatientOrderScheduledMessageGroupId, groupsByGroupId));
+		}
+
+		return groupApiResponsesByPatientOrderId;
 	}
 
 	// Do some gymnastics to "unflatten" messages into group API responses.
@@ -5212,6 +5279,19 @@ public class PatientOrderService implements AutoCloseable {
 	public List<PatientOrderScheduledMessageGroupApiResponse> generatePatientOrderScheduledMessageGroupApiResponses(@Nullable List<PatientOrderScheduledMessage> patientOrderScheduledMessages) {
 		if (patientOrderScheduledMessages == null || patientOrderScheduledMessages.size() == 0)
 			return List.of();
+
+		Map<UUID, List<PatientOrderScheduledMessage>> messagesByPatientOrderScheduledMessageGroupId = groupPatientOrderScheduledMessagesByGroupId(patientOrderScheduledMessages);
+
+		if (messagesByPatientOrderScheduledMessageGroupId.size() == 0)
+			return List.of();
+
+		Map<UUID, PatientOrderScheduledMessageGroup> groupsByGroupId = findPatientOrderScheduledMessageGroupsByIds(messagesByPatientOrderScheduledMessageGroupId.keySet());
+		return generatePatientOrderScheduledMessageGroupApiResponses(messagesByPatientOrderScheduledMessageGroupId, groupsByGroupId);
+	}
+
+	@Nonnull
+	protected Map<UUID, List<PatientOrderScheduledMessage>> groupPatientOrderScheduledMessagesByGroupId(@Nonnull List<PatientOrderScheduledMessage> patientOrderScheduledMessages) {
+		requireNonNull(patientOrderScheduledMessages);
 
 		Map<UUID, List<PatientOrderScheduledMessage>> messagesByPatientOrderScheduledMessageGroupId = new LinkedHashMap<>();
 
@@ -5226,18 +5306,32 @@ public class PatientOrderService implements AutoCloseable {
 			messages.add(patientOrderScheduledMessage);
 		}
 
-		if (messagesByPatientOrderScheduledMessageGroupId.size() == 0)
-			return List.of();
+		return messagesByPatientOrderScheduledMessageGroupId;
+	}
+
+	@Nonnull
+	protected Map<UUID, PatientOrderScheduledMessageGroup> findPatientOrderScheduledMessageGroupsByIds(@Nonnull Set<UUID> patientOrderScheduledMessageGroupIds) {
+		requireNonNull(patientOrderScheduledMessageGroupIds);
+
+		if (patientOrderScheduledMessageGroupIds.isEmpty())
+			return Map.of();
 
 		List<PatientOrderScheduledMessageGroup> groups = getDatabase().queryForList(format("""
 						SELECT *
 						FROM v_patient_order_scheduled_message_group
 						WHERE patient_order_scheduled_message_group_id IN %s
-						""", sqlInListPlaceholders(messagesByPatientOrderScheduledMessageGroupId.keySet())),
-				PatientOrderScheduledMessageGroup.class, messagesByPatientOrderScheduledMessageGroupId.keySet().toArray(new Object[0]));
+						""", sqlInListPlaceholders(patientOrderScheduledMessageGroupIds)),
+				PatientOrderScheduledMessageGroup.class, patientOrderScheduledMessageGroupIds.toArray(new Object[0]));
 
-		Map<UUID, PatientOrderScheduledMessageGroup> groupsByGroupId = groups.stream()
+		return groups.stream()
 				.collect(Collectors.toMap(PatientOrderScheduledMessageGroup::getPatientOrderScheduledMessageGroupId, Function.identity()));
+	}
+
+	@Nonnull
+	protected List<PatientOrderScheduledMessageGroupApiResponse> generatePatientOrderScheduledMessageGroupApiResponses(@Nonnull Map<UUID, List<PatientOrderScheduledMessage>> messagesByPatientOrderScheduledMessageGroupId,
+																																																							 @Nonnull Map<UUID, PatientOrderScheduledMessageGroup> groupsByGroupId) {
+		requireNonNull(messagesByPatientOrderScheduledMessageGroupId);
+		requireNonNull(groupsByGroupId);
 
 		List<PatientOrderScheduledMessageGroupApiResponse> groupApiResponses = new ArrayList<>(groupsByGroupId.size());
 
