@@ -108,6 +108,11 @@ public class DatabaseFilter implements Filter {
 		boolean staticFile = httpServletRequest.getRequestURI().startsWith("/static/");
 		boolean optionsRequest = Objects.equals("OPTIONS", httpServletRequest.getMethod());
 		boolean performingAutoRefresh = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Autorefresh"), "true");
+		String requestMethod = httpServletRequest.getMethod();
+		String requestUriWithOptionalQueryString = httpServletRequest.getRequestURI();
+
+		if (httpServletRequest.getQueryString() != null && httpServletRequest.getQueryString().trim().length() > 0)
+			requestUriWithOptionalQueryString = format("%s?%s", requestUriWithOptionalQueryString, httpServletRequest.getQueryString());
 
 		// Don't apply to some requests
 		if (staticFile || optionsRequest || performingAutoRefresh) {
@@ -123,7 +128,10 @@ public class DatabaseFilter implements Filter {
 			// Nothing to do, continue on
 		}
 
-		// If a Resource Method has either @ReadReplica or @RequiresManualTransactionManagement applied, don't wrap this request in a transaction
+		// If a Resource Method has either @ReadReplica or @RequiresManualTransactionManagement applied,
+		// execute without wrapping this request in an automatic transaction.
+		boolean skipAutomaticTransaction = false;
+
 		if (requestContext != null) {
 			Route route = requestContext.route().orElse(null);
 			Method resourceMethod = route != null && route.resourceMethod() != null ? route.resourceMethod() : null;
@@ -131,27 +139,40 @@ public class DatabaseFilter implements Filter {
 			if (resourceMethod != null) {
 				boolean readReplica = resourceMethod.getAnnotation(ReadReplica.class) != null;
 				boolean requiresManualTransactionManagement = resourceMethod.getAnnotation(RequiresManualTransactionManagement.class) != null;
-
-				if (readReplica || requiresManualTransactionManagement) {
-					filterChain.doFilter(servletRequest, servletResponse);
-					return;
-				}
+				skipAutomaticTransaction = readReplica || requiresManualTransactionManagement;
 			}
 		}
 
 		DatabaseContext databaseContext = new DatabaseContext();
 
 		try {
-			getDatabase().transaction(() -> {
-				// This transaction wraps our HTTP resource methods (those annotated with @GET, @POST, etc.)
-				// We already know the current account (if one has been authenticated) at this point.
-				// Apply the current context (account, resource method, etc.) to the current transaction for automated DB footprint capture
-				getSystemService().applyFootprintForCurrentContextToCurrentTransaction();
+			if (skipAutomaticTransaction) {
+				try {
+					getDatabaseContextExecutor().execute(databaseContext, () -> {
+						filterChain.doFilter(servletRequest, servletResponse);
+					});
+				} catch (Exception exception) {
+					if (exception instanceof IOException)
+						throw (IOException) exception;
+					else if (exception instanceof ServletException)
+						throw (ServletException) exception;
+					else if (exception instanceof RuntimeException)
+						throw (RuntimeException) exception;
 
-				getDatabaseContextExecutor().execute(databaseContext, () -> {
-					filterChain.doFilter(servletRequest, servletResponse);
+					throw new ServletException(exception);
+				}
+			} else {
+				getDatabase().transaction(() -> {
+					// This transaction wraps our HTTP resource methods (those annotated with @GET, @POST, etc.)
+					// We already know the current account (if one has been authenticated) at this point.
+					// Apply the current context (account, resource method, etc.) to the current transaction for automated DB footprint capture
+					getSystemService().applyFootprintForCurrentContextToCurrentTransaction();
+
+					getDatabaseContextExecutor().execute(databaseContext, () -> {
+						filterChain.doFilter(servletRequest, servletResponse);
+					});
 				});
-			});
+			}
 		} finally {
 			Long totalTime = 0L;
 			List<StatementLog> originalStatementLogs = databaseContext.getStatementLogs();
@@ -173,11 +194,16 @@ public class DatabaseFilter implements Filter {
 				totalTime += statementLog.totalTime();
 			}
 
-			if (displayableStatementLogs.size() > 0) {
-				String queryText = displayableStatementLogs.size() == 1 ? "statement" : "statements";
-				getLogger().debug("SQL statements for this request:\n{}\nExecuted {} {} in {}ms.", displayableStatementLogs.stream().collect(Collectors.joining("\n")),
-						sortedStatementLogs.size(), queryText, (int) (totalTime / (double) 1000000));
-			}
+				if (displayableStatementLogs.size() > 0) {
+					String queryText = displayableStatementLogs.size() == 1 ? "statement" : "statements";
+					getLogger().debug("SQL statements for {} {}:\n{}\nExecuted {} {} in {}ms.",
+							requestMethod,
+							requestUriWithOptionalQueryString,
+							displayableStatementLogs.stream().collect(Collectors.joining("\n")),
+							sortedStatementLogs.size(),
+							queryText,
+							(int) (totalTime / (double) 1000000));
+				}
 		}
 	}
 
