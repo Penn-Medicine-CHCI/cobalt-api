@@ -2084,26 +2084,24 @@ public class PatientOrderService implements AutoCloseable {
 		FindPatientOrdersQueryContext queryContext = createFindPatientOrdersQueryContext(request);
 
 		String sql = """
-				WITH raw_base AS MATERIALIZED (
-					SELECT raw_po.*
-					FROM patient_order raw_po
-					WHERE raw_po.institution_id=?
-					{{rawPatientOrderWhereClauseLines}}
-				),
-				inst AS (
-					SELECT i.*
-					FROM institution i
-					JOIN (SELECT DISTINCT institution_id FROM raw_base) raw_inst
-					  ON raw_inst.institution_id = i.institution_id
-				),
-				permitted_regions_query AS (
-					SELECT iicr.institution_id,
-								 ARRAY_AGG(iicr.region_abbreviation) AS permitted_region_abbreviations
-					FROM institution_integrated_care_region iicr
-					JOIN (SELECT DISTINCT institution_id FROM raw_base) raw_inst
-					  ON raw_inst.institution_id = iicr.institution_id
-					GROUP BY iicr.institution_id
-				),
+					WITH raw_base AS MATERIALIZED (
+						SELECT raw_po.*
+						FROM patient_order raw_po
+						WHERE raw_po.institution_id=?
+						{{rawPatientOrderWhereClauseLines}}
+					),
+					inst AS (
+						SELECT i.*
+						FROM institution i
+						WHERE i.institution_id = (SELECT rb.institution_id FROM raw_base rb LIMIT 1)
+					),
+					permitted_regions_query AS (
+						SELECT iicr.institution_id,
+									 ARRAY_AGG(iicr.region_abbreviation) AS permitted_region_abbreviations
+						FROM institution_integrated_care_region iicr
+						WHERE iicr.institution_id = (SELECT rb.institution_id FROM raw_base rb LIMIT 1)
+						GROUP BY iicr.institution_id
+					),
 				poo AS (
 					SELECT patient_order_outreach.patient_order_id,
 								 COUNT(*) AS outreach_count,
@@ -2601,20 +2599,19 @@ public class PatientOrderService implements AutoCloseable {
 					WHERE 1=1
 					{{whereClauseLines}}
 				),
-				paged AS (
+					paged AS (
+						SELECT
+							bq.*,
+							COUNT(*) OVER () AS total_count
+						FROM base_query bq
+					)
 					SELECT
-						bq.*,
-						COUNT(*) OVER () AS total_count
-					FROM base_query bq
+						bq.*
+					FROM paged bq
 					ORDER BY {{orderByColumns}}
 					LIMIT ?
 					OFFSET ?
-				)
-				SELECT
-					bq.*
-				FROM paged bq
-				ORDER BY {{orderByColumns}}
-				""".trim()
+					""".trim()
 				.replace("{{whereClauseLines}}", queryContext.whereClauseLines.stream().collect(Collectors.joining("\n")))
 				.replace("{{rawPatientOrderWhereClauseLines}}", queryContext.rawPatientOrderWhereClauseLines.stream().collect(Collectors.joining("\n")))
 				.replace("{{orderByColumns}}", queryContext.orderByColumns.stream().collect(Collectors.joining(", ")))
@@ -2797,8 +2794,8 @@ public class PatientOrderService implements AutoCloseable {
 
 			// We still support filtering per-account for PatientOrderViewTypeId requests
 			if (panelAccountIds.size() > 0) {
-				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-				rawPatientOrderParameters.addAll(panelAccountIds);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id = ANY (CAST(? AS UUID[]))");
+				rawPatientOrderParameters.add(toPostgresArrayLiteral(panelAccountIds));
 			}
 		} else {
 			// This is not a PatientOrderViewTypeId request - let caller do whatever filtering it likes
@@ -2807,8 +2804,8 @@ public class PatientOrderService implements AutoCloseable {
 			if (patientOrderDispositionIds.size() == 0)
 				patientOrderDispositionIds = Set.of(PatientOrderDispositionId.OPEN);
 
-			rawPatientOrderWhereClauseLines.add(format("AND raw_po.patient_order_disposition_id IN %s", sqlInListPlaceholders(patientOrderDispositionIds)));
-			rawPatientOrderParameters.addAll(patientOrderDispositionIds);
+			rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_disposition_id = ANY (CAST(? AS TEXT[]))");
+			rawPatientOrderParameters.add(toPostgresArrayLiteral(patientOrderDispositionIds));
 
 			if (patientOrderConsentStatusId != null) {
 				rawPatientOrderWhereClauseLines.add("AND raw_po.patient_order_consent_status_id=?");
@@ -2821,8 +2818,8 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			if (patientOrderTriageStatusIds.size() > 0) {
-				whereClauseLines.add(format("AND po.patient_order_triage_status_id IN %s", sqlInListPlaceholders(patientOrderTriageStatusIds)));
-				parameters.addAll(patientOrderTriageStatusIds);
+				whereClauseLines.add("AND po.patient_order_triage_status_id = ANY (CAST(? AS TEXT[]))");
+				parameters.add(toPostgresArrayLiteral(patientOrderTriageStatusIds));
 			}
 
 			if (patientOrderAssignmentStatusId != null) {
@@ -2914,13 +2911,13 @@ public class PatientOrderService implements AutoCloseable {
 			}
 
 			if (referringPracticeIds.size() > 0) {
-				rawPatientOrderWhereClauseLines.add(format("AND raw_po.referring_practice_id IN %s", sqlInListPlaceholders(referringPracticeIds)));
-				rawPatientOrderParameters.addAll(referringPracticeIds);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.referring_practice_id = ANY (CAST(? AS TEXT[]))");
+				rawPatientOrderParameters.add(toPostgresArrayLiteral(referringPracticeIds));
 			}
 
 			if (panelAccountIds.size() > 0) {
-				rawPatientOrderWhereClauseLines.add(format("AND raw_po.panel_account_id IN %s", sqlInListPlaceholders(panelAccountIds)));
-				rawPatientOrderParameters.addAll(panelAccountIds);
+				rawPatientOrderWhereClauseLines.add("AND raw_po.panel_account_id = ANY (CAST(? AS UUID[]))");
+				rawPatientOrderParameters.add(toPostgresArrayLiteral(panelAccountIds));
 			}
 
 			// Search query is trumped by Patient MRN
@@ -3000,6 +2997,23 @@ public class PatientOrderService implements AutoCloseable {
 		queryContext.limitOffsetParameters = limitOffsetParameters;
 
 		return queryContext;
+	}
+
+	@Nonnull
+	protected String toPostgresArrayLiteral(@Nonnull Collection<?> values) {
+		requireNonNull(values);
+
+		if (values.size() == 0)
+			throw new IllegalArgumentException("Attempted to create an empty PostgreSQL array literal");
+
+		return values.stream()
+				.map(value -> {
+					String escapedValue = String.valueOf(value)
+							.replace("\\", "\\\\")
+							.replace("\"", "\\\"");
+					return format("\"%s\"", escapedValue);
+				})
+				.collect(Collectors.joining(",", "{", "}"));
 	}
 
 	@Nonnull
