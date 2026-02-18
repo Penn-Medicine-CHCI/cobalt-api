@@ -47,9 +47,9 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -61,6 +61,8 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class DatabaseFilter implements Filter {
+	@Nonnull
+	private static final Pattern WHITESPACE_PATTERN;
 	@Nonnull
 	private Provider<SystemService> systemServiceProvider;
 	@Nonnull
@@ -82,6 +84,10 @@ public class DatabaseFilter implements Filter {
 		this.databaseProvider = databaseProvider;
 		this.databaseContextExecutor = databaseContextExecutor;
 		this.logger = LoggerFactory.getLogger("com.cobaltplatform.api.sql.REQUEST_SQL");
+	}
+
+	static {
+		WHITESPACE_PATTERN = Pattern.compile("\\s+");
 	}
 
 	@Override
@@ -152,12 +158,13 @@ public class DatabaseFilter implements Filter {
 			List<StatementLog> sortedStatementLogs = new ArrayList<>(originalStatementLogs);
 			List<String> displayableStatementLogs = new ArrayList<>(sortedStatementLogs.size());
 
-			Collections.sort(sortedStatementLogs, (statementLog1, statementLog2) -> {
-				return statementLog2.totalTime().compareTo(statementLog1.totalTime());
-			});
+//			Collections.sort(sortedStatementLogs, (statementLog1, statementLog2) -> {
+//				return statementLog2.totalTime().compareTo(statementLog1.totalTime());
+//			});
 
 			for (StatementLog statementLog : sortedStatementLogs) {
-				String displayableStatementLog = format("%.1fms: %s", (statementLog.totalTime() / (double) 1000000), statementLog.sql());
+				String normalizedSql = normalizeSql(statementLog.sql());
+				String displayableStatementLog = format("%.1fms: %s", (statementLog.totalTime() / (double) 1000000), normalizedSql);
 
 				if (statementLog.parameters() != null && statementLog.parameters().size() > 0)
 					displayableStatementLog += " " + statementLog.parameters();
@@ -197,5 +204,11 @@ public class DatabaseFilter implements Filter {
 	@Nonnull
 	public Logger getLogger() {
 		return this.logger;
+	}
+
+	@Nonnull
+	protected String normalizeSql(@Nonnull String sql) {
+		requireNonNull(sql);
+		return WHITESPACE_PATTERN.matcher(sql.replace('\n', ' ').replace('\r', ' ')).replaceAll(" ").trim();
 	}
 }
