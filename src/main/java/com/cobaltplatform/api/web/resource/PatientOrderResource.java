@@ -920,7 +920,14 @@ public class PatientOrderResource {
 			}
 			});
 
+		if (patientOrdersQueryMode == FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED
+				&& findResult.getResults().size() > PatientOrderService.MAX_CURRENT_PAGE_PATIENT_ORDERS_FOR_BATCH_LOOKUPS) {
+			throw new IllegalStateException(format("Optimized /patient-orders returned %d rows, above max current-page cap %d.",
+					findResult.getResults().size(), PatientOrderService.MAX_CURRENT_PAGE_PATIENT_ORDERS_FOR_BATCH_LOOKUPS));
+		}
+
 		boolean useBatching = patientOrdersQueryMode == FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED;
+
 		List<PatientOrderApiResponse> patientOrders;
 
 		if (useBatching) {
@@ -1045,10 +1052,19 @@ public class PatientOrderResource {
 
 		AssignPatientOrdersRequest request = getRequestBodyParser().parse(requestBody, AssignPatientOrdersRequest.class);
 		request.setAssignedByAccountId(account.getAccountId());
+		Set<UUID> patientOrderIds = request.getPatientOrderIds() == null
+				? Set.of()
+				: request.getPatientOrderIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
-		if (!getPatientOrderService().arePatientOrderIdsAssociatedWithInstitutionId(request.getPatientOrderIds(), institutionId))
+		if (patientOrderIds.size() > PatientOrderService.MAX_PATIENT_ORDER_IDS_PER_ASSIGN_REQUEST) {
+			throw new IllegalStateException(format("Assign payload contains %d patientOrderIds, above max %d.",
+					patientOrderIds.size(), PatientOrderService.MAX_PATIENT_ORDER_IDS_PER_ASSIGN_REQUEST));
+		}
+
+		if (patientOrderIds.size() > 0 && !getPatientOrderService().arePatientOrderIdsAssociatedWithInstitutionId(patientOrderIds, institutionId))
 			throw new AuthorizationException();
 
+		request.setPatientOrderIds(patientOrderIds);
 		int assignedCount = getPatientOrderService().assignPatientOrdersToPanelAccount(request);
 
 		return new ApiResponse(new HashMap<>() {{
