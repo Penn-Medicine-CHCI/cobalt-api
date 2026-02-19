@@ -44,6 +44,8 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
+import com.cobaltplatform.api.model.service.CareResourceTagWithCareResourceId;
+import com.cobaltplatform.api.model.service.CareResourceTagWithCareResourceLocationId;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
@@ -56,6 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -154,6 +157,84 @@ public class CareResourceService {
 				AND crl.care_resource_location_id = ?
 				AND crt.care_resource_tag_group_id = ?
 				ORDER BY name""", CareResourceTag.class, careResourceLocationId, careResourceTagGroupId);
+	}
+
+	@Nonnull
+	public Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> findTagsByCareResourceIds(@Nonnull Set<UUID> careResourceIds) {
+		requireNonNull(careResourceIds);
+
+		if (careResourceIds.isEmpty())
+			return Map.of();
+
+		List<CareResourceTagWithCareResourceId> careResourceTags = getDatabase().queryForList("""
+				SELECT crt.*, crc.care_resource_id
+				FROM care_resource_tag crt, care_resource_care_resource_tag crc
+				WHERE crt.care_resource_tag_id = crc.care_resource_tag_id
+				AND crc.care_resource_id = ANY (CAST(? AS UUID[]))
+				ORDER BY crc.care_resource_id ASC, crt.care_resource_tag_group_id ASC, crt.name ASC
+				""", CareResourceTagWithCareResourceId.class, (Object) careResourceIds.toArray(new UUID[0]));
+
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceId = new LinkedHashMap<>();
+
+		for (CareResourceTagWithCareResourceId careResourceTag : careResourceTags)
+			addTagToGroupedMap(careResourceTagsByCareResourceId, careResourceTag.getCareResourceId(), careResourceTag);
+
+		return careResourceTagsByCareResourceId;
+	}
+
+	@Nonnull
+	public Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> findTagsByCareResourceLocationIds(@Nonnull Set<UUID> careResourceLocationIds) {
+		requireNonNull(careResourceLocationIds);
+
+		if (careResourceLocationIds.isEmpty())
+			return Map.of();
+
+		List<CareResourceTagWithCareResourceLocationId> careResourceTags = getDatabase().queryForList("""
+				SELECT crt.*, crl.care_resource_location_id
+				FROM care_resource_tag crt, care_resource_location_care_resource_tag crl
+				WHERE crt.care_resource_tag_id = crl.care_resource_tag_id
+				AND crl.care_resource_location_id = ANY (CAST(? AS UUID[]))
+				ORDER BY crl.care_resource_location_id ASC, crt.care_resource_tag_group_id ASC, crt.name ASC
+				""", CareResourceTagWithCareResourceLocationId.class, (Object) careResourceLocationIds.toArray(new UUID[0]));
+
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceLocationId = new LinkedHashMap<>();
+
+		for (CareResourceTagWithCareResourceLocationId careResourceTag : careResourceTags)
+			addTagToGroupedMap(careResourceTagsByCareResourceLocationId, careResourceTag.getCareResourceLocationId(), careResourceTag);
+
+		return careResourceTagsByCareResourceLocationId;
+	}
+
+	@Nonnull
+	public Map<UUID, Address> findAddressesByIds(@Nonnull Set<UUID> addressIds) {
+		requireNonNull(addressIds);
+		return getAddressService().findAddressesByIds(addressIds);
+	}
+
+	private void addTagToGroupedMap(@Nonnull Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByParentId,
+																	@Nullable UUID parentId,
+																	@Nonnull CareResourceTag careResourceTag) {
+		requireNonNull(tagsByParentId);
+		requireNonNull(careResourceTag);
+
+		if (parentId == null || careResourceTag.getCareResourceTagGroupId() == null)
+			return;
+
+		Map<CareResourceTagGroupId, List<CareResourceTag>> tagsByGroupId = tagsByParentId.get(parentId);
+
+		if (tagsByGroupId == null) {
+			tagsByGroupId = new LinkedHashMap<>();
+			tagsByParentId.put(parentId, tagsByGroupId);
+		}
+
+		List<CareResourceTag> tagsForGroup = tagsByGroupId.get(careResourceTag.getCareResourceTagGroupId());
+
+		if (tagsForGroup == null) {
+			tagsForGroup = new ArrayList<>();
+			tagsByGroupId.put(careResourceTag.getCareResourceTagGroupId(), tagsForGroup);
+		}
+
+		tagsForGroup.add(careResourceTag);
 	}
 
 	@Nonnull
@@ -473,12 +554,12 @@ public class CareResourceService {
 		if (patientOrderIds.isEmpty())
 			return Map.of();
 
-		List<ResourcePacket> resourcePackets = getDatabase().queryForList(format("""
-				SELECT *
-				FROM resource_packet
-				WHERE patient_order_id IN %s
-				AND current_flag=true
-				""", sqlInListPlaceholders(patientOrderIds)), ResourcePacket.class, patientOrderIds.toArray(new Object[0]));
+		List<ResourcePacket> resourcePackets = getDatabase().queryForList("""
+					SELECT *
+					FROM resource_packet
+					WHERE patient_order_id = ANY (CAST(? AS UUID[]))
+					AND current_flag=true
+					""", ResourcePacket.class, (Object) patientOrderIds.toArray(new UUID[0]));
 
 		Map<UUID, ResourcePacket> resourcePacketsByPatientOrderId = new LinkedHashMap<>(resourcePackets.size());
 
@@ -533,10 +614,10 @@ public class CareResourceService {
 		if (resourcePacketIds.isEmpty())
 			return Map.of();
 
-		List<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocations = getDatabase().queryForList(format("""
-				SELECT po.*,
-				cr.notes AS care_resource_notes,
-				crl.notes,
+		List<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocations = getDatabase().queryForList("""
+					SELECT po.*,
+					cr.notes AS care_resource_notes,
+					crl.notes,
 				crl.address_id,
 				CASE WHEN crl.website_url IS NULL THEN cr.website_url ELSE CRL.website_url END AS website_url,
 				CASE WHEN crl.phone_number IS NULL THEN cr.phone_number ELSE CRL.phone_number END AS phone_number,
@@ -546,13 +627,13 @@ public class CareResourceService {
 				a.last_name AS created_by_account_last_name
 				FROM care_resource_location crl, resource_packet_care_resource_location po, care_resource cr,
 				account a
-				WHERE crl.care_resource_location_id = po.care_resource_location_id
-				AND crl.care_resource_id = cr.care_resource_id
-				AND crl.created_by_account_id = a.account_id
-				AND po.resource_packet_id IN %s
-				AND crl.deleted=false
-				ORDER BY po.resource_packet_id ASC, po.display_order ASC
-				""", sqlInListPlaceholders(resourcePacketIds)), ResourcePacketCareResourceLocation.class, resourcePacketIds.toArray(new Object[0]));
+					WHERE crl.care_resource_location_id = po.care_resource_location_id
+					AND crl.care_resource_id = cr.care_resource_id
+					AND crl.created_by_account_id = a.account_id
+					AND po.resource_packet_id = ANY (CAST(? AS UUID[]))
+					AND crl.deleted=false
+					ORDER BY po.resource_packet_id ASC, po.display_order ASC
+					""", ResourcePacketCareResourceLocation.class, (Object) resourcePacketIds.toArray(new UUID[0]));
 
 		Map<UUID, List<ResourcePacketCareResourceLocation>> resourcePacketCareResourceLocationsByResourcePacketId = new LinkedHashMap<>();
 
