@@ -67,11 +67,13 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -274,7 +276,6 @@ public class CareResourceResource {
 				setSearchRadiusMiles(searchRadiusMiles.orElse(null));
 			}
 		});
-
 		CareResourceLocationApiResponseBatchContext batchContext = careResourceLocationApiResponseBatchContextFor(findResult.getResults());
 
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
@@ -423,11 +424,10 @@ public class CareResourceResource {
 		requireNonNull(careResourceId);
 
 		List<CareResourceLocation> careResourceLocations = getCareResourceService().findCareResourceLocations(careResourceId);
-		CareResourceLocationApiResponseBatchContext batchContext = careResourceLocationApiResponseBatchContextFor(careResourceLocations);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("careResourceLocations", careResourceLocations.stream()
-					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation, batchContext))
+					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -521,39 +521,6 @@ public class CareResourceResource {
 	}
 
 	@Nonnull
-	protected CareResourceLocationApiResponseBatchContext careResourceLocationApiResponseBatchContextFor(@Nonnull List<CareResourceLocation> careResourceLocations) {
-		requireNonNull(careResourceLocations);
-
-		Set<UUID> careResourceIds = new HashSet<>(careResourceLocations.size());
-		Set<UUID> careResourceLocationIds = new HashSet<>(careResourceLocations.size());
-		Set<UUID> addressIds = new HashSet<>(careResourceLocations.size());
-
-		for (CareResourceLocation careResourceLocation : careResourceLocations) {
-			if (careResourceLocation.getCareResourceId() != null)
-				careResourceIds.add(careResourceLocation.getCareResourceId());
-
-			if (careResourceLocation.getCareResourceLocationId() != null)
-				careResourceLocationIds.add(careResourceLocation.getCareResourceLocationId());
-
-			if (careResourceLocation.getAddressId() != null)
-				addressIds.add(careResourceLocation.getAddressId());
-		}
-
-		Map<UUID, Address> addressesByAddressId = getCareResourceService().findAddressesByIds(addressIds);
-		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByCareResourceLocationId = getCareResourceService().findTagsByCareResourceLocationIds(careResourceLocationIds);
-		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByCareResourceId = getCareResourceService().findTagsByCareResourceIds(careResourceIds);
-
-		return new CareResourceLocationApiResponseBatchContext(
-				addressesByAddressId,
-				true,
-				tagsByCareResourceLocationId,
-				true,
-				tagsByCareResourceId,
-				true
-		);
-	}
-
-	@Nonnull
 	protected CurrentContext getCurrentContext() {
 		return this.currentContextProvider.get();
 	}
@@ -571,6 +538,41 @@ public class CareResourceResource {
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
+	}
+
+	@Nonnull
+	protected CareResourceLocationApiResponseBatchContext careResourceLocationApiResponseBatchContextFor(@Nonnull List<CareResourceLocation> careResourceLocations) {
+		requireNonNull(careResourceLocations);
+
+		if (careResourceLocations.isEmpty())
+			return CareResourceLocationApiResponseBatchContext.empty();
+
+		Set<UUID> addressIds = careResourceLocations.stream()
+				.map(CareResourceLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Set<UUID> careResourceLocationIds = careResourceLocations.stream()
+				.map(CareResourceLocation::getCareResourceLocationId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Set<UUID> careResourceIds = careResourceLocations.stream()
+				.map(CareResourceLocation::getCareResourceId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		Map<UUID, Address> addressesByAddressId = getCareResourceService().getAddressService().findAddressesByIds(addressIds);
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceLocationTagsByCareResourceLocationId =
+				getCareResourceService().findTagsByCareResourceLocationIdsAndGroupIds(careResourceLocationIds, EnumSet.allOf(CareResourceTagGroupId.class));
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceId =
+				getCareResourceService().findTagsByCareResourceIdsAndGroupIds(careResourceIds, EnumSet.of(CareResourceTagGroupId.SPECIALTIES, CareResourceTagGroupId.PAYORS));
+
+		return new CareResourceLocationApiResponseBatchContext(
+				addressesByAddressId,
+				careResourceLocationTagsByCareResourceLocationId,
+				careResourceTagsByCareResourceId,
+				true,
+				true
+		);
 	}
 
 	@Nonnull

@@ -284,10 +284,14 @@ public class PatientOrderService implements AutoCloseable {
 	private static final Long BACKGROUND_TASK_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS;
+	public static final int MAX_PATIENT_ORDER_IDS_PER_ASSIGN_REQUEST;
+	public static final int MAX_CURRENT_PAGE_PATIENT_ORDERS_FOR_BATCH_LOOKUPS;
 
 	static {
 		BACKGROUND_TASK_INTERVAL_IN_SECONDS = 60L * 1L;
 		BACKGROUND_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+		MAX_PATIENT_ORDER_IDS_PER_ASSIGN_REQUEST = 100;
+		MAX_CURRENT_PAGE_PATIENT_ORDERS_FOR_BATCH_LOOKUPS = 100;
 	}
 
 	@Nonnull
@@ -1561,6 +1565,9 @@ public class PatientOrderService implements AutoCloseable {
 				.filter(patientOrderId -> patientOrderId != null)
 				.collect(Collectors.toSet());
 
+		if (uniquePatientOrderIds.size() == 0)
+			return true;
+
 		List<Object> parameters = new ArrayList<>(uniquePatientOrderIds);
 		parameters.add(institutionId);
 
@@ -1605,6 +1612,10 @@ public class PatientOrderService implements AutoCloseable {
 
 		if (patientOrderIds.size() == 0)
 			validationException.add(new FieldError("patientOrderIds", getStrings().get("Please select at least one order to assign.")));
+
+		if (patientOrderIds.size() > MAX_PATIENT_ORDER_IDS_PER_ASSIGN_REQUEST)
+			throw new IllegalStateException(format("Assign payload contains %d patientOrderIds, above max %d.",
+					patientOrderIds.size(), MAX_PATIENT_ORDER_IDS_PER_ASSIGN_REQUEST));
 
 		if (validationException.hasErrors())
 			throw validationException;
