@@ -171,6 +171,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -917,9 +918,48 @@ public class PatientOrderResource {
 				setPatientOrderSortRules(patientOrderSortRules);
 				setPatientOrdersQueryMode(patientOrdersQueryMode);
 			}
-		});
+			});
 
-		Set<UUID> patientOrderIds = findResult.getResults().stream()
+		boolean useBatching = patientOrdersQueryMode == FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED;
+		List<PatientOrderApiResponse> patientOrders;
+
+		if (useBatching) {
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(findResult.getResults());
+
+			patientOrders = findResult.getResults().stream()
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
+							PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
+							Set.of(PatientOrderApiResponseSupplement.PANEL),
+							batchContext))
+					.collect(Collectors.toList());
+		} else {
+			patientOrders = findResult.getResults().stream()
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
+							PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
+							Set.of(PatientOrderApiResponseSupplement.PANEL)))
+					.collect(Collectors.toList());
+		}
+
+		Map<String, Object> findResultJson = new HashMap<>();
+		findResultJson.put("patientOrders", patientOrders);
+		findResultJson.put("totalCount", findResult.getTotalCount());
+		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+
+		// If there's a patient MRN provided, return it in the form of an autocomplete result.
+		// We assume this one is just whatever the first result is...
+		PatientOrderAutocompleteResult patientOrderAutocompleteResult = patientMrn.isPresent() ? getPatientOrderService().findPatientOrderAutocompleteResultByMrn(patientMrn.get(), institutionId).orElse(null) : null;
+
+		return new HashMap<String, Object>() {{
+			put("findResult", findResultJson);
+			put("patientOrderAutocompleteResult", patientOrderAutocompleteResult == null ? null : getPatientOrderAutocompleteResultApiResponseFactory().create(patientOrderAutocompleteResult));
+		}};
+	}
+
+	@Nonnull
+	protected PatientOrderApiResponseBatchContext patientOrderApiResponseBatchContextFor(@Nonnull Collection<PatientOrder> patientOrders) {
+		requireNonNull(patientOrders);
+
+		Set<UUID> patientOrderIds = patientOrders.stream()
 				.map(PatientOrder::getPatientOrderId)
 				.collect(Collectors.toSet());
 
@@ -941,34 +981,13 @@ public class PatientOrderResource {
 		ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext =
 				new ResourcePacketApiResponseBatchContext(resourcePacketLocationsByResourcePacketId, true, resourcePacketCareResourceLocationApiResponseBatchContext);
 
-		PatientOrderApiResponseBatchContext batchContext = new PatientOrderApiResponseBatchContext(
+		return new PatientOrderApiResponseBatchContext(
 				currentResourcePacketsByPatientOrderId,
 				true,
 				getPatientOrderService().findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(patientOrderIds),
 				true,
 				resourcePacketApiResponseBatchContext
 		);
-
-		List<PatientOrderApiResponse> patientOrders = findResult.getResults().stream()
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
-						PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
-						Set.of(PatientOrderApiResponseSupplement.PANEL),
-						batchContext))
-				.collect(Collectors.toList());
-
-		Map<String, Object> findResultJson = new HashMap<>();
-		findResultJson.put("patientOrders", patientOrders);
-		findResultJson.put("totalCount", findResult.getTotalCount());
-		findResultJson.put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
-
-		// If there's a patient MRN provided, return it in the form of an autocomplete result.
-		// We assume this one is just whatever the first result is...
-		PatientOrderAutocompleteResult patientOrderAutocompleteResult = patientMrn.isPresent() ? getPatientOrderService().findPatientOrderAutocompleteResultByMrn(patientMrn.get(), institutionId).orElse(null) : null;
-
-		return new HashMap<String, Object>() {{
-			put("findResult", findResultJson);
-			put("patientOrderAutocompleteResult", patientOrderAutocompleteResult == null ? null : getPatientOrderAutocompleteResultApiResponseFactory().create(patientOrderAutocompleteResult));
-		}};
 	}
 
 	@Nonnull
@@ -1876,12 +1895,12 @@ public class PatientOrderResource {
 				PatientOrderContactTypeId.OTHER,
 				PatientOrderContactTypeId.RESOURCE_FOLLOWUP
 		);
-
 		if (usePanelTodayPerfOptimization) {
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(patientOrders);
 			Map<UUID, PatientOrderApiResponse> patientOrderApiResponsesById = new HashMap<>(patientOrders.size());
 			Function<PatientOrder, PatientOrderApiResponse> patientOrderApiResponseFor = patientOrder ->
 					patientOrderApiResponsesById.computeIfAbsent(patientOrder.getPatientOrderId(), ignored ->
-							getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC));
+							getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC, Set.of(), batchContext));
 
 			safetyPlanningPatientOrders = new ArrayList<>();
 			outreachReviewPatientOrders = new ArrayList<>();
@@ -1955,8 +1974,8 @@ public class PatientOrderResource {
 
 						return false;
 					})
-					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-					.collect(Collectors.toList());
+						.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+						.collect(Collectors.toList());
 
 			scheduledAssessmentPatientOrders = patientOrders.stream()
 					.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NOT_TRIAGED
