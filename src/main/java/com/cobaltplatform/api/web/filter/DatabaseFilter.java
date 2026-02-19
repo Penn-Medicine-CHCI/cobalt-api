@@ -196,7 +196,7 @@ public class DatabaseFilter implements Filter {
 
 				if (displayableStatementLogs.size() > 0) {
 					String queryText = displayableStatementLogs.size() == 1 ? "statement" : "statements";
-					getLogger().debug("SQL statements for {} {}:\n{}\nExecuted {} {} in {}ms.",
+					getLogger().debug("SQL statements for {} {}:\n{}\n*** Executed {} {} in {}ms.",
 							requestMethod,
 							requestUriWithOptionalQueryString,
 							displayableStatementLogs.stream().collect(Collectors.joining("\n")),
