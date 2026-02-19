@@ -56,6 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -154,6 +155,110 @@ public class CareResourceService {
 				AND crl.care_resource_location_id = ?
 				AND crt.care_resource_tag_group_id = ?
 				ORDER BY name""", CareResourceTag.class, careResourceLocationId, careResourceTagGroupId);
+	}
+
+	@Nonnull
+	public Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> findTagsByCareResourceIdsAndGroupIds(@Nonnull Set<UUID> careResourceIds,
+																																																								@Nonnull Set<CareResourceTagGroupId> careResourceTagGroupIds) {
+		requireNonNull(careResourceIds);
+		requireNonNull(careResourceTagGroupIds);
+
+		if (careResourceIds.isEmpty() || careResourceTagGroupIds.isEmpty())
+			return Map.of();
+
+		List<Object> parameters = new ArrayList<>(careResourceIds.size() + careResourceTagGroupIds.size());
+		parameters.addAll(careResourceIds);
+		parameters.addAll(careResourceTagGroupIds);
+
+		List<CareResourceTagWithCareResourceId> careResourceTags = getDatabase().queryForList(format("""
+				SELECT crt.*, crc.care_resource_id
+				FROM care_resource_tag crt, care_resource_care_resource_tag crc
+				WHERE crt.care_resource_tag_id = crc.care_resource_tag_id
+				AND crc.care_resource_id IN %s
+				AND crt.care_resource_tag_group_id IN %s
+				ORDER BY crc.care_resource_id ASC, crt.care_resource_tag_group_id ASC, crt.name ASC
+				""", sqlInListPlaceholders(careResourceIds), sqlInListPlaceholders(careResourceTagGroupIds)),
+				CareResourceTagWithCareResourceId.class, parameters.toArray());
+
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceId = new LinkedHashMap<>();
+
+		for (CareResourceTagWithCareResourceId careResourceTag : careResourceTags) {
+			UUID careResourceId = careResourceTag.getCareResourceId();
+			CareResourceTagGroupId careResourceTagGroupId = careResourceTag.getCareResourceTagGroupId();
+
+			if (careResourceId == null || careResourceTagGroupId == null)
+				continue;
+
+			Map<CareResourceTagGroupId, List<CareResourceTag>> careResourceTagsByGroupId = careResourceTagsByCareResourceId.get(careResourceId);
+
+			if (careResourceTagsByGroupId == null) {
+				careResourceTagsByGroupId = new LinkedHashMap<>();
+				careResourceTagsByCareResourceId.put(careResourceId, careResourceTagsByGroupId);
+			}
+
+			List<CareResourceTag> careResourceTagsForGroup = careResourceTagsByGroupId.get(careResourceTagGroupId);
+
+			if (careResourceTagsForGroup == null) {
+				careResourceTagsForGroup = new ArrayList<>();
+				careResourceTagsByGroupId.put(careResourceTagGroupId, careResourceTagsForGroup);
+			}
+
+			careResourceTagsForGroup.add(careResourceTag);
+		}
+
+		return careResourceTagsByCareResourceId;
+	}
+
+	@Nonnull
+	public Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> findTagsByCareResourceLocationIdsAndGroupIds(@Nonnull Set<UUID> careResourceLocationIds,
+																																																												@Nonnull Set<CareResourceTagGroupId> careResourceTagGroupIds) {
+		requireNonNull(careResourceLocationIds);
+		requireNonNull(careResourceTagGroupIds);
+
+		if (careResourceLocationIds.isEmpty() || careResourceTagGroupIds.isEmpty())
+			return Map.of();
+
+		List<Object> parameters = new ArrayList<>(careResourceLocationIds.size() + careResourceTagGroupIds.size());
+		parameters.addAll(careResourceLocationIds);
+		parameters.addAll(careResourceTagGroupIds);
+
+		List<CareResourceTagWithCareResourceLocationId> careResourceTags = getDatabase().queryForList(format("""
+				SELECT crt.*, crl.care_resource_location_id
+				FROM care_resource_tag crt, care_resource_location_care_resource_tag crl
+				WHERE crt.care_resource_tag_id = crl.care_resource_tag_id
+				AND crl.care_resource_location_id IN %s
+				AND crt.care_resource_tag_group_id IN %s
+				ORDER BY crl.care_resource_location_id ASC, crt.care_resource_tag_group_id ASC, crt.name ASC
+				""", sqlInListPlaceholders(careResourceLocationIds), sqlInListPlaceholders(careResourceTagGroupIds)),
+				CareResourceTagWithCareResourceLocationId.class, parameters.toArray());
+
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceLocationId = new LinkedHashMap<>();
+
+		for (CareResourceTagWithCareResourceLocationId careResourceTag : careResourceTags) {
+			UUID careResourceLocationId = careResourceTag.getCareResourceLocationId();
+			CareResourceTagGroupId careResourceTagGroupId = careResourceTag.getCareResourceTagGroupId();
+
+			if (careResourceLocationId == null || careResourceTagGroupId == null)
+				continue;
+
+			Map<CareResourceTagGroupId, List<CareResourceTag>> careResourceTagsByGroupId = careResourceTagsByCareResourceLocationId.get(careResourceLocationId);
+
+			if (careResourceTagsByGroupId == null) {
+				careResourceTagsByGroupId = new LinkedHashMap<>();
+				careResourceTagsByCareResourceLocationId.put(careResourceLocationId, careResourceTagsByGroupId);
+			}
+
+			List<CareResourceTag> careResourceTagsForGroup = careResourceTagsByGroupId.get(careResourceTagGroupId);
+
+			if (careResourceTagsForGroup == null) {
+				careResourceTagsForGroup = new ArrayList<>();
+				careResourceTagsByGroupId.put(careResourceTagGroupId, careResourceTagsForGroup);
+			}
+
+			careResourceTagsForGroup.add(careResourceTag);
+		}
+
+		return careResourceTagsByCareResourceLocationId;
 	}
 
 	@Nonnull
@@ -1289,5 +1394,33 @@ public class CareResourceService {
 	@Nonnull
 	public AddressService getAddressService() {
 		return addressServiceProvider.get();
+	}
+
+	protected static class CareResourceTagWithCareResourceId extends CareResourceTag {
+		@Nullable
+		private UUID careResourceId;
+
+		@Nullable
+		public UUID getCareResourceId() {
+			return careResourceId;
+		}
+
+		public void setCareResourceId(@Nullable UUID careResourceId) {
+			this.careResourceId = careResourceId;
+		}
+	}
+
+	protected static class CareResourceTagWithCareResourceLocationId extends CareResourceTag {
+		@Nullable
+		private UUID careResourceLocationId;
+
+		@Nullable
+		public UUID getCareResourceLocationId() {
+			return careResourceLocationId;
+		}
+
+		public void setCareResourceLocationId(@Nullable UUID careResourceLocationId) {
+			this.careResourceLocationId = careResourceLocationId;
+		}
 	}
 }

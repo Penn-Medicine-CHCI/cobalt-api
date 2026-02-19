@@ -30,11 +30,13 @@ import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationNoteRe
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceLocationRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareResourceRequest;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
 import com.cobaltplatform.api.model.db.CareResourceTag;
@@ -65,11 +67,15 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -270,13 +276,13 @@ public class CareResourceResource {
 				setSearchRadiusMiles(searchRadiusMiles.orElse(null));
 			}
 		});
+		CareResourceLocationApiResponseBatchContext batchContext = careResourceLocationApiResponseBatchContextFor(findResult.getResults());
 
-		//TODO: more performant way to pass careResource
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
 			put("totalCount", findResult.getTotalCount());
 			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
 			put("careResourceLocations", findResult.getResults().stream()
-					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation))
+					.map(careResourceLocation -> getCareResourceLocationApiResponseFactory().create(careResourceLocation, batchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -532,6 +538,41 @@ public class CareResourceResource {
 	@Nonnull
 	protected Logger getLogger() {
 		return this.logger;
+	}
+
+	@Nonnull
+	protected CareResourceLocationApiResponseBatchContext careResourceLocationApiResponseBatchContextFor(@Nonnull List<CareResourceLocation> careResourceLocations) {
+		requireNonNull(careResourceLocations);
+
+		if (careResourceLocations.isEmpty())
+			return CareResourceLocationApiResponseBatchContext.empty();
+
+		Set<UUID> addressIds = careResourceLocations.stream()
+				.map(CareResourceLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Set<UUID> careResourceLocationIds = careResourceLocations.stream()
+				.map(CareResourceLocation::getCareResourceLocationId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Set<UUID> careResourceIds = careResourceLocations.stream()
+				.map(CareResourceLocation::getCareResourceId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		Map<UUID, Address> addressesByAddressId = getCareResourceService().getAddressService().findAddressesByIds(addressIds);
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceLocationTagsByCareResourceLocationId =
+				getCareResourceService().findTagsByCareResourceLocationIdsAndGroupIds(careResourceLocationIds, EnumSet.allOf(CareResourceTagGroupId.class));
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceId =
+				getCareResourceService().findTagsByCareResourceIdsAndGroupIds(careResourceIds, EnumSet.of(CareResourceTagGroupId.SPECIALTIES, CareResourceTagGroupId.PAYORS));
+
+		return new CareResourceLocationApiResponseBatchContext(
+				addressesByAddressId,
+				careResourceLocationTagsByCareResourceLocationId,
+				careResourceTagsByCareResourceId,
+				true,
+				true
+		);
 	}
 
 	@Nonnull
