@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGro
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderTriageGroupApiResponse.PatientOrderTriageGroupFocusApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiResponse.PatientOrderVoicemailTaskApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -626,18 +627,33 @@ public class PatientOrderApiResponse {
 		@Nonnull
 		private final Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId;
 		private final boolean scheduledMessageGroupsPreloaded;
+		@Nonnull
+		private final ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext;
 
 		@Nonnull
 		public static PatientOrderApiResponseBatchContext empty() {
-			return new PatientOrderApiResponseBatchContext(Map.of(), false, Map.of(), false);
+			return new PatientOrderApiResponseBatchContext(Map.of(), false, Map.of(), false, ResourcePacketApiResponseBatchContext.empty());
 		}
 
 		public PatientOrderApiResponseBatchContext(@Nonnull Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId,
 																							 boolean currentResourcePacketsPreloaded,
 																							 @Nonnull Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId,
 																							 boolean scheduledMessageGroupsPreloaded) {
+			this(currentResourcePacketsByPatientOrderId,
+					currentResourcePacketsPreloaded,
+					scheduledMessageGroupsByPatientOrderId,
+					scheduledMessageGroupsPreloaded,
+					ResourcePacketApiResponseBatchContext.empty());
+		}
+
+		public PatientOrderApiResponseBatchContext(@Nonnull Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId,
+																							 boolean currentResourcePacketsPreloaded,
+																							 @Nonnull Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId,
+																							 boolean scheduledMessageGroupsPreloaded,
+																							 @Nonnull ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext) {
 			requireNonNull(currentResourcePacketsByPatientOrderId);
 			requireNonNull(scheduledMessageGroupsByPatientOrderId);
+			requireNonNull(resourcePacketApiResponseBatchContext);
 
 			this.currentResourcePacketsByPatientOrderId = new LinkedHashMap<>(currentResourcePacketsByPatientOrderId);
 			this.currentResourcePacketsPreloaded = currentResourcePacketsPreloaded;
@@ -650,6 +666,7 @@ public class PatientOrderApiResponse {
 			}
 
 			this.scheduledMessageGroupsPreloaded = scheduledMessageGroupsPreloaded;
+			this.resourcePacketApiResponseBatchContext = resourcePacketApiResponseBatchContext;
 		}
 
 		@Nullable
@@ -670,6 +687,11 @@ public class PatientOrderApiResponse {
 
 		public boolean isScheduledMessageGroupsPreloaded() {
 			return scheduledMessageGroupsPreloaded;
+		}
+
+		@Nonnull
+		public ResourcePacketApiResponseBatchContext getResourcePacketApiResponseBatchContext() {
+			return resourcePacketApiResponseBatchContext;
 		}
 	}
 
@@ -1106,7 +1128,7 @@ public class PatientOrderApiResponse {
 				: careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
 		this.resourcesSentFlag = patientOrder.getResourcesSentAt() != null;
 		if (resourcePacket.isPresent())
-			this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get());
+			this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get(), batchContext.getResourcePacketApiResponseBatchContext());
 
 		this.overrideSchedulingEpicDepartmentId = patientOrder.getOverrideSchedulingEpicDepartmentId();
 

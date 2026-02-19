@@ -164,6 +164,7 @@ import com.cobaltplatform.api.model.db.PreferredPronoun.PreferredPronounId;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.ResourcePacket;
+import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
@@ -5247,6 +5248,18 @@ public class PatientOrderService implements AutoCloseable {
 	public Map<UUID, ResourcePacket> findCurrentResourcePacketsByPatientOrderIds(@Nonnull Set<UUID> patientOrderIds) {
 		requireNonNull(patientOrderIds);
 		return getCareResourceService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds);
+	}
+
+	@Nonnull
+	public Map<UUID, List<ResourcePacketCareResourceLocation>> findResourcePacketLocationsByResourcePacketIds(@Nonnull Set<UUID> resourcePacketIds) {
+		requireNonNull(resourcePacketIds);
+		return getCareResourceService().findResourcePacketLocationsByResourcePacketIds(resourcePacketIds);
+	}
+
+	@Nonnull
+	public Map<UUID, Address> findAddressesByIds(@Nonnull Set<UUID> addressIds) {
+		requireNonNull(addressIds);
+		return getAddressService().findAddressesByIds(addressIds);
 	}
 
 	@Nonnull

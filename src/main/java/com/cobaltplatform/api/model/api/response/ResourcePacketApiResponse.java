@@ -20,8 +20,10 @@
 package com.cobaltplatform.api.model.api.response;
 
 
+import com.cobaltplatform.api.model.api.response.ResourcePacketCareResourceLocationApiResponse.ResourcePacketCareResourceLocationApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.ResourcePacketCareResourceLocationApiResponse.ResourcePacketCareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.db.ResourcePacket;
+import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.service.CareResourceService;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -30,7 +32,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,25 +57,88 @@ public class ResourcePacketApiResponse {
 	@Nullable
 	private ResourcePacketCareResourceLocationApiResponseFactory resourcePacketCareResourceLocationApiResponseFactory;
 
+	@Immutable
+	public static class ResourcePacketApiResponseBatchContext {
+		@Nonnull
+		private final Map<UUID, List<ResourcePacketCareResourceLocation>> careResourceLocationsByResourcePacketId;
+		private final boolean careResourceLocationsPreloaded;
+		@Nonnull
+		private final ResourcePacketCareResourceLocationApiResponseBatchContext resourcePacketCareResourceLocationApiResponseBatchContext;
+
+		@Nonnull
+		public static ResourcePacketApiResponseBatchContext empty() {
+			return new ResourcePacketApiResponseBatchContext(Map.of(), false, ResourcePacketCareResourceLocationApiResponseBatchContext.empty());
+		}
+
+		public ResourcePacketApiResponseBatchContext(@Nonnull Map<UUID, List<ResourcePacketCareResourceLocation>> careResourceLocationsByResourcePacketId,
+																								 boolean careResourceLocationsPreloaded,
+																								 @Nonnull ResourcePacketCareResourceLocationApiResponseBatchContext resourcePacketCareResourceLocationApiResponseBatchContext) {
+			requireNonNull(careResourceLocationsByResourcePacketId);
+			requireNonNull(resourcePacketCareResourceLocationApiResponseBatchContext);
+
+			this.careResourceLocationsByResourcePacketId = new LinkedHashMap<>();
+
+			for (Entry<UUID, List<ResourcePacketCareResourceLocation>> entry : careResourceLocationsByResourcePacketId.entrySet()) {
+				UUID resourcePacketId = entry.getKey();
+				List<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocations = entry.getValue() == null ? List.of() : List.copyOf(entry.getValue());
+				this.careResourceLocationsByResourcePacketId.put(resourcePacketId, resourcePacketCareResourceLocations);
+			}
+
+			this.careResourceLocationsPreloaded = careResourceLocationsPreloaded;
+			this.resourcePacketCareResourceLocationApiResponseBatchContext = resourcePacketCareResourceLocationApiResponseBatchContext;
+		}
+
+		@Nonnull
+		public List<ResourcePacketCareResourceLocation> getCareResourceLocationsByResourcePacketId(@Nullable UUID resourcePacketId) {
+			return resourcePacketId == null ? List.of() : careResourceLocationsByResourcePacketId.getOrDefault(resourcePacketId, List.of());
+		}
+
+		public boolean isCareResourceLocationsPreloaded() {
+			return careResourceLocationsPreloaded;
+		}
+
+		@Nonnull
+		public ResourcePacketCareResourceLocationApiResponseBatchContext getResourcePacketCareResourceLocationApiResponseBatchContext() {
+			return resourcePacketCareResourceLocationApiResponseBatchContext;
+		}
+	}
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface ResourcePacketApiResponseFactory {
 		@Nonnull
 		ResourcePacketApiResponse create(@Nonnull ResourcePacket resourcePacket);
+
+		@Nonnull
+		ResourcePacketApiResponse create(@Nonnull ResourcePacket resourcePacket,
+																		 @Nonnull ResourcePacketApiResponseBatchContext batchContext);
 	}
 
 	@AssistedInject
 	public ResourcePacketApiResponse(@Assisted @Nonnull ResourcePacket resourcePacket,
-																	 @Nonnull ResourcePacketCareResourceLocationApiResponseFactory resourcePacketCareResourceLocationApiResponseFactory,
-																	 @Nonnull CareResourceService careResourceService) {
+																		 @Nonnull ResourcePacketCareResourceLocationApiResponseFactory resourcePacketCareResourceLocationApiResponseFactory,
+																		 @Nonnull CareResourceService careResourceService) {
+		this(resourcePacket, resourcePacketCareResourceLocationApiResponseFactory, careResourceService, ResourcePacketApiResponseBatchContext.empty());
+	}
+
+	@AssistedInject
+	public ResourcePacketApiResponse(@Assisted @Nonnull ResourcePacket resourcePacket,
+																		 @Nonnull ResourcePacketCareResourceLocationApiResponseFactory resourcePacketCareResourceLocationApiResponseFactory,
+																		 @Nonnull CareResourceService careResourceService,
+																		 @Assisted @Nonnull ResourcePacketApiResponseBatchContext batchContext) {
 		requireNonNull(resourcePacket);
 		requireNonNull(resourcePacketCareResourceLocationApiResponseFactory);
 		requireNonNull(careResourceService);
+		requireNonNull(batchContext);
 
 		this.resourcePacketId = resourcePacket.getResourcePacketId();
 		this.patientMessage = "TODO: real message";
-		this.careResourceLocations = careResourceService.findResourcePacketLocations(resourcePacket.getResourcePacketId())
-				.stream().map(careResourceLocation -> resourcePacketCareResourceLocationApiResponseFactory.create(careResourceLocation)).collect(Collectors.toList());
+		List<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocations = batchContext.isCareResourceLocationsPreloaded()
+				? batchContext.getCareResourceLocationsByResourcePacketId(resourcePacket.getResourcePacketId())
+				: careResourceService.findResourcePacketLocations(resourcePacket.getResourcePacketId());
+		this.careResourceLocations = resourcePacketCareResourceLocations.stream()
+				.map(careResourceLocation -> resourcePacketCareResourceLocationApiResponseFactory.create(careResourceLocation, batchContext.getResourcePacketCareResourceLocationApiResponseBatchContext()))
+				.collect(Collectors.toList());
 
 	}
 

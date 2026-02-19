@@ -522,8 +522,52 @@ public class CareResourceService {
 				AND crl.created_by_account_id = a.account_id
 				AND po.resource_packet_id = ?
 				AND crl.deleted=false
-				ORDER BY po.display_order ASC
-				""", ResourcePacketCareResourceLocation.class, resourcePacketId);
+					ORDER BY po.display_order ASC
+					""", ResourcePacketCareResourceLocation.class, resourcePacketId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<ResourcePacketCareResourceLocation>> findResourcePacketLocationsByResourcePacketIds(@Nonnull Set<UUID> resourcePacketIds) {
+		requireNonNull(resourcePacketIds);
+
+		if (resourcePacketIds.isEmpty())
+			return Map.of();
+
+		List<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocations = getDatabase().queryForList(format("""
+				SELECT po.*,
+				cr.notes AS care_resource_notes,
+				crl.notes,
+				crl.address_id,
+				CASE WHEN crl.website_url IS NULL THEN cr.website_url ELSE CRL.website_url END AS website_url,
+				CASE WHEN crl.phone_number IS NULL THEN cr.phone_number ELSE CRL.phone_number END AS phone_number,
+				CASE WHEN crl.email_address IS NULL THEN cr.email_address ELSE CRL.email_address END AS email_address,
+				CASE WHEN crl.name IS NULL THEN cr.name ELSE CRL.name END AS care_resource_location_name,
+				a.first_name AS created_by_account_first_name,
+				a.last_name AS created_by_account_last_name
+				FROM care_resource_location crl, resource_packet_care_resource_location po, care_resource cr,
+				account a
+				WHERE crl.care_resource_location_id = po.care_resource_location_id
+				AND crl.care_resource_id = cr.care_resource_id
+				AND crl.created_by_account_id = a.account_id
+				AND po.resource_packet_id IN %s
+				AND crl.deleted=false
+				ORDER BY po.resource_packet_id ASC, po.display_order ASC
+				""", sqlInListPlaceholders(resourcePacketIds)), ResourcePacketCareResourceLocation.class, resourcePacketIds.toArray(new Object[0]));
+
+		Map<UUID, List<ResourcePacketCareResourceLocation>> resourcePacketCareResourceLocationsByResourcePacketId = new LinkedHashMap<>();
+
+		for (ResourcePacketCareResourceLocation resourcePacketCareResourceLocation : resourcePacketCareResourceLocations) {
+			List<ResourcePacketCareResourceLocation> locationsForResourcePacket = resourcePacketCareResourceLocationsByResourcePacketId.get(resourcePacketCareResourceLocation.getResourcePacketId());
+
+			if (locationsForResourcePacket == null) {
+				locationsForResourcePacket = new ArrayList<>();
+				resourcePacketCareResourceLocationsByResourcePacketId.put(resourcePacketCareResourceLocation.getResourcePacketId(), locationsForResourcePacket);
+			}
+
+			locationsForResourcePacket.add(resourcePacketCareResourceLocation);
+		}
+
+		return resourcePacketCareResourceLocationsByResourcePacketId;
 	}
 
 	@Nonnull

@@ -73,6 +73,8 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseBatchContext;
+import com.cobaltplatform.api.model.api.response.ResourcePacketCareResourceLocationApiResponse.ResourcePacketCareResourceLocationApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
@@ -82,6 +84,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.Screen
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -108,6 +111,8 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
+import com.cobaltplatform.api.model.db.ResourcePacket;
+import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.Encounter;
@@ -918,11 +923,30 @@ public class PatientOrderResource {
 				.map(PatientOrder::getPatientOrderId)
 				.collect(Collectors.toSet());
 
+		Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId = getPatientOrderService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds);
+		Set<UUID> resourcePacketIds = currentResourcePacketsByPatientOrderId.values().stream()
+				.map(ResourcePacket::getResourcePacketId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, List<ResourcePacketCareResourceLocation>> resourcePacketLocationsByResourcePacketId = getPatientOrderService().findResourcePacketLocationsByResourcePacketIds(resourcePacketIds);
+		Set<UUID> resourcePacketLocationAddressIds = resourcePacketLocationsByResourcePacketId.values().stream()
+				.flatMap(List::stream)
+				.map(ResourcePacketCareResourceLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, Address> addressesByAddressId = getPatientOrderService().findAddressesByIds(resourcePacketLocationAddressIds);
+
+		ResourcePacketCareResourceLocationApiResponseBatchContext resourcePacketCareResourceLocationApiResponseBatchContext =
+				new ResourcePacketCareResourceLocationApiResponseBatchContext(addressesByAddressId, true);
+		ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext =
+				new ResourcePacketApiResponseBatchContext(resourcePacketLocationsByResourcePacketId, true, resourcePacketCareResourceLocationApiResponseBatchContext);
+
 		PatientOrderApiResponseBatchContext batchContext = new PatientOrderApiResponseBatchContext(
-				getPatientOrderService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds),
+				currentResourcePacketsByPatientOrderId,
 				true,
 				getPatientOrderService().findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(patientOrderIds),
-				true
+				true,
+				resourcePacketApiResponseBatchContext
 		);
 
 		List<PatientOrderApiResponse> patientOrders = findResult.getResults().stream()

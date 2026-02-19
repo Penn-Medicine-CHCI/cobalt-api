@@ -40,10 +40,15 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
+import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166CountryCode;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUsPostalCode;
 import static java.lang.String.format;
@@ -93,6 +98,27 @@ public class AddressService {
 				SELECT *
 				FROM address
 				WHERE address_id=?""", Address.class, addressId);
+	}
+
+	@Nonnull
+	public Map<UUID, Address> findAddressesByIds(@Nonnull Set<UUID> addressIds) {
+		requireNonNull(addressIds);
+
+		if (addressIds.isEmpty())
+			return Map.of();
+
+		List<Address> addresses = getDatabase().queryForList(format("""
+				SELECT *
+				FROM address
+				WHERE address_id IN %s
+				""", sqlInListPlaceholders(addressIds)), Address.class, addressIds.toArray(new Object[0]));
+
+		Map<UUID, Address> addressesById = new LinkedHashMap<>(addresses.size());
+
+		for (Address address : addresses)
+			addressesById.put(address.getAddressId(), address);
+
+		return addressesById;
 	}
 
 	@Nonnull

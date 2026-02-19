@@ -24,7 +24,6 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.service.AddressService;
-import com.cobaltplatform.api.service.CareResourceService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.Normalizer;
 import com.google.inject.assistedinject.Assisted;
@@ -34,9 +33,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -83,22 +83,65 @@ public class ResourcePacketCareResourceLocationApiResponse {
 	@Nullable
 	private Address address;
 
+	@Immutable
+	public static class ResourcePacketCareResourceLocationApiResponseBatchContext {
+		@Nonnull
+		private final Map<UUID, Address> addressesByAddressId;
+		private final boolean addressesPreloaded;
+
+		@Nonnull
+		public static ResourcePacketCareResourceLocationApiResponseBatchContext empty() {
+			return new ResourcePacketCareResourceLocationApiResponseBatchContext(Map.of(), false);
+		}
+
+		public ResourcePacketCareResourceLocationApiResponseBatchContext(@Nonnull Map<UUID, Address> addressesByAddressId,
+																											 boolean addressesPreloaded) {
+			requireNonNull(addressesByAddressId);
+
+			this.addressesByAddressId = new LinkedHashMap<>(addressesByAddressId);
+			this.addressesPreloaded = addressesPreloaded;
+		}
+
+		@Nullable
+		public Address getAddressByAddressId(@Nullable UUID addressId) {
+			return addressId == null ? null : this.addressesByAddressId.get(addressId);
+		}
+
+		public boolean isAddressesPreloaded() {
+			return addressesPreloaded;
+		}
+	}
+
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface ResourcePacketCareResourceLocationApiResponseFactory {
 		@Nonnull
 		ResourcePacketCareResourceLocationApiResponse create(@Nonnull ResourcePacketCareResourceLocation resourcePacketCareResourceLocation);
+
+		@Nonnull
+		ResourcePacketCareResourceLocationApiResponse create(@Nonnull ResourcePacketCareResourceLocation resourcePacketCareResourceLocation,
+																												 @Nonnull ResourcePacketCareResourceLocationApiResponseBatchContext batchContext);
 	}
 
 	@AssistedInject
 	public ResourcePacketCareResourceLocationApiResponse(@Nonnull AddressService addressService,
-																											 @Assisted @Nonnull ResourcePacketCareResourceLocation resourcePacketCareResourceLocation,
-																											 @Nonnull Formatter formatter,
-																											 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider) {
+																												 @Assisted @Nonnull ResourcePacketCareResourceLocation resourcePacketCareResourceLocation,
+																												 @Nonnull Formatter formatter,
+																												 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider) {
+		this(addressService, resourcePacketCareResourceLocation, formatter, currentContextProvider, ResourcePacketCareResourceLocationApiResponseBatchContext.empty());
+	}
+
+	@AssistedInject
+	public ResourcePacketCareResourceLocationApiResponse(@Nonnull AddressService addressService,
+																												 @Assisted @Nonnull ResourcePacketCareResourceLocation resourcePacketCareResourceLocation,
+																												 @Nonnull Formatter formatter,
+																												 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+																												 @Assisted @Nonnull ResourcePacketCareResourceLocationApiResponseBatchContext batchContext) {
 		requireNonNull(resourcePacketCareResourceLocation);
 		requireNonNull(addressService);
 		requireNonNull(formatter);
 		requireNonNull(currentContextProvider);
+		requireNonNull(batchContext);
 
 		LocalDate updatedDate = LocalDate.ofInstant(resourcePacketCareResourceLocation.getLastUpdated(), currentContextProvider.get().getTimeZone());
 		this.resourcePacketCareResourceLocationId = resourcePacketCareResourceLocation.getResourcePacketCareResourceLocationId();
@@ -111,7 +154,10 @@ public class ResourcePacketCareResourceLocationApiResponse {
 		this.careResourceLocationName = resourcePacketCareResourceLocation.getCareResourceLocationName();
 		this.addedDateDescription = formatter.formatDate(updatedDate);
 		this.addedByDisplayName = Normalizer.normalizeName(resourcePacketCareResourceLocation.getCreatedByAccountFirstName(), resourcePacketCareResourceLocation.getCreatedByAccountLastName()).orElse(null);
-		this.address = addressService.findAddressById(resourcePacketCareResourceLocation.getAddressId()).orElse(null);
+		this.addressId = resourcePacketCareResourceLocation.getAddressId();
+		this.address = batchContext.isAddressesPreloaded()
+				? batchContext.getAddressByAddressId(this.addressId)
+				: addressService.findAddressById(this.addressId).orElse(null);
 		this.phoneNumber = resourcePacketCareResourceLocation.getPhoneNumber();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(resourcePacketCareResourceLocation.getPhoneNumber());
 		this.careResourceNotes = resourcePacketCareResourceLocation.getCareResourceNotes();
