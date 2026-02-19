@@ -47,9 +47,9 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -61,8 +61,6 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class DatabaseFilter implements Filter {
-	@Nonnull
-	private static final Pattern WHITESPACE_PATTERN;
 	@Nonnull
 	private Provider<SystemService> systemServiceProvider;
 	@Nonnull
@@ -86,10 +84,6 @@ public class DatabaseFilter implements Filter {
 		this.logger = LoggerFactory.getLogger("com.cobaltplatform.api.sql.REQUEST_SQL");
 	}
 
-	static {
-		WHITESPACE_PATTERN = Pattern.compile("\\s+");
-	}
-
 	@Override
 	public void init(@Nonnull FilterConfig filterConfig) throws ServletException {
 		requireNonNull(filterConfig);
@@ -108,11 +102,6 @@ public class DatabaseFilter implements Filter {
 		boolean staticFile = httpServletRequest.getRequestURI().startsWith("/static/");
 		boolean optionsRequest = Objects.equals("OPTIONS", httpServletRequest.getMethod());
 		boolean performingAutoRefresh = Objects.equals(httpServletRequest.getHeader("X-Cobalt-Autorefresh"), "true");
-		String requestMethod = httpServletRequest.getMethod();
-		String requestUriWithOptionalQueryString = httpServletRequest.getRequestURI();
-
-		if (httpServletRequest.getQueryString() != null && httpServletRequest.getQueryString().trim().length() > 0)
-			requestUriWithOptionalQueryString = format("%s?%s", requestUriWithOptionalQueryString, httpServletRequest.getQueryString());
 
 		// Don't apply to some requests
 		if (staticFile || optionsRequest || performingAutoRefresh) {
@@ -128,10 +117,7 @@ public class DatabaseFilter implements Filter {
 			// Nothing to do, continue on
 		}
 
-		// If a Resource Method has either @ReadReplica or @RequiresManualTransactionManagement applied,
-		// execute without wrapping this request in an automatic transaction.
-		boolean skipAutomaticTransaction = false;
-
+		// If a Resource Method has either @ReadReplica or @RequiresManualTransactionManagement applied, don't wrap this request in a transaction
 		if (requestContext != null) {
 			Route route = requestContext.route().orElse(null);
 			Method resourceMethod = route != null && route.resourceMethod() != null ? route.resourceMethod() : null;
@@ -139,53 +125,39 @@ public class DatabaseFilter implements Filter {
 			if (resourceMethod != null) {
 				boolean readReplica = resourceMethod.getAnnotation(ReadReplica.class) != null;
 				boolean requiresManualTransactionManagement = resourceMethod.getAnnotation(RequiresManualTransactionManagement.class) != null;
-				skipAutomaticTransaction = readReplica || requiresManualTransactionManagement;
+
+				if (readReplica || requiresManualTransactionManagement) {
+					filterChain.doFilter(servletRequest, servletResponse);
+					return;
+				}
 			}
 		}
 
 		DatabaseContext databaseContext = new DatabaseContext();
 
 		try {
-			if (skipAutomaticTransaction) {
-				try {
-					getDatabaseContextExecutor().execute(databaseContext, () -> {
-						filterChain.doFilter(servletRequest, servletResponse);
-					});
-				} catch (Exception exception) {
-					if (exception instanceof IOException)
-						throw (IOException) exception;
-					else if (exception instanceof ServletException)
-						throw (ServletException) exception;
-					else if (exception instanceof RuntimeException)
-						throw (RuntimeException) exception;
+			getDatabase().transaction(() -> {
+				// This transaction wraps our HTTP resource methods (those annotated with @GET, @POST, etc.)
+				// We already know the current account (if one has been authenticated) at this point.
+				// Apply the current context (account, resource method, etc.) to the current transaction for automated DB footprint capture
+				getSystemService().applyFootprintForCurrentContextToCurrentTransaction();
 
-					throw new ServletException(exception);
-				}
-			} else {
-				getDatabase().transaction(() -> {
-					// This transaction wraps our HTTP resource methods (those annotated with @GET, @POST, etc.)
-					// We already know the current account (if one has been authenticated) at this point.
-					// Apply the current context (account, resource method, etc.) to the current transaction for automated DB footprint capture
-					getSystemService().applyFootprintForCurrentContextToCurrentTransaction();
-
-					getDatabaseContextExecutor().execute(databaseContext, () -> {
-						filterChain.doFilter(servletRequest, servletResponse);
-					});
+				getDatabaseContextExecutor().execute(databaseContext, () -> {
+					filterChain.doFilter(servletRequest, servletResponse);
 				});
-			}
+			});
 		} finally {
 			Long totalTime = 0L;
 			List<StatementLog> originalStatementLogs = databaseContext.getStatementLogs();
 			List<StatementLog> sortedStatementLogs = new ArrayList<>(originalStatementLogs);
 			List<String> displayableStatementLogs = new ArrayList<>(sortedStatementLogs.size());
 
-//			Collections.sort(sortedStatementLogs, (statementLog1, statementLog2) -> {
-//				return statementLog2.totalTime().compareTo(statementLog1.totalTime());
-//			});
+			Collections.sort(sortedStatementLogs, (statementLog1, statementLog2) -> {
+				return statementLog2.totalTime().compareTo(statementLog1.totalTime());
+			});
 
 			for (StatementLog statementLog : sortedStatementLogs) {
-				String normalizedSql = normalizeSql(statementLog.sql());
-				String displayableStatementLog = format("%.1fms: %s", (statementLog.totalTime() / (double) 1000000), normalizedSql);
+				String displayableStatementLog = format("%.1fms: %s", (statementLog.totalTime() / (double) 1000000), statementLog.sql());
 
 				if (statementLog.parameters() != null && statementLog.parameters().size() > 0)
 					displayableStatementLog += " " + statementLog.parameters();
@@ -194,16 +166,11 @@ public class DatabaseFilter implements Filter {
 				totalTime += statementLog.totalTime();
 			}
 
-				if (displayableStatementLogs.size() > 0) {
-					String queryText = displayableStatementLogs.size() == 1 ? "statement" : "statements";
-					getLogger().debug("SQL statements for {} {}:\n{}\n*** Executed {} {} in {}ms.",
-							requestMethod,
-							requestUriWithOptionalQueryString,
-							displayableStatementLogs.stream().collect(Collectors.joining("\n")),
-							sortedStatementLogs.size(),
-							queryText,
-							(int) (totalTime / (double) 1000000));
-				}
+			if (displayableStatementLogs.size() > 0) {
+				String queryText = displayableStatementLogs.size() == 1 ? "statement" : "statements";
+				getLogger().debug("SQL statements for this request:\n{}\nExecuted {} {} in {}ms.", displayableStatementLogs.stream().collect(Collectors.joining("\n")),
+						sortedStatementLogs.size(), queryText, (int) (totalTime / (double) 1000000));
+			}
 		}
 	}
 
@@ -230,11 +197,5 @@ public class DatabaseFilter implements Filter {
 	@Nonnull
 	public Logger getLogger() {
 		return this.logger;
-	}
-
-	@Nonnull
-	protected String normalizeSql(@Nonnull String sql) {
-		requireNonNull(sql);
-		return WHITESPACE_PATTERN.matcher(sql.replace('\n', ' ').replace('\r', ' ')).replaceAll(" ").trim();
 	}
 }
