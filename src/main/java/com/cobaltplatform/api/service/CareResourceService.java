@@ -44,6 +44,8 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.ResourcePacket;
 import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.model.service.CareResourceLocationWithTotalCount;
+import com.cobaltplatform.api.model.service.CareResourceTagWithCareResourceId;
+import com.cobaltplatform.api.model.service.CareResourceTagWithCareResourceLocationId;
 import com.cobaltplatform.api.model.service.CareResourceWithTotalCount;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
@@ -56,6 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -154,6 +157,84 @@ public class CareResourceService {
 				AND crl.care_resource_location_id = ?
 				AND crt.care_resource_tag_group_id = ?
 				ORDER BY name""", CareResourceTag.class, careResourceLocationId, careResourceTagGroupId);
+	}
+
+	@Nonnull
+	public Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> findTagsByCareResourceIds(@Nonnull Set<UUID> careResourceIds) {
+		requireNonNull(careResourceIds);
+
+		if (careResourceIds.isEmpty())
+			return Map.of();
+
+		List<CareResourceTagWithCareResourceId> careResourceTags = getDatabase().queryForList("""
+				SELECT crt.*, crc.care_resource_id
+				FROM care_resource_tag crt, care_resource_care_resource_tag crc
+				WHERE crt.care_resource_tag_id = crc.care_resource_tag_id
+				AND crc.care_resource_id = ANY (CAST(? AS UUID[]))
+				ORDER BY crc.care_resource_id ASC, crt.care_resource_tag_group_id ASC, crt.name ASC
+				""", CareResourceTagWithCareResourceId.class, (Object) careResourceIds.toArray(new UUID[0]));
+
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceId = new LinkedHashMap<>();
+
+		for (CareResourceTagWithCareResourceId careResourceTag : careResourceTags)
+			addTagToGroupedMap(careResourceTagsByCareResourceId, careResourceTag.getCareResourceId(), careResourceTag);
+
+		return careResourceTagsByCareResourceId;
+	}
+
+	@Nonnull
+	public Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> findTagsByCareResourceLocationIds(@Nonnull Set<UUID> careResourceLocationIds) {
+		requireNonNull(careResourceLocationIds);
+
+		if (careResourceLocationIds.isEmpty())
+			return Map.of();
+
+		List<CareResourceTagWithCareResourceLocationId> careResourceTags = getDatabase().queryForList("""
+				SELECT crt.*, crl.care_resource_location_id
+				FROM care_resource_tag crt, care_resource_location_care_resource_tag crl
+				WHERE crt.care_resource_tag_id = crl.care_resource_tag_id
+				AND crl.care_resource_location_id = ANY (CAST(? AS UUID[]))
+				ORDER BY crl.care_resource_location_id ASC, crt.care_resource_tag_group_id ASC, crt.name ASC
+				""", CareResourceTagWithCareResourceLocationId.class, (Object) careResourceLocationIds.toArray(new UUID[0]));
+
+		Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> careResourceTagsByCareResourceLocationId = new LinkedHashMap<>();
+
+		for (CareResourceTagWithCareResourceLocationId careResourceTag : careResourceTags)
+			addTagToGroupedMap(careResourceTagsByCareResourceLocationId, careResourceTag.getCareResourceLocationId(), careResourceTag);
+
+		return careResourceTagsByCareResourceLocationId;
+	}
+
+	@Nonnull
+	public Map<UUID, Address> findAddressesByIds(@Nonnull Set<UUID> addressIds) {
+		requireNonNull(addressIds);
+		return getAddressService().findAddressesByIds(addressIds);
+	}
+
+	private void addTagToGroupedMap(@Nonnull Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByParentId,
+																	@Nullable UUID parentId,
+																	@Nonnull CareResourceTag careResourceTag) {
+		requireNonNull(tagsByParentId);
+		requireNonNull(careResourceTag);
+
+		if (parentId == null || careResourceTag.getCareResourceTagGroupId() == null)
+			return;
+
+		Map<CareResourceTagGroupId, List<CareResourceTag>> tagsByGroupId = tagsByParentId.get(parentId);
+
+		if (tagsByGroupId == null) {
+			tagsByGroupId = new LinkedHashMap<>();
+			tagsByParentId.put(parentId, tagsByGroupId);
+		}
+
+		List<CareResourceTag> tagsForGroup = tagsByGroupId.get(careResourceTag.getCareResourceTagGroupId());
+
+		if (tagsForGroup == null) {
+			tagsForGroup = new ArrayList<>();
+			tagsByGroupId.put(careResourceTag.getCareResourceTagGroupId(), tagsForGroup);
+		}
+
+		tagsForGroup.add(careResourceTag);
 	}
 
 	@Nonnull

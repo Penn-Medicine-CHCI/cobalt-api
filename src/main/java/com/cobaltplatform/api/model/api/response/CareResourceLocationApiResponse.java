@@ -23,8 +23,8 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Address;
-import com.cobaltplatform.api.model.db.CareResource;
 import com.cobaltplatform.api.model.db.CareResourceLocation;
+import com.cobaltplatform.api.model.db.CareResourceTag;
 import com.cobaltplatform.api.model.db.CareResourceTag.CareResourceTagGroupId;
 import com.cobaltplatform.api.model.db.Role;
 import com.cobaltplatform.api.service.AddressService;
@@ -38,12 +38,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -111,12 +112,114 @@ public class CareResourceLocationApiResponse {
 	@Nullable
 	private CareResourceTagApiResponseFactory careResourceTagApiResponseFactory;
 
+	@Immutable
+	public static class CareResourceLocationApiResponseBatchContext {
+		@Nonnull
+		private final Map<UUID, Address> addressesByAddressId;
+		private final boolean addressesPreloaded;
+		@Nonnull
+		private final Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByCareResourceLocationId;
+		private final boolean careResourceLocationTagsPreloaded;
+		@Nonnull
+		private final Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByCareResourceId;
+		private final boolean careResourceTagsPreloaded;
+
+		@Nonnull
+		public static CareResourceLocationApiResponseBatchContext empty() {
+			return new CareResourceLocationApiResponseBatchContext(Map.of(), false, Map.of(), false, Map.of(), false);
+		}
+
+		public CareResourceLocationApiResponseBatchContext(@Nonnull Map<UUID, Address> addressesByAddressId,
+																											 boolean addressesPreloaded,
+																											 @Nonnull Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByCareResourceLocationId,
+																											 boolean careResourceLocationTagsPreloaded,
+																											 @Nonnull Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByCareResourceId,
+																											 boolean careResourceTagsPreloaded) {
+			requireNonNull(addressesByAddressId);
+			requireNonNull(tagsByCareResourceLocationId);
+			requireNonNull(tagsByCareResourceId);
+
+			this.addressesByAddressId = new LinkedHashMap<>(addressesByAddressId);
+			this.addressesPreloaded = addressesPreloaded;
+			this.tagsByCareResourceLocationId = deepCopy(tagsByCareResourceLocationId);
+			this.careResourceLocationTagsPreloaded = careResourceLocationTagsPreloaded;
+			this.tagsByCareResourceId = deepCopy(tagsByCareResourceId);
+			this.careResourceTagsPreloaded = careResourceTagsPreloaded;
+		}
+
+		@Nonnull
+		private Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> deepCopy(@Nonnull Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByParentId) {
+			requireNonNull(tagsByParentId);
+
+			Map<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> tagsByParentIdCopy = new LinkedHashMap<>(tagsByParentId.size());
+
+			for (Map.Entry<UUID, Map<CareResourceTagGroupId, List<CareResourceTag>>> parentEntry : tagsByParentId.entrySet()) {
+				UUID parentId = parentEntry.getKey();
+				Map<CareResourceTagGroupId, List<CareResourceTag>> tagsByGroupId = parentEntry.getValue();
+				Map<CareResourceTagGroupId, List<CareResourceTag>> tagsByGroupIdCopy = new LinkedHashMap<>();
+
+				if (tagsByGroupId != null) {
+					for (Map.Entry<CareResourceTagGroupId, List<CareResourceTag>> groupEntry : tagsByGroupId.entrySet())
+						tagsByGroupIdCopy.put(groupEntry.getKey(), groupEntry.getValue() == null ? List.of() : List.copyOf(groupEntry.getValue()));
+				}
+
+				tagsByParentIdCopy.put(parentId, tagsByGroupIdCopy);
+			}
+
+			return tagsByParentIdCopy;
+		}
+
+		@Nullable
+		public Address getAddressByAddressId(@Nullable UUID addressId) {
+			return addressId == null ? null : addressesByAddressId.get(addressId);
+		}
+
+		@Nonnull
+		public List<CareResourceTag> getTagsByCareResourceLocationIdAndGroupId(@Nullable UUID careResourceLocationId,
+																																			 @Nonnull CareResourceTagGroupId careResourceTagGroupId) {
+			requireNonNull(careResourceTagGroupId);
+
+			if (careResourceLocationId == null)
+				return List.of();
+
+			Map<CareResourceTagGroupId, List<CareResourceTag>> tagsByGroupId = tagsByCareResourceLocationId.get(careResourceLocationId);
+			return tagsByGroupId == null ? List.of() : tagsByGroupId.getOrDefault(careResourceTagGroupId, List.of());
+		}
+
+		@Nonnull
+		public List<CareResourceTag> getTagsByCareResourceIdAndGroupId(@Nullable UUID careResourceId,
+																														 @Nonnull CareResourceTagGroupId careResourceTagGroupId) {
+			requireNonNull(careResourceTagGroupId);
+
+			if (careResourceId == null)
+				return List.of();
+
+			Map<CareResourceTagGroupId, List<CareResourceTag>> tagsByGroupId = tagsByCareResourceId.get(careResourceId);
+			return tagsByGroupId == null ? List.of() : tagsByGroupId.getOrDefault(careResourceTagGroupId, List.of());
+		}
+
+		public boolean isAddressesPreloaded() {
+			return addressesPreloaded;
+		}
+
+		public boolean isCareResourceLocationTagsPreloaded() {
+			return careResourceLocationTagsPreloaded;
+		}
+
+		public boolean isCareResourceTagsPreloaded() {
+			return careResourceTagsPreloaded;
+		}
+	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface CareResourceLocationApiResponseFactory {
 		@Nonnull
 		CareResourceLocationApiResponse create(@Nonnull CareResourceLocation careResourceLocation);
+
+		@Nonnull
+		CareResourceLocationApiResponse create(@Nonnull CareResourceLocation careResourceLocation,
+																					 @Nonnull CareResourceLocationApiResponseBatchContext batchContext);
 	}
 
 	@AssistedInject
@@ -126,12 +229,30 @@ public class CareResourceLocationApiResponse {
 																				 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
 																				 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 																				 @Nonnull Formatter formatter) {
+		this(careResourceService,
+				careResourceLocation,
+				addressService,
+				careResourceTagApiResponseFactory,
+				currentContextProvider,
+				formatter,
+				CareResourceLocationApiResponseBatchContext.empty());
+	}
+
+	@AssistedInject
+	public CareResourceLocationApiResponse(@Nonnull CareResourceService careResourceService,
+																				 @Assisted @Nonnull CareResourceLocation careResourceLocation,
+																				 @Nonnull AddressService addressService,
+																				 @Nonnull CareResourceTagApiResponseFactory careResourceTagApiResponseFactory,
+																				 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+																				 @Nonnull Formatter formatter,
+																				 @Assisted @Nonnull CareResourceLocationApiResponseBatchContext batchContext) {
 		requireNonNull(careResourceService);
 		requireNonNull(careResourceLocation);
 		requireNonNull(addressService);
 		requireNonNull(formatter);
 		requireNonNull(careResourceTagApiResponseFactory);
 		requireNonNull(currentContextProvider);
+		requireNonNull(batchContext);
 
 		CurrentContext currentContext = currentContextProvider.get();
 		Account account = currentContext.getAccount().get();
@@ -147,7 +268,9 @@ public class CareResourceLocationApiResponse {
 		this.acceptingNewPatients = careResourceLocation.getAcceptingNewPatients();
 		this.careResourceLocationId = careResourceLocation.getCareResourceLocationId();
 		this.name = careResourceLocation.getName();
-		this.address = addressService.findAddressById(careResourceLocation.getAddressId()).orElse(null);
+		this.address = batchContext.isAddressesPreloaded()
+				? batchContext.getAddressByAddressId(careResourceLocation.getAddressId())
+				: addressService.findAddressById(careResourceLocation.getAddressId()).orElse(null);
 		this.phoneNumber = careResourceLocation.getPhoneNumber();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(careResourceLocation.getPhoneNumber());
 		this.notes = careResourceLocation.getNotes();
@@ -156,43 +279,83 @@ public class CareResourceLocationApiResponse {
 		this.overrideSpecialties = careResourceLocation.getOverrideSpecialties();
 		this.appointmentTypeInPerson = careResourceLocation.getAppointmentTypeInPerson();
 		this.appointmentTypeOnline = careResourceLocation.getAppointmentTypeOnline();
-		this.languages = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.LANGUAGES).stream()
+
+		List<CareResourceTag> locationLanguages = batchContext.isCareResourceLocationTagsPreloaded()
+				? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.LANGUAGES)
+				: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.LANGUAGES);
+		this.languages = locationLanguages.stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
 
-		if (this.overrideSpecialties)
-			this.specialties = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.SPECIALTIES).stream()
-					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
-					.collect(Collectors.toList());
-		else
-			this.specialties = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES).stream()
-					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
-					.collect(Collectors.toList());
+		boolean overrideSpecialties = Boolean.TRUE.equals(this.overrideSpecialties);
+		boolean overridePayors = Boolean.TRUE.equals(this.overridePayors);
 
-		if (this.overridePayors) {
-			this.payors = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.PAYORS).stream()
+		if (overrideSpecialties) {
+			List<CareResourceTag> locationSpecialties = batchContext.isCareResourceLocationTagsPreloaded()
+					? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.SPECIALTIES)
+					: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.SPECIALTIES);
+			this.specialties = locationSpecialties.stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
+		} else {
+			List<CareResourceTag> resourceSpecialties = batchContext.isCareResourceTagsPreloaded()
+					? batchContext.getTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES)
+					: careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.SPECIALTIES);
+			this.specialties = resourceSpecialties.stream()
+					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
+					.collect(Collectors.toList());
+		}
+
+		if (overridePayors) {
+			List<CareResourceTag> locationPayors = batchContext.isCareResourceLocationTagsPreloaded()
+					? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.PAYORS)
+					: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.PAYORS);
+			this.payors = locationPayors.stream()
 					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 					.collect(Collectors.toList());
 			this.insuranceNotes = careResourceLocation.getInsuranceNotes();
 		} else {
-			this.payors = careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.PAYORS).stream()
+			List<CareResourceTag> resourcePayors = batchContext.isCareResourceTagsPreloaded()
+					? batchContext.getTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.PAYORS)
+					: careResourceService.findTagsByCareResourceIdAndGroupId(careResourceLocation.getCareResourceId(), CareResourceTagGroupId.PAYORS);
+			this.payors = resourcePayors.stream()
 					.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 					.collect(Collectors.toList());
 			this.insuranceNotes = careResourceLocation.getResourceInsuranceNotes();
 		}
-		this.therapyTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.THERAPY_TYPES).stream()
+
+		List<CareResourceTag> locationTherapyTypes = batchContext.isCareResourceLocationTagsPreloaded()
+				? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.THERAPY_TYPES)
+				: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.THERAPY_TYPES);
+		this.therapyTypes = locationTherapyTypes.stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
-		this.populationServed = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.POPULATION_SERVED).stream()
+
+		List<CareResourceTag> locationPopulationServed = batchContext.isCareResourceLocationTagsPreloaded()
+				? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.POPULATION_SERVED)
+				: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.POPULATION_SERVED);
+		this.populationServed = locationPopulationServed.stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
-		this.genders = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.GENDERS).stream()
+
+		List<CareResourceTag> locationGenders = batchContext.isCareResourceLocationTagsPreloaded()
+				? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.GENDERS)
+				: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.GENDERS);
+		this.genders = locationGenders.stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
-		this.ethnicities = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.ETHNICITIES).stream()
+
+		List<CareResourceTag> locationEthnicities = batchContext.isCareResourceLocationTagsPreloaded()
+				? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.ETHNICITIES)
+				: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.ETHNICITIES);
+		this.ethnicities = locationEthnicities.stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
-		this.facilityTypes = careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.FACILITY_TYPES).stream()
+
+		List<CareResourceTag> locationFacilityTypes = batchContext.isCareResourceLocationTagsPreloaded()
+				? batchContext.getTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.FACILITY_TYPES)
+				: careResourceService.findTagsByCareResourceLocationIdAndGroupId(careResourceLocation.getCareResourceLocationId(), CareResourceTagGroupId.FACILITY_TYPES);
+		this.facilityTypes = locationFacilityTypes.stream()
 				.map(careResourceTag -> careResourceTagApiResponseFactory.create(careResourceTag))
 				.collect(Collectors.toList());
 		this.distanceInMiles = careResourceLocation.getDistanceInMiles();
