@@ -48,7 +48,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidIso3166CountryCode;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUsPostalCode;
 import static java.lang.String.format;
@@ -107,11 +106,11 @@ public class AddressService {
 		if (addressIds.isEmpty())
 			return Map.of();
 
-		List<Address> addresses = getDatabase().queryForList(format("""
-				SELECT *
-				FROM address
-				WHERE address_id IN %s
-				""", sqlInListPlaceholders(addressIds)), Address.class, addressIds.toArray(new Object[0]));
+		List<Address> addresses = getDatabase().queryForList("""
+					SELECT *
+					FROM address
+					WHERE address_id = ANY (CAST(? AS UUID[]))
+					""", Address.class, (Object) addressIds.toArray(new UUID[0]));
 
 		Map<UUID, Address> addressesById = new LinkedHashMap<>(addresses.size());
 

@@ -624,18 +624,15 @@ public class PatientOrderApiResponse {
 		@Nonnull
 		private final Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId;
 		private final boolean currentResourcePacketsPreloaded;
-		private final boolean currentResourcePacketsIncluded;
 		@Nonnull
 		private final Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId;
 		private final boolean scheduledMessageGroupsPreloaded;
-		private final boolean scheduledMessageGroupsIncluded;
 		@Nonnull
 		private final ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext;
 
 		@Nonnull
 		public static PatientOrderApiResponseBatchContext empty() {
-			return new PatientOrderApiResponseBatchContext(Map.of(), false, Map.of(), false,
-					ResourcePacketApiResponseBatchContext.empty(), true, true);
+			return new PatientOrderApiResponseBatchContext(Map.of(), false, Map.of(), false, ResourcePacketApiResponseBatchContext.empty());
 		}
 
 		public PatientOrderApiResponseBatchContext(@Nonnull Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId,
@@ -646,9 +643,7 @@ public class PatientOrderApiResponse {
 					currentResourcePacketsPreloaded,
 					scheduledMessageGroupsByPatientOrderId,
 					scheduledMessageGroupsPreloaded,
-					ResourcePacketApiResponseBatchContext.empty(),
-					true,
-					true);
+					ResourcePacketApiResponseBatchContext.empty());
 		}
 
 		public PatientOrderApiResponseBatchContext(@Nonnull Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId,
@@ -656,29 +651,12 @@ public class PatientOrderApiResponse {
 																							 @Nonnull Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId,
 																							 boolean scheduledMessageGroupsPreloaded,
 																							 @Nonnull ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext) {
-			this(currentResourcePacketsByPatientOrderId,
-					currentResourcePacketsPreloaded,
-					scheduledMessageGroupsByPatientOrderId,
-					scheduledMessageGroupsPreloaded,
-					resourcePacketApiResponseBatchContext,
-					true,
-					true);
-		}
-
-		public PatientOrderApiResponseBatchContext(@Nonnull Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId,
-																							 boolean currentResourcePacketsPreloaded,
-																							 @Nonnull Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId,
-																							 boolean scheduledMessageGroupsPreloaded,
-																							 @Nonnull ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext,
-																							 boolean currentResourcePacketsIncluded,
-																							 boolean scheduledMessageGroupsIncluded) {
 			requireNonNull(currentResourcePacketsByPatientOrderId);
 			requireNonNull(scheduledMessageGroupsByPatientOrderId);
 			requireNonNull(resourcePacketApiResponseBatchContext);
 
 			this.currentResourcePacketsByPatientOrderId = new LinkedHashMap<>(currentResourcePacketsByPatientOrderId);
 			this.currentResourcePacketsPreloaded = currentResourcePacketsPreloaded;
-			this.currentResourcePacketsIncluded = currentResourcePacketsIncluded;
 			this.scheduledMessageGroupsByPatientOrderId = new LinkedHashMap<>();
 
 			for (Entry<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> entry : scheduledMessageGroupsByPatientOrderId.entrySet()) {
@@ -688,7 +666,6 @@ public class PatientOrderApiResponse {
 			}
 
 			this.scheduledMessageGroupsPreloaded = scheduledMessageGroupsPreloaded;
-			this.scheduledMessageGroupsIncluded = scheduledMessageGroupsIncluded;
 			this.resourcePacketApiResponseBatchContext = resourcePacketApiResponseBatchContext;
 		}
 
@@ -708,16 +685,8 @@ public class PatientOrderApiResponse {
 			return currentResourcePacketsPreloaded;
 		}
 
-		public boolean isCurrentResourcePacketsIncluded() {
-			return currentResourcePacketsIncluded;
-		}
-
 		public boolean isScheduledMessageGroupsPreloaded() {
 			return scheduledMessageGroupsPreloaded;
-		}
-
-		public boolean isScheduledMessageGroupsIncluded() {
-			return scheduledMessageGroupsIncluded;
 		}
 
 		@Nonnull
@@ -895,6 +864,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(batchContext);
 
 		CurrentContext currentContext = currentContextProvider.get();
+		boolean includeEverything = supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING);
 
 		AddressApiResponse patientAddress = null;
 		AccountApiResponse patientAccount = null;
@@ -1155,7 +1125,8 @@ public class PatientOrderApiResponse {
 		this.epicDepartmentDepartmentId = patientOrder.getEpicDepartmentDepartmentId();
 
 		this.resourcesSentFlag = patientOrder.getResourcesSentAt() != null;
-		if (batchContext.isCurrentResourcePacketsIncluded()) {
+
+		if (includeEverything) {
 			Optional<ResourcePacket> resourcePacket = batchContext.isCurrentResourcePacketsPreloaded()
 					? Optional.ofNullable(batchContext.getCurrentResourcePacketByPatientOrderId(patientOrderId))
 					: careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
@@ -1252,11 +1223,11 @@ public class PatientOrderApiResponse {
 			this.resourceCheckInResponseStatusUpdatedAt = patientOrder.getResourceCheckInResponseStatusUpdatedAt();
 			this.resourceCheckInResponseStatusUpdatedAtDescription = patientOrder.getResourceCheckInResponseStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getResourceCheckInResponseStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
-			this.patientOrderScheduledMessageGroups = batchContext.isScheduledMessageGroupsIncluded()
-					? (batchContext.isScheduledMessageGroupsPreloaded()
+			if (includeEverything) {
+				this.patientOrderScheduledMessageGroups = batchContext.isScheduledMessageGroupsPreloaded()
 						? batchContext.getScheduledMessageGroupsByPatientOrderId(patientOrder.getPatientOrderId())
-						: patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId())))
-					: List.of();
+						: patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId()));
+			}
 
 			this.patientOrderVoicemailTasks = patientOrderVoicemailTasks;
 			this.patientOrderResourcingTypeId = patientOrder.getPatientOrderResourcingTypeId();

@@ -927,11 +927,13 @@ public class PatientOrderResource {
 		}
 
 		boolean useBatching = patientOrdersQueryMode == FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED;
-
 		List<PatientOrderApiResponse> patientOrders;
 
 		if (useBatching) {
-			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(findResult.getResults());
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(
+					findResult.getResults(),
+					Set.of(PatientOrderApiResponseSupplement.PANEL)
+			);
 
 			patientOrders = findResult.getResults().stream()
 					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
@@ -963,55 +965,42 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	protected PatientOrderApiResponseBatchContext patientOrderApiResponseBatchContextFor(@Nonnull Collection<PatientOrder> patientOrders) {
-		return patientOrderApiResponseBatchContextFor(patientOrders, true, true);
-	}
-
-	@Nonnull
 	protected PatientOrderApiResponseBatchContext patientOrderApiResponseBatchContextFor(@Nonnull Collection<PatientOrder> patientOrders,
-																																							boolean includeResourcePacketData,
-																																							boolean includeScheduledMessageGroupData) {
+																												 @Nonnull Set<PatientOrderApiResponseSupplement> supplements) {
 		requireNonNull(patientOrders);
+		requireNonNull(supplements);
+
+		if (!supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING))
+			return PatientOrderApiResponseBatchContext.empty();
 
 		Set<UUID> patientOrderIds = patientOrders.stream()
 				.map(PatientOrder::getPatientOrderId)
 				.collect(Collectors.toSet());
 
-		Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId = Map.of();
-		ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext = ResourcePacketApiResponseBatchContext.empty();
+		Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId = getPatientOrderService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds);
+		Set<UUID> resourcePacketIds = currentResourcePacketsByPatientOrderId.values().stream()
+				.map(ResourcePacket::getResourcePacketId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, List<ResourcePacketCareResourceLocation>> resourcePacketLocationsByResourcePacketId = getPatientOrderService().findResourcePacketLocationsByResourcePacketIds(resourcePacketIds);
+		Set<UUID> resourcePacketLocationAddressIds = resourcePacketLocationsByResourcePacketId.values().stream()
+				.flatMap(List::stream)
+				.map(ResourcePacketCareResourceLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, Address> addressesByAddressId = getPatientOrderService().findAddressesByIds(resourcePacketLocationAddressIds);
 
-		if (includeResourcePacketData) {
-			currentResourcePacketsByPatientOrderId = getPatientOrderService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds);
-			Set<UUID> resourcePacketIds = currentResourcePacketsByPatientOrderId.values().stream()
-					.map(ResourcePacket::getResourcePacketId)
-					.filter(Objects::nonNull)
-					.collect(Collectors.toSet());
-			Map<UUID, List<ResourcePacketCareResourceLocation>> resourcePacketLocationsByResourcePacketId = getPatientOrderService().findResourcePacketLocationsByResourcePacketIds(resourcePacketIds);
-			Set<UUID> resourcePacketLocationAddressIds = resourcePacketLocationsByResourcePacketId.values().stream()
-					.flatMap(List::stream)
-					.map(ResourcePacketCareResourceLocation::getAddressId)
-					.filter(Objects::nonNull)
-					.collect(Collectors.toSet());
-			Map<UUID, Address> addressesByAddressId = getPatientOrderService().findAddressesByIds(resourcePacketLocationAddressIds);
-
-			ResourcePacketCareResourceLocationApiResponseBatchContext resourcePacketCareResourceLocationApiResponseBatchContext =
-					new ResourcePacketCareResourceLocationApiResponseBatchContext(addressesByAddressId, true);
-			resourcePacketApiResponseBatchContext = new ResourcePacketApiResponseBatchContext(resourcePacketLocationsByResourcePacketId, true, resourcePacketCareResourceLocationApiResponseBatchContext);
-		}
-
-		Map<UUID, List<PatientOrderScheduledMessageGroupApiResponse>> scheduledMessageGroupsByPatientOrderId =
-				includeScheduledMessageGroupData
-						? getPatientOrderService().findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(patientOrderIds)
-						: Map.of();
+		ResourcePacketCareResourceLocationApiResponseBatchContext resourcePacketCareResourceLocationApiResponseBatchContext =
+				new ResourcePacketCareResourceLocationApiResponseBatchContext(addressesByAddressId, true);
+		ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext =
+				new ResourcePacketApiResponseBatchContext(resourcePacketLocationsByResourcePacketId, true, resourcePacketCareResourceLocationApiResponseBatchContext);
 
 		return new PatientOrderApiResponseBatchContext(
 				currentResourcePacketsByPatientOrderId,
-				includeResourcePacketData,
-				scheduledMessageGroupsByPatientOrderId,
-				includeScheduledMessageGroupData,
-				resourcePacketApiResponseBatchContext,
-				includeResourcePacketData,
-				includeScheduledMessageGroupData
+				true,
+				getPatientOrderService().findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(patientOrderIds),
+				true,
+				resourcePacketApiResponseBatchContext
 		);
 	}
 
@@ -1930,8 +1919,7 @@ public class PatientOrderResource {
 				PatientOrderContactTypeId.RESOURCE_FOLLOWUP
 		);
 		if (usePanelTodayPerfOptimization) {
-			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(patientOrders,
-					false, false);
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(patientOrders, Set.of());
 			Map<UUID, PatientOrderApiResponse> patientOrderApiResponsesById = new HashMap<>(patientOrders.size());
 			Function<PatientOrder, PatientOrderApiResponse> patientOrderApiResponseFor = patientOrder ->
 					patientOrderApiResponsesById.computeIfAbsent(patientOrder.getPatientOrderId(), ignored ->

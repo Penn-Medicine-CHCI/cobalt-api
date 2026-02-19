@@ -5227,17 +5227,13 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderIds.isEmpty())
 			return Map.of();
 
-		List<Object> parameters = new ArrayList<>(patientOrderIds.size() + 1);
-		parameters.addAll(patientOrderIds);
-		parameters.add(ScheduledMessageStatusId.CANCELED);
-
-		List<PatientOrderScheduledMessage> patientOrderScheduledMessages = getDatabase().queryForList(format("""
-				SELECT *
-				FROM v_patient_order_scheduled_message
-				WHERE patient_order_id IN %s
-				AND scheduled_message_status_id != ?
-				ORDER BY patient_order_id, scheduled_at DESC
-				""", sqlInListPlaceholders(patientOrderIds)), PatientOrderScheduledMessage.class, parameters.toArray(new Object[0]));
+		List<PatientOrderScheduledMessage> patientOrderScheduledMessages = getDatabase().queryForList("""
+					SELECT *
+					FROM v_patient_order_scheduled_message
+					WHERE patient_order_id = ANY (CAST(? AS UUID[]))
+					AND scheduled_message_status_id != ?
+					ORDER BY patient_order_id, scheduled_at DESC
+					""", PatientOrderScheduledMessage.class, (Object) patientOrderIds.toArray(new UUID[0]), ScheduledMessageStatusId.CANCELED);
 
 		Map<UUID, List<PatientOrderScheduledMessage>> patientOrderScheduledMessagesByPatientOrderId = new LinkedHashMap<>();
 
@@ -5340,12 +5336,12 @@ public class PatientOrderService implements AutoCloseable {
 		if (patientOrderScheduledMessageGroupIds.isEmpty())
 			return Map.of();
 
-		List<PatientOrderScheduledMessageGroup> groups = getDatabase().queryForList(format("""
-						SELECT *
-						FROM v_patient_order_scheduled_message_group
-						WHERE patient_order_scheduled_message_group_id IN %s
-						""", sqlInListPlaceholders(patientOrderScheduledMessageGroupIds)),
-				PatientOrderScheduledMessageGroup.class, patientOrderScheduledMessageGroupIds.toArray(new Object[0]));
+			List<PatientOrderScheduledMessageGroup> groups = getDatabase().queryForList("""
+								SELECT *
+								FROM v_patient_order_scheduled_message_group
+								WHERE patient_order_scheduled_message_group_id = ANY (CAST(? AS UUID[]))
+								""",
+						PatientOrderScheduledMessageGroup.class, (Object) patientOrderScheduledMessageGroupIds.toArray(new UUID[0]));
 
 		return groups.stream()
 				.collect(Collectors.toMap(PatientOrderScheduledMessageGroup::getPatientOrderScheduledMessageGroupId, Function.identity()));
