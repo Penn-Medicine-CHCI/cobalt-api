@@ -864,6 +864,7 @@ public class PatientOrderApiResponse {
 		requireNonNull(batchContext);
 
 		CurrentContext currentContext = currentContextProvider.get();
+		boolean includeEverything = supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING);
 
 		AddressApiResponse patientAddress = null;
 		AccountApiResponse patientAccount = null;
@@ -1123,12 +1124,16 @@ public class PatientOrderApiResponse {
 		this.epicDepartmentName = patientOrder.getEpicDepartmentName();
 		this.epicDepartmentDepartmentId = patientOrder.getEpicDepartmentDepartmentId();
 
-		Optional<ResourcePacket> resourcePacket = batchContext.isCurrentResourcePacketsPreloaded()
-				? Optional.ofNullable(batchContext.getCurrentResourcePacketByPatientOrderId(patientOrderId))
-				: careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
 		this.resourcesSentFlag = patientOrder.getResourcesSentAt() != null;
-		if (resourcePacket.isPresent())
-			this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get(), batchContext.getResourcePacketApiResponseBatchContext());
+
+		if (includeEverything) {
+			Optional<ResourcePacket> resourcePacket = batchContext.isCurrentResourcePacketsPreloaded()
+					? Optional.ofNullable(batchContext.getCurrentResourcePacketByPatientOrderId(patientOrderId))
+					: careResourceService.findCurrentResourcePacketByPatientOrderId(patientOrderId);
+
+			if (resourcePacket.isPresent())
+				this.resourcePacket = resourcePacketApiResponseFactory.create(resourcePacket.get(), batchContext.getResourcePacketApiResponseBatchContext());
+		}
 
 		this.overrideSchedulingEpicDepartmentId = patientOrder.getOverrideSchedulingEpicDepartmentId();
 
@@ -1218,9 +1223,11 @@ public class PatientOrderApiResponse {
 			this.resourceCheckInResponseStatusUpdatedAt = patientOrder.getResourceCheckInResponseStatusUpdatedAt();
 			this.resourceCheckInResponseStatusUpdatedAtDescription = patientOrder.getResourceCheckInResponseStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getResourceCheckInResponseStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
 
-			this.patientOrderScheduledMessageGroups = batchContext.isScheduledMessageGroupsPreloaded()
-					? batchContext.getScheduledMessageGroupsByPatientOrderId(patientOrder.getPatientOrderId())
-					: patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId()));
+			if (includeEverything) {
+				this.patientOrderScheduledMessageGroups = batchContext.isScheduledMessageGroupsPreloaded()
+						? batchContext.getScheduledMessageGroupsByPatientOrderId(patientOrder.getPatientOrderId())
+						: patientOrderService.generatePatientOrderScheduledMessageGroupApiResponses(patientOrderService.findPatientOrderScheduledMessagesByPatientOrderId(patientOrder.getPatientOrderId()));
+			}
 
 			this.patientOrderVoicemailTasks = patientOrderVoicemailTasks;
 			this.patientOrderResourcingTypeId = patientOrder.getPatientOrderResourcingTypeId();

@@ -924,7 +924,10 @@ public class PatientOrderResource {
 		List<PatientOrderApiResponse> patientOrders;
 
 		if (useBatching) {
-			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(findResult.getResults());
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(
+					findResult.getResults(),
+					Set.of(PatientOrderApiResponseSupplement.PANEL)
+			);
 
 			patientOrders = findResult.getResults().stream()
 					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
@@ -956,8 +959,13 @@ public class PatientOrderResource {
 	}
 
 	@Nonnull
-	protected PatientOrderApiResponseBatchContext patientOrderApiResponseBatchContextFor(@Nonnull Collection<PatientOrder> patientOrders) {
+	protected PatientOrderApiResponseBatchContext patientOrderApiResponseBatchContextFor(@Nonnull Collection<PatientOrder> patientOrders,
+																												 @Nonnull Set<PatientOrderApiResponseSupplement> supplements) {
 		requireNonNull(patientOrders);
+		requireNonNull(supplements);
+
+		if (!supplements.contains(PatientOrderApiResponseSupplement.EVERYTHING))
+			return PatientOrderApiResponseBatchContext.empty();
 
 		Set<UUID> patientOrderIds = patientOrders.stream()
 				.map(PatientOrder::getPatientOrderId)
@@ -1896,7 +1904,7 @@ public class PatientOrderResource {
 				PatientOrderContactTypeId.RESOURCE_FOLLOWUP
 		);
 		if (usePanelTodayPerfOptimization) {
-			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(patientOrders);
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(patientOrders, Set.of());
 			Map<UUID, PatientOrderApiResponse> patientOrderApiResponsesById = new HashMap<>(patientOrders.size());
 			Function<PatientOrder, PatientOrderApiResponse> patientOrderApiResponseFor = patientOrder ->
 					patientOrderApiResponsesById.computeIfAbsent(patientOrder.getPatientOrderId(), ignored ->

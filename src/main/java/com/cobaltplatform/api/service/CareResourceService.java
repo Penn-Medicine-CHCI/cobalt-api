@@ -473,12 +473,12 @@ public class CareResourceService {
 		if (patientOrderIds.isEmpty())
 			return Map.of();
 
-		List<ResourcePacket> resourcePackets = getDatabase().queryForList(format("""
-				SELECT *
-				FROM resource_packet
-				WHERE patient_order_id IN %s
-				AND current_flag=true
-				""", sqlInListPlaceholders(patientOrderIds)), ResourcePacket.class, patientOrderIds.toArray(new Object[0]));
+		List<ResourcePacket> resourcePackets = getDatabase().queryForList("""
+					SELECT *
+					FROM resource_packet
+					WHERE patient_order_id = ANY (CAST(? AS UUID[]))
+					AND current_flag=true
+					""", ResourcePacket.class, (Object) patientOrderIds.toArray(new UUID[0]));
 
 		Map<UUID, ResourcePacket> resourcePacketsByPatientOrderId = new LinkedHashMap<>(resourcePackets.size());
 
@@ -533,10 +533,10 @@ public class CareResourceService {
 		if (resourcePacketIds.isEmpty())
 			return Map.of();
 
-		List<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocations = getDatabase().queryForList(format("""
-				SELECT po.*,
-				cr.notes AS care_resource_notes,
-				crl.notes,
+		List<ResourcePacketCareResourceLocation> resourcePacketCareResourceLocations = getDatabase().queryForList("""
+					SELECT po.*,
+					cr.notes AS care_resource_notes,
+					crl.notes,
 				crl.address_id,
 				CASE WHEN crl.website_url IS NULL THEN cr.website_url ELSE CRL.website_url END AS website_url,
 				CASE WHEN crl.phone_number IS NULL THEN cr.phone_number ELSE CRL.phone_number END AS phone_number,
@@ -546,13 +546,13 @@ public class CareResourceService {
 				a.last_name AS created_by_account_last_name
 				FROM care_resource_location crl, resource_packet_care_resource_location po, care_resource cr,
 				account a
-				WHERE crl.care_resource_location_id = po.care_resource_location_id
-				AND crl.care_resource_id = cr.care_resource_id
-				AND crl.created_by_account_id = a.account_id
-				AND po.resource_packet_id IN %s
-				AND crl.deleted=false
-				ORDER BY po.resource_packet_id ASC, po.display_order ASC
-				""", sqlInListPlaceholders(resourcePacketIds)), ResourcePacketCareResourceLocation.class, resourcePacketIds.toArray(new Object[0]));
+					WHERE crl.care_resource_location_id = po.care_resource_location_id
+					AND crl.care_resource_id = cr.care_resource_id
+					AND crl.created_by_account_id = a.account_id
+					AND po.resource_packet_id = ANY (CAST(? AS UUID[]))
+					AND crl.deleted=false
+					ORDER BY po.resource_packet_id ASC, po.display_order ASC
+					""", ResourcePacketCareResourceLocation.class, (Object) resourcePacketIds.toArray(new UUID[0]));
 
 		Map<UUID, List<ResourcePacketCareResourceLocation>> resourcePacketCareResourceLocationsByResourcePacketId = new LinkedHashMap<>();
 
