@@ -355,8 +355,8 @@ public class AccountResource {
 			throw new NotFoundException();
 		}
 
-		auditLog.setAuditLogEventId(AuditLogEventId.ACCOUNT_LOOKUP_SUCCESS);
-		getAuditLogService().audit(auditLog);
+		// auditLog.setAuditLogEventId(AuditLogEventId.ACCOUNT_LOOKUP_SUCCESS);
+		// getAuditLogService().audit(auditLog);
 
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId())
 				.orElse(null);

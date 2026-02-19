@@ -73,6 +73,8 @@ import com.cobaltplatform.api.model.api.response.PatientOrderApiResponse.Patient
 import com.cobaltplatform.api.model.api.response.PatientOrderAutocompleteResultApiResponse.PatientOrderAutocompleteResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderNoteApiResponse.PatientOrderNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderOutreachApiResponse.PatientOrderOutreachApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseBatchContext;
+import com.cobaltplatform.api.model.api.response.ResourcePacketCareResourceLocationApiResponse.ResourcePacketCareResourceLocationApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledMessageGroupApiResponse;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledOutreachApiResponse.PatientOrderScheduledOutreachApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PatientOrderScheduledScreeningApiResponse.PatientOrderScheduledScreeningApiResponseFactory;
@@ -82,6 +84,7 @@ import com.cobaltplatform.api.model.api.response.ScreeningTypeApiResponse.Screen
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.BirthSex.BirthSexId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Ethnicity.EthnicityId;
@@ -108,6 +111,8 @@ import com.cobaltplatform.api.model.db.PatientOrderTriageStatus.PatientOrderTria
 import com.cobaltplatform.api.model.db.PatientOrderVoicemailTask;
 import com.cobaltplatform.api.model.db.Race.RaceId;
 import com.cobaltplatform.api.model.db.RawPatientOrder;
+import com.cobaltplatform.api.model.db.ResourcePacket;
+import com.cobaltplatform.api.model.db.ResourcePacketCareResourceLocation;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.Encounter;
@@ -166,6 +171,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -912,25 +918,27 @@ public class PatientOrderResource {
 				setPatientOrderSortRules(patientOrderSortRules);
 				setPatientOrdersQueryMode(patientOrdersQueryMode);
 			}
-		});
+			});
 
-		Set<UUID> patientOrderIds = findResult.getResults().stream()
-				.map(PatientOrder::getPatientOrderId)
-				.collect(Collectors.toSet());
+		boolean useBatching = patientOrdersQueryMode == FindPatientOrdersRequest.PatientOrdersQueryMode.OPTIMIZED;
+		List<PatientOrderApiResponse> patientOrders;
 
-		PatientOrderApiResponseBatchContext batchContext = new PatientOrderApiResponseBatchContext(
-				getPatientOrderService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds),
-				true,
-				getPatientOrderService().findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(patientOrderIds),
-				true
-		);
+		if (useBatching) {
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(findResult.getResults());
 
-		List<PatientOrderApiResponse> patientOrders = findResult.getResults().stream()
-				.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
-						PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
-						Set.of(PatientOrderApiResponseSupplement.PANEL),
-						batchContext))
-				.collect(Collectors.toList());
+			patientOrders = findResult.getResults().stream()
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
+							PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
+							Set.of(PatientOrderApiResponseSupplement.PANEL),
+							batchContext))
+					.collect(Collectors.toList());
+		} else {
+			patientOrders = findResult.getResults().stream()
+					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder,
+							PatientOrderApiResponseFormat.fromRoleId(account.getRoleId()),
+							Set.of(PatientOrderApiResponseSupplement.PANEL)))
+					.collect(Collectors.toList());
+		}
 
 		Map<String, Object> findResultJson = new HashMap<>();
 		findResultJson.put("patientOrders", patientOrders);
@@ -945,6 +953,41 @@ public class PatientOrderResource {
 			put("findResult", findResultJson);
 			put("patientOrderAutocompleteResult", patientOrderAutocompleteResult == null ? null : getPatientOrderAutocompleteResultApiResponseFactory().create(patientOrderAutocompleteResult));
 		}};
+	}
+
+	@Nonnull
+	protected PatientOrderApiResponseBatchContext patientOrderApiResponseBatchContextFor(@Nonnull Collection<PatientOrder> patientOrders) {
+		requireNonNull(patientOrders);
+
+		Set<UUID> patientOrderIds = patientOrders.stream()
+				.map(PatientOrder::getPatientOrderId)
+				.collect(Collectors.toSet());
+
+		Map<UUID, ResourcePacket> currentResourcePacketsByPatientOrderId = getPatientOrderService().findCurrentResourcePacketsByPatientOrderIds(patientOrderIds);
+		Set<UUID> resourcePacketIds = currentResourcePacketsByPatientOrderId.values().stream()
+				.map(ResourcePacket::getResourcePacketId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, List<ResourcePacketCareResourceLocation>> resourcePacketLocationsByResourcePacketId = getPatientOrderService().findResourcePacketLocationsByResourcePacketIds(resourcePacketIds);
+		Set<UUID> resourcePacketLocationAddressIds = resourcePacketLocationsByResourcePacketId.values().stream()
+				.flatMap(List::stream)
+				.map(ResourcePacketCareResourceLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, Address> addressesByAddressId = getPatientOrderService().findAddressesByIds(resourcePacketLocationAddressIds);
+
+		ResourcePacketCareResourceLocationApiResponseBatchContext resourcePacketCareResourceLocationApiResponseBatchContext =
+				new ResourcePacketCareResourceLocationApiResponseBatchContext(addressesByAddressId, true);
+		ResourcePacketApiResponseBatchContext resourcePacketApiResponseBatchContext =
+				new ResourcePacketApiResponseBatchContext(resourcePacketLocationsByResourcePacketId, true, resourcePacketCareResourceLocationApiResponseBatchContext);
+
+		return new PatientOrderApiResponseBatchContext(
+				currentResourcePacketsByPatientOrderId,
+				true,
+				getPatientOrderService().findPatientOrderScheduledMessageGroupApiResponsesByPatientOrderIds(patientOrderIds),
+				true,
+				resourcePacketApiResponseBatchContext
+		);
 	}
 
 	@Nonnull
@@ -1852,12 +1895,12 @@ public class PatientOrderResource {
 				PatientOrderContactTypeId.OTHER,
 				PatientOrderContactTypeId.RESOURCE_FOLLOWUP
 		);
-
 		if (usePanelTodayPerfOptimization) {
+			PatientOrderApiResponseBatchContext batchContext = patientOrderApiResponseBatchContextFor(patientOrders);
 			Map<UUID, PatientOrderApiResponse> patientOrderApiResponsesById = new HashMap<>(patientOrders.size());
 			Function<PatientOrder, PatientOrderApiResponse> patientOrderApiResponseFor = patientOrder ->
 					patientOrderApiResponsesById.computeIfAbsent(patientOrder.getPatientOrderId(), ignored ->
-							getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC));
+							getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC, Set.of(), batchContext));
 
 			safetyPlanningPatientOrders = new ArrayList<>();
 			outreachReviewPatientOrders = new ArrayList<>();
@@ -1931,8 +1974,8 @@ public class PatientOrderResource {
 
 						return false;
 					})
-					.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
-					.collect(Collectors.toList());
+						.map(patientOrder -> getPatientOrderApiResponseFactory().create(patientOrder, PatientOrderApiResponseFormat.MHIC))
+						.collect(Collectors.toList());
 
 			scheduledAssessmentPatientOrders = patientOrders.stream()
 					.filter(patientOrder -> patientOrder.getPatientOrderTriageStatusId() == PatientOrderTriageStatusId.NOT_TRIAGED
