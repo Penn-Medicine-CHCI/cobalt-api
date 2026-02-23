@@ -2623,6 +2623,11 @@ public class AppointmentService {
 		EpicAppointmentBookingErrorResolver.EpicAppointmentBookingErrorResolution resolution = getEpicAppointmentBookingErrorResolver().resolve(epicException);
 		Map<String, Object> metadata = new HashMap<>(resolution.getMetadata());
 		EpicAppointmentBookingFailureType failureType = resolution.getFailureType();
+		boolean shouldReportUnexpectedEpicFailure = failureType == EpicAppointmentBookingFailureType.EPIC_TEMPORARILY_UNAVAILABLE
+				|| failureType == EpicAppointmentBookingFailureType.UNKNOWN;
+
+		if (shouldReportUnexpectedEpicFailure)
+			getErrorReporter().report(epicException);
 
 		if (failureType == EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE)
 			return new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time.",
