@@ -842,6 +842,10 @@ public class AppointmentService {
 		String epicAppointmentFhirIdentifierSystem = null;
 		String epicAppointmentFhirIdentifierValue = null;
 		String epicAppointmentFhirStu3ResponseJson = null;
+		String epicDepartmentIdForFailure = null;
+		String epicDepartmentIdTypeForFailure = null;
+		String epicVisitTypeIdForFailure = null;
+		String epicVisitTypeIdTypeForFailure = null;
 		Account account = null;
 		Institution institution = null;
 		AppointmentType appointmentType = null;
@@ -915,6 +919,11 @@ public class AppointmentService {
 
 		if (appointmentReasonId == null)
 			appointmentReasonId = findNotSpecifiedAppointmentReasonByInstitutionId(institution.getInstitutionId()).getAppointmentReasonId();
+
+		if (appointmentType != null && appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
+			epicVisitTypeIdForFailure = trimToNull(appointmentType.getEpicVisitTypeId());
+			epicVisitTypeIdTypeForFailure = trimToNull(appointmentType.getEpicVisitTypeIdType());
+		}
 
 		// Update account data for non-IC institutions
 		if (!institution.getIntegratedCareEnabled()) {
@@ -1179,6 +1188,9 @@ public class AppointmentService {
 				if (epicDepartment == null)
 					throw new IllegalStateException(format("Cannot find an EPIC department for this provider/timeslot: %s / %s", providerId, LocalDateTime.of(date, time)));
 
+				epicDepartmentIdForFailure = trimToNull(epicDepartment.getDepartmentId());
+				epicDepartmentIdTypeForFailure = trimToNull(epicDepartment.getDepartmentIdType());
+
 				// Double-check provider schedule to make sure we can book
 				GetProviderScheduleRequest scheduleRequest = new GetProviderScheduleRequest();
 				scheduleRequest.setProviderID(provider.getEpicProviderId());
@@ -1406,10 +1418,12 @@ public class AppointmentService {
 
 			return appointmentId;
 		} catch (ValidationException e) {
-			logFailedAppointmentBookingAttemptInSeparateTransaction(request, institution, appointmentType, e);
+			logFailedAppointmentBookingAttemptInSeparateTransaction(request, institution, appointmentType,
+					epicDepartmentIdForFailure, epicDepartmentIdTypeForFailure, epicVisitTypeIdForFailure, epicVisitTypeIdTypeForFailure, e);
 			throw e;
 		} catch (Exception e) {
-			logFailedAppointmentBookingAttemptInSeparateTransaction(request, institution, appointmentType, e);
+			logFailedAppointmentBookingAttemptInSeparateTransaction(request, institution, appointmentType,
+					epicDepartmentIdForFailure, epicDepartmentIdTypeForFailure, epicVisitTypeIdForFailure, epicVisitTypeIdTypeForFailure, e);
 			throw e;
 		}
 	}
@@ -1417,6 +1431,10 @@ public class AppointmentService {
 	protected void logFailedAppointmentBookingAttemptInSeparateTransaction(@Nonnull CreateAppointmentRequest request,
 																																				 @Nullable Institution institution,
 																																				 @Nullable AppointmentType appointmentType,
+																																				 @Nullable String epicDepartmentId,
+																																				 @Nullable String epicDepartmentIdType,
+																																				 @Nullable String epicVisitTypeId,
+																																				 @Nullable String epicVisitTypeIdType,
 																																				 @Nonnull Exception exception) {
 		requireNonNull(request);
 		requireNonNull(exception);
@@ -1498,13 +1516,17 @@ public class AppointmentService {
 						  appointment_type_id,
 						  patient_order_id,
 						  scheduling_system_id,
+						  epic_department_id,
+						  epic_department_id_type,
+						  epic_visit_type_id,
+						  epic_visit_type_id_type,
 						  appointment_date,
 						  appointment_time,
 						  failure_type,
 						  failure_description,
 						  metadata
 						)
-						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))
 						""",
 						UUID.randomUUID(),
 						request.getAccountId(),
@@ -1514,6 +1536,10 @@ public class AppointmentService {
 						request.getAppointmentTypeId(),
 						request.getPatientOrderId(),
 						schedulingSystemId,
+						trimToNull(epicDepartmentId),
+						trimToNull(epicDepartmentIdType),
+						trimToNull(epicVisitTypeId),
+						trimToNull(epicVisitTypeIdType),
 						request.getDate(),
 						request.getTime(),
 						pinnedFailureType,
