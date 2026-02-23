@@ -36,10 +36,6 @@ import com.cobaltplatform.api.integration.acuity.DefaultAcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.MockAcuitySchedulingClient;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestValidator;
 import com.cobaltplatform.api.integration.amazon.DefaultAmazonSnsRequestValidator;
-import com.cobaltplatform.api.integration.bluejeans.BluejeansApi;
-import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
-import com.cobaltplatform.api.integration.bluejeans.DefaultBluejeansClient;
-import com.cobaltplatform.api.integration.bluejeans.MockBluejeansClient;
 import com.cobaltplatform.api.integration.twilio.DefaultTwilioErrorResolver;
 import com.cobaltplatform.api.integration.twilio.MockTwilioRequestValidator;
 import com.cobaltplatform.api.integration.twilio.TwilioErrorResolver;
@@ -192,7 +188,6 @@ import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.AwsSecretManagerClient;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.HandlebarsTemplater;
-import com.cobaltplatform.api.util.HttpLoggingInterceptor;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.JsonMapper.MappingNullability;
 import com.cobaltplatform.api.util.LoggingUtility;
@@ -236,13 +231,10 @@ import com.soklet.web.server.FilterConfiguration;
 import com.soklet.web.server.Server;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import okhttp3.OkHttpClient;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -263,7 +255,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -921,38 +912,6 @@ public class AppModule extends AbstractModule {
 			throw new IllegalStateException("Current context is not available.");
 
 		return currentContextCache.get();
-	}
-
-	@Provides
-	@Nonnull
-	@Singleton
-	public BluejeansApi bluejeansApi() {
-		OkHttpClient client = new OkHttpClient.Builder()
-				.connectTimeout(10, TimeUnit.SECONDS)
-				.readTimeout(60, TimeUnit.SECONDS)
-				.addInterceptor(new HttpLoggingInterceptor())
-				.build();
-
-		return new Retrofit.Builder()
-				.addConverterFactory(GsonConverterFactory.create())
-				.baseUrl(configuration.getBluejeansApiEndpoint())
-				.client(client)
-				.build()
-				.create(BluejeansApi.class);
-	}
-
-	@Provides
-	@Nonnull
-	@Singleton
-	public BluejeansClient provideBluejeansClient(@Nonnull Configuration configuration,
-																								@Nonnull Injector injector) {
-
-		if (configuration.getShouldUseRealBluejeans()) {
-			return injector.getInstance(DefaultBluejeansClient.class);
-		} else {
-			return injector.getInstance(MockBluejeansClient.class);
-		}
-
 	}
 
 	@Nonnull

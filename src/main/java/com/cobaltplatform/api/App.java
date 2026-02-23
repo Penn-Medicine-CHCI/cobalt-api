@@ -20,7 +20,6 @@
 package com.cobaltplatform.api;
 
 import com.cobaltplatform.api.integration.acuity.AcuitySyncManager;
-import com.cobaltplatform.api.integration.bluejeans.BluejeansCredentialsProvider;
 import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.service.AnalyticsService;
@@ -145,15 +144,6 @@ public class App implements AutoCloseable {
 			messageService.start();
 		} catch (Exception e) {
 			getLogger().warn("Failed to start message service", e);
-		}
-
-		if (getConfiguration().getShouldPollBluejeans()) {
-			try {
-				BluejeansCredentialsProvider bluejeansCredentialsProvider = getInjector().getInstance(BluejeansCredentialsProvider.class);
-				bluejeansCredentialsProvider.start();
-			} catch (Exception e) {
-				getLogger().warn("Failed to start bluejeans credential provider", e);
-			}
 		}
 
 		if (getConfiguration().getShouldPollAcuity()) {
@@ -361,15 +351,6 @@ public class App implements AutoCloseable {
 			messageService.stop();
 		} catch (Exception e) {
 			getLogger().warn("Failed to stop message service", e);
-		}
-
-		if (getConfiguration().getShouldPollBluejeans()) {
-			try {
-				BluejeansCredentialsProvider bluejeansCredentialsProvider = getInjector().getInstance(BluejeansCredentialsProvider.class);
-				bluejeansCredentialsProvider.shutdown();
-			} catch (Exception e) {
-				getLogger().warn("Unable to stop bluejeans credentials provider");
-			}
 		}
 
 		try {
