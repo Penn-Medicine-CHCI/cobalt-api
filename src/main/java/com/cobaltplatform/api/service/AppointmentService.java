@@ -35,7 +35,10 @@ import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
 import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
+import com.cobaltplatform.api.integration.epic.EpicAppointmentBookingErrorResolver;
+import com.cobaltplatform.api.integration.epic.EpicAppointmentBookingErrorResolver.EpicAppointmentBookingFailureType;
 import com.cobaltplatform.api.integration.epic.EpicClient;
+import com.cobaltplatform.api.integration.epic.EpicException;
 import com.cobaltplatform.api.integration.epic.EpicFhirSyncManager;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.integration.epic.code.AppointmentStatusCode;
@@ -225,6 +228,8 @@ public class AppointmentService {
 	private final InteractionService interactionService;
 	@Nonnull
 	private final ErrorReporter errorReporter;
+	@Nonnull
+	private final EpicAppointmentBookingErrorResolver epicAppointmentBookingErrorResolver;
 
 	@Inject
 	public AppointmentService(@Nonnull DatabaseProvider databaseProvider,
@@ -312,6 +317,7 @@ public class AppointmentService {
 		this.logger = LoggerFactory.getLogger(getClass());
 		this.interactionService = interactionService;
 		this.errorReporter = errorReporter;
+		this.epicAppointmentBookingErrorResolver = new EpicAppointmentBookingErrorResolver(jsonMapper);
 	}
 
 	@Nonnull
@@ -1229,6 +1235,12 @@ public class AppointmentService {
 						getLogger().warn("Unable to delete Bluejeans meeting, continuing on...", meetingDeleteException);
 					}
 				}
+
+				if (e instanceof ValidationException)
+					throw e;
+
+				if (e instanceof EpicException)
+					throw validationExceptionForEpicAppointmentBookingFailure((EpicException) e);
 
 				throw e;
 			}
@@ -2491,6 +2503,30 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	protected ValidationException validationExceptionForEpicAppointmentBookingFailure(@Nonnull EpicException epicException) {
+		requireNonNull(epicException);
+
+		EpicAppointmentBookingErrorResolver.EpicAppointmentBookingErrorResolution resolution = getEpicAppointmentBookingErrorResolver().resolve(epicException);
+		Map<String, Object> metadata = new HashMap<>(resolution.getMetadata());
+		EpicAppointmentBookingFailureType failureType = resolution.getFailureType();
+
+		if (failureType == EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE)
+			return new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time.",
+					Map.of("appointmentTimeslotUnavailable", true)), metadata);
+
+		if (failureType == EpicAppointmentBookingFailureType.PICK_DIFFERENT_TIME || failureType == EpicAppointmentBookingFailureType.APPOINTMENT_WARNING)
+			return new ValidationException(getStrings().get("Sorry, Epic could not book this appointment at that time. Please pick a different time."), metadata);
+
+		if (failureType == EpicAppointmentBookingFailureType.MISSING_REQUIRED_PATIENT_DATA)
+			return new ValidationException(getStrings().get("Sorry, we couldn't book this appointment because required patient information is missing. Please contact your care team."), metadata);
+
+		if (failureType == EpicAppointmentBookingFailureType.EPIC_TEMPORARILY_UNAVAILABLE)
+			return new ValidationException(getStrings().get("Sorry, Epic is temporarily unavailable. Please try booking again in a few minutes."), metadata);
+
+		return new ValidationException(getStrings().get("Sorry, we couldn't book this appointment right now. Please try again."), metadata);
+	}
+
+	@Nonnull
 	protected String calendarTitleForAppointment(@Nonnull Appointment appointment) {
 		requireNonNull(appointment);
 
@@ -2647,6 +2683,11 @@ public class AppointmentService {
 	@Nonnull
 	protected JsonMapper getJsonMapper() {
 		return this.jsonMapper;
+	}
+
+	@Nonnull
+	protected EpicAppointmentBookingErrorResolver getEpicAppointmentBookingErrorResolver() {
+		return this.epicAppointmentBookingErrorResolver;
 	}
 
 	@Nonnull
