@@ -31,8 +31,6 @@ import com.cobaltplatform.api.integration.acuity.model.AcuityAppointmentType;
 import com.cobaltplatform.api.integration.acuity.model.AcuityError;
 import com.cobaltplatform.api.integration.acuity.model.request.AcuityAppointmentCreateRequest;
 import com.cobaltplatform.api.integration.acuity.model.request.AcuityAppointmentCreateRequest.AcuityAppointmentFieldCreateRequest;
-import com.cobaltplatform.api.integration.bluejeans.BluejeansClient;
-import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicAppointmentBookingErrorResolver;
@@ -186,8 +184,6 @@ public class AppointmentService {
 	@Nonnull
 	private final AcuitySchedulingCache acuitySchedulingCache;
 	@Nonnull
-	private final BluejeansClient bluejeansClient;
-	@Nonnull
 	private final EnterprisePluginProvider enterprisePluginProvider;
 	@Nonnull
 	private final javax.inject.Provider<ProviderService> providerServiceProvider;
@@ -240,7 +236,6 @@ public class AppointmentService {
 														@Nonnull EpicFhirSyncManager epicFhirSyncManager,
 														@Nonnull AcuitySchedulingClient acuitySchedulingClient,
 														@Nonnull AcuitySchedulingCache acuitySchedulingCache,
-														@Nonnull BluejeansClient bluejeansClient,
 														@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														@Nonnull javax.inject.Provider<ProviderService> providerServiceProvider,
 														@Nonnull javax.inject.Provider<AccountService> accountServiceProvider,
@@ -269,7 +264,6 @@ public class AppointmentService {
 		requireNonNull(epicFhirSyncManager);
 		requireNonNull(acuitySchedulingClient);
 		requireNonNull(acuitySchedulingCache);
-		requireNonNull(bluejeansClient);
 		requireNonNull(providerServiceProvider);
 		requireNonNull(accountServiceProvider);
 		requireNonNull(acuitySyncManagerProvider);
@@ -297,7 +291,6 @@ public class AppointmentService {
 		this.epicFhirSyncManager = epicFhirSyncManager;
 		this.acuitySchedulingClient = acuitySchedulingClient;
 		this.acuitySchedulingCache = acuitySchedulingCache;
-		this.bluejeansClient = bluejeansClient;
 		this.providerServiceProvider = providerServiceProvider;
 		this.accountServiceProvider = accountServiceProvider;
 		this.acuitySyncManagerProvider = acuitySyncManagerProvider;
@@ -1060,26 +1053,13 @@ public class AppointmentService {
 		LocalDateTime meetingStartTime = LocalDateTime.of(date, time);
 		LocalDateTime meetingEndTime = meetingStartTime.plusMinutes(durationInMinutes);
 
-		MeetingResponse meetingResponse = null;
 		Long bluejeansMeetingId = null;
 		String bluejeansParticipantPasscode = null;
 		String appointmentPhoneNumber = null;
 		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
 
 		if (videoconferencePlatformId == VideoconferencePlatformId.BLUEJEANS) {
-			meetingResponse = getBluejeansClient().scheduleMeetingForUser(provider.getBluejeansUserId().intValue(),
-					title,
-					emailAddress,
-					true,
-					false,
-					timeZone,
-					meetingStartTime.atZone(timeZone).toInstant(),
-					meetingEndTime.atZone(timeZone).toInstant()
-			);
-
-			bluejeansMeetingId = (long) meetingResponse.getId();
-			bluejeansParticipantPasscode = meetingResponse.getAttendeePasscode();
-			videoconferenceUrl = meetingResponse.meetingLinkWithAttendeePasscode();
+			throw new ValidationException(getStrings().get("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
 		} else if (videoconferencePlatformId == VideoconferencePlatformId.MICROSOFT_TEAMS) {
 			// Prepare Teams meeting request
 			OnlineMeetingCreateRequest onlineMeetingCreateRequest = new OnlineMeetingCreateRequest();
@@ -1092,11 +1072,12 @@ public class AppointmentService {
 
 			try {
 				// Create the Teams meeting
-				UUID microsoftTeamsMeetingId = getSystemService().createMicrosoftTeamsMeeting(new CreateMicrosoftTeamsMeetingRequest() {{
-					setInstitutionId(institution.getInstitutionId());
-					setCreatedByAccountId(accountId);
-					setOnlineMeetingCreateRequest(onlineMeetingCreateRequest);
-				}});
+				CreateMicrosoftTeamsMeetingRequest createMicrosoftTeamsMeetingRequest = new CreateMicrosoftTeamsMeetingRequest();
+				createMicrosoftTeamsMeetingRequest.setInstitutionId(institution.getInstitutionId());
+				createMicrosoftTeamsMeetingRequest.setCreatedByAccountId(accountId);
+				createMicrosoftTeamsMeetingRequest.setOnlineMeetingCreateRequest(onlineMeetingCreateRequest);
+
+				UUID microsoftTeamsMeetingId = getSystemService().createMicrosoftTeamsMeeting(createMicrosoftTeamsMeetingRequest);
 
 				// Use the "join" URL as the videoconference URL
 				microsoftTeamsMeeting = getSystemService().findMicrosoftTeamsMeetingById(microsoftTeamsMeetingId).get();
@@ -1142,7 +1123,7 @@ public class AppointmentService {
 			acuityAppointmentCreateRequest.setLastName(lastName);
 			acuityAppointmentCreateRequest.setTimeZone(timeZone);
 
-			// Special support for including Bluejeans URLs - we use a custom form field to do it
+			// Include the videoconference URL (if present) using a custom Acuity form field.
 			AcuityAppointmentFieldCreateRequest fieldCreateRequest = new AcuityAppointmentFieldCreateRequest();
 			fieldCreateRequest.setId(getConfiguration().getAcuityVideoconferenceFormFieldId());
 			fieldCreateRequest.setValue(videoconferenceUrl);
@@ -1153,16 +1134,6 @@ public class AppointmentService {
 				acuityAppointment = getAcuitySchedulingClient().createAppointment(acuityAppointmentCreateRequest);
 			} catch (Exception e) {
 				getLogger().info("An error occurred during appointment creation", e);
-
-				if (bluejeansMeetingId != null) {
-					getLogger().info("Now cleaning up Bluejeans meeting...", e);
-
-					try {
-						getBluejeansClient().cancelScheduledMeeting(provider.getBluejeansUserId().intValue(), bluejeansMeetingId.intValue(), false, null);
-					} catch (Exception meetingDeleteException) {
-						getLogger().warn("Unable to delete Bluejeans meeting, continuing on...", meetingDeleteException);
-					}
-				}
 
 				if (e instanceof AcuitySchedulingNotAvailableException)
 					throw new ValidationException(getStrings().get("Sorry, this appointment time is no longer available. Please pick a different time.", Map.of("appointmentTimeslotUnavailable", true)));
@@ -1240,16 +1211,6 @@ public class AppointmentService {
 				appointmentResponse = epicClient.performScheduleAppointmentWithInsurance(appointmentRequest);
 			} catch (Exception e) {
 				getLogger().info("An error occurred during appointment creation", e);
-
-				if (bluejeansMeetingId != null) {
-					getLogger().info("Now cleaning up Bluejeans meeting...", e);
-
-					try {
-						getBluejeansClient().cancelScheduledMeeting(provider.getBluejeansUserId().intValue(), bluejeansMeetingId.intValue(), false, null);
-					} catch (Exception meetingDeleteException) {
-						getLogger().warn("Unable to delete Bluejeans meeting, continuing on...", meetingDeleteException);
-					}
-				}
 
 				if (e instanceof ValidationException)
 					throw e;
@@ -1499,7 +1460,7 @@ public class AppointmentService {
 				failureDescription = trimToNull(exception.getClass().getSimpleName());
 			}
 
-			UUID institutionId = institution == null ? null : institution.getInstitutionId();
+			InstitutionId institutionId = institution == null ? null : institution.getInstitutionId();
 			String schedulingSystemId = appointmentType == null ? null : appointmentType.getSchedulingSystemId().name();
 			String pinnedFailureType = trimToNull(failureType) == null ? "UNKNOWN" : trimToNull(failureType);
 			String pinnedFailureDescription = truncateForStorage(failureDescription, 2_000);
@@ -2282,7 +2243,6 @@ public class AppointmentService {
 			throw validationException;
 
 		AppointmentType appointmentType = findAppointmentTypeById(appointment.getAppointmentTypeId()).get();
-		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).orElse(null);
 
 		if (!canceledByWebhook) {
 			if (appointmentType.getSchedulingSystemId() == SchedulingSystemId.ACUITY) {
@@ -2323,16 +2283,6 @@ public class AppointmentService {
 				auditLog.setAuditLogEventId(AuditLogEventId.EPIC_APPOINTMENT_CANCEL);
 				auditLog.setPayload(getJsonMapper().toJson(payload));
 				getAuditLogService().audit(auditLog);
-			}
-		}
-
-		// Delete Bluejeans meeting if necessary
-		if (appointment.getBluejeansMeetingId() != null) {
-			try {
-				getBluejeansClient().cancelScheduledMeeting(provider.getBluejeansUserId().intValue(), appointment.getBluejeansMeetingId().intValue(),
-						false, getStrings().get("The patient canceled the meeting."));
-			} catch (Exception e) {
-				getLogger().warn("Unable to cancel Bluejeans meeting, continuing on...", e);
 			}
 		}
 
@@ -2747,11 +2697,6 @@ public class AppointmentService {
 	@Nonnull
 	protected AcuitySchedulingClient getAcuitySchedulingClient() {
 		return this.acuitySchedulingClient;
-	}
-
-	@Nonnull
-	protected BluejeansClient getBluejeansClient() {
-		return this.bluejeansClient;
 	}
 
 	@Nonnull
