@@ -30,6 +30,7 @@ import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Re
 import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
+import com.cobaltplatform.api.integration.epic.request.GetCoveragesRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
@@ -43,7 +44,9 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.CoverageSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.GetCoveragesResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
@@ -792,6 +795,81 @@ public class DefaultEpicClient implements EpicClient {
 		};
 
 		ApiCall<EncounterSearchFhirR4Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public CoverageSearchFhirR4Response coverageSearchFhirR4(@Nullable String patientId) {
+		patientId = trimToNull(patientId);
+
+		if (patientId == null) {
+			CoverageSearchFhirR4Response coverageSearchResponse = new CoverageSearchFhirR4Response();
+			coverageSearchResponse.setEntry(List.of());
+			coverageSearchResponse.setLink(List.of());
+			coverageSearchResponse.setType("searchset");
+			coverageSearchResponse.setTotal(0);
+			coverageSearchResponse.setResourceType("Bundle");
+			return coverageSearchResponse;
+		}
+
+		HttpMethod httpMethod = HttpMethod.GET;
+		String url = "api/FHIR/R4/Coverage";
+
+		Map<String, Object> queryParameters = new HashMap<>();
+		queryParameters.put("patient", patientId);
+
+		Function<String, CoverageSearchFhirR4Response> responseBodyMapper = (responseBody) -> {
+			CoverageSearchFhirR4Response response = getGson().fromJson(responseBody, CoverageSearchFhirR4Response.class);
+			response.setRawJson(responseBody.trim());
+
+			return response;
+		};
+
+		ApiCall<CoverageSearchFhirR4Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public GetCoveragesResponse getCoverages(@Nonnull GetCoveragesRequest request) {
+		requireNonNull(request);
+
+		String patientID = trimToNull(request.getPatientID());
+		String patientIDType = trimToNull(request.getPatientIDType());
+		String userID = trimToNull(request.getUserID());
+		String userIDType = trimToNull(request.getUserIDType());
+
+		HttpMethod httpMethod = HttpMethod.GET;
+
+		// TODO: confirm version/suffix details for this private API in each Epic environment.
+		// String url = "api/epic/Interconnect/Patient/GetCoverages";
+		String url = "api/epic/2014/Patient/External/GetCoverages";
+
+		Function<String, GetCoveragesResponse> responseBodyMapper = (responseBody) -> {
+			GetCoveragesResponse response = getGson().fromJson(responseBody, GetCoveragesResponse.class);
+			response.setRawJson(responseBody);
+			return response;
+		};
+
+		Map<String, Object> queryParameters = new HashMap<>(4);
+
+		if (patientID != null)
+			queryParameters.put("PatientID", patientID);
+		if (patientIDType != null)
+			queryParameters.put("PatientIDType", patientIDType);
+		if (userID != null)
+			queryParameters.put("UserID", userID);
+		if (userIDType != null)
+			queryParameters.put("UserIDType", userIDType);
+
+		ApiCall<GetCoveragesResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.queryParameters(queryParameters)
 				.build();
 

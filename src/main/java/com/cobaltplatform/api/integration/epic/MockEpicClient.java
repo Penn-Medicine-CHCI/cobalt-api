@@ -25,6 +25,7 @@ import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Re
 import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
+import com.cobaltplatform.api.integration.epic.request.GetCoveragesRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
@@ -38,7 +39,9 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.CoverageSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.GetCoveragesResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
@@ -127,6 +130,26 @@ public class MockEpicClient implements EpicClient {
 	@Override
 	public EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId) {
 		return acquireMockResponseInstance(EncounterSearchFhirR4Response.class);
+	}
+
+	@Nonnull
+	@Override
+	public CoverageSearchFhirR4Response coverageSearchFhirR4(@Nullable String patientId) {
+		CoverageSearchFhirR4Response coverageSearchResponse = new CoverageSearchFhirR4Response();
+		coverageSearchResponse.setEntry(List.of());
+		coverageSearchResponse.setLink(List.of());
+		coverageSearchResponse.setType("searchset");
+		coverageSearchResponse.setTotal(0);
+		coverageSearchResponse.setResourceType("Bundle");
+
+		return coverageSearchResponse;
+	}
+
+	@Nonnull
+	@Override
+	public GetCoveragesResponse getCoverages(@Nonnull GetCoveragesRequest request) {
+		requireNonNull(request);
+		return acquireMockResponseInstance(GetCoveragesResponse.class);
 	}
 
 	@Nonnull

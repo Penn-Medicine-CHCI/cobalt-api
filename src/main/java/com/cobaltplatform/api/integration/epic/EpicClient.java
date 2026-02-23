@@ -25,6 +25,7 @@ import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Re
 import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
+import com.cobaltplatform.api.integration.epic.request.GetCoveragesRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
@@ -38,7 +39,9 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.CoverageSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
+import com.cobaltplatform.api.integration.epic.response.GetCoveragesResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
@@ -177,6 +180,26 @@ public interface EpicClient {
 	 */
 	@Nonnull
 	EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId);
+
+	/**
+	 * FHIR Coverage.Search (R4), filtered by patient FHIR ID.
+	 *
+	 * @param patientId The patient FHIR ID
+	 * @return the coverage search results for the given patient FHIR ID
+	 */
+	@Nonnull
+	CoverageSearchFhirR4Response coverageSearchFhirR4(@Nullable String patientId);
+
+	/**
+	 * Private Epic Interconnect Patient/GetCoverages API.
+	 * <p>
+	 * Supported query parameters are modeled by {@link GetCoveragesRequest}. Required values can vary by Epic environment/build.
+	 *
+	 * @param request typed query parameters to send to Epic
+	 * @return the raw/untyped GetCoverages payload
+	 */
+	@Nonnull
+	GetCoveragesResponse getCoverages(@Nonnull GetCoveragesRequest request);
 
 	@Nonnull
 	PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request);
