@@ -30,7 +30,6 @@ import com.cobaltplatform.api.integration.epic.request.AppointmentFindFhirStu3Re
 import com.cobaltplatform.api.integration.epic.request.AppointmentSearchFhirStu3Request;
 import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientAppointmentsRequest;
-import com.cobaltplatform.api.integration.epic.request.GetCoveragesRequest;
 import com.cobaltplatform.api.integration.epic.request.GetPatientDemographicsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAppointmentsRequest;
 import com.cobaltplatform.api.integration.epic.request.GetProviderAvailabilityRequest;
@@ -46,7 +45,6 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
 import com.cobaltplatform.api.integration.epic.response.CoverageSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
-import com.cobaltplatform.api.integration.epic.response.GetCoveragesResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetProviderAppointmentsResponse;
@@ -830,46 +828,6 @@ public class DefaultEpicClient implements EpicClient {
 		};
 
 		ApiCall<CoverageSearchFhirR4Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
-				.queryParameters(queryParameters)
-				.build();
-
-		return makeApiCall(apiCall);
-	}
-
-	@Nonnull
-	@Override
-	public GetCoveragesResponse getCoverages(@Nonnull GetCoveragesRequest request) {
-		requireNonNull(request);
-
-		String patientID = trimToNull(request.getPatientID());
-		String patientIDType = trimToNull(request.getPatientIDType());
-		String userID = trimToNull(request.getUserID());
-		String userIDType = trimToNull(request.getUserIDType());
-
-		HttpMethod httpMethod = HttpMethod.GET;
-
-		// TODO: confirm version/suffix details for this private API in each Epic environment.
-		// String url = "api/epic/Interconnect/Patient/GetCoverages";
-		String url = "api/epic/2014/Patient/External/GetCoverages";
-
-		Function<String, GetCoveragesResponse> responseBodyMapper = (responseBody) -> {
-			GetCoveragesResponse response = getGson().fromJson(responseBody, GetCoveragesResponse.class);
-			response.setRawJson(responseBody);
-			return response;
-		};
-
-		Map<String, Object> queryParameters = new HashMap<>(4);
-
-		if (patientID != null)
-			queryParameters.put("PatientID", patientID);
-		if (patientIDType != null)
-			queryParameters.put("PatientIDType", patientIDType);
-		if (userID != null)
-			queryParameters.put("UserID", userID);
-		if (userIDType != null)
-			queryParameters.put("UserIDType", userIDType);
-
-		ApiCall<GetCoveragesResponse> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.queryParameters(queryParameters)
 				.build();
 
