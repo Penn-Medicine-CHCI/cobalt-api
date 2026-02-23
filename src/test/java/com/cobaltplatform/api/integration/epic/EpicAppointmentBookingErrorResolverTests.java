@@ -78,6 +78,24 @@ public class EpicAppointmentBookingErrorResolverTests {
 	}
 
 	@Test
+	public void testParseEpicAppointmentWarningMixedDetailCodePriority() {
+		String epicExceptionMessage = """
+				Bad HTTP response 400 for EPIC endpoint POST https://example.org/api/epic/2014/PatientAccess/External/ScheduleAppointmentWithInsurance/Scheduling/Open/ScheduleWithInsurance with query params [none] and request body [none]. Response body was
+				{"Message":"An error occurred while executing the command: MAKE-FAIL details: code:APTWARN ERROR Details:34, 25.","ExceptionMessage":"An error occurred while executing the command: MAKE-FAIL details: code:APTWARN ERROR Details:34, 25.","ExceptionType":"System.Web.HttpException","StackTrace":null}
+				""".trim();
+
+		EpicAppointmentBookingErrorResolution resolution = new EpicAppointmentBookingErrorResolver(new JsonMapper()).resolve(epicExceptionMessage);
+		Optional<EpicAppointmentBookingErrorDetails> errorDetails = resolution.getErrorDetails();
+
+		assertTrue(errorDetails.isPresent());
+		assertEquals(2, errorDetails.get().getErrorDetailCodes().size());
+		assertEquals("34", errorDetails.get().getErrorDetailCodes().get(0));
+		assertEquals("25", errorDetails.get().getErrorDetailCodes().get(1));
+		assertEquals(EpicAppointmentWarningType.TIMESLOT_UNAVAILABLE, resolution.getWarningType());
+		assertEquals(EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE, resolution.getFailureType());
+	}
+
+	@Test
 	public void testParseEpicMissingDateOfBirthError() {
 		String epicExceptionMessage = """
 				Bad HTTP response 400 for EPIC endpoint POST https://example.org/api/epic/2012/EMPI/PatientCreate with query params [none] and request body [none]. Response body was
@@ -90,6 +108,21 @@ public class EpicAppointmentBookingErrorResolverTests {
 		assertTrue(errorDetails.isPresent());
 		assertEquals("NO-DATE-OF-BIRTH", errorDetails.get().getCommand());
 		assertTrue(errorDetails.get().isMissingRequiredPatientData());
+		assertEquals(EpicAppointmentBookingFailureType.MISSING_REQUIRED_PATIENT_DATA, resolution.getFailureType());
+	}
+
+	@Test
+	public void testParseEpicMissingDateOfBirthCommandMappedWithoutRequiredText() {
+		String epicExceptionMessage = """
+				Bad HTTP response 400 for EPIC endpoint POST https://example.org/api/epic/2012/EMPI/PatientCreate with query params [none] and request body [none]. Response body was
+				{"Message":"An error has occurred.","ExceptionMessage":"An error occurred while executing the command: NO-DATE-OF-BIRTH details: Unknown DOB failure.","ExceptionType":"Epic.ServiceModel.Internal.ServiceCommandException","StackTrace":null}
+				""".trim();
+
+		EpicAppointmentBookingErrorResolution resolution = new EpicAppointmentBookingErrorResolver(new JsonMapper()).resolve(epicExceptionMessage);
+		Optional<EpicAppointmentBookingErrorDetails> errorDetails = resolution.getErrorDetails();
+
+		assertTrue(errorDetails.isPresent());
+		assertEquals("NO-DATE-OF-BIRTH", errorDetails.get().getCommand());
 		assertEquals(EpicAppointmentBookingFailureType.MISSING_REQUIRED_PATIENT_DATA, resolution.getFailureType());
 	}
 

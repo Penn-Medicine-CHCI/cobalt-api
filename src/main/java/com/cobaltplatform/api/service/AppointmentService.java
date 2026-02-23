@@ -36,6 +36,7 @@ import com.cobaltplatform.api.integration.bluejeans.MeetingResponse;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicAppointmentBookingErrorResolver;
+import com.cobaltplatform.api.integration.epic.EpicAppointmentBookingErrorResolver.EpicAppointmentBookingErrorResolution;
 import com.cobaltplatform.api.integration.epic.EpicAppointmentBookingErrorResolver.EpicAppointmentBookingFailureType;
 import com.cobaltplatform.api.integration.epic.EpicClient;
 import com.cobaltplatform.api.integration.epic.EpicException;
@@ -842,26 +843,28 @@ public class AppointmentService {
 		String epicAppointmentFhirIdentifierValue = null;
 		String epicAppointmentFhirStu3ResponseJson = null;
 		Account account = null;
+		Institution institution = null;
 		AppointmentType appointmentType = null;
 		MicrosoftTeamsMeeting microsoftTeamsMeeting = null;
 		UUID appointmentId = UUID.randomUUID();
 
-		ValidationException validationException = new ValidationException();
+		try {
+			ValidationException validationException = new ValidationException();
 
-		if (accountId == null) {
-			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
-		} else {
-			account = getAccountService().findAccountById(accountId).orElse(null);
+			if (accountId == null) {
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+			} else {
+				account = getAccountService().findAccountById(accountId).orElse(null);
 
-			if (account == null)
-				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
-		}
+				if (account == null)
+					validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+			}
 
-		// Short-circuit right away if no account
-		if (validationException.hasErrors())
-			throw validationException;
+			// Short-circuit right away if no account
+			if (validationException.hasErrors())
+				throw validationException;
 
-		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+			institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 
 		if (date == null)
 			validationException.add(new FieldError("date", getStrings().get("Date is required.")));
@@ -1399,9 +1402,144 @@ public class AppointmentService {
 			));
 		}
 
-		scheduleAppointmentFeedbackSurveyMessagesIfEnabled(appointmentId);
+			scheduleAppointmentFeedbackSurveyMessagesIfEnabled(appointmentId);
 
-		return appointmentId;
+			return appointmentId;
+		} catch (ValidationException e) {
+			logFailedAppointmentBookingAttemptInSeparateTransaction(request, institution, appointmentType, e);
+			throw e;
+		} catch (Exception e) {
+			logFailedAppointmentBookingAttemptInSeparateTransaction(request, institution, appointmentType, e);
+			throw e;
+		}
+	}
+
+	protected void logFailedAppointmentBookingAttemptInSeparateTransaction(@Nonnull CreateAppointmentRequest request,
+																																				 @Nullable Institution institution,
+																																				 @Nullable AppointmentType appointmentType,
+																																				 @Nonnull Exception exception) {
+		requireNonNull(request);
+		requireNonNull(exception);
+
+		try {
+			Map<String, Object> metadata = new HashMap<>();
+			metadata.put("exceptionClass", exception.getClass().getName());
+
+			String failureType = "UNKNOWN";
+			String failureDescription = null;
+
+			if (exception instanceof ValidationException) {
+				ValidationException validationException = (ValidationException) exception;
+				Map<String, Object> validationMetadata = validationException.getMetadata();
+
+				failureType = "VALIDATION";
+				if (validationException.getGlobalErrors().size() > 0)
+					metadata.put("globalErrors", validationException.getGlobalErrors());
+				if (validationException.getFieldErrors().size() > 0) {
+					metadata.put("fieldErrors", validationException.getFieldErrors().stream()
+							.map(fieldError -> Map.of(
+									"field", fieldError.getField(),
+									"error", fieldError.getError()
+							))
+							.collect(Collectors.toList()));
+				}
+				if (validationMetadata.size() > 0)
+					metadata.put("validationMetadata", validationMetadata);
+
+				Object epicFailureTypeValue = validationMetadata.get("epicFailureType");
+				String epicFailureType = epicFailureTypeValue == null ? null : trimToNull(epicFailureTypeValue.toString());
+				if (Boolean.TRUE.equals(validationMetadata.get("epicAppointmentBookingError")))
+					failureType = epicFailureType == null ? "EPIC_VALIDATION" : format("EPIC_%s", epicFailureType);
+
+				failureDescription = firstNonNull(
+						validationException.getGlobalErrors().stream()
+								.map(error -> trimToNull(error))
+								.filter(Objects::nonNull)
+								.findFirst()
+								.orElse(null),
+						validationException.getFieldErrors().stream()
+								.map(fieldError -> trimToNull(fieldError.getError()))
+								.filter(Objects::nonNull)
+								.findFirst()
+								.orElse(null),
+						"Validation failure"
+				);
+			} else if (exception instanceof EpicException) {
+				EpicAppointmentBookingErrorResolution resolution = getEpicAppointmentBookingErrorResolver().resolve((EpicException) exception);
+				metadata.putAll(resolution.getMetadata());
+
+				failureType = format("EPIC_%s", resolution.getFailureType().name());
+				failureDescription = format("Epic booking failure (%s)", resolution.getFailureType().name());
+			} else if (exception instanceof AcuitySchedulingNotAvailableException) {
+				failureType = "ACUITY_TIMESLOT_UNAVAILABLE";
+				failureDescription = "Acuity timeslot unavailable";
+			} else if (exception instanceof AcuitySchedulingException) {
+				failureType = "ACUITY_ERROR";
+				failureDescription = "Acuity booking error";
+			} else {
+				failureType = "UNEXPECTED_EXCEPTION";
+				failureDescription = trimToNull(exception.getClass().getSimpleName());
+			}
+
+			UUID institutionId = institution == null ? null : institution.getInstitutionId();
+			String schedulingSystemId = appointmentType == null ? null : appointmentType.getSchedulingSystemId().name();
+			String pinnedFailureType = trimToNull(failureType) == null ? "UNKNOWN" : trimToNull(failureType);
+			String pinnedFailureDescription = truncateForStorage(failureDescription, 2_000);
+			String metadataAsJson = getJsonMapper().toJson(metadata);
+
+			getDatabase().transaction(() -> {
+				getDatabase().execute("""
+						INSERT INTO appointment_booking_failure (
+						  appointment_booking_failure_id,
+						  account_id,
+						  created_by_account_id,
+						  institution_id,
+						  provider_id,
+						  appointment_type_id,
+						  patient_order_id,
+						  scheduling_system_id,
+						  appointment_date,
+						  appointment_time,
+						  failure_type,
+						  failure_description,
+						  metadata
+						)
+						VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))
+						""",
+						UUID.randomUUID(),
+						request.getAccountId(),
+						request.getCreatedByAcountId(),
+						institutionId,
+						request.getProviderId(),
+						request.getAppointmentTypeId(),
+						request.getPatientOrderId(),
+						schedulingSystemId,
+						request.getDate(),
+						request.getTime(),
+						pinnedFailureType,
+						pinnedFailureDescription,
+						metadataAsJson);
+			});
+		} catch (Exception loggingException) {
+			getLogger().warn("Unable to persist appointment booking failure for account ID {} and provider ID {}",
+					request.getAccountId(), request.getProviderId(), loggingException);
+		}
+	}
+
+	@Nullable
+	protected String truncateForStorage(@Nullable String value,
+																			@Nonnull Integer maxLength) {
+		requireNonNull(maxLength);
+
+		value = trimToNull(value);
+
+		if (value == null)
+			return null;
+
+		if (value.length() <= maxLength)
+			return value;
+
+		return value.substring(0, maxLength);
 	}
 
 	@Nonnull

@@ -27,10 +27,12 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,7 +60,13 @@ public class EpicAppointmentBookingErrorResolver {
 	@Nonnull
 	private static final Pattern EPIC_APPOINTMENT_WARNING_DETAILS_CODE_PATTERN;
 	@Nonnull
+	private static final List<EpicAppointmentWarningType> EPIC_APPOINTMENT_WARNING_TYPE_PRIORITY;
+	@Nonnull
 	private static final Map<String, EpicAppointmentWarningType> EPIC_APPOINTMENT_WARNING_DETAIL_CODE_TO_TYPE;
+	@Nonnull
+	private static final Map<String, EpicAppointmentBookingFailureType> EPIC_COMMAND_CODE_TO_FAILURE_TYPE;
+	@Nonnull
+	private static final Map<String, EpicAppointmentBookingFailureType> EPIC_ERROR_CODE_TO_FAILURE_TYPE;
 
 	@Nonnull
 	private final JsonMapper jsonMapper;
@@ -71,11 +79,27 @@ public class EpicAppointmentBookingErrorResolver {
 		EPIC_DETAILS_VALUE_PATTERN = Pattern.compile("Details:\\s*([A-Z0-9_-]+)", Pattern.CASE_INSENSITIVE);
 		EPIC_APPOINTMENT_WARNING_DETAILS_VALUES_PATTERN = Pattern.compile("Details:\\s*(.+)", Pattern.CASE_INSENSITIVE);
 		EPIC_APPOINTMENT_WARNING_DETAILS_CODE_PATTERN = Pattern.compile("(\\d+)");
+		EPIC_APPOINTMENT_WARNING_TYPE_PRIORITY = List.of(
+				EpicAppointmentWarningType.TIMESLOT_UNAVAILABLE,
+				EpicAppointmentWarningType.PICK_DIFFERENT_TIME
+		);
 		EPIC_APPOINTMENT_WARNING_DETAIL_CODE_TO_TYPE = Map.of(
-				// Known EPIC APTWARN detail codes observed during ScheduleWithInsurance booking failures.
+				// Known EPIC APTWARN detail codes observed during ScheduleWithInsurance booking failures:
+				// 25 => timeslot no longer available
+				// 27 => generic "pick a different time"
+				// 34 => generic "pick a different time"
 				"25", EpicAppointmentWarningType.TIMESLOT_UNAVAILABLE,
 				"27", EpicAppointmentWarningType.PICK_DIFFERENT_TIME,
 				"34", EpicAppointmentWarningType.PICK_DIFFERENT_TIME
+		);
+		EPIC_COMMAND_CODE_TO_FAILURE_TYPE = Map.of(
+				// Known EPIC command code observed in error payloads:
+				// NO-DATE-OF-BIRTH => required patient data missing
+				"NO-DATE-OF-BIRTH", EpicAppointmentBookingFailureType.MISSING_REQUIRED_PATIENT_DATA
+		);
+		EPIC_ERROR_CODE_TO_FAILURE_TYPE = Map.of(
+				// Known EPIC error code observed in ScheduleWithInsurance failures.
+				"APTWARN", EpicAppointmentBookingFailureType.APPOINTMENT_WARNING
 		);
 	}
 
@@ -97,6 +121,7 @@ public class EpicAppointmentBookingErrorResolver {
 	public EpicAppointmentBookingErrorResolution resolve(@Nullable String epicExceptionMessage) {
 		EpicAppointmentBookingErrorDetails errorDetails = parseEpicAppointmentBookingErrorDetails(epicExceptionMessage).orElse(null);
 		EpicAppointmentWarningType appointmentWarningType = errorDetails == null ? null : errorDetails.resolveAppointmentWarningType().orElse(null);
+		EpicAppointmentBookingFailureType knownFailureType = errorDetails == null ? null : errorDetails.resolveKnownFailureType().orElse(null);
 		Map<String, Object> metadata = new HashMap<>();
 		metadata.put("epicAppointmentBookingError", true);
 
@@ -123,6 +148,8 @@ public class EpicAppointmentBookingErrorResolver {
 			failureType = EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE;
 		} else if (appointmentWarningType == EpicAppointmentWarningType.PICK_DIFFERENT_TIME) {
 			failureType = EpicAppointmentBookingFailureType.PICK_DIFFERENT_TIME;
+		} else if (knownFailureType != null) {
+			failureType = knownFailureType;
 		} else if (errorDetails != null && errorDetails.isMissingRequiredPatientData()) {
 			failureType = EpicAppointmentBookingFailureType.MISSING_REQUIRED_PATIENT_DATA;
 		} else if (errorDetails != null && errorDetails.isEpicTemporarilyUnavailable()) {
@@ -132,6 +159,8 @@ public class EpicAppointmentBookingErrorResolver {
 		} else {
 			failureType = EpicAppointmentBookingFailureType.UNKNOWN;
 		}
+
+		metadata.put("epicFailureType", failureType.name());
 
 		return new EpicAppointmentBookingErrorResolution(
 				failureType,
@@ -384,11 +413,40 @@ public class EpicAppointmentBookingErrorResolver {
 			if (!isAppointmentWarning())
 				return Optional.empty();
 
+			Set<EpicAppointmentWarningType> warningTypes = new HashSet<>();
+
 			for (String errorDetailCode : getErrorDetailCodes()) {
 				EpicAppointmentWarningType warningType = EPIC_APPOINTMENT_WARNING_DETAIL_CODE_TO_TYPE.get(errorDetailCode);
 
 				if (warningType != null)
+					warningTypes.add(warningType);
+			}
+
+			for (EpicAppointmentWarningType warningType : EPIC_APPOINTMENT_WARNING_TYPE_PRIORITY)
+				if (warningTypes.contains(warningType))
 					return Optional.of(warningType);
+
+			return Optional.empty();
+		}
+
+		@Nonnull
+		public Optional<EpicAppointmentBookingFailureType> resolveKnownFailureType() {
+			String normalizedCommand = trimToNull(getCommand());
+
+			if (normalizedCommand != null) {
+				EpicAppointmentBookingFailureType failureType = EPIC_COMMAND_CODE_TO_FAILURE_TYPE.get(normalizedCommand.toUpperCase(Locale.ENGLISH));
+
+				if (failureType != null)
+					return Optional.of(failureType);
+			}
+
+			String normalizedErrorCode = trimToNull(getErrorCode());
+
+			if (normalizedErrorCode != null) {
+				EpicAppointmentBookingFailureType failureType = EPIC_ERROR_CODE_TO_FAILURE_TYPE.get(normalizedErrorCode.toUpperCase(Locale.ENGLISH));
+
+				if (failureType != null)
+					return Optional.of(failureType);
 			}
 
 			return Optional.empty();
