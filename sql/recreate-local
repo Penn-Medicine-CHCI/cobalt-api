@@ -251,6 +251,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/240-epic-depar
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/241-additional-reporting.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/242-filter-first-patient-order-query-toggle.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/243-appointment-booking-failure.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/244-page-duplicate-group-fix.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
