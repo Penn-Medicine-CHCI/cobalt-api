@@ -38,6 +38,7 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.CoverageSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
@@ -177,6 +178,15 @@ public interface EpicClient {
 	 */
 	@Nonnull
 	EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId);
+
+	/**
+	 * FHIR Coverage.Search (R4), filtered by patient FHIR ID.
+	 *
+	 * @param patientId The patient FHIR ID
+	 * @return the coverage search results for the given patient FHIR ID
+	 */
+	@Nonnull
+	CoverageSearchFhirR4Response coverageSearchFhirR4(@Nullable String patientId);
 
 	@Nonnull
 	PatientSearchResponse performPatientSearch(@Nonnull PatientSearchRequest request);

@@ -43,6 +43,7 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.CoverageSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
@@ -792,6 +793,41 @@ public class DefaultEpicClient implements EpicClient {
 		};
 
 		ApiCall<EncounterSearchFhirR4Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
+				.queryParameters(queryParameters)
+				.build();
+
+		return makeApiCall(apiCall);
+	}
+
+	@Nonnull
+	@Override
+	public CoverageSearchFhirR4Response coverageSearchFhirR4(@Nullable String patientId) {
+		patientId = trimToNull(patientId);
+
+		if (patientId == null) {
+			CoverageSearchFhirR4Response coverageSearchResponse = new CoverageSearchFhirR4Response();
+			coverageSearchResponse.setEntry(List.of());
+			coverageSearchResponse.setLink(List.of());
+			coverageSearchResponse.setType("searchset");
+			coverageSearchResponse.setTotal(0);
+			coverageSearchResponse.setResourceType("Bundle");
+			return coverageSearchResponse;
+		}
+
+		HttpMethod httpMethod = HttpMethod.GET;
+		String url = "api/FHIR/R4/Coverage";
+
+		Map<String, Object> queryParameters = new HashMap<>();
+		queryParameters.put("patient", patientId);
+
+		Function<String, CoverageSearchFhirR4Response> responseBodyMapper = (responseBody) -> {
+			CoverageSearchFhirR4Response response = getGson().fromJson(responseBody, CoverageSearchFhirR4Response.class);
+			response.setRawJson(responseBody.trim());
+
+			return response;
+		};
+
+		ApiCall<CoverageSearchFhirR4Response> apiCall = new ApiCall.Builder<>(httpMethod, url, responseBodyMapper)
 				.queryParameters(queryParameters)
 				.build();
 

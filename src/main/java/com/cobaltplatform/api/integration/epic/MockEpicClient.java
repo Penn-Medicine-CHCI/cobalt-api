@@ -38,6 +38,7 @@ import com.cobaltplatform.api.integration.epic.response.AppointmentBookFhirStu3R
 import com.cobaltplatform.api.integration.epic.response.AppointmentFindFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.AppointmentSearchFhirStu3Response;
 import com.cobaltplatform.api.integration.epic.response.CancelAppointmentResponse;
+import com.cobaltplatform.api.integration.epic.response.CoverageSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.EncounterSearchFhirR4Response;
 import com.cobaltplatform.api.integration.epic.response.GetPatientAppointmentsResponse;
 import com.cobaltplatform.api.integration.epic.response.GetPatientDemographicsResponse;
@@ -127,6 +128,19 @@ public class MockEpicClient implements EpicClient {
 	@Override
 	public EncounterSearchFhirR4Response encounterSearchFhirR4(@Nullable String patientId) {
 		return acquireMockResponseInstance(EncounterSearchFhirR4Response.class);
+	}
+
+	@Nonnull
+	@Override
+	public CoverageSearchFhirR4Response coverageSearchFhirR4(@Nullable String patientId) {
+		CoverageSearchFhirR4Response coverageSearchResponse = new CoverageSearchFhirR4Response();
+		coverageSearchResponse.setEntry(List.of());
+		coverageSearchResponse.setLink(List.of());
+		coverageSearchResponse.setType("searchset");
+		coverageSearchResponse.setTotal(0);
+		coverageSearchResponse.setResourceType("Bundle");
+
+		return coverageSearchResponse;
 	}
 
 	@Nonnull
