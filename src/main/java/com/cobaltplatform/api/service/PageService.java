@@ -106,6 +106,7 @@ import java.util.UUID;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUrlSubdirectory;
 import static java.lang.String.format;
+import static java.util.Objects.equals;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -428,7 +429,9 @@ public class PageService {
 					WHERE page_group_id = ?
 					AND page_status_id = ? 
 					""", Page.class, page.get().getPageGroupId(), PageStatusId.LIVE);
-			if (livePage.isPresent() && livePage.get().getPageId().compareTo(page.get().getParentPageId()) != 0) {
+			if (livePage.isPresent()
+					&& page.get().getParentPageId() != null
+					&& !equals(livePage.get().getPageId(), page.get().getParentPageId())) {
 				Optional<Account> account = getAccountService().findAccountById(livePage.get().getCreatedByAccountId());
 				validationException.add(new FieldError("page", getStrings().get(
 						format("Could not publish this page because there is a more recent version of this page published by %s on %s. Please close this window and re-edit the page.", account.get().getDisplayName(),
@@ -2146,9 +2149,10 @@ public class PageService {
 		UUID accountId = request.getCreatedByAccountId();
 		UUID pageId = request.getPageId();
 		UUID parentPageId = null;
+		UUID pageGroupId = null;
 		String name = trimToNull(request.getName());
 		String urlName = trimToNull(request.getUrlName());
-		Boolean copyForEditing = request.getCopyForEditing();
+		Boolean copyForEditing = Boolean.TRUE.equals(request.getCopyForEditing());
 		PageStatusId pageStatusId = request.getPageStatusId();
 		ValidationException validationException = new ValidationException();
 
@@ -2167,7 +2171,7 @@ public class PageService {
 				validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
 			else if (!isValidUrlSubdirectory(urlName))
 				validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
-			else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
+			else if (urlNameExistsForInstitutionId(urlName, institutionId, null))
 				validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
 
 		}
@@ -2179,6 +2183,10 @@ public class PageService {
 			name = page.get().getName();
 			urlName = page.get().getUrlName();
 			parentPageId = page.get().getPageId();
+			pageGroupId = page.get().getPageGroupId();
+		} else {
+			// Standalone duplicates should start a brand-new page group.
+			pageGroupId = newPageId;
 		}
 
 		getDatabase().execute("""
@@ -2186,10 +2194,10 @@ public class PageService {
 				(page_id,name,url_name,page_status_id,headline,description,image_file_upload_id,
 				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id, page_group_id)
 				SELECT ?,?,?,?,headline,description,image_file_upload_id,
-				       image_alt_text,published_date,deleted_flag,institution_id,?,?, page_group_id
+				       image_alt_text,published_date,deleted_flag,institution_id,?,?, ?
 				FROM page
 				WHERE page_id=?
-				""", newPageId, name, urlName, pageStatusId, accountId, parentPageId, pageId);
+				""", newPageId, name, urlName, pageStatusId, accountId, parentPageId, pageGroupId, pageId);
 
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId, institutionId);
 		List<PageRow> pageRows;
