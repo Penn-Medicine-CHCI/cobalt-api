@@ -1,0 +1,168 @@
+{{#partial "body"}}
+	<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
+		<tr>
+			<td align="left" class="em_h1" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:28px; line-height:40px; font-weight:700; color:#2C4F82;">
+				{{pageTitle}}
+			</td>
+		</tr>
+		<tr>
+			<td align="left" class="em_h1" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:28px; line-height:40px; font-weight:700; color:#1F1F1F; padding-top:0;">
+				Community Highlights
+			</td>
+		</tr>
+		<tr>
+			<td height="20" style="height:20px; line-height:20px; font-size:1px;">&nbsp;</td>
+		</tr>
+		<tr>
+			<td align="left" class="em_body_copy" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:16px; line-height:24px; color:#292827;">
+				An intro paragraph could go here. I wouldn&apos;t make it too long, so between 50-75 words would be the limit.
+			</td>
+		</tr>
+		<tr>
+			<td height="16" style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="border-top:1px solid #DBD7D3; line-height:1px; font-size:1px;">&nbsp;</td>
+		</tr>
+		<tr>
+			<td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td>
+		</tr>
+		<tr>
+			<td align="left" class="em_h2" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:28px; line-height:40px; font-weight:700; color:#292827;">
+				Upcoming Group Sessions
+			</td>
+		</tr>
+		<tr>
+			<td height="16" style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td>
+		</tr>
+		{{#if upcomingGroupSessions}}
+			{{#each upcomingGroupSessions}}
+				<tr>
+					<td align="center">
+						{{#if imageUrl}}
+							<img src="{{{imageUrl}}}" alt="Group Session" width="520" style="width:100%; max-width:520px; height:auto;" />
+						{{else}}
+							<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#797979;">
+								<tr>
+									<td height="292" align="center" valign="middle" style="height:292px;">
+										<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:72px; line-height:72px; color:#FFFFFF; font-weight:400;">16:9</div>
+										<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:16px; line-height:24px; color:#FFFFFF; font-weight:400;">Replace with image</div>
+									</td>
+								</tr>
+							</table>
+						{{/if}}
+					</td>
+				</tr>
+				<tr>
+					<td height="16" style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td>
+				</tr>
+				<tr>
+					<td>
+						<table width="100%" border="0" cellspacing="0" cellpadding="0">
+							<tr>
+								<td width="104" valign="top" style="width:104px;">
+									<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:24px; color:#000000; font-weight:700; letter-spacing:0.03em;">
+										{{#if month}}{{month}}{{else}}NOVEMBER{{/if}}
+									</div>
+									<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:24px; line-height:36px; color:#000000; font-weight:700;">
+										{{#if day}}{{day}}{{else}}15{{/if}}
+									</div>
+								</td>
+								<td valign="top" style="padding-left:20px;">
+									<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:24px; color:#000000; font-weight:700;">
+										{{#if time}}{{time}}{{else}}2:00PM EST{{/if}}
+									</div>
+									<div class="em_session_title" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:24px; line-height:36px; color:#000000; font-weight:700;">
+										{{#if title}}{{title}}{{else}}Group Session Title{{/if}}
+									</div>
+									<div class="em_body_copy" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:18px; line-height:24px; color:#000000; padding-top:8px;">
+										{{#if description}}
+											{{description}}
+										{{else}}
+											Description could go here. It could be the description from the group session or unique copy written specifically for the email.
+										{{/if}}
+									</div>
+									<div style="padding-top:16px;">
+										<a href="{{#if reserveSeatUrl}}{{{reserveSeatUrl}}}{{else}}#{{/if}}" style="display:inline-block; font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:20px; font-weight:600; color:#FFFFFF; text-decoration:none; background-color:#30578E; border-radius:800px; padding:10px 18px;">
+											Reserve a seat
+										</a>
+									</div>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td>
+				</tr>
+			{{/each}}
+		{{else}}
+			<tr>
+				<td align="center">
+					<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#797979;">
+						<tr>
+							<td height="292" align="center" valign="middle" style="height:292px;">
+								<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:72px; line-height:72px; color:#FFFFFF; font-weight:400;">16:9</div>
+								<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:16px; line-height:24px; color:#FFFFFF; font-weight:400;">Replace with image</div>
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td height="16" style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td>
+			</tr>
+			<tr>
+				<td>
+					<table width="100%" border="0" cellspacing="0" cellpadding="0">
+							<tr>
+								<td width="104" valign="top" style="width:104px;">
+									<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:24px; color:#000000; font-weight:700; letter-spacing:0.03em;">
+										NOVEMBER
+									</div>
+									<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:24px; line-height:36px; color:#000000; font-weight:700;">
+										15
+									</div>
+								</td>
+								<td valign="top" style="padding-left:20px;">
+									<div style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:24px; color:#000000; font-weight:700;">
+										2:00PM EST
+									</div>
+									<div class="em_session_title" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:24px; line-height:36px; color:#000000; font-weight:700;">
+										Group Session Title
+									</div>
+									<div class="em_body_copy" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:18px; line-height:24px; color:#000000; padding-top:8px;">
+										Description could go here. It could be the description from the group session or unique copy written specifically for the email.
+									</div>
+									<div style="padding-top:16px;">
+										<a href="#" style="display:inline-block; font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:20px; font-weight:600; color:#FFFFFF; text-decoration:none; background-color:#30578E; border-radius:800px; padding:10px 18px;">
+											Reserve a seat
+										</a>
+									</div>
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td>
+			</tr>
+		{{/if}}
+		<tr>
+			<td style="border-top:1px solid #DBD7D3; line-height:1px; font-size:1px;">&nbsp;</td>
+		</tr>
+		<tr>
+			<td height="16" style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td>
+		</tr>
+			<tr>
+				<td align="left" class="em_body_copy" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:16px; line-height:24px; color:#292827;">
+					Can&apos;t make this session? Visit the
+					<a href="{{#if communityPageUrl}}{{{communityPageUrl}}}{{else}}#{{/if}}" style="color:#30578E; font-weight:700; text-decoration:underline;">{{#if pageTitle}}{{pageTitle}}{{else}}Parents @ Penn Medicine{{/if}} Community Page</a>
+					for additional resources including last month&apos;s group session recording on
+					<a href="{{#if recordingUrl}}{{{recordingUrl}}}{{else}}#{{/if}}" style="color:#30578E; font-weight:700; text-decoration:underline;">({{#if recordingTitle}}{{recordingTitle}}{{else}}Group Session Title{{/if}})</a>.
+				</td>
+			</tr>
+	</table>
+{{/partial}}
+
+{{> layouts/en/v2}}
