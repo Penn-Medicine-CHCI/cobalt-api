@@ -611,6 +611,7 @@ public class PageResource {
 		DuplicatePageRequest request = getRequestBodyParser().parse(requestBody, DuplicatePageRequest.class);
 		request.setPageId(pageId);
 		request.setCreatedByAccountId(account.getAccountId());
+		request.setCopyForEditing(false);
 		request.setPageStatusId(PageStatus.PageStatusId.DRAFT);
 
 		UUID newPageId = getPageService().duplicatePage(request, institutionId);
