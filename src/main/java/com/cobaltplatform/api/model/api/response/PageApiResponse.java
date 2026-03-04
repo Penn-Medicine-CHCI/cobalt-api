@@ -52,6 +52,8 @@ public class PageApiResponse {
 	@Nonnull
 	private final UUID pageId;
 	@Nullable
+	private final UUID pageGroupId;
+	@Nullable
 	private final String name;
 	@Nullable
 	private final String urlName;
@@ -117,6 +119,7 @@ public class PageApiResponse {
 		requireNonNull(pageSiteLocationApiResponseFactory);
 
 		this.pageId = page.getPageId();
+		this.pageGroupId = page.getPageGroupId();
 		this.name = page.getName();
 		this.urlName = page.getUrlName();
 		this.relativeUrl = format("/%s/%s", "pages", page.getUrlName());
@@ -152,6 +155,11 @@ public class PageApiResponse {
 	@Nonnull
 	public UUID getPageId() {
 		return pageId;
+	}
+
+	@Nullable
+	public UUID getPageGroupId() {
+		return pageGroupId;
 	}
 
 	@Nullable
@@ -254,5 +262,4 @@ public class PageApiResponse {
 		return Optional.ofNullable(this.mailingListEntryCountDescription);
 	}
 }
-
 
