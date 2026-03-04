@@ -11,7 +11,7 @@
 	<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&amp;display=swap" rel="stylesheet" />
 
 	<style type="text/css">
-		body { margin: 0 !important; padding: 0 !important; background-color: #FAF7F5; -webkit-text-size-adjust: 100% !important; -ms-text-size-adjust: 100% !important; }
+		body { margin: 0 !important; padding: 0 !important; background-color: {{colors.n50}}; -webkit-text-size-adjust: 100% !important; -ms-text-size-adjust: 100% !important; }
 		table { border-collapse: collapse; mso-table-lspace: 0px; mso-table-rspace: 0px; }
 		td { border-collapse: collapse; mso-line-height-rule: exactly; }
 		img { border: 0 !important; display: block !important; outline: none !important; }
@@ -42,12 +42,12 @@
 	<![endif]-->
 </head>
 
-<body style="margin:0; padding:0; background-color:#FAF7F5;">
+<body style="margin:0; padding:0; background-color:{{colors.n50}};">
 <div style="display:none; overflow:hidden; line-height:1px; opacity:0; max-height:0; max-width:0;">
 	{{#block "preheader"}}{{/block}}
 </div>
 
-<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="#FAF7F5">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="{{colors.n50}}">
 	<tr>
 		<td align="center" valign="top" style="padding:16px 12px 0 12px;">
 			<table width="600" border="0" cellspacing="0" cellpadding="0" align="center" class="em_main_table" style="width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px;">
@@ -77,11 +77,7 @@
 			<table width="600" border="0" cellspacing="0" cellpadding="0" align="center" class="em_main_table" style="width:600px; max-width:600px;">
 				<tr>
 					<td align="center" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:20px; color:#333333;">
-						{{#block "footer"}}
-							You are receiving this email at {{#if recipientEmailAddress}}{{recipientEmailAddress}}{{else}}{emailaddress}{{/if}} because you subscribed to a page on {{#if platformName}}{{platformName}}{{else}}Cobalt{{/if}}.
-							If you need a little break, you can update your
-							<a href="{{#if communicationPreferencesUrl}}{{{communicationPreferencesUrl}}}{{else}}#{{/if}}" style="color:#30578E; font-weight:700; text-decoration:underline;">communication preferences</a>.
-						{{/block}}
+						{{#block "footer"}}{{/block}}
 					</td>
 				</tr>
 			</table>
