@@ -305,6 +305,7 @@ public class MessageService implements AutoCloseable {
 
 			messageContext.put("staticFileUrlPrefix", staticFileUrlPrefix);
 			messageContext.put("copyrightYear", LocalDateTime.now(institution.getTimeZone()).getYear());
+			messageContext.put("institutionId", institutionId.name());
 
 			// e.g. "p900" -> "#FEA123"
 			Map<String, String> cssColorRepresentationsByName = institutionColorValues.stream()
@@ -336,13 +337,12 @@ public class MessageService implements AutoCloseable {
 
 			messageContext.put("supportEmailAddress", supportEmailAddress);
 
-			// Support email address (optionally overridable)
-			String platformEmailImageUrl = ObjectUtils.firstNonNull(
-					trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name())),
-					format("%s/logo@2x.jpg", staticFileUrlPrefix)
-			);
+			// Platform email image URL (optionally overridable).
+			// If not specified, templates should use their own fallback behavior.
+			String platformEmailImageUrl = trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name()));
 
-			messageContext.put("platformEmailImageUrl", platformEmailImageUrl);
+			if (platformEmailImageUrl != null)
+				messageContext.put("platformEmailImageUrl", platformEmailImageUrl);
 
 			// Create a new email message using the updated email message context
 			customizedEmailMessage = customizedEmailMessage.toBuilder()
