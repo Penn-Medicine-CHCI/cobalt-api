@@ -323,10 +323,12 @@ public class CommunityService {
 		String recordingUrl = upcomingGroupSessions.size() > 0 ? groupSessionDetailUrl(upcomingGroupSessions.get(0), webappBaseUrl) : null;
 		String recordingTitle = upcomingGroupSessions.size() > 0 ? trimToNull(upcomingGroupSessions.get(0).getTitle()) : null;
 		String currentMonthName = LocalDate.now(defaultTimeZone).format(DateTimeFormatter.ofPattern("MMMM", locale));
+		Boolean multipleUpcomingGroupSessions = upcomingGroupSessionContext.size() > 1;
 
-		Map<String, Object> baseMessageContext = new HashMap<>(9);
+		Map<String, Object> baseMessageContext = new HashMap<>(10);
 		baseMessageContext.put("pageTitle", pageTitle);
 		baseMessageContext.put("currentMonthName", currentMonthName);
+		baseMessageContext.put("multipleUpcomingGroupSessions", multipleUpcomingGroupSessions);
 		baseMessageContext.put("communityPageUrl", communityPageUrl);
 		baseMessageContext.put("recordingUrl", recordingUrl);
 		baseMessageContext.put("recordingTitle", recordingTitle);
