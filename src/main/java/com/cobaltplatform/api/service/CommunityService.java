@@ -322,9 +322,11 @@ public class CommunityService {
 		String communityPageUrl = trimToNull(page.getUrlName()) == null ? webappBaseUrl : format("%s/pages/%s", webappBaseUrl, page.getUrlName());
 		String recordingUrl = upcomingGroupSessions.size() > 0 ? groupSessionDetailUrl(upcomingGroupSessions.get(0), webappBaseUrl) : null;
 		String recordingTitle = upcomingGroupSessions.size() > 0 ? trimToNull(upcomingGroupSessions.get(0).getTitle()) : null;
+		String currentMonthName = LocalDate.now(defaultTimeZone).format(DateTimeFormatter.ofPattern("MMMM", locale));
 
-		Map<String, Object> baseMessageContext = new HashMap<>(8);
+		Map<String, Object> baseMessageContext = new HashMap<>(9);
 		baseMessageContext.put("pageTitle", pageTitle);
+		baseMessageContext.put("currentMonthName", currentMonthName);
 		baseMessageContext.put("communityPageUrl", communityPageUrl);
 		baseMessageContext.put("recordingUrl", recordingUrl);
 		baseMessageContext.put("recordingTitle", recordingTitle);

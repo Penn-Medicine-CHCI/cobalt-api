@@ -6,16 +6,11 @@
 			</td>
 		</tr>
 		<tr>
-			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:24px; line-height:36px; font-weight:700; color:#000000;">
-				Community Highlights
-			</td>
-		</tr>
-		<tr>
 			<td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td>
 		</tr>
 		<tr>
 			<td align="left" class="em_body_copy" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#292827;">
-				An intro paragraph could go here. I wouldn&apos;t make it too long, so between 50-75 words would be the limit.
+				Thank you for subscribing. Here is {{#if currentMonthName}}{{currentMonthName}}{{else}}this month{{/if}}&apos;s highlight.
 			</td>
 		</tr>
 		<tr>
@@ -128,11 +123,10 @@
 		</tr>
 		<tr>
 			<td align="left" class="em_body_copy" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#292827;">
-				Can&apos;t make this session? Visit the
-				<a href="{{#if communityPageUrl}}{{{communityPageUrl}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{pageTitle}} Community Page</a>
-				for additional resources including last month&apos;s group session recording on
-				{<a href="{{#if recordingUrl}}{{{recordingUrl}}}{{else}}#{{/if}}" style="color:#30578E; text-decoration:underline;">{{#if recordingTitle}}{{recordingTitle}}{{else}}Group Session Title{{/if}}</a>}.
-			</td>
+					Can&rsquo;t make this session? Visit the
+					<a href="{{#if communityPageUrl}}{{{communityPageUrl}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{pageTitle}} Community Page</a>
+					for additional resources including last month&rsquo;s group session recording.
+				</td>
 		</tr>
 	</table>
 {{/partial}}
