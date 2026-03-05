@@ -100,13 +100,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUrlSubdirectory;
 import static java.lang.String.format;
-import static java.util.Objects.equals;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -431,7 +431,7 @@ public class PageService {
 					""", Page.class, page.get().getPageGroupId(), PageStatusId.LIVE);
 			if (livePage.isPresent()
 					&& page.get().getParentPageId() != null
-					&& !equals(livePage.get().getPageId(), page.get().getParentPageId())) {
+					&& !Objects.equals(livePage.get().getPageId(), page.get().getParentPageId())) {
 				Optional<Account> account = getAccountService().findAccountById(livePage.get().getCreatedByAccountId());
 				validationException.add(new FieldError("page", getStrings().get(
 						format("Could not publish this page because there is a more recent version of this page published by %s on %s. Please close this window and re-edit the page.", account.get().getDisplayName(),

@@ -30,6 +30,7 @@ import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.integration.epic.EpicSyncManager;
 import com.cobaltplatform.api.integration.tableau.TableauClient;
 import com.cobaltplatform.api.integration.tableau.request.AccessTokenRequest;
+import com.cobaltplatform.api.model.api.request.CreateCommunitySubscriberNotificationRequest;
 import com.cobaltplatform.api.model.api.request.CreateMarketingSiteOutreachRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution;
@@ -37,6 +38,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.CommunityService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.service.Way2HealthService;
@@ -92,6 +94,8 @@ public class SystemResource {
 	@Nonnull
 	private final SystemService systemService;
 	@Nonnull
+	private final CommunityService communityService;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Cache localCache;
@@ -124,6 +128,7 @@ public class SystemResource {
 
 	@Inject
 	public SystemResource(@Nonnull SystemService systemService,
+												@Nonnull CommunityService communityService,
 												@Nonnull Configuration configuration,
 												@Nonnull @LocalCache Cache localCache,
 												@Nonnull @DistributedCache Cache distributedCache,
@@ -140,6 +145,7 @@ public class SystemResource {
 												@Nonnull Formatter formatter,
 												@Nonnull Strings strings) {
 		requireNonNull(systemService);
+		requireNonNull(communityService);
 		requireNonNull(configuration);
 		requireNonNull(localCache);
 		requireNonNull(distributedCache);
@@ -158,6 +164,7 @@ public class SystemResource {
 		requireNonNull(strings);
 
 		this.systemService = systemService;
+		this.communityService = communityService;
 		this.configuration = configuration;
 		this.localCache = localCache;
 		this.distributedCache = distributedCache;
@@ -402,6 +409,21 @@ public class SystemResource {
 	}
 
 	@Nonnull
+	@POST("/system/community/notify-subscribers")
+	@AuthenticationRequired
+	public ApiResponse notifyCommunitySubscribers(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		if (getCurrentContext().getAccount().get().getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		CreateCommunitySubscriberNotificationRequest request = getRequestBodyParser().parse(requestBody, CreateCommunitySubscriberNotificationRequest.class);
+		getCommunityService().notifySubscribers(request);
+
+		return new ApiResponse();
+	}
+
+	@Nonnull
 	@GET("/system/tableau-test")
 	@AuthenticationRequired
 	public BinaryResponse tableauTest() throws Exception {
@@ -451,6 +473,11 @@ public class SystemResource {
 	@Nonnull
 	protected SystemService getSystemService() {
 		return this.systemService;
+	}
+
+	@Nonnull
+	protected CommunityService getCommunityService() {
+		return this.communityService;
 	}
 
 	@Nonnull

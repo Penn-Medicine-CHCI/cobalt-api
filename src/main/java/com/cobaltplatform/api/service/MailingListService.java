@@ -245,18 +245,38 @@ public class MailingListService {
 			return mailingListEntryId;
 		} catch (DatabaseException e) {
 			if ("mailing_list_entry_value_unique_idx".equals(e.constraint().orElse(null))) {
-				getLogger().info("Value '{}' already in use for {} on Mailing List ID {}, not re-saving.",
-						value, mailingListEntryTypeId.name(), mailingListId);
 				transaction.rollback(savepoint);
 
 				// Pull back the existing value
-				return getDatabase().queryForObject("""
+				MailingListEntry existingMailingListEntry = getDatabase().queryForObject("""
 						SELECT *
 						FROM mailing_list_entry
 						WHERE mailing_list_id=?						
 						AND mailing_list_entry_type_id=?
 						AND value=?
-						""", MailingListEntry.class, mailingListId, mailingListEntryTypeId, value).get().getMailingListEntryId();
+						""", MailingListEntry.class, mailingListId, mailingListEntryTypeId, value).get();
+
+				// Treat a duplicate create for an unsubscribed entry as an explicit re-subscribe.
+				if (existingMailingListEntry.getMailingListEntryStatusId() == MailingListEntryStatusId.UNSUBSCRIBED) {
+					getDatabase().execute("""
+									UPDATE mailing_list_entry
+									SET mailing_list_entry_status_id=?
+									WHERE mailing_list_entry_id=?
+									""",
+							MailingListEntryStatusId.SUBSCRIBED,
+							existingMailingListEntry.getMailingListEntryId()
+					);
+
+					getLogger().info("Value '{}' already in use for {} on Mailing List ID {}, re-subscribing existing entry {}.",
+							value, mailingListEntryTypeId.name(), mailingListId, existingMailingListEntry.getMailingListEntryId());
+				} else {
+					ValidationException duplicateValueException = new ValidationException();
+					duplicateValueException.add(new FieldError("value", getStrings().get("The email address {{emailAddress}} is already subscribed.",
+							java.util.Map.of("emailAddress", value))));
+					throw duplicateValueException;
+				}
+
+				return existingMailingListEntry.getMailingListEntryId();
 			} else {
 				throw e;
 			}
