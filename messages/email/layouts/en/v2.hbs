@@ -18,13 +18,17 @@
 		.em_main_table { width: 600px !important; }
 		.em_side { width: 40px !important; }
 		.em_footer_side { width: 40px !important; }
+		.em_event_frame { height: 292px !important; }
 		.em_event_placeholder { height: 292px !important; }
+		.em_event_image { max-height: 292px !important; }
 
 		@media only screen and (max-width: 639px) {
 			.em_main_table { width: 100% !important; }
 			.em_side { width: 24px !important; }
 			.em_footer_side { width: 24px !important; }
+			.em_event_frame { height: 198px !important; }
 			.em_event_placeholder { height: 198px !important; }
+			.em_event_image { max-height: 198px !important; }
 		}
 	</style>
 
@@ -53,7 +57,7 @@
 			<table width="600" border="0" cellspacing="0" cellpadding="0" align="center" class="em_main_table" style="width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px;">
 				<tr>
 					<td class="em_side" width="40" style="width:40px;">&nbsp;</td>
-					<td style="padding:16px 0 16px 0;">
+					<td style="padding:32px 0 16px 0;">
 						{{#if platformEmailImageUrl}}
 							<img src="{{{platformEmailImageUrl}}}" alt="{{#if platformName}}{{platformName}}{{else}}Cobalt{{/if}}" width="149" style="width:149px; max-width:149px; height:auto;" />
 						{{else}}

@@ -39,18 +39,13 @@
 			{{#each upcomingGroupSessions}}
 				<tr>
 					<td align="center">
-						{{#if imageUrl}}
-							<img src="{{{imageUrl}}}" alt="Group Session" width="520" style="width:100%; max-width:520px; height:auto;" />
-						{{else}}
-							<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#797979;">
-								<tr>
-									<td class="em_event_placeholder" height="292" align="center" valign="middle" style="height:292px;">
-										<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:72px; line-height:72px; color:#FFFFFF; font-weight:400;">16:9</div>
-										<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#FFFFFF; font-weight:400;">Replace with image</div>
-									</td>
-								</tr>
-							</table>
-						{{/if}}
+						<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#797979;">
+							<tr>
+								<td class="em_event_frame" height="292" align="center" valign="middle" style="height:292px;">
+									<img src="{{#if imageUrl}}{{{imageUrl}}}{{else}}https://penncobalt.s3.us-east-2.amazonaws.com/penn-prod/file-uploads/group-sessions/d8145ef6-1af6-49dd-8990-6ead550d4bd5/69cb1048-609c-4a2b-aae1-b4e338bccf48.jpg{{/if}}" alt="Group Session" width="520" class="em_event_image" style="display:block; width:100%; max-width:520px; height:auto; max-height:292px;" />
+								</td>
+							</tr>
+						</table>
 					</td>
 				</tr>
 				<tr>
@@ -93,9 +88,8 @@
 				<td align="center">
 					<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#797979;">
 						<tr>
-							<td class="em_event_placeholder" height="292" align="center" valign="middle" style="height:292px;">
-								<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:72px; line-height:72px; color:#FFFFFF; font-weight:400;">16:9</div>
-								<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#FFFFFF; font-weight:400;">Replace with image</div>
+							<td class="em_event_frame" height="292" align="center" valign="middle" style="height:292px;">
+								<img src="https://penncobalt.s3.us-east-2.amazonaws.com/penn-prod/file-uploads/group-sessions/d8145ef6-1af6-49dd-8990-6ead550d4bd5/69cb1048-609c-4a2b-aae1-b4e338bccf48.jpg" alt="Group Session" width="520" class="em_event_image" style="display:block; width:100%; max-width:520px; height:auto; max-height:292px;" />
 							</td>
 						</tr>
 					</table>
