@@ -8,7 +8,6 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta name="format-detection" content="telephone=no" />
-	<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&amp;display=swap" rel="stylesheet" />
 
 	<style type="text/css">
 		body { margin: 0 !important; padding: 0 !important; background-color: {{colors.n50}}; -webkit-text-size-adjust: 100% !important; -ms-text-size-adjust: 100% !important; }
@@ -17,14 +16,15 @@
 		img { border: 0 !important; display: block !important; outline: none !important; }
 		a { text-decoration: underline; }
 		.em_main_table { width: 600px !important; }
+		.em_side { width: 40px !important; }
+		.em_footer_side { width: 40px !important; }
+		.em_event_placeholder { height: 292px !important; }
 
 		@media only screen and (max-width: 639px) {
 			.em_main_table { width: 100% !important; }
-			.em_side { width: 20px !important; }
-			.em_body_copy { font-size: 15px !important; line-height: 22px !important; }
-			.em_h1 { font-size: 24px !important; line-height: 34px !important; }
-			.em_h2 { font-size: 24px !important; line-height: 34px !important; }
-			.em_session_title { font-size: 22px !important; line-height: 32px !important; }
+			.em_side { width: 24px !important; }
+			.em_footer_side { width: 24px !important; }
+			.em_event_placeholder { height: 198px !important; }
 		}
 	</style>
 
@@ -49,11 +49,11 @@
 
 <table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="{{colors.n50}}">
 	<tr>
-		<td align="center" valign="top" style="padding:16px 12px 0 12px;">
+		<td align="center" valign="top" style="padding:16px 20px 0 20px;">
 			<table width="600" border="0" cellspacing="0" cellpadding="0" align="center" class="em_main_table" style="width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px;">
 				<tr>
 					<td class="em_side" width="40" style="width:40px;">&nbsp;</td>
-					<td style="padding:16px 0 12px 0;">
+					<td style="padding:16px 0 16px 0;">
 						{{#if platformEmailImageUrl}}
 							<img src="{{{platformEmailImageUrl}}}" alt="{{#if platformName}}{{platformName}}{{else}}Cobalt{{/if}}" width="149" style="width:149px; max-width:149px; height:auto;" />
 						{{else}}
@@ -64,7 +64,7 @@
 				</tr>
 				<tr>
 					<td class="em_side" width="40" style="width:40px;">&nbsp;</td>
-					<td style="padding:0 0 16px 0;">
+					<td style="padding:16px 0 16px 0;">
 						{{#block "body"}}{{/block}}
 					</td>
 					<td class="em_side" width="40" style="width:40px;">&nbsp;</td>
@@ -73,12 +73,14 @@
 		</td>
 	</tr>
 	<tr>
-		<td align="center" valign="top" style="padding:16px 24px 24px 24px;">
+		<td align="center" valign="top" style="padding:0 20px 0 20px;">
 			<table width="600" border="0" cellspacing="0" cellpadding="0" align="center" class="em_main_table" style="width:600px; max-width:600px;">
 				<tr>
-					<td align="center" style="font-family:'Karla', 'SF Pro Text', 'Open Sans', 'Segoe UI', Arial, sans-serif; font-size:14px; line-height:20px; color:#333333;">
+					<td class="em_footer_side" width="40" style="width:40px;">&nbsp;</td>
+					<td align="center" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:#333333; padding:24px 0;">
 						{{#block "footer"}}{{/block}}
 					</td>
+					<td class="em_footer_side" width="40" style="width:40px;">&nbsp;</td>
 				</tr>
 			</table>
 		</td>
