@@ -202,6 +202,9 @@ public class ReportingService {
 					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_ONBOARDING_COMPLETE)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
+					if (reportType.getReportTypeId() == ReportTypeId.COURSE_MCB_DOWNLOAD)
+						return accountCapabilityFlags.isCanViewAnalytics();
+
 					// TODO: We might re-enable this later
 					// throw new UnsupportedOperationException(format("Unexpected %s value '%s'",
 					//		ReportTypeId.class.getSimpleName(), reportType.getReportTypeId().name()));
@@ -1982,6 +1985,321 @@ public class ReportingService {
 		}
 	}
 
+	public void runMcbDownloadReportCsv(@Nonnull InstitutionId institutionId,
+																									 @Nonnull LocalDateTime startDateTime,
+																									 @Nonnull LocalDateTime endDateTime,
+																									 @Nonnull ZoneId reportTimeZone,
+																									 @Nonnull Locale reportLocale,
+																									 @Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
+
+		Instant startInstant = startDateTime.atZone(institutionTimeZone).toInstant();
+		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
+
+		List<McbDownloadReportRecord> records = getDatabase().queryForList("""
+				WITH institution_onboarding AS (
+					SELECT onboarding_screening_flow_id
+					FROM institution
+					WHERE institution_id = ?
+				),
+				institution_has_reporting_keys AS (
+					SELECT EXISTS (
+						SELECT 1
+						FROM institution_onboarding io
+						JOIN screening_flow_version sfv
+							ON sfv.screening_flow_id = io.onboarding_screening_flow_id
+						JOIN screening_question sq
+							ON sq.screening_version_id = sfv.screening_version_id
+						WHERE NULLIF(sq.metadata->'reporting'->>'key', '') LIKE 'bb_onboarding_%'
+					) AS has_keys
+				),
+				report_accounts AS (
+					SELECT
+						a.account_id,
+						a.created AS account_created_at,
+						a.email_address,
+						a.metadata
+					FROM account a
+					JOIN institution_has_reporting_keys ihrk
+						ON ihrk.has_keys = TRUE
+					WHERE a.institution_id = ?
+						AND a.created >= ?
+						AND a.created <= ?
+						AND a.role_id = ?
+						AND a.test_account = FALSE
+				),
+				account_site_metrics AS (
+					SELECT
+						ra.account_id,
+						COUNT(DISTINCT ane.session_id)::BIGINT AS bb_n_sitevisit
+					FROM report_accounts ra
+					LEFT JOIN analytics_native_event ane
+						ON ane.institution_id = ?
+						AND ane.account_id = ra.account_id
+					GROUP BY ra.account_id
+				),
+				account_tot_time AS (
+					SELECT
+						ra.account_id,
+						COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS bb_tot_time_seconds
+					FROM report_accounts ra
+					LEFT JOIN mv_analytics_dwell_time mv
+						ON mv.institution_id = ?
+						AND mv.account_id = ra.account_id
+					GROUP BY ra.account_id
+				),
+				account_email_metrics AS (
+					SELECT
+						ra.account_id,
+						MIN(ai.created) AS email_entered_at,
+						MIN(ai_claimed.last_updated) AS email_verified_at
+					FROM report_accounts ra
+					LEFT JOIN account_invite ai
+						ON ai.institution_id = ?
+						AND LOWER(ai.email_address) = LOWER(ra.email_address)
+					LEFT JOIN account_invite ai_claimed
+						ON ai_claimed.institution_id = ai.institution_id
+						AND LOWER(ai_claimed.email_address) = LOWER(ai.email_address)
+						AND ai_claimed.claimed = TRUE
+					GROUP BY ra.account_id
+				),
+				category_courses AS (
+					SELECT
+						(SELECT vc.course_id
+						 FROM v_course vc
+						 WHERE vc.institution_id = ?
+							 AND (LOWER(vc.url_name) LIKE '%sleep%' OR LOWER(vc.title) LIKE '%sleep%')
+						 ORDER BY vc.display_order
+						 LIMIT 1) AS sleep_course_id
+				),
+				account_course_completions AS (
+					SELECT
+						ra.account_id,
+						cs.course_id,
+						BOOL_OR(cs.course_session_status_id = 'COMPLETED') AS completed
+					FROM report_accounts ra
+					LEFT JOIN course_session cs
+						ON cs.account_id = ra.account_id
+					GROUP BY ra.account_id, cs.course_id
+				),
+				account_course_dwell AS (
+					SELECT
+						ra.account_id,
+						cm.course_id,
+						SUM(mv.dwell_time_seconds)::DOUBLE PRECISION AS dwell_time_seconds
+					FROM report_accounts ra
+					JOIN mv_analytics_dwell_time mv
+						ON mv.institution_id = ?
+						AND mv.account_id = ra.account_id
+						AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
+						AND mv.course_unit_id IS NOT NULL
+					JOIN course_unit cu
+						ON cu.course_unit_id = mv.course_unit_id
+					JOIN course_module cm
+						ON cm.course_module_id = cu.course_module_id
+					GROUP BY ra.account_id, cm.course_id
+				),
+				account_referrer AS (
+					SELECT
+						ra.account_id,
+						first_referrer.bb_referrer
+					FROM report_accounts ra
+					LEFT JOIN LATERAL (
+						SELECT
+							COALESCE(
+								NULLIF(LOWER(SPLIT_PART(REGEXP_REPLACE(COALESCE(ane.data->>'referringUrl', ''), '^https?://', ''), '/', 1)), ''),
+								NULLIF(LOWER(ane.referring_campaign), '')
+							) AS bb_referrer
+						FROM analytics_native_event ane
+						WHERE ane.institution_id = ?
+							AND ane.account_id = ra.account_id
+							AND (
+								NULLIF(ane.data->>'referringUrl', '') IS NOT NULL
+								OR NULLIF(ane.referring_campaign, '') IS NOT NULL
+							)
+						ORDER BY ane.timestamp
+						LIMIT 1
+					) first_referrer ON TRUE
+				),
+				latest_onboarding_session AS (
+					SELECT DISTINCT ON (ss.target_account_id)
+						ss.screening_session_id,
+						ss.target_account_id
+					FROM screening_session ss
+					JOIN screening_flow_version sfv
+						ON sfv.screening_flow_version_id = ss.screening_flow_version_id
+					JOIN institution_onboarding io
+						ON io.onboarding_screening_flow_id = sfv.screening_flow_id
+					JOIN report_accounts ra
+						ON ra.account_id = ss.target_account_id
+					ORDER BY ss.target_account_id, ss.created DESC
+				),
+				latest_onboarding_answers AS (
+					SELECT
+						los.target_account_id AS account_id,
+						NULLIF(sq.metadata->'reporting'->>'key', '') AS reporting_key,
+						STRING_AGG(
+							COALESCE(NULLIF(sa.text, ''), sao.score::TEXT, NULLIF(sao.answer_option_text, '')),
+							',' ORDER BY sa.answer_order
+						) AS reporting_value
+					FROM latest_onboarding_session los
+					JOIN v_screening_session_screening sss
+						ON sss.screening_session_id = los.screening_session_id
+					JOIN v_screening_session_answered_screening_question ssasq
+						ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+					JOIN screening_question sq
+						ON sq.screening_question_id = ssasq.screening_question_id
+					JOIN v_screening_answer sa
+						ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+					LEFT JOIN screening_answer_option sao
+						ON sao.screening_answer_option_id = sa.screening_answer_option_id
+					WHERE sq.metadata IS NOT NULL
+						AND NULLIF(sq.metadata->'reporting'->>'key', '') IS NOT NULL
+					GROUP BY los.target_account_id, reporting_key
+				),
+				account_onboarding_values AS (
+					SELECT
+						account_id,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_1' THEN reporting_value END) AS bb_onboarding_1,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_2' THEN reporting_value END) AS bb_onboarding_2,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_2a' THEN reporting_value END) AS bb_onboarding_2a,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_2b' THEN reporting_value END) AS bb_onboarding_2b,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_3' THEN reporting_value END) AS bb_onboarding_3,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_4' THEN reporting_value END) AS bb_onboarding_4,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_5' THEN reporting_value END) AS bb_onboarding_5,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_6' THEN reporting_value END) AS bb_onboarding_6,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_7' THEN reporting_value END) AS bb_onboarding_7,
+						MAX(CASE WHEN reporting_key = 'bb_onboarding_8' THEN reporting_value END) AS bb_onboarding_8
+					FROM latest_onboarding_answers
+					GROUP BY account_id
+				)
+				SELECT
+					ra.account_id,
+					ra.account_created_at,
+					ra.email_address,
+					aem.email_entered_at,
+					aem.email_verified_at,
+					COALESCE(NULLIF(ra.metadata->>'zipCode', ''), aov.bb_onboarding_6) AS bb_zipcode,
+					ar.bb_referrer,
+					aov.bb_onboarding_1,
+					aov.bb_onboarding_2,
+					aov.bb_onboarding_2a,
+					aov.bb_onboarding_2b,
+					aov.bb_onboarding_3,
+					aov.bb_onboarding_4,
+					aov.bb_onboarding_5,
+					aov.bb_onboarding_6,
+					aov.bb_onboarding_7,
+					aov.bb_onboarding_8,
+					COALESCE(asm.bb_n_sitevisit, 0) AS bb_n_sitevisit,
+					COALESCE(att.bb_tot_time_seconds, 0) AS bb_tot_time_seconds,
+					COALESCE((
+						SELECT CASE WHEN acc.completed THEN 1 ELSE 0 END
+						FROM account_course_completions acc
+						WHERE acc.account_id = ra.account_id
+							AND acc.course_id = cc.sleep_course_id
+					), 0) AS bb_sleep_complete,
+					COALESCE((
+						SELECT acd.dwell_time_seconds
+						FROM account_course_dwell acd
+						WHERE acd.account_id = ra.account_id
+							AND acd.course_id = cc.sleep_course_id
+					), 0) AS bb_sleep_time_seconds
+				FROM report_accounts ra
+				CROSS JOIN category_courses cc
+				LEFT JOIN account_site_metrics asm
+					ON asm.account_id = ra.account_id
+				LEFT JOIN account_tot_time att
+					ON att.account_id = ra.account_id
+				LEFT JOIN account_email_metrics aem
+					ON aem.account_id = ra.account_id
+				LEFT JOIN account_referrer ar
+					ON ar.account_id = ra.account_id
+				LEFT JOIN account_onboarding_values aov
+					ON aov.account_id = ra.account_id
+				ORDER BY ra.account_created_at, ra.account_id
+				""", McbDownloadReportRecord.class, institutionId, institutionId, startInstant, endInstant, RoleId.PATIENT,
+				institutionId, institutionId, institutionId, institutionId, institutionId, institutionId);
+
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+				.withZone(institutionTimeZone)
+				.withLocale(reportLocale);
+
+		List<String> headerColumns = List.of(
+				"recordID",
+				"email",
+				"bb_email_entered_date",
+				"bb_email_verified_date",
+				"bb_zipcode",
+				"bb_referrer",
+				"bb_onboarding_1",
+				"bb_onboarding_2",
+				"bb_onboarding_2a",
+				"bb_onboarding_2b",
+				"bb_onboarding_3",
+				"bb_onboarding_4",
+				"bb_onboarding_5",
+				"bb_onboarding_6",
+				"bb_onboarding_7",
+				"bb_onboarding_8",
+				"bb_n_sitevisit",
+				"bb_tot_time",
+				"bb_sleep_complete",
+				"bb_sleep_time"
+		);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
+			for (McbDownloadReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(20);
+
+				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
+				recordElements.add(record.getEmailAddress() == null ? "" : record.getEmailAddress());
+				recordElements.add(record.getEmailEnteredAt() == null ? "" : dateFormatter.format(record.getEmailEnteredAt()));
+				recordElements.add(record.getEmailVerifiedAt() == null ? "" : dateFormatter.format(record.getEmailVerifiedAt()));
+				recordElements.add(record.getBbZipcode() == null ? "" : record.getBbZipcode());
+				recordElements.add(record.getBbReferrer() == null ? "" : record.getBbReferrer());
+				recordElements.add(record.getBbOnboarding1() == null ? "" : record.getBbOnboarding1());
+				recordElements.add(record.getBbOnboarding2() == null ? "" : record.getBbOnboarding2());
+				recordElements.add(record.getBbOnboarding2a() == null ? "" : record.getBbOnboarding2a());
+				recordElements.add(record.getBbOnboarding2b() == null ? "" : record.getBbOnboarding2b());
+				recordElements.add(record.getBbOnboarding3() == null ? "" : record.getBbOnboarding3());
+				recordElements.add(record.getBbOnboarding4() == null ? "" : record.getBbOnboarding4());
+				recordElements.add(record.getBbOnboarding5() == null ? "" : record.getBbOnboarding5());
+				recordElements.add(record.getBbOnboarding6() == null ? "" : record.getBbOnboarding6());
+				recordElements.add(record.getBbOnboarding7() == null ? "" : record.getBbOnboarding7());
+				recordElements.add(record.getBbOnboarding8() == null ? "" : record.getBbOnboarding8());
+				recordElements.add(record.getBbNSitevisit() == null ? "0" : record.getBbNSitevisit().toString());
+				recordElements.add(formatDurationSeconds(record.getBbTotTimeSeconds()));
+				recordElements.add(record.getBbSleepComplete() == null ? "0" : record.getBbSleepComplete().toString());
+				recordElements.add(formatDurationSeconds(record.getBbSleepTimeSeconds()));
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Nonnull
+	private String formatDurationSeconds(@Nullable Double durationInSeconds) {
+		long totalSeconds = durationInSeconds == null ? 0 : Math.max(0, Math.round(durationInSeconds));
+		long hours = totalSeconds / 3600;
+		long minutes = (totalSeconds % 3600) / 60;
+		long seconds = totalSeconds % 60;
+
+		return format("%03d:%02d:%02d", hours, minutes, seconds);
+	}
+
 	@Nonnull
 	private String obfuscateName(@Nullable String name) {
 		if (name == null)
@@ -1993,6 +2311,307 @@ public class ReportingService {
 			return "";
 
 		return format("%s***", trimmed.substring(0, 1));
+	}
+
+	@NotThreadSafe
+	protected static class McbDownloadReportRecord {
+		@Nullable
+		private UUID accountId;
+		@Nullable
+		private Instant accountCreatedAt;
+		@Nullable
+		private String emailAddress;
+		@Nullable
+		private Instant emailEnteredAt;
+		@Nullable
+		private Instant emailVerifiedAt;
+		@Nullable
+		private String bbZipcode;
+		@Nullable
+		private String bbReferrer;
+		@Nullable
+		private String bbOnboarding1;
+		@Nullable
+		private String bbOnboarding2;
+		@Nullable
+		private String bbOnboarding2a;
+		@Nullable
+		private String bbOnboarding2b;
+		@Nullable
+		private String bbOnboarding3;
+		@Nullable
+		private String bbOnboarding4;
+		@Nullable
+		private String bbOnboarding5;
+		@Nullable
+		private String bbOnboarding6;
+		@Nullable
+		private String bbOnboarding7;
+		@Nullable
+		private String bbOnboarding8;
+		@Nullable
+		private Long bbNSitevisit;
+		@Nullable
+		private Double bbTotTimeSeconds;
+		@Nullable
+		private Integer bbSleepComplete;
+		@Nullable
+		private Double bbSleepTimeSeconds;
+		@Nullable
+		private Integer bbTraumaComplete;
+		@Nullable
+		private Double bbTraumaTimeSeconds;
+		@Nullable
+		private Integer bbTeensComplete;
+		@Nullable
+		private Double bbTeensTimeSeconds;
+		@Nullable
+		private Integer bbMcbComplete;
+		@Nullable
+		private Double bbMcbTimeSeconds;
+
+		@Nullable
+		public UUID getAccountId() {
+			return accountId;
+		}
+
+		public void setAccountId(@Nullable UUID accountId) {
+			this.accountId = accountId;
+		}
+
+		@Nullable
+		public Instant getAccountCreatedAt() {
+			return accountCreatedAt;
+		}
+
+		public void setAccountCreatedAt(@Nullable Instant accountCreatedAt) {
+			this.accountCreatedAt = accountCreatedAt;
+		}
+
+		@Nullable
+		public String getEmailAddress() {
+			return emailAddress;
+		}
+
+		public void setEmailAddress(@Nullable String emailAddress) {
+			this.emailAddress = emailAddress;
+		}
+
+		@Nullable
+		public Instant getEmailEnteredAt() {
+			return emailEnteredAt;
+		}
+
+		public void setEmailEnteredAt(@Nullable Instant emailEnteredAt) {
+			this.emailEnteredAt = emailEnteredAt;
+		}
+
+		@Nullable
+		public Instant getEmailVerifiedAt() {
+			return emailVerifiedAt;
+		}
+
+		public void setEmailVerifiedAt(@Nullable Instant emailVerifiedAt) {
+			this.emailVerifiedAt = emailVerifiedAt;
+		}
+
+		@Nullable
+		public String getBbZipcode() {
+			return bbZipcode;
+		}
+
+		public void setBbZipcode(@Nullable String bbZipcode) {
+			this.bbZipcode = bbZipcode;
+		}
+
+		@Nullable
+		public String getBbReferrer() {
+			return bbReferrer;
+		}
+
+		public void setBbReferrer(@Nullable String bbReferrer) {
+			this.bbReferrer = bbReferrer;
+		}
+
+		@Nullable
+		public String getBbOnboarding1() {
+			return bbOnboarding1;
+		}
+
+		public void setBbOnboarding1(@Nullable String bbOnboarding1) {
+			this.bbOnboarding1 = bbOnboarding1;
+		}
+
+		@Nullable
+		public String getBbOnboarding2() {
+			return bbOnboarding2;
+		}
+
+		public void setBbOnboarding2(@Nullable String bbOnboarding2) {
+			this.bbOnboarding2 = bbOnboarding2;
+		}
+
+		@Nullable
+		public String getBbOnboarding2a() {
+			return bbOnboarding2a;
+		}
+
+		public void setBbOnboarding2a(@Nullable String bbOnboarding2a) {
+			this.bbOnboarding2a = bbOnboarding2a;
+		}
+
+		@Nullable
+		public String getBbOnboarding2b() {
+			return bbOnboarding2b;
+		}
+
+		public void setBbOnboarding2b(@Nullable String bbOnboarding2b) {
+			this.bbOnboarding2b = bbOnboarding2b;
+		}
+
+		@Nullable
+		public String getBbOnboarding3() {
+			return bbOnboarding3;
+		}
+
+		public void setBbOnboarding3(@Nullable String bbOnboarding3) {
+			this.bbOnboarding3 = bbOnboarding3;
+		}
+
+		@Nullable
+		public String getBbOnboarding4() {
+			return bbOnboarding4;
+		}
+
+		public void setBbOnboarding4(@Nullable String bbOnboarding4) {
+			this.bbOnboarding4 = bbOnboarding4;
+		}
+
+		@Nullable
+		public String getBbOnboarding5() {
+			return bbOnboarding5;
+		}
+
+		public void setBbOnboarding5(@Nullable String bbOnboarding5) {
+			this.bbOnboarding5 = bbOnboarding5;
+		}
+
+		@Nullable
+		public String getBbOnboarding6() {
+			return bbOnboarding6;
+		}
+
+		public void setBbOnboarding6(@Nullable String bbOnboarding6) {
+			this.bbOnboarding6 = bbOnboarding6;
+		}
+
+		@Nullable
+		public String getBbOnboarding7() {
+			return bbOnboarding7;
+		}
+
+		public void setBbOnboarding7(@Nullable String bbOnboarding7) {
+			this.bbOnboarding7 = bbOnboarding7;
+		}
+
+		@Nullable
+		public String getBbOnboarding8() {
+			return bbOnboarding8;
+		}
+
+		public void setBbOnboarding8(@Nullable String bbOnboarding8) {
+			this.bbOnboarding8 = bbOnboarding8;
+		}
+
+		@Nullable
+		public Long getBbNSitevisit() {
+			return bbNSitevisit;
+		}
+
+		public void setBbNSitevisit(@Nullable Long bbNSitevisit) {
+			this.bbNSitevisit = bbNSitevisit;
+		}
+
+		@Nullable
+		public Double getBbTotTimeSeconds() {
+			return bbTotTimeSeconds;
+		}
+
+		public void setBbTotTimeSeconds(@Nullable Double bbTotTimeSeconds) {
+			this.bbTotTimeSeconds = bbTotTimeSeconds;
+		}
+
+		@Nullable
+		public Integer getBbSleepComplete() {
+			return bbSleepComplete;
+		}
+
+		public void setBbSleepComplete(@Nullable Integer bbSleepComplete) {
+			this.bbSleepComplete = bbSleepComplete;
+		}
+
+		@Nullable
+		public Double getBbSleepTimeSeconds() {
+			return bbSleepTimeSeconds;
+		}
+
+		public void setBbSleepTimeSeconds(@Nullable Double bbSleepTimeSeconds) {
+			this.bbSleepTimeSeconds = bbSleepTimeSeconds;
+		}
+
+		@Nullable
+		public Integer getBbTraumaComplete() {
+			return bbTraumaComplete;
+		}
+
+		public void setBbTraumaComplete(@Nullable Integer bbTraumaComplete) {
+			this.bbTraumaComplete = bbTraumaComplete;
+		}
+
+		@Nullable
+		public Double getBbTraumaTimeSeconds() {
+			return bbTraumaTimeSeconds;
+		}
+
+		public void setBbTraumaTimeSeconds(@Nullable Double bbTraumaTimeSeconds) {
+			this.bbTraumaTimeSeconds = bbTraumaTimeSeconds;
+		}
+
+		@Nullable
+		public Integer getBbTeensComplete() {
+			return bbTeensComplete;
+		}
+
+		public void setBbTeensComplete(@Nullable Integer bbTeensComplete) {
+			this.bbTeensComplete = bbTeensComplete;
+		}
+
+		@Nullable
+		public Double getBbTeensTimeSeconds() {
+			return bbTeensTimeSeconds;
+		}
+
+		public void setBbTeensTimeSeconds(@Nullable Double bbTeensTimeSeconds) {
+			this.bbTeensTimeSeconds = bbTeensTimeSeconds;
+		}
+
+		@Nullable
+		public Integer getBbMcbComplete() {
+			return bbMcbComplete;
+		}
+
+		public void setBbMcbComplete(@Nullable Integer bbMcbComplete) {
+			this.bbMcbComplete = bbMcbComplete;
+		}
+
+		@Nullable
+		public Double getBbMcbTimeSeconds() {
+			return bbMcbTimeSeconds;
+		}
+
+		public void setBbMcbTimeSeconds(@Nullable Double bbMcbTimeSeconds) {
+			this.bbMcbTimeSeconds = bbMcbTimeSeconds;
+		}
 	}
 
 	@NotThreadSafe
