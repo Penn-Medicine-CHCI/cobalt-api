@@ -34,7 +34,9 @@ import com.cobaltplatform.api.service.MailingListService.MailingListEntryStatusF
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.devskiller.friendly_id.FriendlyId;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -176,13 +178,16 @@ public class CommunityService {
 		int emailMessagesEnqueued = 0;
 
 		for (EmailRecipient emailRecipient : context.getEmailRecipients()) {
+			UUID messageId = UUID.randomUUID();
 			Map<String, Object> messageContext = new HashMap<>(context.getBaseMessageContext());
 			messageContext.put("recipientEmailAddress", emailRecipient.getEmailAddress());
 
 			if (emailRecipient.getCommunicationPreferencesUrl().isPresent())
 				messageContext.put("communicationPreferencesUrl", emailRecipient.getCommunicationPreferencesUrl().get());
 
-			EmailMessage emailMessage = new EmailMessage.Builder(context.getInstitutionId(), EmailMessageTemplate.V2_COMMUNITY_HIGHLIGHTS, context.getLocale())
+			addMessageTrackingToV2CommunityHighlightsContext(messageContext, messageId);
+
+			EmailMessage emailMessage = new EmailMessage.Builder(messageId, context.getInstitutionId(), EmailMessageTemplate.V2_COMMUNITY_HIGHLIGHTS, context.getLocale())
 					.toAddresses(List.of(emailRecipient.getEmailAddress()))
 					.messageContext(messageContext)
 					.build();
@@ -194,6 +199,58 @@ public class CommunityService {
 		getLogger().info("Notified subscribers for page group ID {}. emails={}, invalidEmails={}, skippedSms={}, sessions={}, overrideEmailAddressesApplied={}",
 				pageGroupId, emailMessagesEnqueued, context.getInvalidEmailEntries(), context.getSmsEntriesSkipped(),
 				context.getUpcomingGroupSessionCount(), context.getOverrideEmailAddressesApplied());
+	}
+
+	protected void addMessageTrackingToV2CommunityHighlightsContext(@Nonnull Map<String, Object> messageContext,
+																																 @Nonnull UUID messageId) {
+		requireNonNull(messageContext);
+		requireNonNull(messageId);
+
+		addMessageTrackingToContextUrl(messageContext, "communityPageUrl", messageId);
+		addMessageTrackingToContextUrl(messageContext, "recordingUrl", messageId);
+		addMessageTrackingToContextUrl(messageContext, "communicationPreferencesUrl", messageId);
+
+		@SuppressWarnings("unchecked")
+		List<Map<String, Object>> upcomingGroupSessions = (List<Map<String, Object>>) messageContext.get("upcomingGroupSessions");
+
+		if (upcomingGroupSessions == null)
+			return;
+
+		List<Map<String, Object>> trackedUpcomingGroupSessions = new ArrayList<>(upcomingGroupSessions.size());
+
+		for (Map<String, Object> upcomingGroupSession : upcomingGroupSessions) {
+			Map<String, Object> trackedUpcomingGroupSession = new HashMap<>(upcomingGroupSession);
+			addMessageTrackingToContextUrl(trackedUpcomingGroupSession, "reserveSeatUrl", messageId);
+			trackedUpcomingGroupSessions.add(trackedUpcomingGroupSession);
+		}
+
+		messageContext.put("upcomingGroupSessions", trackedUpcomingGroupSessions);
+	}
+
+	protected void addMessageTrackingToContextUrl(@Nonnull Map<String, Object> messageContext,
+																								@Nonnull String contextUrlKey,
+																								@Nonnull UUID messageId) {
+		requireNonNull(messageContext);
+		requireNonNull(contextUrlKey);
+		requireNonNull(messageId);
+
+		Object contextUrl = messageContext.get(contextUrlKey);
+
+		if (!(contextUrl instanceof String contextUrlString))
+			return;
+
+		messageContext.put(contextUrlKey, addMessageTrackingToUrl(contextUrlString, messageId));
+	}
+
+	@Nonnull
+	protected String addMessageTrackingToUrl(@Nonnull String url,
+																					 @Nonnull UUID messageId) {
+		requireNonNull(url);
+		requireNonNull(messageId);
+
+		return WebUtility.appendQueryParameters(url, Map.of(
+				"a.m", FriendlyId.toFriendlyId(messageId)
+		));
 	}
 
 	@Nonnull
@@ -253,10 +310,11 @@ public class CommunityService {
 		for (GroupSession upcomingGroupSession : upcomingGroupSessions)
 			upcomingGroupSessionContext.add(createUpcomingGroupSessionMessageContext(upcomingGroupSession, locale, defaultTimeZone, webappBaseUrl));
 
-		String pageTitle = trimToNull(page.getName());
+		// Keep email display title aligned with the unsubscribe page's "displayName" logic: headline first, then name.
+		String pageTitle = trimToNull(page.getHeadline());
 
 		if (pageTitle == null)
-			pageTitle = trimToNull(page.getHeadline());
+			pageTitle = trimToNull(page.getName());
 
 		if (pageTitle == null)
 			pageTitle = getStrings().get("Community");
