@@ -49,6 +49,8 @@ import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.soklet.web.annotation.QueryParameter;
@@ -73,6 +75,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -96,6 +99,13 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class ReportingService {
+	@Nonnull
+	private static final Gson GSON;
+
+	static {
+		GSON = new Gson();
+	}
+
 	@Nonnull
 	private final Provider<InstitutionService> institutionServiceProvider;
 	@Nonnull
@@ -1985,12 +1995,222 @@ public class ReportingService {
 		}
 	}
 
+	@Nonnull
+	private static final String METRIC_COMPLETE_COLUMN_SUFFIX = "_complete";
+	@Nonnull
+	private static final String METRIC_TIME_COLUMN_SUFFIX = "_time";
+	@Nonnull
+	private static final String METRIC_VISIT_COLUMN_SUFFIX = "_visit";
+
+	@Nonnull
+	private static final List<String> COURSE_MCB_DOWNLOAD_HEADER_COLUMNS = List.of(
+			"recordID",
+			"email",
+			"bb_email_entered_date",
+			"bb_email_verified_date",
+			"bb_zipcode",
+			"bb_referrer",
+			"bb_onboarding_1",
+			"bb_onboarding_2",
+			"bb_onboarding_2a",
+			"bb_onboarding_2b",
+			"bb_onboarding_3",
+			"bb_onboarding_4",
+			"bb_onboarding_5",
+			"bb_onboarding_6",
+			"bb_onboarding_7",
+			"bb_onboarding_8",
+			"bb_n_sitevisit",
+			"bb_tot_time",
+			"bb_sleep_complete",
+			"bb_sleep_time",
+			"bb_sleep_visit",
+			"bb_trauma_complete",
+			"bb_trauma_time",
+			"bb_trauma_visit",
+			"bb_teens_complete",
+			"bb_teens_time",
+			"bb_teens_visit",
+			"bb_mcb_complete",
+			"bb_mcb_time",
+			"bb_mcb_visit",
+			"bb_mcb_precourse_1",
+			"bb_mcb_precourse_2",
+			"bb_mcb_precourse_3",
+			"bb_mcb_precourse_4",
+			"bb_mcb_precourse_4a",
+			"bb_mcb_precourse_5",
+			"bb_mcb_precourse_6",
+			"bb_mcb_precourse_7",
+			"bb_mcb_adhd_track",
+			"bb_mcb_adhdintro_video_complete",
+			"bb_mcb_adhdintro_video_time",
+			"bb_mcb_adhdintro_video_visit",
+			"bb_mcb_adhdbasics_activity_complete",
+			"bb_mcb_adhdbasics_activity_time",
+			"bb_mcb_adhdbasics_activity_visit",
+			"bb_mcb_treatingadhd_video_complete",
+			"bb_mcb_treatingadhd_video_time",
+			"bb_mcb_treatingadhd_video_visit",
+			"bb_mcb_effectinter_info_complete",
+			"bb_mcb_effectinter_info _time",
+			"bb_mcb_effectinter_info_visit",
+			"bb_mcb_adhdtx_activity_complete",
+			"bb_mcb_adhdtx_activity_time",
+			"bb_mcb_adhdtx_activity_visit",
+			"bb_mcb_buildadhd_video_complete",
+			"bb_mcb_buildadhd_video_time",
+			"bb_mcb_buildadhd_video_visit",
+			"bb_mcb_adhdteam_info_complete",
+			"bb_mcb_adhdteam_info_time",
+			"bb_mcb_adhdteam_info_visit",
+			"bb_mcb_workingdoc_video_complete",
+			"bb_mcb_workingdoc_video_time",
+			"bb_mcb_workingdoc_video_visit",
+			"bb_mcb_workingschool_video_complete",
+			"bb_mcb_workingschool_video_time",
+			"bb_mcb_workingschool_video_visit",
+			"bb_mcb_iep504_video_complete",
+			"bb_mcb_iep504_video_time",
+			"bb_mcb_iep504_video_visit",
+			"bb_mcb_reportcard_video_complete",
+			"bb_mcb_reportcard_video_time",
+			"bb_mcb_reportcard_video_visit",
+			"bb_mcb_intro_video_complete",
+			"bb_mcb_intro_video_time",
+			"bb_mcb_intro_video_visit",
+			"bb_mcb_intro_info_complete",
+			"bb_mcb_intro_info_time",
+			"bb_mcb_intro_info_visit",
+			"bb_mcb_identifyingok_complete",
+			"bb_mcb_identifyingok_time",
+			"bb_mcb_identifyingok_visit",
+			"bb_mcb_okworksheet_complete",
+			"bb_mcb_okworksheet_time",
+			"bb_mcb_okworksheet_visit",
+			"bb_mcb_attending_video_complete",
+			"bb_mcb_attending_video_time",
+			"bb_mcb_attending_video_visit",
+			"bb_mcb_attending_activity_complete",
+			"bb_mcb_attending_activity_time",
+			"bb_mcb_attending_activity_visit",
+			"bb_mcb_praise_video_complete",
+			"bb_mcb_praise_video_time",
+			"bb_mcb_praise_video_visit",
+			"bb_mcb_praise_info_complete",
+			"bb_mcb_praise_info_time",
+			"bb_mcb_praise_info_visit",
+			"bb_mcb_childsgame_video_complete",
+			"bb_mcb_childsgame_video_time",
+			"bb_mcb_childsgame_video_visit",
+			"bb_mcb_idstatements_activity_complete",
+			"bb_mcb_idstatements_activity_time",
+			"bb_mcb_idstatements_activity_visit",
+			"bb_mcb_attendingreview_info_complete",
+			"bb_mcb_attendingreview_info_time",
+			"bb_mcb_attendingreview_info_visit",
+			"bb_mcb_childstracking_info_complete",
+			"bb_mcb_childstracking_info_time",
+			"bb_mcb_childstracking_info_visit",
+			"bb_mcb_ignoring_video_complete",
+			"bb_mcb_ignoring_video_time",
+			"bb_mcb_ignoring_video_visit",
+			"bb_mcb_ignoring_info_complete",
+			"bb_mcb_ignoring_info_time",
+			"bb_mcb_ignoring_info_visit",
+			"bb_mcb_ignoring_activity_complete",
+			"bb_mcb_ignoring_activity_time",
+			"bb_mcb_ignoring_activity_visit",
+			"bb_mcb_ignoringpractice_info_complete",
+			"bb_mcb_ignoringpractice_info_time",
+			"bb_mcb_ignoringpractice_info_visit",
+			"bb_mcb_instructions_video_complete",
+			"bb_mcb_instructions_video_time",
+			"bb_mcb_instructions_video_visit",
+			"bb_mcb_instructions_info_complete",
+			"bb_mcb_instructions_info_time",
+			"bb_mcb_instructions_info_visit",
+			"bb_mcb_instructions_activity_complete",
+			"bb_mcb_instructions_activity_time",
+			"bb_mcb_instructions_activity_visit",
+			"bb_mcb_unclear_video_complete",
+			"bb_mcb_unclear_video_time",
+			"bb_mcb_unclear_video_visit",
+			"bb_mcb_clear_video_complete",
+			"bb_mcb_clear_video_time",
+			"bb_mcb_clear_video_visit",
+			"bb_mcb_practiceinstruct_complete",
+			"bb_mcb_practiceinstruct_time",
+			"bb_mcb_practiceinstruct_visit",
+			"bb_mcb_timeout_video_complete",
+			"bb_mcb_timeout_video_time",
+			"bb_mcb_timeout_video_visit",
+			"bb_mcb_timeout_info_complete",
+			"bb_mcb_timeout_info_time",
+			"bb_mcb_timeout_info_visit",
+			"bb_mcb_timeout_activity_complete",
+			"bb_mcb_timeout_activity_time",
+			"bb_mcb_timeout_activity_visit",
+			"bb_mcb_timeoutspots_activity_complete",
+			"bb_mcb_timeoutspots_activity_time",
+			"bb_mcb_timeoutspots_activity_visit",
+			"bb_mcb_givingending_video_complete",
+			"bb_mcb_givingending_video_time",
+			"bb_mcb_givingending_video_visit",
+			"bb_mcb_givingending_info_complete",
+			"bb_mcb_givingending_info_time",
+			"bb_mcb_givingending_info_visit",
+			"bb_mcb_example1_video_complete",
+			"bb_mcb_example1_video_time",
+			"bb_mcb_example1_video_visit",
+			"bb_mcb_timeouthw_info_complete",
+			"bb_mcb_timeouthw_info_time",
+			"bb_mcb_timeouthw_info_visit",
+			"bb_mcb_houserules_video_complete",
+			"bb_mcb_houserules_video_time",
+			"bb_mcb_houserules_video_visit",
+			"bb_mcb_houserules_info_complete",
+			"bb_mcb_houserules_info_time",
+			"bb_mcb_houserules_info_visit",
+			"bb_mcb_problems_video_complete",
+			"bb_mcb_problems_video_time",
+			"bb_mcb_problems_video_visit",
+			"bb_mcb_example2_video_complete",
+			"bb_mcb_example2_video_time",
+			"bb_mcb_example2_video_visit",
+			"bb_mcb_emotions_video_complete",
+			"bb_mcb_emotions_video_time",
+			"bb_mcb_emotions_video_visit",
+			"bb_mcb_extra_info_complete",
+			"bb_mcb_extra_info_time",
+			"bb_mcb_extra_info_visit",
+			"bb_mcb_together_info_complete",
+			"bb_mcb_together_info_time",
+			"bb_mcb_together_info_visit",
+			"bb_mcb_tei_1",
+			"bb_mcb_tei_2",
+			"bb_mcb_tei_3",
+			"bb_mcb_tei_4",
+			"bb_mcb_tei_5",
+			"bb_mcb_tei_6",
+			"bb_mcb_tei_7",
+			"bb_mcb_tei_8",
+			"bb_mcb_tei_9",
+			"bb_mcb_postcourse_qual",
+			"bb_mcb_handouts_info_complete",
+			"bb_mcb_handouts_info_time",
+			"bb_mcb_handouts_info_visit",
+			"bb_mcb_additional_info_complete",
+			"bb_mcb_additional_info_time",
+			"bb_mcb_additional_info_visit"
+	);
+
 	public void runMcbDownloadReportCsv(@Nonnull InstitutionId institutionId,
-																									 @Nonnull LocalDateTime startDateTime,
-																									 @Nonnull LocalDateTime endDateTime,
-																									 @Nonnull ZoneId reportTimeZone,
-																									 @Nonnull Locale reportLocale,
-																									 @Nonnull Writer writer) {
+													 @Nonnull LocalDateTime startDateTime,
+													 @Nonnull LocalDateTime endDateTime,
+													 @Nonnull ZoneId reportTimeZone,
+													 @Nonnull Locale reportLocale,
+													 @Nonnull Writer writer) {
 		requireNonNull(institutionId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
@@ -2004,21 +2224,57 @@ public class ReportingService {
 		Instant startInstant = startDateTime.atZone(institutionTimeZone).toInstant();
 		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
 
-		List<McbDownloadReportRecord> records = getDatabase().queryForList("""
+		List<CourseMcbDownloadReportRecord> records = getDatabase().queryForList("""
 				WITH institution_onboarding AS (
 					SELECT onboarding_screening_flow_id
 					FROM institution
 					WHERE institution_id = ?
 				),
 				institution_has_reporting_keys AS (
-					SELECT EXISTS (
-						SELECT 1
-						FROM institution_onboarding io
-						JOIN screening_flow_version sfv
-							ON sfv.screening_flow_id = io.onboarding_screening_flow_id
-						JOIN screening_question sq
-							ON sq.screening_version_id = sfv.screening_version_id
-						WHERE NULLIF(sq.metadata->'reporting'->>'key', '') LIKE 'bb_onboarding_%'
+					SELECT (
+						EXISTS (
+							SELECT 1
+							FROM institution_onboarding io
+							JOIN screening_flow_version sfv
+								ON sfv.screening_flow_id = io.onboarding_screening_flow_id
+							JOIN screening_question sq
+								ON sq.screening_version_id = sfv.screening_version_id
+							WHERE NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_onboarding_%'
+						)
+						AND (
+							EXISTS (
+								SELECT 1
+								FROM screening_flow_version sfv
+								JOIN screening_question sq
+									ON sq.screening_version_id = sfv.screening_version_id
+								JOIN course_unit cu
+									ON cu.screening_flow_id = sfv.screening_flow_id
+								JOIN course_module cm
+									ON cm.course_module_id = cu.course_module_id
+								JOIN institution_course ic
+									ON ic.course_id = cm.course_id
+								WHERE ic.institution_id = ?
+									AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_mcb_%'
+							)
+							OR EXISTS (
+								SELECT 1
+								FROM institution_course ic
+								JOIN course c
+									ON c.course_id = ic.course_id
+								WHERE ic.institution_id = ?
+									AND NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') LIKE 'bb_mcb%'
+							)
+							OR EXISTS (
+								SELECT 1
+								FROM institution_course ic
+								JOIN course_module cm
+									ON cm.course_id = ic.course_id
+								JOIN course_unit cu
+									ON cu.course_module_id = cm.course_module_id
+								WHERE ic.institution_id = ?
+									AND NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') LIKE 'bb_mcb_%'
+						)
+						)
 					) AS has_keys
 				),
 				report_accounts AS (
@@ -2071,42 +2327,6 @@ public class ReportingService {
 						AND ai_claimed.claimed = TRUE
 					GROUP BY ra.account_id
 				),
-				category_courses AS (
-					SELECT
-						(SELECT vc.course_id
-						 FROM v_course vc
-						 WHERE vc.institution_id = ?
-							 AND (LOWER(vc.url_name) LIKE '%sleep%' OR LOWER(vc.title) LIKE '%sleep%')
-						 ORDER BY vc.display_order
-						 LIMIT 1) AS sleep_course_id
-				),
-				account_course_completions AS (
-					SELECT
-						ra.account_id,
-						cs.course_id,
-						BOOL_OR(cs.course_session_status_id = 'COMPLETED') AS completed
-					FROM report_accounts ra
-					LEFT JOIN course_session cs
-						ON cs.account_id = ra.account_id
-					GROUP BY ra.account_id, cs.course_id
-				),
-				account_course_dwell AS (
-					SELECT
-						ra.account_id,
-						cm.course_id,
-						SUM(mv.dwell_time_seconds)::DOUBLE PRECISION AS dwell_time_seconds
-					FROM report_accounts ra
-					JOIN mv_analytics_dwell_time mv
-						ON mv.institution_id = ?
-						AND mv.account_id = ra.account_id
-						AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
-						AND mv.course_unit_id IS NOT NULL
-					JOIN course_unit cu
-						ON cu.course_unit_id = mv.course_unit_id
-					JOIN course_module cm
-						ON cm.course_module_id = cu.course_module_id
-					GROUP BY ra.account_id, cm.course_id
-				),
 				account_referrer AS (
 					SELECT
 						ra.account_id,
@@ -2129,30 +2349,134 @@ public class ReportingService {
 						LIMIT 1
 					) first_referrer ON TRUE
 				),
-				latest_onboarding_session AS (
-					SELECT DISTINCT ON (ss.target_account_id)
-						ss.screening_session_id,
-						ss.target_account_id
-					FROM screening_session ss
-					JOIN screening_flow_version sfv
-						ON sfv.screening_flow_version_id = ss.screening_flow_version_id
-					JOIN institution_onboarding io
-						ON io.onboarding_screening_flow_id = sfv.screening_flow_id
-					JOIN report_accounts ra
-						ON ra.account_id = ss.target_account_id
-					ORDER BY ss.target_account_id, ss.created DESC
-				),
-				latest_onboarding_answers AS (
+				account_unit_completions AS (
 					SELECT
-						los.target_account_id AS account_id,
-						NULLIF(sq.metadata->'reporting'->>'key', '') AS reporting_key,
+						ra.account_id,
+						NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+						CASE WHEN BOOL_OR(csu.course_session_unit_status_id = 'COMPLETED') THEN 1 ELSE 0 END AS complete_value
+					FROM report_accounts ra
+					JOIN course_session cs
+						ON cs.account_id = ra.account_id
+					JOIN course_session_unit csu
+						ON csu.course_session_id = cs.course_session_id
+					JOIN course_unit cu
+						ON cu.course_unit_id = csu.course_unit_id
+					WHERE NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+					GROUP BY ra.account_id, reporting_key
+				),
+				account_unit_dwell AS (
+					SELECT
+						ra.account_id,
+						NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+						COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+						COUNT(*)::BIGINT AS visit_count
+					FROM report_accounts ra
+					JOIN mv_analytics_dwell_time mv
+						ON mv.institution_id = ?
+						AND mv.account_id = ra.account_id
+						AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
+						AND mv.course_unit_id IS NOT NULL
+					JOIN course_unit cu
+						ON cu.course_unit_id = mv.course_unit_id
+					WHERE NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+					GROUP BY ra.account_id, reporting_key
+				),
+				account_unit_metrics AS (
+					SELECT
+						COALESCE(auc.account_id, aud.account_id) AS account_id,
+						COALESCE(auc.reporting_key, aud.reporting_key) AS reporting_key,
+						COALESCE(auc.complete_value, 0) AS complete_value,
+						COALESCE(aud.time_seconds, 0)::DOUBLE PRECISION AS time_seconds,
+						COALESCE(aud.visit_count, 0)::BIGINT AS visit_count
+					FROM account_unit_completions auc
+					FULL OUTER JOIN account_unit_dwell aud
+						ON aud.account_id = auc.account_id
+						AND aud.reporting_key = auc.reporting_key
+				),
+				account_course_completions AS (
+					SELECT
+						ra.account_id,
+						NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+						CASE WHEN BOOL_OR(cs.course_session_status_id = 'COMPLETED') THEN 1 ELSE 0 END AS complete_value
+					FROM report_accounts ra
+					JOIN course_session cs
+						ON cs.account_id = ra.account_id
+					JOIN course c
+						ON c.course_id = cs.course_id
+					WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+					GROUP BY ra.account_id, reporting_key
+				),
+				account_course_dwell AS (
+					SELECT
+						ra.account_id,
+						NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+						COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+						COUNT(*)::BIGINT AS visit_count
+					FROM report_accounts ra
+					JOIN mv_analytics_dwell_time mv
+						ON mv.institution_id = ?
+						AND mv.account_id = ra.account_id
+						AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
+						AND mv.course_unit_id IS NOT NULL
+					JOIN course_unit cu
+						ON cu.course_unit_id = mv.course_unit_id
+					JOIN course_module cm
+						ON cm.course_module_id = cu.course_module_id
+					JOIN course c
+						ON c.course_id = cm.course_id
+					WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+					GROUP BY ra.account_id, reporting_key
+				),
+				account_course_metrics AS (
+					SELECT
+						COALESCE(acc.account_id, acd.account_id) AS account_id,
+						COALESCE(acc.reporting_key, acd.reporting_key) AS reporting_key,
+						COALESCE(acc.complete_value, 0) AS complete_value,
+						COALESCE(acd.time_seconds, 0)::DOUBLE PRECISION AS time_seconds,
+						COALESCE(acd.visit_count, 0)::BIGINT AS visit_count
+					FROM account_course_completions acc
+					FULL OUTER JOIN account_course_dwell acd
+						ON acd.account_id = acc.account_id
+						AND acd.reporting_key = acc.reporting_key
+				),
+				account_content_metrics AS (
+					SELECT * FROM account_unit_metrics
+					UNION ALL
+					SELECT * FROM account_course_metrics
+				),
+				account_content_metric_maps AS (
+					SELECT
+						account_id,
+						COALESCE(jsonb_object_agg(reporting_key, complete_value::TEXT), '{}'::jsonb) AS metric_complete_values_json,
+						COALESCE(jsonb_object_agg(reporting_key, time_seconds::TEXT), '{}'::jsonb) AS metric_time_values_json,
+						COALESCE(jsonb_object_agg(reporting_key, visit_count::TEXT), '{}'::jsonb) AS metric_visit_values_json
+					FROM (
+						SELECT
+							account_id,
+							reporting_key,
+							MAX(complete_value) AS complete_value,
+							SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+							SUM(visit_count)::BIGINT AS visit_count
+						FROM account_content_metrics
+						GROUP BY account_id, reporting_key
+					) metrics
+					GROUP BY account_id
+				),
+				screening_question_answers AS (
+					SELECT
+						ss.target_account_id AS account_id,
+						NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
+						ssasq.screening_session_answered_screening_question_id,
+						COALESCE(MAX(sa.created), ss.created) AS answered_at,
 						STRING_AGG(
 							COALESCE(NULLIF(sa.text, ''), sao.score::TEXT, NULLIF(sao.answer_option_text, '')),
 							',' ORDER BY sa.answer_order
 						) AS reporting_value
-					FROM latest_onboarding_session los
+					FROM screening_session ss
+					JOIN report_accounts ra
+						ON ra.account_id = ss.target_account_id
 					JOIN v_screening_session_screening sss
-						ON sss.screening_session_id = los.screening_session_id
+						ON sss.screening_session_id = ss.screening_session_id
 					JOIN v_screening_session_answered_screening_question ssasq
 						ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
 					JOIN screening_question sq
@@ -2162,23 +2486,22 @@ public class ReportingService {
 					LEFT JOIN screening_answer_option sao
 						ON sao.screening_answer_option_id = sa.screening_answer_option_id
 					WHERE sq.metadata IS NOT NULL
-						AND NULLIF(sq.metadata->'reporting'->>'key', '') IS NOT NULL
-					GROUP BY los.target_account_id, reporting_key
+						AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') IS NOT NULL
+					GROUP BY ss.target_account_id, reporting_key, ssasq.screening_session_answered_screening_question_id
 				),
-				account_onboarding_values AS (
+				latest_screening_values AS (
+					SELECT DISTINCT ON (account_id, reporting_key)
+						account_id,
+						reporting_key,
+						reporting_value
+					FROM screening_question_answers
+					ORDER BY account_id, reporting_key, answered_at DESC, screening_session_answered_screening_question_id DESC
+				),
+				account_screening_values AS (
 					SELECT
 						account_id,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_1' THEN reporting_value END) AS bb_onboarding_1,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_2' THEN reporting_value END) AS bb_onboarding_2,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_2a' THEN reporting_value END) AS bb_onboarding_2a,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_2b' THEN reporting_value END) AS bb_onboarding_2b,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_3' THEN reporting_value END) AS bb_onboarding_3,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_4' THEN reporting_value END) AS bb_onboarding_4,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_5' THEN reporting_value END) AS bb_onboarding_5,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_6' THEN reporting_value END) AS bb_onboarding_6,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_7' THEN reporting_value END) AS bb_onboarding_7,
-						MAX(CASE WHEN reporting_key = 'bb_onboarding_8' THEN reporting_value END) AS bb_onboarding_8
-					FROM latest_onboarding_answers
+						COALESCE(jsonb_object_agg(reporting_key, reporting_value), '{}'::jsonb) AS screening_values_json
+					FROM latest_screening_values
 					GROUP BY account_id
 				)
 				SELECT
@@ -2187,34 +2510,15 @@ public class ReportingService {
 					ra.email_address,
 					aem.email_entered_at,
 					aem.email_verified_at,
-					COALESCE(NULLIF(ra.metadata->>'zipCode', ''), aov.bb_onboarding_6) AS bb_zipcode,
+					COALESCE(NULLIF(ra.metadata->>'zipCode', ''), asv.screening_values_json->>'bb_onboarding_6') AS bb_zipcode,
 					ar.bb_referrer,
-					aov.bb_onboarding_1,
-					aov.bb_onboarding_2,
-					aov.bb_onboarding_2a,
-					aov.bb_onboarding_2b,
-					aov.bb_onboarding_3,
-					aov.bb_onboarding_4,
-					aov.bb_onboarding_5,
-					aov.bb_onboarding_6,
-					aov.bb_onboarding_7,
-					aov.bb_onboarding_8,
 					COALESCE(asm.bb_n_sitevisit, 0) AS bb_n_sitevisit,
 					COALESCE(att.bb_tot_time_seconds, 0) AS bb_tot_time_seconds,
-					COALESCE((
-						SELECT CASE WHEN acc.completed THEN 1 ELSE 0 END
-						FROM account_course_completions acc
-						WHERE acc.account_id = ra.account_id
-							AND acc.course_id = cc.sleep_course_id
-					), 0) AS bb_sleep_complete,
-					COALESCE((
-						SELECT acd.dwell_time_seconds
-						FROM account_course_dwell acd
-						WHERE acd.account_id = ra.account_id
-							AND acd.course_id = cc.sleep_course_id
-					), 0) AS bb_sleep_time_seconds
+					COALESCE(asv.screening_values_json, '{}'::jsonb)::TEXT AS screening_values_json,
+					COALESCE(acmm.metric_complete_values_json, '{}'::jsonb)::TEXT AS metric_complete_values_json,
+					COALESCE(acmm.metric_time_values_json, '{}'::jsonb)::TEXT AS metric_time_values_json,
+					COALESCE(acmm.metric_visit_values_json, '{}'::jsonb)::TEXT AS metric_visit_values_json
 				FROM report_accounts ra
-				CROSS JOIN category_courses cc
 				LEFT JOIN account_site_metrics asm
 					ON asm.account_id = ra.account_id
 				LEFT JOIN account_tot_time att
@@ -2223,63 +2527,29 @@ public class ReportingService {
 					ON aem.account_id = ra.account_id
 				LEFT JOIN account_referrer ar
 					ON ar.account_id = ra.account_id
-				LEFT JOIN account_onboarding_values aov
-					ON aov.account_id = ra.account_id
+				LEFT JOIN account_screening_values asv
+					ON asv.account_id = ra.account_id
+				LEFT JOIN account_content_metric_maps acmm
+					ON acmm.account_id = ra.account_id
 				ORDER BY ra.account_created_at, ra.account_id
-				""", McbDownloadReportRecord.class, institutionId, institutionId, startInstant, endInstant, RoleId.PATIENT,
-				institutionId, institutionId, institutionId, institutionId, institutionId, institutionId);
+				""", CourseMcbDownloadReportRecord.class, institutionId, institutionId, institutionId, institutionId, institutionId,
+				startInstant, endInstant, RoleId.PATIENT, institutionId, institutionId, institutionId, institutionId, institutionId, institutionId);
 
 		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
 				.withZone(institutionTimeZone)
 				.withLocale(reportLocale);
 
-		List<String> headerColumns = List.of(
-				"recordID",
-				"email",
-				"bb_email_entered_date",
-				"bb_email_verified_date",
-				"bb_zipcode",
-				"bb_referrer",
-				"bb_onboarding_1",
-				"bb_onboarding_2",
-				"bb_onboarding_2a",
-				"bb_onboarding_2b",
-				"bb_onboarding_3",
-				"bb_onboarding_4",
-				"bb_onboarding_5",
-				"bb_onboarding_6",
-				"bb_onboarding_7",
-				"bb_onboarding_8",
-				"bb_n_sitevisit",
-				"bb_tot_time",
-				"bb_sleep_complete",
-				"bb_sleep_time"
-		);
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(COURSE_MCB_DOWNLOAD_HEADER_COLUMNS.toArray(new String[0])))) {
+			for (CourseMcbDownloadReportRecord record : records) {
+				Map<String, String> screeningValues = parseJsonObjectAsStringMap(record.getScreeningValuesJson());
+				Map<String, String> metricCompleteValues = parseJsonObjectAsStringMap(record.getMetricCompleteValuesJson());
+				Map<String, String> metricTimeValues = parseJsonObjectAsStringMap(record.getMetricTimeValuesJson());
+				Map<String, String> metricVisitValues = parseJsonObjectAsStringMap(record.getMetricVisitValuesJson());
 
-		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
-			for (McbDownloadReportRecord record : records) {
-				List<String> recordElements = new ArrayList<>(20);
+				List<String> recordElements = new ArrayList<>(COURSE_MCB_DOWNLOAD_HEADER_COLUMNS.size());
 
-				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
-				recordElements.add(record.getEmailAddress() == null ? "" : record.getEmailAddress());
-				recordElements.add(record.getEmailEnteredAt() == null ? "" : dateFormatter.format(record.getEmailEnteredAt()));
-				recordElements.add(record.getEmailVerifiedAt() == null ? "" : dateFormatter.format(record.getEmailVerifiedAt()));
-				recordElements.add(record.getBbZipcode() == null ? "" : record.getBbZipcode());
-				recordElements.add(record.getBbReferrer() == null ? "" : record.getBbReferrer());
-				recordElements.add(record.getBbOnboarding1() == null ? "" : record.getBbOnboarding1());
-				recordElements.add(record.getBbOnboarding2() == null ? "" : record.getBbOnboarding2());
-				recordElements.add(record.getBbOnboarding2a() == null ? "" : record.getBbOnboarding2a());
-				recordElements.add(record.getBbOnboarding2b() == null ? "" : record.getBbOnboarding2b());
-				recordElements.add(record.getBbOnboarding3() == null ? "" : record.getBbOnboarding3());
-				recordElements.add(record.getBbOnboarding4() == null ? "" : record.getBbOnboarding4());
-				recordElements.add(record.getBbOnboarding5() == null ? "" : record.getBbOnboarding5());
-				recordElements.add(record.getBbOnboarding6() == null ? "" : record.getBbOnboarding6());
-				recordElements.add(record.getBbOnboarding7() == null ? "" : record.getBbOnboarding7());
-				recordElements.add(record.getBbOnboarding8() == null ? "" : record.getBbOnboarding8());
-				recordElements.add(record.getBbNSitevisit() == null ? "0" : record.getBbNSitevisit().toString());
-				recordElements.add(formatDurationSeconds(record.getBbTotTimeSeconds()));
-				recordElements.add(record.getBbSleepComplete() == null ? "0" : record.getBbSleepComplete().toString());
-				recordElements.add(formatDurationSeconds(record.getBbSleepTimeSeconds()));
+				for (String headerColumn : COURSE_MCB_DOWNLOAD_HEADER_COLUMNS)
+					recordElements.add(resolveCourseMcbDownloadColumnValue(headerColumn, record, dateFormatter, screeningValues, metricCompleteValues, metricTimeValues, metricVisitValues));
 
 				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
 			}
@@ -2288,6 +2558,128 @@ public class ReportingService {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	@Nonnull
+	private String resolveCourseMcbDownloadColumnValue(@Nonnull String headerColumn,
+											 @Nonnull CourseMcbDownloadReportRecord record,
+											 @Nonnull DateTimeFormatter dateFormatter,
+											 @Nonnull Map<String, String> screeningValues,
+											 @Nonnull Map<String, String> metricCompleteValues,
+											 @Nonnull Map<String, String> metricTimeValues,
+											 @Nonnull Map<String, String> metricVisitValues) {
+		requireNonNull(headerColumn);
+		requireNonNull(record);
+		requireNonNull(dateFormatter);
+		requireNonNull(screeningValues);
+		requireNonNull(metricCompleteValues);
+		requireNonNull(metricTimeValues);
+		requireNonNull(metricVisitValues);
+
+		if ("recordID".equals(headerColumn))
+			return record.getAccountId() == null ? "" : record.getAccountId().toString();
+
+		if ("email".equals(headerColumn))
+			return record.getEmailAddress() == null ? "" : record.getEmailAddress();
+
+		if ("bb_email_entered_date".equals(headerColumn))
+			return record.getEmailEnteredAt() == null ? "" : dateFormatter.format(record.getEmailEnteredAt());
+
+		if ("bb_email_verified_date".equals(headerColumn))
+			return record.getEmailVerifiedAt() == null ? "" : dateFormatter.format(record.getEmailVerifiedAt());
+
+		if ("bb_zipcode".equals(headerColumn))
+			return record.getBbZipcode() == null ? "" : record.getBbZipcode();
+
+		if ("bb_referrer".equals(headerColumn))
+			return record.getBbReferrer() == null ? "" : record.getBbReferrer();
+
+		if ("bb_n_sitevisit".equals(headerColumn))
+			return record.getBbNSitevisit() == null ? "0" : record.getBbNSitevisit().toString();
+
+		if ("bb_tot_time".equals(headerColumn))
+			return formatDurationSeconds(record.getBbTotTimeSeconds());
+
+		if (headerColumn.endsWith(METRIC_COMPLETE_COLUMN_SUFFIX)) {
+			String metricKey = normalizeReportingKey(headerColumn.substring(0, headerColumn.length() - METRIC_COMPLETE_COLUMN_SUFFIX.length()));
+			return formatCount(metricCompleteValues.get(metricKey));
+		}
+
+		if (headerColumn.endsWith(METRIC_TIME_COLUMN_SUFFIX)) {
+			String metricKey = normalizeReportingKey(headerColumn.substring(0, headerColumn.length() - METRIC_TIME_COLUMN_SUFFIX.length()));
+			return formatDurationSeconds(parseNullableDouble(metricTimeValues.get(metricKey)));
+		}
+
+		if (headerColumn.endsWith(METRIC_VISIT_COLUMN_SUFFIX)) {
+			String metricKey = normalizeReportingKey(headerColumn.substring(0, headerColumn.length() - METRIC_VISIT_COLUMN_SUFFIX.length()));
+			return formatCount(metricVisitValues.get(metricKey));
+		}
+
+		String screeningValue = screeningValues.get(normalizeReportingKey(headerColumn));
+		return screeningValue == null ? "" : screeningValue;
+	}
+
+	@Nonnull
+	private String formatCount(@Nullable String value) {
+		Double parsedValue = parseNullableDouble(value);
+		long roundedValue = Math.max(0, Math.round(parsedValue == null ? 0 : parsedValue));
+		return Long.toString(roundedValue);
+	}
+
+	@Nullable
+	private Double parseNullableDouble(@Nullable String value) {
+		if (value == null)
+			return null;
+
+		String trimmedValue = value.trim();
+
+		if (trimmedValue.isEmpty())
+			return null;
+
+		try {
+			return Double.parseDouble(trimmedValue);
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	@Nonnull
+	private Map<String, String> parseJsonObjectAsStringMap(@Nullable String jsonObjectAsString) {
+		if (jsonObjectAsString == null)
+			return Map.of();
+
+		String trimmedJsonObjectAsString = jsonObjectAsString.trim();
+
+		if (trimmedJsonObjectAsString.isEmpty())
+			return Map.of();
+
+		Map<String, Object> parsedValues = GSON.fromJson(trimmedJsonObjectAsString, new TypeToken<Map<String, Object>>() {
+		}.getType());
+
+		if (parsedValues == null || parsedValues.isEmpty())
+			return Map.of();
+
+		Map<String, String> normalizedValues = new HashMap<>(parsedValues.size());
+
+		for (Map.Entry<String, Object> parsedEntry : parsedValues.entrySet()) {
+			String normalizedKey = normalizeReportingKey(parsedEntry.getKey());
+
+			if (normalizedKey.isEmpty())
+				continue;
+
+			Object parsedValue = parsedEntry.getValue();
+			normalizedValues.put(normalizedKey, parsedValue == null ? "" : parsedValue.toString());
+		}
+
+		return normalizedValues;
+	}
+
+	@Nonnull
+	private String normalizeReportingKey(@Nullable String reportingKey) {
+		if (reportingKey == null)
+			return "";
+
+		return reportingKey.replaceAll("\\s+", "");
 	}
 
 	@Nonnull
@@ -2314,7 +2706,7 @@ public class ReportingService {
 	}
 
 	@NotThreadSafe
-	protected static class McbDownloadReportRecord {
+	protected static class CourseMcbDownloadReportRecord {
 		@Nullable
 		private UUID accountId;
 		@Nullable
@@ -2330,45 +2722,17 @@ public class ReportingService {
 		@Nullable
 		private String bbReferrer;
 		@Nullable
-		private String bbOnboarding1;
-		@Nullable
-		private String bbOnboarding2;
-		@Nullable
-		private String bbOnboarding2a;
-		@Nullable
-		private String bbOnboarding2b;
-		@Nullable
-		private String bbOnboarding3;
-		@Nullable
-		private String bbOnboarding4;
-		@Nullable
-		private String bbOnboarding5;
-		@Nullable
-		private String bbOnboarding6;
-		@Nullable
-		private String bbOnboarding7;
-		@Nullable
-		private String bbOnboarding8;
-		@Nullable
 		private Long bbNSitevisit;
 		@Nullable
 		private Double bbTotTimeSeconds;
 		@Nullable
-		private Integer bbSleepComplete;
+		private String screeningValuesJson;
 		@Nullable
-		private Double bbSleepTimeSeconds;
+		private String metricCompleteValuesJson;
 		@Nullable
-		private Integer bbTraumaComplete;
+		private String metricTimeValuesJson;
 		@Nullable
-		private Double bbTraumaTimeSeconds;
-		@Nullable
-		private Integer bbTeensComplete;
-		@Nullable
-		private Double bbTeensTimeSeconds;
-		@Nullable
-		private Integer bbMcbComplete;
-		@Nullable
-		private Double bbMcbTimeSeconds;
+		private String metricVisitValuesJson;
 
 		@Nullable
 		public UUID getAccountId() {
@@ -2434,96 +2798,6 @@ public class ReportingService {
 		}
 
 		@Nullable
-		public String getBbOnboarding1() {
-			return bbOnboarding1;
-		}
-
-		public void setBbOnboarding1(@Nullable String bbOnboarding1) {
-			this.bbOnboarding1 = bbOnboarding1;
-		}
-
-		@Nullable
-		public String getBbOnboarding2() {
-			return bbOnboarding2;
-		}
-
-		public void setBbOnboarding2(@Nullable String bbOnboarding2) {
-			this.bbOnboarding2 = bbOnboarding2;
-		}
-
-		@Nullable
-		public String getBbOnboarding2a() {
-			return bbOnboarding2a;
-		}
-
-		public void setBbOnboarding2a(@Nullable String bbOnboarding2a) {
-			this.bbOnboarding2a = bbOnboarding2a;
-		}
-
-		@Nullable
-		public String getBbOnboarding2b() {
-			return bbOnboarding2b;
-		}
-
-		public void setBbOnboarding2b(@Nullable String bbOnboarding2b) {
-			this.bbOnboarding2b = bbOnboarding2b;
-		}
-
-		@Nullable
-		public String getBbOnboarding3() {
-			return bbOnboarding3;
-		}
-
-		public void setBbOnboarding3(@Nullable String bbOnboarding3) {
-			this.bbOnboarding3 = bbOnboarding3;
-		}
-
-		@Nullable
-		public String getBbOnboarding4() {
-			return bbOnboarding4;
-		}
-
-		public void setBbOnboarding4(@Nullable String bbOnboarding4) {
-			this.bbOnboarding4 = bbOnboarding4;
-		}
-
-		@Nullable
-		public String getBbOnboarding5() {
-			return bbOnboarding5;
-		}
-
-		public void setBbOnboarding5(@Nullable String bbOnboarding5) {
-			this.bbOnboarding5 = bbOnboarding5;
-		}
-
-		@Nullable
-		public String getBbOnboarding6() {
-			return bbOnboarding6;
-		}
-
-		public void setBbOnboarding6(@Nullable String bbOnboarding6) {
-			this.bbOnboarding6 = bbOnboarding6;
-		}
-
-		@Nullable
-		public String getBbOnboarding7() {
-			return bbOnboarding7;
-		}
-
-		public void setBbOnboarding7(@Nullable String bbOnboarding7) {
-			this.bbOnboarding7 = bbOnboarding7;
-		}
-
-		@Nullable
-		public String getBbOnboarding8() {
-			return bbOnboarding8;
-		}
-
-		public void setBbOnboarding8(@Nullable String bbOnboarding8) {
-			this.bbOnboarding8 = bbOnboarding8;
-		}
-
-		@Nullable
 		public Long getBbNSitevisit() {
 			return bbNSitevisit;
 		}
@@ -2542,75 +2816,39 @@ public class ReportingService {
 		}
 
 		@Nullable
-		public Integer getBbSleepComplete() {
-			return bbSleepComplete;
+		public String getScreeningValuesJson() {
+			return screeningValuesJson;
 		}
 
-		public void setBbSleepComplete(@Nullable Integer bbSleepComplete) {
-			this.bbSleepComplete = bbSleepComplete;
-		}
-
-		@Nullable
-		public Double getBbSleepTimeSeconds() {
-			return bbSleepTimeSeconds;
-		}
-
-		public void setBbSleepTimeSeconds(@Nullable Double bbSleepTimeSeconds) {
-			this.bbSleepTimeSeconds = bbSleepTimeSeconds;
+		public void setScreeningValuesJson(@Nullable String screeningValuesJson) {
+			this.screeningValuesJson = screeningValuesJson;
 		}
 
 		@Nullable
-		public Integer getBbTraumaComplete() {
-			return bbTraumaComplete;
+		public String getMetricCompleteValuesJson() {
+			return metricCompleteValuesJson;
 		}
 
-		public void setBbTraumaComplete(@Nullable Integer bbTraumaComplete) {
-			this.bbTraumaComplete = bbTraumaComplete;
-		}
-
-		@Nullable
-		public Double getBbTraumaTimeSeconds() {
-			return bbTraumaTimeSeconds;
-		}
-
-		public void setBbTraumaTimeSeconds(@Nullable Double bbTraumaTimeSeconds) {
-			this.bbTraumaTimeSeconds = bbTraumaTimeSeconds;
+		public void setMetricCompleteValuesJson(@Nullable String metricCompleteValuesJson) {
+			this.metricCompleteValuesJson = metricCompleteValuesJson;
 		}
 
 		@Nullable
-		public Integer getBbTeensComplete() {
-			return bbTeensComplete;
+		public String getMetricTimeValuesJson() {
+			return metricTimeValuesJson;
 		}
 
-		public void setBbTeensComplete(@Nullable Integer bbTeensComplete) {
-			this.bbTeensComplete = bbTeensComplete;
-		}
-
-		@Nullable
-		public Double getBbTeensTimeSeconds() {
-			return bbTeensTimeSeconds;
-		}
-
-		public void setBbTeensTimeSeconds(@Nullable Double bbTeensTimeSeconds) {
-			this.bbTeensTimeSeconds = bbTeensTimeSeconds;
+		public void setMetricTimeValuesJson(@Nullable String metricTimeValuesJson) {
+			this.metricTimeValuesJson = metricTimeValuesJson;
 		}
 
 		@Nullable
-		public Integer getBbMcbComplete() {
-			return bbMcbComplete;
+		public String getMetricVisitValuesJson() {
+			return metricVisitValuesJson;
 		}
 
-		public void setBbMcbComplete(@Nullable Integer bbMcbComplete) {
-			this.bbMcbComplete = bbMcbComplete;
-		}
-
-		@Nullable
-		public Double getBbMcbTimeSeconds() {
-			return bbMcbTimeSeconds;
-		}
-
-		public void setBbMcbTimeSeconds(@Nullable Double bbMcbTimeSeconds) {
-			this.bbMcbTimeSeconds = bbMcbTimeSeconds;
+		public void setMetricVisitValuesJson(@Nullable String metricVisitValuesJson) {
+			this.metricVisitValuesJson = metricVisitValuesJson;
 		}
 	}
 
