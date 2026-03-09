@@ -214,6 +214,8 @@ public class ReportingResource {
 				getReportingService().runAdminAnalyticsAccountOnboardingIncompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.ACCOUNT_ONBOARDING_COMPLETE)
 				getReportingService().runAdminAnalyticsAccountOnboardingCompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.COURSE_MCB_DOWNLOAD)
+				getReportingService().runMcbDownloadReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else
 				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));
 		}
