@@ -338,11 +338,12 @@ public class MessageService implements AutoCloseable {
 			messageContext.put("supportEmailAddress", supportEmailAddress);
 
 			// Platform email image URL (optionally overridable).
-			// If not specified, templates should use their own fallback behavior.
-			String platformEmailImageUrl = trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name()));
+			String platformEmailImageUrl = ObjectUtils.firstNonNull(
+					trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name())),
+					format("%s/logo@2x.jpg", staticFileUrlPrefix)
+			);
 
-			if (platformEmailImageUrl != null)
-				messageContext.put("platformEmailImageUrl", platformEmailImageUrl);
+			messageContext.put("platformEmailImageUrl", platformEmailImageUrl);
 
 			// Create a new email message using the updated email message context
 			customizedEmailMessage = customizedEmailMessage.toBuilder()
