@@ -2226,12 +2226,17 @@ public class ReportingService {
 		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
 
 		List<CourseMcbDownloadReportRecord> records = getDatabase().queryForList("""
-				WITH institution_onboarding AS (
-					SELECT onboarding_screening_flow_id
-					FROM institution
-					WHERE institution_id = ?
-				),
-				institution_has_reporting_keys AS (
+					WITH institution_onboarding AS (
+						SELECT onboarding_screening_flow_id
+						FROM institution
+						WHERE institution_id = ?
+					),
+					report_window AS (
+						SELECT
+							?::TIMESTAMPTZ AS report_start_at,
+							?::TIMESTAMPTZ AS report_end_at
+					),
+					institution_has_reporting_keys AS (
 					SELECT (
 						EXISTS (
 							SELECT 1
@@ -2286,167 +2291,304 @@ public class ReportingService {
 						)
 					) AS has_keys
 				),
-				report_accounts AS (
-					SELECT
-						a.account_id,
-						a.created AS account_created_at,
-						a.email_address,
-						a.metadata
-					FROM account a
-					JOIN institution_has_reporting_keys ihrk
-						ON ihrk.has_keys = TRUE
-					WHERE a.institution_id = ?
-						AND a.created >= ?
-						AND a.created <= ?
-						AND a.role_id = ?
-						AND a.test_account = FALSE
-				),
-				account_site_metrics AS (
-					SELECT
-						ra.account_id,
-						COUNT(DISTINCT ane.session_id)::BIGINT AS bb_n_sitevisit
-					FROM report_accounts ra
-					LEFT JOIN analytics_native_event ane
-						ON ane.institution_id = ?
-						AND ane.account_id = ra.account_id
-					GROUP BY ra.account_id
-				),
-				account_tot_time AS (
-					SELECT
-						ra.account_id,
-						COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS bb_tot_time_seconds
-					FROM report_accounts ra
-					LEFT JOIN mv_analytics_dwell_time mv
-						ON mv.institution_id = ?
-						AND mv.account_id = ra.account_id
-					GROUP BY ra.account_id
-				),
-				account_email_metrics AS (
-					SELECT
-						ra.account_id,
-						MIN(ai.created) AS email_entered_at,
-						MIN(ai_claimed.last_updated) AS email_verified_at
-					FROM report_accounts ra
-					LEFT JOIN account_invite ai
-						ON ai.institution_id = ?
-						AND LOWER(ai.email_address) = LOWER(ra.email_address)
-					LEFT JOIN account_invite ai_claimed
-						ON ai_claimed.institution_id = ai.institution_id
-						AND LOWER(ai_claimed.email_address) = LOWER(ai.email_address)
-						AND ai_claimed.claimed = TRUE
-					GROUP BY ra.account_id
-				),
-				account_referrer AS (
-					SELECT
-						ra.account_id,
-						first_referrer.bb_referrer
-					FROM report_accounts ra
-					LEFT JOIN LATERAL (
+					report_accounts AS (
 						SELECT
-							COALESCE(
-								NULLIF(LOWER(SPLIT_PART(REGEXP_REPLACE(COALESCE(ane.data->>'referringUrl', ''), '^https?://', ''), '/', 1)), ''),
+							a.account_id,
+							a.created AS account_created_at,
+							a.email_address,
+							a.metadata
+						FROM account a
+						JOIN report_window rw
+							ON TRUE
+						JOIN institution_has_reporting_keys ihrk
+							ON ihrk.has_keys = TRUE
+						WHERE a.institution_id = ?
+							AND a.created >= rw.report_start_at
+							AND a.created <= rw.report_end_at
+							AND a.role_id = ?
+							AND a.test_account = FALSE
+					),
+					account_site_metrics AS (
+						SELECT
+							ra.account_id,
+							COUNT(DISTINCT ane.session_id)::BIGINT AS bb_n_sitevisit
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						LEFT JOIN analytics_native_event ane
+							ON ane.institution_id = ?
+							AND ane.account_id = ra.account_id
+							AND ane.timestamp >= ra.account_created_at
+							AND ane.timestamp <= rw.report_end_at
+						GROUP BY ra.account_id
+					),
+					account_tot_time AS (
+						SELECT
+							ra.account_id,
+							COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS bb_tot_time_seconds
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						LEFT JOIN mv_analytics_dwell_time mv
+							ON mv.institution_id = ?
+							AND mv.account_id = ra.account_id
+							AND mv.page_viewed_at >= ra.account_created_at
+							AND mv.page_viewed_at <= rw.report_end_at
+						GROUP BY ra.account_id
+					),
+					account_email_metrics AS (
+						SELECT
+							ra.account_id,
+							MIN(ai.created) AS email_entered_at,
+							MIN(ai_claimed.last_updated) AS email_verified_at
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						LEFT JOIN account_invite ai
+							ON ai.institution_id = ?
+							AND LOWER(ai.email_address) = LOWER(ra.email_address)
+							AND ai.created <= rw.report_end_at
+						LEFT JOIN account_invite ai_claimed
+							ON ai_claimed.institution_id = ai.institution_id
+							AND LOWER(ai_claimed.email_address) = LOWER(ai.email_address)
+							AND ai_claimed.claimed = TRUE
+							AND ai_claimed.last_updated <= rw.report_end_at
+						GROUP BY ra.account_id
+					),
+					account_referrer AS (
+						SELECT
+							ra.account_id,
+							first_referrer.bb_referrer
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						LEFT JOIN LATERAL (
+							SELECT
+								COALESCE(
+									NULLIF(LOWER(SPLIT_PART(REGEXP_REPLACE(COALESCE(ane.data->>'referringUrl', ''), '^https?://', ''), '/', 1)), ''),
 								NULLIF(LOWER(ane.referring_campaign), '')
 							) AS bb_referrer
-						FROM analytics_native_event ane
-						WHERE ane.institution_id = ?
-							AND ane.account_id = ra.account_id
-							AND (
-								NULLIF(ane.data->>'referringUrl', '') IS NOT NULL
-								OR NULLIF(ane.referring_campaign, '') IS NOT NULL
+							FROM analytics_native_event ane
+							WHERE ane.institution_id = ?
+								AND ane.account_id = ra.account_id
+								AND ane.timestamp >= ra.account_created_at
+								AND ane.timestamp <= rw.report_end_at
+								AND (
+									NULLIF(ane.data->>'referringUrl', '') IS NOT NULL
+									OR NULLIF(ane.referring_campaign, '') IS NOT NULL
 							)
 						ORDER BY ane.timestamp
 						LIMIT 1
 					) first_referrer ON TRUE
 				),
-				account_unit_completions AS (
-					SELECT
-						ra.account_id,
-						NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-						CASE WHEN BOOL_OR(csu.course_session_unit_status_id = 'COMPLETED') THEN 1 ELSE 0 END AS complete_value
-					FROM report_accounts ra
-					JOIN course_session cs
-						ON cs.account_id = ra.account_id
-					JOIN course_session_unit csu
-						ON csu.course_session_id = cs.course_session_id
-					JOIN course_unit cu
-						ON cu.course_unit_id = csu.course_unit_id
+					account_unit_completions AS (
+						SELECT
+							ra.account_id,
+							NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+							CASE WHEN BOOL_OR(csu.course_session_unit_status_id = 'COMPLETED' AND csu.completed_at <= rw.report_end_at) THEN 1 ELSE 0 END AS complete_value
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						JOIN course_session cs
+							ON cs.account_id = ra.account_id
+							AND cs.created <= rw.report_end_at
+						JOIN course_session_unit csu
+							ON csu.course_session_id = cs.course_session_id
+						JOIN course_unit cu
+							ON cu.course_unit_id = csu.course_unit_id
 					WHERE NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
 					GROUP BY ra.account_id, reporting_key
 				),
-				account_unit_dwell AS (
-					SELECT
-						ra.account_id,
-						NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-						COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS time_seconds,
-						COUNT(*)::BIGINT AS visit_count
-					FROM report_accounts ra
-					JOIN mv_analytics_dwell_time mv
-						ON mv.institution_id = ?
-						AND mv.account_id = ra.account_id
-						AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
-						AND mv.course_unit_id IS NOT NULL
-					JOIN course_unit cu
-						ON cu.course_unit_id = mv.course_unit_id
-					WHERE NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-					GROUP BY ra.account_id, reporting_key
-				),
-				account_unit_metrics AS (
-					SELECT
-						COALESCE(auc.account_id, aud.account_id) AS account_id,
-						COALESCE(auc.reporting_key, aud.reporting_key) AS reporting_key,
-						COALESCE(auc.complete_value, 0) AS complete_value,
-						COALESCE(aud.time_seconds, 0)::DOUBLE PRECISION AS time_seconds,
-						COALESCE(aud.visit_count, 0)::BIGINT AS visit_count
-					FROM account_unit_completions auc
-					FULL OUTER JOIN account_unit_dwell aud
-						ON aud.account_id = auc.account_id
-						AND aud.reporting_key = auc.reporting_key
-				),
-				account_course_completions AS (
-					SELECT
-						ra.account_id,
-						NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-						CASE WHEN BOOL_OR(cs.course_session_status_id = 'COMPLETED') THEN 1 ELSE 0 END AS complete_value
-					FROM report_accounts ra
-					JOIN course_session cs
-						ON cs.account_id = ra.account_id
-					JOIN course c
-						ON c.course_id = cs.course_id
-					WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-					GROUP BY ra.account_id, reporting_key
-				),
-				account_course_dwell AS (
-					SELECT
-						ra.account_id,
-						NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-						COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS time_seconds,
-						COUNT(*)::BIGINT AS visit_count
-					FROM report_accounts ra
-					JOIN mv_analytics_dwell_time mv
-						ON mv.institution_id = ?
-						AND mv.account_id = ra.account_id
-						AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
-						AND mv.course_unit_id IS NOT NULL
-					JOIN course_unit cu
-						ON cu.course_unit_id = mv.course_unit_id
+					account_unit_page_metrics AS (
+						SELECT
+							ra.account_id,
+							NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS unit_reporting_key,
+							cu.course_unit_type_id AS unit_type,
+							NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS course_reporting_key,
+							COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+							COUNT(*)::BIGINT AS visit_count
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						JOIN mv_analytics_dwell_time mv
+							ON mv.institution_id = ?
+							AND mv.account_id = ra.account_id
+							AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
+							AND mv.course_unit_id IS NOT NULL
+							AND mv.page_viewed_at >= ra.account_created_at
+							AND mv.page_viewed_at <= rw.report_end_at
+						JOIN course_unit cu
+							ON cu.course_unit_id = mv.course_unit_id
 					JOIN course_module cm
 						ON cm.course_module_id = cu.course_module_id
 					JOIN course c
 						ON c.course_id = cm.course_id
-					WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-					GROUP BY ra.account_id, reporting_key
+					WHERE
+						NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+						OR NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+					GROUP BY ra.account_id, unit_reporting_key, unit_type, course_reporting_key
+				),
+				account_unit_visit_rows AS (
+					SELECT
+						account_id,
+						unit_reporting_key AS reporting_key,
+						0 AS complete_value,
+						0::DOUBLE PRECISION AS time_seconds,
+						SUM(visit_count)::BIGINT AS visit_count
+					FROM account_unit_page_metrics
+					WHERE unit_reporting_key IS NOT NULL
+					GROUP BY account_id, unit_reporting_key
+				),
+				account_non_video_unit_time_rows AS (
+					SELECT
+						account_id,
+						unit_reporting_key AS reporting_key,
+						0 AS complete_value,
+						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+						0::BIGINT AS visit_count
+					FROM account_unit_page_metrics
+					WHERE unit_reporting_key IS NOT NULL
+						AND unit_type <> 'VIDEO'
+					GROUP BY account_id, unit_reporting_key
+				),
+					account_video_unit_metric_rows AS (
+						SELECT
+							ra.account_id,
+							NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+							0 AS complete_value,
+							COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+							0::BIGINT AS visit_count
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						JOIN mv_analytics_course_unit_video_rollup vr
+							ON vr.account_id = ra.account_id
+							AND vr.first_event_at >= ra.account_created_at
+							AND vr.first_event_at <= rw.report_end_at
+						JOIN course_unit cu
+							ON cu.course_unit_id = vr.course_unit_id
+						WHERE cu.course_unit_type_id = 'VIDEO'
+							AND NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+						GROUP BY ra.account_id, NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '')
+				),
+				account_unit_completion_rows AS (
+					SELECT
+						account_id,
+						reporting_key,
+						complete_value,
+						0::DOUBLE PRECISION AS time_seconds,
+						0::BIGINT AS visit_count
+					FROM account_unit_completions
+				),
+				account_unit_metric_rows AS (
+					SELECT * FROM account_unit_completion_rows
+					UNION ALL
+					SELECT * FROM account_non_video_unit_time_rows
+					UNION ALL
+					SELECT * FROM account_video_unit_metric_rows
+					UNION ALL
+					SELECT * FROM account_unit_visit_rows
+				),
+				account_unit_metrics AS (
+					SELECT
+						account_id,
+						reporting_key,
+						MAX(complete_value) AS complete_value,
+						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+						SUM(visit_count)::BIGINT AS visit_count
+					FROM account_unit_metric_rows
+					GROUP BY account_id, reporting_key
+				),
+					account_course_completions AS (
+						SELECT
+							ra.account_id,
+							NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+							CASE WHEN BOOL_OR(cs.course_session_status_id = 'COMPLETED' AND cs.completed_at <= rw.report_end_at) THEN 1 ELSE 0 END AS complete_value
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						JOIN course_session cs
+							ON cs.account_id = ra.account_id
+							AND cs.created <= rw.report_end_at
+						JOIN course c
+							ON c.course_id = cs.course_id
+						WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+						GROUP BY ra.account_id, reporting_key
+				),
+				account_course_visit_rows AS (
+					SELECT
+						account_id,
+						course_reporting_key AS reporting_key,
+						0 AS complete_value,
+						0::DOUBLE PRECISION AS time_seconds,
+						SUM(visit_count)::BIGINT AS visit_count
+					FROM account_unit_page_metrics
+					WHERE course_reporting_key IS NOT NULL
+					GROUP BY account_id, course_reporting_key
+				),
+				account_non_video_course_time_rows AS (
+					SELECT
+						account_id,
+						course_reporting_key AS reporting_key,
+						0 AS complete_value,
+						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+						0::BIGINT AS visit_count
+					FROM account_unit_page_metrics
+					WHERE course_reporting_key IS NOT NULL
+						AND unit_type <> 'VIDEO'
+					GROUP BY account_id, course_reporting_key
+				),
+					account_video_course_time_rows AS (
+						SELECT
+							ra.account_id,
+							NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+							0 AS complete_value,
+							COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+							0::BIGINT AS visit_count
+						FROM report_accounts ra
+						JOIN report_window rw
+							ON TRUE
+						JOIN mv_analytics_course_unit_video_rollup vr
+							ON vr.account_id = ra.account_id
+							AND vr.first_event_at >= ra.account_created_at
+							AND vr.first_event_at <= rw.report_end_at
+						JOIN course_unit cu
+							ON cu.course_unit_id = vr.course_unit_id
+					JOIN course_module cm
+						ON cm.course_module_id = cu.course_module_id
+						JOIN course c
+							ON c.course_id = cm.course_id
+						WHERE cu.course_unit_type_id = 'VIDEO'
+							AND NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+						GROUP BY ra.account_id, NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '')
+				),
+				account_course_completion_rows AS (
+					SELECT
+						account_id,
+						reporting_key,
+						complete_value,
+						0::DOUBLE PRECISION AS time_seconds,
+						0::BIGINT AS visit_count
+					FROM account_course_completions
+				),
+				account_course_metric_rows AS (
+					SELECT * FROM account_course_completion_rows
+					UNION ALL
+					SELECT * FROM account_non_video_course_time_rows
+					UNION ALL
+					SELECT * FROM account_video_course_time_rows
+					UNION ALL
+					SELECT * FROM account_course_visit_rows
 				),
 				account_course_metrics AS (
 					SELECT
-						COALESCE(acc.account_id, acd.account_id) AS account_id,
-						COALESCE(acc.reporting_key, acd.reporting_key) AS reporting_key,
-						COALESCE(acc.complete_value, 0) AS complete_value,
-						COALESCE(acd.time_seconds, 0)::DOUBLE PRECISION AS time_seconds,
-						COALESCE(acd.visit_count, 0)::BIGINT AS visit_count
-					FROM account_course_completions acc
-					FULL OUTER JOIN account_course_dwell acd
-						ON acd.account_id = acc.account_id
-						AND acd.reporting_key = acc.reporting_key
+						account_id,
+						reporting_key,
+						MAX(complete_value) AS complete_value,
+						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+						SUM(visit_count)::BIGINT AS visit_count
+					FROM account_course_metric_rows
+					GROUP BY account_id, reporting_key
 				),
 				account_content_metrics AS (
 					SELECT * FROM account_unit_metrics
@@ -2471,33 +2613,37 @@ public class ReportingService {
 					) metrics
 					GROUP BY account_id
 				),
-				screening_question_answers AS (
-					SELECT
-						ss.target_account_id AS account_id,
-						NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
-						ssasq.screening_session_answered_screening_question_id,
-						COALESCE(MAX(sa.created), ss.created) AS answered_at,
-						STRING_AGG(
-							COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
-							',' ORDER BY sa.answer_order
-						) AS reporting_value
-					FROM screening_session ss
-					JOIN report_accounts ra
-						ON ra.account_id = ss.target_account_id
-					JOIN v_screening_session_screening sss
-						ON sss.screening_session_id = ss.screening_session_id
+					screening_question_answers AS (
+						SELECT
+							ss.target_account_id AS account_id,
+							NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
+							ssasq.screening_session_answered_screening_question_id,
+							COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
+							STRING_AGG(
+								COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
+								',' ORDER BY sa.answer_order
+							) AS reporting_value
+						FROM screening_session ss
+						JOIN report_accounts ra
+							ON ra.account_id = ss.target_account_id
+						JOIN report_window rw
+							ON TRUE
+						JOIN v_screening_session_screening sss
+							ON sss.screening_session_id = ss.screening_session_id
 					JOIN v_screening_session_answered_screening_question ssasq
 						ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
 					JOIN screening_question sq
 						ON sq.screening_question_id = ssasq.screening_question_id
 					JOIN v_screening_answer sa
 						ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
-					LEFT JOIN screening_answer_option sao
-						ON sao.screening_answer_option_id = sa.screening_answer_option_id
-					WHERE sq.metadata IS NOT NULL
-						AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') IS NOT NULL
-					GROUP BY ss.target_account_id, reporting_key, ssasq.screening_session_answered_screening_question_id
-				),
+						LEFT JOIN screening_answer_option sao
+							ON sao.screening_answer_option_id = sa.screening_answer_option_id
+						WHERE sq.metadata IS NOT NULL
+							AND ss.created >= ra.account_created_at
+							AND ss.created <= rw.report_end_at
+							AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') IS NOT NULL
+						GROUP BY ss.target_account_id, reporting_key, ssasq.screening_session_answered_screening_question_id
+					),
 				latest_screening_values AS (
 					SELECT DISTINCT ON (account_id, reporting_key)
 						account_id,
@@ -2541,8 +2687,8 @@ public class ReportingService {
 				LEFT JOIN account_content_metric_maps acmm
 					ON acmm.account_id = ra.account_id
 				ORDER BY ra.account_created_at, ra.account_id
-				""", CourseMcbDownloadReportRecord.class, institutionId, institutionId, institutionId, institutionId, institutionId,
-				startInstant, endInstant, RoleId.PATIENT, institutionId, institutionId, institutionId, institutionId, institutionId, institutionId);
+					""", CourseMcbDownloadReportRecord.class, institutionId, startInstant, endInstant, institutionId, institutionId, institutionId, institutionId,
+					RoleId.PATIENT, institutionId, institutionId, institutionId, institutionId, institutionId);
 
 		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
 				.withZone(institutionTimeZone)
