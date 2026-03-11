@@ -9,9 +9,9 @@ SELECT _v.register_patch('246-course-unit-video-rollups', NULL, NULL);
 --    Many of those events are UI resize / metadata / visibility notifications that are useful for debugging
 --    but are not directly meaningful for report output.
 --
--- 2) The COURSE_MCB_DOWNLOAD report has stricter semantics for video fields than for generic unit dwell.
+-- 2) The COURSE_MCB_DOWNLOAD report has stricter semantics for video time fields than for generic unit dwell.
 --    `*_video_time` wants actual watched playback time, not just "the page was open".
---    `*_video_complete` wants a "90% watched" style threshold.
+--    `*_video_complete` should continue to come from canonical course-unit completion state.
 --
 -- 3) Rewinds and seeks require segment-level reasoning.
 --    If a participant watches 0-30 seconds, jumps back to 20, and re-watches 20-50:
@@ -48,9 +48,10 @@ SELECT _v.register_patch('246-course-unit-video-rollups', NULL, NULL);
 --     This counts actual watched playback time and includes rewatches.
 --
 -- * *_video_complete
---     CASE WHEN BOOL_OR(completed_90_percent) THEN 1 ELSE 0 END
---     This mirrors the product's current completion rule: if the player ever reports reaching the 90% mark,
---     the unit is considered complete even if the participant got there by scrubbing / seeking.
+--     Do not source this from the rollup by default.
+--     Use course_session_unit.course_session_unit_status_id = 'COMPLETED' as the canonical completion signal.
+--     This preserves playlist / special-unit behavior where product completion can be triggered by rules other than
+--     a simple per-asset playback threshold.
 --
 -- * *_video_visit
 --     Continue using the existing page-view / dwell-based visit count for now.
@@ -62,7 +63,6 @@ SELECT _v.register_patch('246-course-unit-video-rollups', NULL, NULL);
 --     SELECT
 --       vr.account_id,
 --       cu.reporting_key,
---       CASE WHEN BOOL_OR(vr.completed_90_percent) THEN 1 ELSE 0 END AS complete_value,
 --       COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds
 --     FROM report_accounts ra
 --     JOIN mv_analytics_course_unit_video_rollup vr
@@ -74,8 +74,8 @@ SELECT _v.register_patch('246-course-unit-video-rollups', NULL, NULL);
 --     GROUP BY vr.account_id, cu.reporting_key
 --   )
 --
--- Then merge account_video_metrics into the existing account_unit_metrics logic for VIDEO units only,
--- while leaving mv_analytics_dwell_time in place for non-video units and *_visit counts.
+-- Then merge account_video_metrics into the existing account_unit_metrics logic for VIDEO unit time only,
+-- while leaving unit completion on course_session_unit and *_visit counts on page-view/dwell data.
 
 -- A partial index over the raw analytics table keeps materialized-view refreshes from repeatedly scanning
 -- unrelated native event types.
