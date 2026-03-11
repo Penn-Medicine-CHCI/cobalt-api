@@ -2308,20 +2308,20 @@ public class ReportingService {
 							AND a.role_id = ?
 							AND a.test_account = FALSE
 					),
-					account_site_metrics AS (
-						SELECT
-							ra.account_id,
-							COUNT(DISTINCT ane.session_id)::BIGINT AS bb_n_sitevisit
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						LEFT JOIN analytics_native_event ane
-							ON ane.institution_id = ?
-							AND ane.account_id = ra.account_id
-							AND ane.timestamp >= ra.account_created_at
-							AND ane.timestamp <= rw.report_end_at
-						GROUP BY ra.account_id
-					),
+						account_site_metrics AS (
+							SELECT
+								ra.account_id,
+								COUNT(DISTINCT mv.session_id)::BIGINT AS bb_n_sitevisit
+							FROM report_accounts ra
+							JOIN report_window rw
+								ON TRUE
+							LEFT JOIN mv_analytics_dwell_time mv
+								ON mv.institution_id = ?
+								AND mv.account_id = ra.account_id
+								AND mv.page_viewed_at >= ra.account_created_at
+								AND mv.page_viewed_at <= rw.report_end_at
+							GROUP BY ra.account_id
+						),
 					account_tot_time AS (
 						SELECT
 							ra.account_id,
