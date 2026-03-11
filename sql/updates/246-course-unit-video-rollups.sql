@@ -493,18 +493,28 @@ CREATE INDEX mv_analytics_course_unit_video_segment_cu_idx
 -- start/end, overlapping intervals are merged, and the merged span lengths are summed.
 CREATE MATERIALIZED VIEW mv_analytics_course_unit_video_rollup AS
 WITH stream_rollups AS (
-	SELECT
-		vs.playback_stream_id,
-		MIN(COALESCE(vs.previous_event_at, vs.event_at)) AS first_event_at,
-		MAX(vs.event_at) AS last_event_at,
-		MIN(vs.institution_id) AS institution_id,
-		MIN(vs.account_id) AS account_id,
-		MIN(vs.session_id) AS session_id,
-		MIN(vs.course_unit_id) AS course_unit_id,
-		MIN(vs.course_session_id) AS course_session_id,
-		MIN(vs.video_id) AS video_id,
-		MIN(vs.currently_playing_video_id) AS currently_playing_video_id,
-		MIN(vs.playback_asset_key) AS playback_asset_key,
+		SELECT
+			vs.playback_stream_id,
+			MIN(COALESCE(vs.previous_event_at, vs.event_at)) AS first_event_at,
+			MAX(vs.event_at) AS last_event_at,
+			(ARRAY_AGG(vs.institution_id ORDER BY vs.event_at, vs.event_sequence))[1] AS institution_id,
+			(ARRAY_AGG(vs.account_id ORDER BY vs.event_at, vs.event_sequence) FILTER (
+				WHERE vs.account_id IS NOT NULL
+			))[1] AS account_id,
+			(ARRAY_AGG(vs.session_id ORDER BY vs.event_at, vs.event_sequence))[1] AS session_id,
+			(ARRAY_AGG(vs.course_unit_id ORDER BY vs.event_at, vs.event_sequence) FILTER (
+				WHERE vs.course_unit_id IS NOT NULL
+			))[1] AS course_unit_id,
+			(ARRAY_AGG(vs.course_session_id ORDER BY vs.event_at, vs.event_sequence) FILTER (
+				WHERE vs.course_session_id IS NOT NULL
+			))[1] AS course_session_id,
+			(ARRAY_AGG(vs.video_id ORDER BY vs.event_at, vs.event_sequence) FILTER (
+				WHERE vs.video_id IS NOT NULL
+			))[1] AS video_id,
+			(ARRAY_AGG(vs.currently_playing_video_id ORDER BY vs.event_at, vs.event_sequence) FILTER (
+				WHERE vs.currently_playing_video_id IS NOT NULL
+			))[1] AS currently_playing_video_id,
+			(ARRAY_AGG(vs.playback_asset_key ORDER BY vs.event_at, vs.event_sequence))[1] AS playback_asset_key,
 		COUNT(*) AS event_count,
 		COUNT(*) FILTER (
 			WHERE vs.current_time_seconds IS NOT NULL
