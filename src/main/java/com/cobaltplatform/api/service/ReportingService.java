@@ -2623,10 +2623,10 @@ public class ReportingService {
 							COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
 							STRING_AGG(
 								CASE
-									WHEN sa.screening_answer_option_id IS NOT NULL AND sao.display_order IS NOT NULL THEN sao.display_order::TEXT
-									WHEN NULLIF(sa.text, '') IS NOT NULL THEN sa.text
+									WHEN NULLIF(sa.text, '') IS NOT NULL AND COALESCE(sao.freeform_supplement, FALSE) = FALSE THEN sa.text
 									WHEN NULLIF(sao.answer_option_text, '') IS NOT NULL THEN sao.answer_option_text
 									WHEN sao.score IS NOT NULL THEN sao.score::TEXT
+									WHEN sao.display_order IS NOT NULL THEN sao.display_order::TEXT
 									ELSE NULL
 								END,
 								',' ORDER BY sa.answer_order
