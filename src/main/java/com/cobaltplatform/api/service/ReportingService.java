@@ -53,6 +53,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import com.pyranid.DatabaseColumn;
 import com.soklet.web.annotation.QueryParameter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -76,6 +77,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -2620,7 +2622,13 @@ public class ReportingService {
 							ssasq.screening_session_answered_screening_question_id,
 							COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
 							STRING_AGG(
-								COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
+								CASE
+									WHEN sa.screening_answer_option_id IS NOT NULL AND sao.display_order IS NOT NULL THEN sao.display_order::TEXT
+									WHEN NULLIF(sa.text, '') IS NOT NULL THEN sa.text
+									WHEN NULLIF(sao.answer_option_text, '') IS NOT NULL THEN sao.answer_option_text
+									WHEN sao.score IS NOT NULL THEN sao.score::TEXT
+									ELSE NULL
+								END,
 								',' ORDER BY sa.answer_order
 							) AS reporting_value
 						FROM screening_session ss
@@ -2652,11 +2660,48 @@ public class ReportingService {
 					FROM screening_question_answers
 					ORDER BY account_id, reporting_key, answered_at DESC, screening_session_answered_screening_question_id DESC
 				),
+				account_derived_screening_values AS (
+					SELECT DISTINCT ON (ra.account_id)
+						ra.account_id,
+						'bb_mcb_adhd_track' AS reporting_key,
+						CASE
+							WHEN csom.course_module_id IS NOT NULL THEN '0'
+							ELSE '1'
+						END AS reporting_value
+					FROM report_accounts ra
+					JOIN report_window rw
+						ON TRUE
+					JOIN course_session cs
+						ON cs.account_id = ra.account_id
+						AND cs.created <= rw.report_end_at
+					JOIN course_session_unit csu
+						ON csu.course_session_id = cs.course_session_id
+						AND csu.course_unit_id = '6d90275d-6b41-4329-8446-a02482dd2f5e'::UUID
+						AND csu.course_session_unit_status_id = 'COMPLETED'
+						AND csu.completed_at <= rw.report_end_at
+					LEFT JOIN course_session_optional_module csom
+						ON csom.course_session_id = cs.course_session_id
+						AND csom.course_module_id = 'eaf80a54-2ff0-4620-8e50-a8dcd331d8f4'::UUID
+					ORDER BY ra.account_id, csu.completed_at DESC, cs.course_session_id DESC
+				),
+				account_screening_value_rows AS (
+					SELECT
+						account_id,
+						reporting_key,
+						reporting_value
+					FROM latest_screening_values
+					UNION ALL
+					SELECT
+						account_id,
+						reporting_key,
+						reporting_value
+					FROM account_derived_screening_values
+				),
 				account_screening_values AS (
 					SELECT
 						account_id,
 						COALESCE(jsonb_object_agg(reporting_key, reporting_value), '{}'::jsonb) AS screening_values_json
-					FROM latest_screening_values
+					FROM account_screening_value_rows
 					GROUP BY account_id
 				)
 				SELECT
@@ -2834,6 +2879,7 @@ public class ReportingService {
 
 		String[] rawTokens = rawValue.split(",");
 		List<String> mappedTokens = new ArrayList<>(rawTokens.length);
+		Set<String> seenMappedTokens = new LinkedHashSet<>(rawTokens.length);
 
 		for (String rawToken : rawTokens) {
 			String trimmedRawToken = rawToken.trim();
@@ -2842,7 +2888,19 @@ public class ReportingService {
 				continue;
 
 			String mappedToken = mapper.apply(trimmedRawToken);
-			mappedTokens.add(mappedToken.isEmpty() ? trimmedRawToken : mappedToken);
+
+			String normalizedMappedToken;
+
+			if (!mappedToken.isEmpty()) {
+				normalizedMappedToken = mappedToken;
+			} else if (isCourseMcbNumericResponseToken(trimmedRawToken)) {
+				normalizedMappedToken = trimmedRawToken;
+			} else {
+				continue;
+			}
+
+			if (seenMappedTokens.add(normalizedMappedToken))
+				mappedTokens.add(normalizedMappedToken);
 		}
 
 		return String.join(",", mappedTokens);
@@ -3152,6 +3210,12 @@ public class ReportingService {
 				.replaceAll("\\s+", " ");
 	}
 
+	private boolean isCourseMcbNumericResponseToken(@Nonnull String responseToken) {
+		requireNonNull(responseToken);
+
+		return responseToken.matches("\\d+");
+	}
+
 	private boolean isCourseMcbPreferNotToAnswerResponseValue(@Nonnull String normalizedResponseToken) {
 		requireNonNull(normalizedResponseToken);
 
@@ -3262,6 +3326,7 @@ public class ReportingService {
 		@Nullable
 		private String bbReferrer;
 		@Nullable
+		@DatabaseColumn("bb_n_sitevisit")
 		private Long bbNSitevisit;
 		@Nullable
 		private Double bbTotTimeSeconds;
