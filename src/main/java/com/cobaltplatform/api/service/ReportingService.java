@@ -53,6 +53,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.lokalized.Strings;
 import com.pyranid.Database;
+import com.pyranid.DatabaseColumn;
 import com.soklet.web.annotation.QueryParameter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -76,6 +77,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -2620,7 +2622,13 @@ public class ReportingService {
 							ssasq.screening_session_answered_screening_question_id,
 							COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
 							STRING_AGG(
-								COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
+								CASE
+									WHEN sa.screening_answer_option_id IS NOT NULL AND sao.display_order IS NOT NULL THEN sao.display_order::TEXT
+									WHEN NULLIF(sa.text, '') IS NOT NULL THEN sa.text
+									WHEN NULLIF(sao.answer_option_text, '') IS NOT NULL THEN sao.answer_option_text
+									WHEN sao.score IS NOT NULL THEN sao.score::TEXT
+									ELSE NULL
+								END,
 								',' ORDER BY sa.answer_order
 							) AS reporting_value
 						FROM screening_session ss
@@ -2834,6 +2842,7 @@ public class ReportingService {
 
 		String[] rawTokens = rawValue.split(",");
 		List<String> mappedTokens = new ArrayList<>(rawTokens.length);
+		Set<String> seenMappedTokens = new LinkedHashSet<>(rawTokens.length);
 
 		for (String rawToken : rawTokens) {
 			String trimmedRawToken = rawToken.trim();
@@ -2842,7 +2851,19 @@ public class ReportingService {
 				continue;
 
 			String mappedToken = mapper.apply(trimmedRawToken);
-			mappedTokens.add(mappedToken.isEmpty() ? trimmedRawToken : mappedToken);
+
+			String normalizedMappedToken;
+
+			if (!mappedToken.isEmpty()) {
+				normalizedMappedToken = mappedToken;
+			} else if (isCourseMcbNumericResponseToken(trimmedRawToken)) {
+				normalizedMappedToken = trimmedRawToken;
+			} else {
+				continue;
+			}
+
+			if (seenMappedTokens.add(normalizedMappedToken))
+				mappedTokens.add(normalizedMappedToken);
 		}
 
 		return String.join(",", mappedTokens);
@@ -3152,6 +3173,12 @@ public class ReportingService {
 				.replaceAll("\\s+", " ");
 	}
 
+	private boolean isCourseMcbNumericResponseToken(@Nonnull String responseToken) {
+		requireNonNull(responseToken);
+
+		return responseToken.matches("\\d+");
+	}
+
 	private boolean isCourseMcbPreferNotToAnswerResponseValue(@Nonnull String normalizedResponseToken) {
 		requireNonNull(normalizedResponseToken);
 
@@ -3262,6 +3289,7 @@ public class ReportingService {
 		@Nullable
 		private String bbReferrer;
 		@Nullable
+		@DatabaseColumn("bb_n_sitevisit")
 		private Long bbNSitevisit;
 		@Nullable
 		private Double bbTotTimeSeconds;
