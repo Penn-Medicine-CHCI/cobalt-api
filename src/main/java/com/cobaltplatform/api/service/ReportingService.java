@@ -2660,11 +2660,48 @@ public class ReportingService {
 					FROM screening_question_answers
 					ORDER BY account_id, reporting_key, answered_at DESC, screening_session_answered_screening_question_id DESC
 				),
+				account_derived_screening_values AS (
+					SELECT DISTINCT ON (ra.account_id)
+						ra.account_id,
+						'bb_mcb_adhd_track' AS reporting_key,
+						CASE
+							WHEN csom.course_module_id IS NOT NULL THEN '0'
+							ELSE '1'
+						END AS reporting_value
+					FROM report_accounts ra
+					JOIN report_window rw
+						ON TRUE
+					JOIN course_session cs
+						ON cs.account_id = ra.account_id
+						AND cs.created <= rw.report_end_at
+					JOIN course_session_unit csu
+						ON csu.course_session_id = cs.course_session_id
+						AND csu.course_unit_id = '6d90275d-6b41-4329-8446-a02482dd2f5e'::UUID
+						AND csu.course_session_unit_status_id = 'COMPLETED'
+						AND csu.completed_at <= rw.report_end_at
+					LEFT JOIN course_session_optional_module csom
+						ON csom.course_session_id = cs.course_session_id
+						AND csom.course_module_id = 'eaf80a54-2ff0-4620-8e50-a8dcd331d8f4'::UUID
+					ORDER BY ra.account_id, csu.completed_at DESC, cs.course_session_id DESC
+				),
+				account_screening_value_rows AS (
+					SELECT
+						account_id,
+						reporting_key,
+						reporting_value
+					FROM latest_screening_values
+					UNION ALL
+					SELECT
+						account_id,
+						reporting_key,
+						reporting_value
+					FROM account_derived_screening_values
+				),
 				account_screening_values AS (
 					SELECT
 						account_id,
 						COALESCE(jsonb_object_agg(reporting_key, reporting_value), '{}'::jsonb) AS screening_values_json
-					FROM latest_screening_values
+					FROM account_screening_value_rows
 					GROUP BY account_id
 				)
 				SELECT
