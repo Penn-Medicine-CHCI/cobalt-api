@@ -2622,13 +2622,7 @@ public class ReportingService {
 							ssasq.screening_session_answered_screening_question_id,
 							COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
 							STRING_AGG(
-								CASE
-									WHEN NULLIF(sa.text, '') IS NOT NULL AND COALESCE(sao.freeform_supplement, FALSE) = FALSE THEN sa.text
-									WHEN NULLIF(sao.answer_option_text, '') IS NOT NULL THEN sao.answer_option_text
-									WHEN sao.score IS NOT NULL THEN sao.score::TEXT
-									WHEN sao.display_order IS NOT NULL THEN sao.display_order::TEXT
-									ELSE NULL
-								END,
+								COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
 								',' ORDER BY sa.answer_order
 							) AS reporting_value
 						FROM screening_session ss
