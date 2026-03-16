@@ -140,6 +140,7 @@ public class ReportingResource {
 													@Nonnull @QueryParameter Optional<List<GenderIdentityId>> patientGenderIdentityId,
 													@Nonnull @QueryParameter Optional<List<UUID>> panelAccountId,
 													@Nonnull @QueryParameter Optional<UUID> groupSessionId,
+													@Nonnull @QueryParameter Optional<UUID> accountId,
 													@Nonnull @QueryParameter Optional<ZoneId> timeZone,
 													@Nonnull @QueryParameter Optional<Locale> locale,
 													@Nonnull HttpServletResponse httpServletResponse) throws IOException {
@@ -154,6 +155,7 @@ public class ReportingResource {
 		requireNonNull(patientGenderIdentityId);
 		requireNonNull(panelAccountId);
 		requireNonNull(groupSessionId);
+		requireNonNull(accountId);
 		requireNonNull(timeZone);
 		requireNonNull(locale);
 		requireNonNull(httpServletResponse);
@@ -162,6 +164,9 @@ public class ReportingResource {
 
 		if (!getAuthorizationService().canViewReportTypeId(account, reportTypeId))
 			throw new AuthorizationException();
+
+		if (reportTypeId == ReportTypeId.ACCOUNT_TIMELINE && accountId.isEmpty())
+			throw new IllegalArgumentException("accountId is required for ACCOUNT_TIMELINE");
 
 		LocalDateTime startDateTime = suppliedStartDateTime.orElse(null);
 		LocalDateTime endDateTime = suppliedEndDateTime.orElse(null);
@@ -216,6 +221,8 @@ public class ReportingResource {
 				getReportingService().runAdminAnalyticsAccountOnboardingCompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.COURSE_MCB_DOWNLOAD)
 				getReportingService().runMcbDownloadReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.ACCOUNT_TIMELINE)
+				getReportingService().runAccountTimelineReportCsv(account.getInstitutionId(), accountId.orElseThrow(IllegalArgumentException::new), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else
 				throw new IllegalStateException(format("We don't support %s.%s yet", ReportTypeId.class.getSimpleName(), reportTypeId.name()));
 		}

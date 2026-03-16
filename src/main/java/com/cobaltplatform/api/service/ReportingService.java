@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AnalyticsNativeEventType.AnalyticsNativeEventTypeId;
@@ -45,7 +46,6 @@ import com.cobaltplatform.api.model.db.ReportType;
 import com.cobaltplatform.api.model.db.ReportType.ReportTypeId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
-import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -216,6 +216,9 @@ public class ReportingService {
 						return accountCapabilityFlags.isCanViewAnalytics();
 
 					if (reportType.getReportTypeId() == ReportTypeId.COURSE_MCB_DOWNLOAD)
+						return accountCapabilityFlags.isCanViewAnalytics();
+
+					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_TIMELINE)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
 					// TODO: We might re-enable this later
@@ -1730,69 +1733,69 @@ public class ReportingService {
 		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
 
 		List<AdminAnalyticsAccountOnboardingIncompleteReportRecord> records = getDatabase().queryForList("""
-				SELECT
-					a.account_id,
-					a.created AS account_created_at,
-					a.email_address,
-					a.first_name,
-					a.last_name,
-					a.role_id,
-					a.account_source_id,
-					i.onboarding_screening_flow_id,
-					ss.screening_session_id,
-					ss.created AS screening_session_created_at,
-					ss.completed AS screening_session_completed,
-					ss.completed_at AS screening_session_completed_at,
-					ss.skipped AS screening_session_skipped,
-					ss.skipped_at AS screening_session_skipped_at,
-					sss.screening_session_screening_id,
-					s.name AS screening_name,
-					sq.question_text,
-					sao.answer_option_text,
-					sa.text AS answer_freeform_text,
-					sao.score AS answer_score,
-					sa.created AS answer_created_at
-				FROM account a
-				JOIN institution i
-					ON a.institution_id = i.institution_id
-				LEFT JOIN screening_session ss
-					ON ss.target_account_id = a.account_id
-					AND ss.screening_flow_version_id IN (
-						SELECT screening_flow_version_id
-						FROM screening_flow_version
-						WHERE screening_flow_id = i.onboarding_screening_flow_id
-					)
-				LEFT JOIN v_screening_session_screening sss
-					ON sss.screening_session_id = ss.screening_session_id
-				LEFT JOIN v_screening_session_answered_screening_question ssasq
-					ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
-				LEFT JOIN screening_question sq
-					ON ssasq.screening_question_id = sq.screening_question_id
-				LEFT JOIN v_screening_answer sa
-					ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
-				LEFT JOIN screening_answer_option sao
-					ON sa.screening_answer_option_id = sao.screening_answer_option_id
-				LEFT JOIN screening_version sv
-					ON sss.screening_version_id = sv.screening_version_id
-				LEFT JOIN screening s
-					ON sv.screening_id = s.screening_id
-				WHERE a.institution_id = ?
-					AND i.onboarding_screening_flow_id IS NOT NULL
-					AND a.created >= ?
-					AND a.created <= ?
-					AND a.role_id = ?
-					AND a.test_account = FALSE
-					AND NOT EXISTS (
-						SELECT 1
-						FROM screening_session ss_completed
-						JOIN screening_flow_version sfv_completed
-							ON sfv_completed.screening_flow_version_id = ss_completed.screening_flow_version_id
-						WHERE ss_completed.target_account_id = a.account_id
-							AND sfv_completed.screening_flow_id = i.onboarding_screening_flow_id
-							AND ss_completed.completed = TRUE
-					)
-				ORDER BY a.created, ss.created, sa.created
-				""", AdminAnalyticsAccountOnboardingIncompleteReportRecord.class, institutionId, startInstant, endInstant,
+						SELECT
+							a.account_id,
+							a.created AS account_created_at,
+							a.email_address,
+							a.first_name,
+							a.last_name,
+							a.role_id,
+							a.account_source_id,
+							i.onboarding_screening_flow_id,
+							ss.screening_session_id,
+							ss.created AS screening_session_created_at,
+							ss.completed AS screening_session_completed,
+							ss.completed_at AS screening_session_completed_at,
+							ss.skipped AS screening_session_skipped,
+							ss.skipped_at AS screening_session_skipped_at,
+							sss.screening_session_screening_id,
+							s.name AS screening_name,
+							sq.question_text,
+							sao.answer_option_text,
+							sa.text AS answer_freeform_text,
+							sao.score AS answer_score,
+							sa.created AS answer_created_at
+						FROM account a
+						JOIN institution i
+							ON a.institution_id = i.institution_id
+						LEFT JOIN screening_session ss
+							ON ss.target_account_id = a.account_id
+							AND ss.screening_flow_version_id IN (
+								SELECT screening_flow_version_id
+								FROM screening_flow_version
+								WHERE screening_flow_id = i.onboarding_screening_flow_id
+							)
+						LEFT JOIN v_screening_session_screening sss
+							ON sss.screening_session_id = ss.screening_session_id
+						LEFT JOIN v_screening_session_answered_screening_question ssasq
+							ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+						LEFT JOIN screening_question sq
+							ON ssasq.screening_question_id = sq.screening_question_id
+						LEFT JOIN v_screening_answer sa
+							ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+						LEFT JOIN screening_answer_option sao
+							ON sa.screening_answer_option_id = sao.screening_answer_option_id
+						LEFT JOIN screening_version sv
+							ON sss.screening_version_id = sv.screening_version_id
+						LEFT JOIN screening s
+							ON sv.screening_id = s.screening_id
+						WHERE a.institution_id = ?
+							AND i.onboarding_screening_flow_id IS NOT NULL
+							AND a.created >= ?
+							AND a.created <= ?
+							AND a.role_id = ?
+							AND a.test_account = FALSE
+							AND NOT EXISTS (
+								SELECT 1
+								FROM screening_session ss_completed
+								JOIN screening_flow_version sfv_completed
+									ON sfv_completed.screening_flow_version_id = ss_completed.screening_flow_version_id
+								WHERE ss_completed.target_account_id = a.account_id
+									AND sfv_completed.screening_flow_id = i.onboarding_screening_flow_id
+									AND ss_completed.completed = TRUE
+							)
+						ORDER BY a.created, ss.created, sa.created
+						""", AdminAnalyticsAccountOnboardingIncompleteReportRecord.class, institutionId, startInstant, endInstant,
 				RoleId.PATIENT);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
@@ -1878,61 +1881,61 @@ public class ReportingService {
 		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
 
 		List<AdminAnalyticsAccountOnboardingCompleteReportRecord> records = getDatabase().queryForList("""
-				SELECT
-					a.account_id,
-					a.created AS account_created_at,
-					a.email_address,
-					a.first_name,
-					a.last_name,
-					a.role_id,
-					a.account_source_id,
-					i.onboarding_screening_flow_id,
-					ss.screening_session_id,
-					ss.created AS screening_session_created_at,
-					ss.completed AS screening_session_completed,
-					ss.completed_at AS screening_session_completed_at,
-					ss.skipped AS screening_session_skipped,
-					ss.skipped_at AS screening_session_skipped_at,
-					sss.screening_session_screening_id,
-					s.name AS screening_name,
-					sq.question_text,
-					sao.answer_option_text,
-					sa.text AS answer_freeform_text,
-					sao.score AS answer_score,
-					sa.created AS answer_created_at
-				FROM account a
-				JOIN institution i
-					ON a.institution_id = i.institution_id
-				JOIN screening_session ss
-					ON ss.target_account_id = a.account_id
-					AND ss.completed = TRUE
-					AND ss.screening_flow_version_id IN (
-						SELECT screening_flow_version_id
-						FROM screening_flow_version
-						WHERE screening_flow_id = i.onboarding_screening_flow_id
-					)
-				LEFT JOIN v_screening_session_screening sss
-					ON sss.screening_session_id = ss.screening_session_id
-				LEFT JOIN v_screening_session_answered_screening_question ssasq
-					ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
-				LEFT JOIN screening_question sq
-					ON ssasq.screening_question_id = sq.screening_question_id
-				LEFT JOIN v_screening_answer sa
-					ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
-				LEFT JOIN screening_answer_option sao
-					ON sa.screening_answer_option_id = sao.screening_answer_option_id
-				LEFT JOIN screening_version sv
-					ON sss.screening_version_id = sv.screening_version_id
-				LEFT JOIN screening s
-					ON sv.screening_id = s.screening_id
-				WHERE a.institution_id = ?
-					AND i.onboarding_screening_flow_id IS NOT NULL
-					AND a.created >= ?
-					AND a.created <= ?
-					AND a.role_id = ?
-					AND a.test_account = FALSE
-				ORDER BY a.created, ss.created, sa.created
-				""", AdminAnalyticsAccountOnboardingCompleteReportRecord.class, institutionId, startInstant, endInstant,
+						SELECT
+							a.account_id,
+							a.created AS account_created_at,
+							a.email_address,
+							a.first_name,
+							a.last_name,
+							a.role_id,
+							a.account_source_id,
+							i.onboarding_screening_flow_id,
+							ss.screening_session_id,
+							ss.created AS screening_session_created_at,
+							ss.completed AS screening_session_completed,
+							ss.completed_at AS screening_session_completed_at,
+							ss.skipped AS screening_session_skipped,
+							ss.skipped_at AS screening_session_skipped_at,
+							sss.screening_session_screening_id,
+							s.name AS screening_name,
+							sq.question_text,
+							sao.answer_option_text,
+							sa.text AS answer_freeform_text,
+							sao.score AS answer_score,
+							sa.created AS answer_created_at
+						FROM account a
+						JOIN institution i
+							ON a.institution_id = i.institution_id
+						JOIN screening_session ss
+							ON ss.target_account_id = a.account_id
+							AND ss.completed = TRUE
+							AND ss.screening_flow_version_id IN (
+								SELECT screening_flow_version_id
+								FROM screening_flow_version
+								WHERE screening_flow_id = i.onboarding_screening_flow_id
+							)
+						LEFT JOIN v_screening_session_screening sss
+							ON sss.screening_session_id = ss.screening_session_id
+						LEFT JOIN v_screening_session_answered_screening_question ssasq
+							ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+						LEFT JOIN screening_question sq
+							ON ssasq.screening_question_id = sq.screening_question_id
+						LEFT JOIN v_screening_answer sa
+							ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+						LEFT JOIN screening_answer_option sao
+							ON sa.screening_answer_option_id = sao.screening_answer_option_id
+						LEFT JOIN screening_version sv
+							ON sss.screening_version_id = sv.screening_version_id
+						LEFT JOIN screening s
+							ON sv.screening_id = s.screening_id
+						WHERE a.institution_id = ?
+							AND i.onboarding_screening_flow_id IS NOT NULL
+							AND a.created >= ?
+							AND a.created <= ?
+							AND a.role_id = ?
+							AND a.test_account = FALSE
+						ORDER BY a.created, ss.created, sa.created
+						""", AdminAnalyticsAccountOnboardingCompleteReportRecord.class, institutionId, startInstant, endInstant,
 				RoleId.PATIENT);
 
 		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
@@ -2208,12 +2211,547 @@ public class ReportingService {
 			"bb_mcb_additional_info_visit"
 	);
 
+	@Nonnull
+	private static final List<String> ACCOUNT_TIMELINE_HEADER_COLUMNS = List.of(
+			"occurred_at",
+			"ended_at",
+			"event_type_id",
+			"actor_type_id",
+			"summary",
+			"page_view_type",
+			"location_label",
+			"dwell_time_seconds",
+			"video_watched_seconds",
+			"session_id",
+			"screening_session_id",
+			"course_session_id",
+			"course_id",
+			"course_title",
+			"course_unit_id",
+			"course_unit_title",
+			"group_session_id",
+			"source_table",
+			"source_id",
+			"details_json"
+	);
+
+	public void runAccountTimelineReportCsv(@Nonnull InstitutionId institutionId,
+																					@Nonnull UUID accountId,
+																					@Nullable LocalDateTime startDateTime,
+																					@Nullable LocalDateTime endDateTime,
+																					@Nonnull ZoneId reportTimeZone,
+																					@Nonnull Locale reportLocale,
+																					@Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(accountId);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		Account targetAccount = getAccountService().findAccountById(accountId)
+				.orElseThrow(() -> new IllegalArgumentException(format("No account exists for ID %s", accountId)));
+
+		if (!institutionId.equals(targetAccount.getInstitutionId()))
+			throw new IllegalArgumentException(format("Account %s does not belong to institution %s", accountId, institutionId.name()));
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
+
+		Instant startInstant = startDateTime == null ? null : startDateTime.atZone(institutionTimeZone).toInstant();
+		Instant endInstant = endDateTime == null ? null : endDateTime.atZone(institutionTimeZone).toInstant();
+
+		List<AccountTimelineReportRecord> records = getDatabase().queryForList("""
+				WITH report_context AS (
+					SELECT
+						?::TEXT AS institution_id,
+						?::UUID AS account_id,
+						?::TIMESTAMPTZ AS start_at,
+						?::TIMESTAMPTZ AS end_at
+				),
+				target_account AS (
+					SELECT
+						a.account_id,
+						a.created AS account_created_at
+					FROM account a
+					JOIN report_context rc
+						ON rc.account_id = a.account_id
+					WHERE a.institution_id = rc.institution_id
+				),
+				account_created_events AS (
+					SELECT
+						ta.account_created_at AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'ACCOUNT_CREATED'::TEXT AS event_type_id,
+						'SYSTEM'::TEXT AS actor_type_id,
+						'Account created'::TEXT AS summary,
+						NULL::TEXT AS page_view_type,
+						'Account'::TEXT AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						NULL::UUID AS session_id,
+						NULL::UUID AS screening_session_id,
+						NULL::UUID AS course_session_id,
+						NULL::UUID AS course_id,
+						NULL::TEXT AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						NULL::UUID AS group_session_id,
+						'account'::TEXT AS source_table,
+						ta.account_id::TEXT AS source_id,
+						jsonb_build_object('accountId', ta.account_id)::TEXT AS details_json
+					FROM target_account ta
+					JOIN report_context rc
+						ON TRUE
+					WHERE (rc.start_at IS NULL OR ta.account_created_at >= rc.start_at)
+						AND (rc.end_at IS NULL OR ta.account_created_at <= rc.end_at)
+				),
+				session_events AS (
+					SELECT
+						ane.timestamp AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						ane.analytics_native_event_type_id::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						CASE ane.analytics_native_event_type_id
+							WHEN 'SESSION_STARTED' THEN 'Session started'
+							WHEN 'ACCOUNT_SIGNED_IN' THEN 'Account signed in'
+							WHEN 'ACCOUNT_SIGNED_OUT' THEN 'Account signed out'
+							ELSE INITCAP(REPLACE(ane.analytics_native_event_type_id::TEXT, '_', ' '))
+						END AS summary,
+						NULL::TEXT AS page_view_type,
+						NULL::TEXT AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						ane.session_id,
+						NULL::UUID AS screening_session_id,
+						NULL::UUID AS course_session_id,
+						NULL::UUID AS course_id,
+						NULL::TEXT AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						NULL::UUID AS group_session_id,
+						'analytics_native_event'::TEXT AS source_table,
+						ane.analytics_native_event_id::TEXT AS source_id,
+						COALESCE(ane.data, '{}'::JSONB)::TEXT AS details_json
+					FROM analytics_native_event ane
+					JOIN report_context rc
+						ON rc.account_id = ane.account_id
+					WHERE ane.institution_id = rc.institution_id
+						AND (rc.start_at IS NULL OR ane.timestamp >= rc.start_at)
+						AND (rc.end_at IS NULL OR ane.timestamp <= rc.end_at)
+						AND ane.analytics_native_event_type_id IN ('SESSION_STARTED', 'ACCOUNT_SIGNED_IN', 'ACCOUNT_SIGNED_OUT')
+				),
+				dwell_page_events AS (
+					SELECT
+						mv.page_viewed_at AS occurred_at,
+						mv.page_viewed_at + make_interval(secs => GREATEST(0, ROUND(mv.dwell_time_seconds))::INTEGER) AS ended_at,
+						'PAGE_VIEW'::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						CASE
+							WHEN mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT' AND cu.title IS NOT NULL THEN 'Viewed course unit page'
+							ELSE INITCAP(REPLACE(mv.page_view_type::TEXT, '_', ' '))
+						END AS summary,
+						mv.page_view_type::TEXT AS page_view_type,
+						CASE
+							WHEN mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT' THEN CONCAT_WS(' / ', c.title, cu.title)
+							ELSE COALESCE(NULLIF(mv.page_view_data->>'title', ''), NULLIF(mv.page_view_data->>'name', ''), mv.page_view_type::TEXT)
+						END AS location_label,
+						mv.dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						mv.session_id,
+						NULL::UUID AS screening_session_id,
+						NULL::UUID AS course_session_id,
+						c.course_id,
+						c.title AS course_title,
+						cu.course_unit_id,
+						cu.title AS course_unit_title,
+						(mv.page_view_data->>'groupSessionId')::UUID AS group_session_id,
+						'mv_analytics_dwell_time'::TEXT AS source_table,
+						CONCAT(mv.session_id::TEXT, ':', mv.dwell_num::TEXT) AS source_id,
+						jsonb_build_object(
+							'pageViewType', mv.page_view_type,
+							'pageViewData', COALESCE(mv.page_view_data, '{}'::JSONB)
+						)::TEXT AS details_json
+					FROM mv_analytics_dwell_time mv
+					JOIN report_context rc
+						ON rc.account_id = mv.account_id
+					LEFT JOIN course_unit cu
+						ON cu.course_unit_id = mv.course_unit_id
+					LEFT JOIN course_module cm
+						ON cm.course_module_id = cu.course_module_id
+					LEFT JOIN course c
+						ON c.course_id = cm.course_id
+					WHERE mv.institution_id = rc.institution_id
+						AND (rc.start_at IS NULL OR mv.page_viewed_at >= rc.start_at)
+						AND (rc.end_at IS NULL OR mv.page_viewed_at <= rc.end_at)
+				),
+				clickthrough_events AS (
+					SELECT
+						ane.timestamp AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'CLICKTHROUGH'::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						INITCAP(REPLACE(ane.analytics_native_event_type_id::TEXT, '_', ' ')) AS summary,
+						NULL::TEXT AS page_view_type,
+						COALESCE(NULLIF(ane.data->>'title', ''), NULLIF(ane.data->>'name', ''), NULLIF(ane.data->>'label', ''), ane.analytics_native_event_type_id::TEXT) AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						ane.session_id,
+						NULL::UUID AS screening_session_id,
+						NULL::UUID AS course_session_id,
+						NULL::UUID AS course_id,
+						NULL::TEXT AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						NULL::UUID AS group_session_id,
+						'analytics_native_event'::TEXT AS source_table,
+						ane.analytics_native_event_id::TEXT AS source_id,
+						COALESCE(ane.data, '{}'::JSONB)::TEXT AS details_json
+					FROM analytics_native_event ane
+					JOIN report_context rc
+						ON rc.account_id = ane.account_id
+					WHERE ane.institution_id = rc.institution_id
+						AND (rc.start_at IS NULL OR ane.timestamp >= rc.start_at)
+						AND (rc.end_at IS NULL OR ane.timestamp <= rc.end_at)
+						AND ane.analytics_native_event_type_id LIKE 'CLICKTHROUGH_%'
+				),
+				screening_started_events AS (
+					SELECT
+						ss.created AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'SCREENING_SESSION_STARTED'::TEXT AS event_type_id,
+						CASE
+							WHEN ss.created_by_account_id = ss.target_account_id THEN 'ACCOUNT'
+							ELSE 'STAFF'
+						END::TEXT AS actor_type_id,
+						CONCAT('Started screening session: ', sf.name) AS summary,
+						NULL::TEXT AS page_view_type,
+						sf.name AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						NULL::UUID AS session_id,
+						ss.screening_session_id,
+						NULL::UUID AS course_session_id,
+						NULL::UUID AS course_id,
+						NULL::TEXT AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						ss.group_session_id,
+						'screening_session'::TEXT AS source_table,
+						CONCAT(ss.screening_session_id::TEXT, ':STARTED') AS source_id,
+						jsonb_build_object(
+							'screeningFlowId', sf.screening_flow_id,
+							'screeningFlowVersionId', ss.screening_flow_version_id,
+							'screeningFlowName', sf.name,
+							'createdByAccountId', ss.created_by_account_id,
+							'crisisIndicated', ss.crisis_indicated
+						)::TEXT AS details_json
+					FROM screening_session ss
+					JOIN screening_flow_version sfv
+						ON sfv.screening_flow_version_id = ss.screening_flow_version_id
+					JOIN screening_flow sf
+						ON sf.screening_flow_id = sfv.screening_flow_id
+					JOIN report_context rc
+						ON rc.account_id = ss.target_account_id
+					WHERE sf.institution_id = rc.institution_id
+						AND (rc.start_at IS NULL OR ss.created >= rc.start_at)
+						AND (rc.end_at IS NULL OR ss.created <= rc.end_at)
+				),
+				screening_completed_events AS (
+					SELECT
+						ss.completed_at AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'SCREENING_SESSION_COMPLETED'::TEXT AS event_type_id,
+						CASE
+							WHEN ss.created_by_account_id = ss.target_account_id THEN 'ACCOUNT'
+							ELSE 'STAFF'
+						END::TEXT AS actor_type_id,
+						CONCAT('Completed screening session: ', sf.name) AS summary,
+						NULL::TEXT AS page_view_type,
+						sf.name AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						NULL::UUID AS session_id,
+						ss.screening_session_id,
+						NULL::UUID AS course_session_id,
+						NULL::UUID AS course_id,
+						NULL::TEXT AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						ss.group_session_id,
+						'screening_session'::TEXT AS source_table,
+						CONCAT(ss.screening_session_id::TEXT, ':COMPLETED') AS source_id,
+						jsonb_build_object(
+							'screeningFlowId', sf.screening_flow_id,
+							'screeningFlowVersionId', ss.screening_flow_version_id,
+							'screeningFlowName', sf.name,
+							'createdByAccountId', ss.created_by_account_id,
+							'crisisIndicated', ss.crisis_indicated
+						)::TEXT AS details_json
+					FROM screening_session ss
+					JOIN screening_flow_version sfv
+						ON sfv.screening_flow_version_id = ss.screening_flow_version_id
+					JOIN screening_flow sf
+						ON sf.screening_flow_id = sfv.screening_flow_id
+					JOIN report_context rc
+						ON rc.account_id = ss.target_account_id
+					WHERE sf.institution_id = rc.institution_id
+						AND ss.completed = TRUE
+						AND ss.completed_at IS NOT NULL
+						AND (rc.start_at IS NULL OR ss.completed_at >= rc.start_at)
+						AND (rc.end_at IS NULL OR ss.completed_at <= rc.end_at)
+				),
+				course_session_started_events AS (
+					SELECT
+						cs.created AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'COURSE_SESSION_STARTED'::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						CONCAT('Started course: ', c.title) AS summary,
+						NULL::TEXT AS page_view_type,
+						c.title AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						NULL::UUID AS session_id,
+						NULL::UUID AS screening_session_id,
+						cs.course_session_id,
+						c.course_id,
+						c.title AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						NULL::UUID AS group_session_id,
+						'course_session'::TEXT AS source_table,
+						CONCAT(cs.course_session_id::TEXT, ':STARTED') AS source_id,
+						jsonb_build_object(
+							'courseSessionStatusId', cs.course_session_status_id
+						)::TEXT AS details_json
+					FROM course_session cs
+					JOIN course c
+						ON c.course_id = cs.course_id
+					JOIN report_context rc
+						ON rc.account_id = cs.account_id
+					WHERE (rc.start_at IS NULL OR cs.created >= rc.start_at)
+						AND (rc.end_at IS NULL OR cs.created <= rc.end_at)
+				),
+				video_playback_events AS (
+					SELECT
+						vr.first_event_at AS occurred_at,
+						vr.last_event_at AS ended_at,
+						'COURSE_UNIT_VIDEO_PLAYBACK'::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						CONCAT('Video playback: ', COALESCE(cu.title, 'Course video')) AS summary,
+						NULL::TEXT AS page_view_type,
+						CONCAT_WS(' / ', c.title, cu.title) AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						vr.cumulative_watched_seconds AS video_watched_seconds,
+						vr.session_id,
+						NULL::UUID AS screening_session_id,
+						vr.course_session_id,
+						c.course_id,
+						c.title AS course_title,
+						cu.course_unit_id,
+						cu.title AS course_unit_title,
+						NULL::UUID AS group_session_id,
+						'mv_analytics_course_unit_video_rollup'::TEXT AS source_table,
+						vr.playback_stream_id AS source_id,
+						jsonb_build_object(
+							'maxPercentComplete', vr.max_percent_complete,
+							'playStartEventCount', vr.play_start_event_count,
+							'seekEventCount', vr.seek_event_count,
+							'initializationErrorCount', vr.initialization_error_count
+						)::TEXT AS details_json
+					FROM mv_analytics_course_unit_video_rollup vr
+					JOIN course_unit cu
+						ON cu.course_unit_id = vr.course_unit_id
+					JOIN course_module cm
+						ON cm.course_module_id = cu.course_module_id
+					JOIN course c
+						ON c.course_id = cm.course_id
+					JOIN report_context rc
+						ON rc.account_id = vr.account_id
+					WHERE vr.institution_id = rc.institution_id
+						AND (rc.start_at IS NULL OR vr.first_event_at >= rc.start_at)
+						AND (rc.end_at IS NULL OR vr.first_event_at <= rc.end_at)
+				),
+				course_unit_completed_events AS (
+					SELECT
+						csu.completed_at AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'COURSE_UNIT_COMPLETED'::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						CONCAT('Completed course unit: ', cu.title) AS summary,
+						NULL::TEXT AS page_view_type,
+						CONCAT_WS(' / ', c.title, cu.title) AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						NULL::UUID AS session_id,
+						NULL::UUID AS screening_session_id,
+						cs.course_session_id,
+						c.course_id,
+						c.title AS course_title,
+						cu.course_unit_id,
+						cu.title AS course_unit_title,
+						NULL::UUID AS group_session_id,
+						'course_session_unit'::TEXT AS source_table,
+						CONCAT(cs.course_session_id::TEXT, ':', cu.course_unit_id::TEXT, ':COMPLETED') AS source_id,
+						jsonb_build_object(
+							'courseSessionUnitStatusId', csu.course_session_unit_status_id,
+							'completionMessage', csu.completion_message
+						)::TEXT AS details_json
+					FROM course_session_unit csu
+					JOIN course_session cs
+						ON cs.course_session_id = csu.course_session_id
+					JOIN course_unit cu
+						ON cu.course_unit_id = csu.course_unit_id
+					JOIN course_module cm
+						ON cm.course_module_id = cu.course_module_id
+					JOIN course c
+						ON c.course_id = cm.course_id
+					JOIN report_context rc
+						ON rc.account_id = cs.account_id
+					WHERE csu.course_session_unit_status_id = 'COMPLETED'
+						AND csu.completed_at IS NOT NULL
+						AND (rc.start_at IS NULL OR csu.completed_at >= rc.start_at)
+						AND (rc.end_at IS NULL OR csu.completed_at <= rc.end_at)
+				),
+				course_completed_events AS (
+					SELECT
+						cs.completed_at AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'COURSE_COMPLETED'::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						CONCAT('Completed course: ', c.title) AS summary,
+						NULL::TEXT AS page_view_type,
+						c.title AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						NULL::UUID AS session_id,
+						NULL::UUID AS screening_session_id,
+						cs.course_session_id,
+						c.course_id,
+						c.title AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						NULL::UUID AS group_session_id,
+						'course_session'::TEXT AS source_table,
+						CONCAT(cs.course_session_id::TEXT, ':COMPLETED') AS source_id,
+						jsonb_build_object(
+							'courseSessionStatusId', cs.course_session_status_id
+						)::TEXT AS details_json
+					FROM course_session cs
+					JOIN course c
+						ON c.course_id = cs.course_id
+					JOIN report_context rc
+						ON rc.account_id = cs.account_id
+					WHERE cs.course_session_status_id = 'COMPLETED'
+						AND cs.completed_at IS NOT NULL
+						AND (rc.start_at IS NULL OR cs.completed_at >= rc.start_at)
+						AND (rc.end_at IS NULL OR cs.completed_at <= rc.end_at)
+				),
+				group_session_reservation_events AS (
+					SELECT
+						gsr.created AS occurred_at,
+						NULL::TIMESTAMPTZ AS ended_at,
+						'GROUP_SESSION_RESERVATION_CREATED'::TEXT AS event_type_id,
+						'ACCOUNT'::TEXT AS actor_type_id,
+						CONCAT('Reserved group session: ', COALESCE(vgs.title, 'Group Session')) AS summary,
+						NULL::TEXT AS page_view_type,
+						vgs.title AS location_label,
+						NULL::DOUBLE PRECISION AS dwell_time_seconds,
+						NULL::DOUBLE PRECISION AS video_watched_seconds,
+						NULL::UUID AS session_id,
+						NULL::UUID AS screening_session_id,
+						NULL::UUID AS course_session_id,
+						NULL::UUID AS course_id,
+						NULL::TEXT AS course_title,
+						NULL::UUID AS course_unit_id,
+						NULL::TEXT AS course_unit_title,
+						gsr.group_session_id,
+						'group_session_reservation'::TEXT AS source_table,
+						gsr.group_session_reservation_id::TEXT AS source_id,
+						jsonb_build_object(
+							'canceled', gsr.canceled,
+							'groupSessionTitle', vgs.title
+						)::TEXT AS details_json
+					FROM group_session_reservation gsr
+					JOIN v_group_session vgs
+						ON vgs.group_session_id = gsr.group_session_id
+					JOIN report_context rc
+						ON rc.account_id = gsr.account_id
+					WHERE vgs.institution_id = rc.institution_id
+						AND (rc.start_at IS NULL OR gsr.created >= rc.start_at)
+						AND (rc.end_at IS NULL OR gsr.created <= rc.end_at)
+				)
+				SELECT *
+				FROM (
+					SELECT * FROM account_created_events
+					UNION ALL
+					SELECT * FROM session_events
+					UNION ALL
+					SELECT * FROM dwell_page_events
+					UNION ALL
+					SELECT * FROM clickthrough_events
+					UNION ALL
+					SELECT * FROM screening_started_events
+					UNION ALL
+					SELECT * FROM screening_completed_events
+					UNION ALL
+					SELECT * FROM course_session_started_events
+					UNION ALL
+					SELECT * FROM video_playback_events
+					UNION ALL
+					SELECT * FROM course_unit_completed_events
+					UNION ALL
+					SELECT * FROM course_completed_events
+					UNION ALL
+					SELECT * FROM group_session_reservation_events
+				) timeline
+				ORDER BY occurred_at, event_type_id, source_id
+				""", AccountTimelineReportRecord.class, institutionId, accountId, startInstant, endInstant);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+				.withZone(institutionTimeZone)
+				.withLocale(reportLocale);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(ACCOUNT_TIMELINE_HEADER_COLUMNS.toArray(new String[0])))) {
+			for (AccountTimelineReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(ACCOUNT_TIMELINE_HEADER_COLUMNS.size());
+
+				recordElements.add(record.getOccurredAt() == null ? "" : dateTimeFormatter.format(record.getOccurredAt()));
+				recordElements.add(record.getEndedAt() == null ? "" : dateTimeFormatter.format(record.getEndedAt()));
+				recordElements.add(record.getEventTypeId() == null ? "" : record.getEventTypeId().name());
+				recordElements.add(record.getActorTypeId() == null ? "" : record.getActorTypeId().name());
+				recordElements.add(record.getSummary() == null ? "" : record.getSummary());
+				recordElements.add(record.getPageViewType() == null ? "" : record.getPageViewType());
+				recordElements.add(record.getLocationLabel() == null ? "" : record.getLocationLabel());
+				recordElements.add(record.getDwellTimeSeconds() == null ? "" : Long.toString(Math.max(0, Math.round(record.getDwellTimeSeconds()))));
+				recordElements.add(record.getVideoWatchedSeconds() == null ? "" : Long.toString(Math.max(0, Math.round(record.getVideoWatchedSeconds()))));
+				recordElements.add(record.getSessionId() == null ? "" : record.getSessionId().toString());
+				recordElements.add(record.getScreeningSessionId() == null ? "" : record.getScreeningSessionId().toString());
+				recordElements.add(record.getCourseSessionId() == null ? "" : record.getCourseSessionId().toString());
+				recordElements.add(record.getCourseId() == null ? "" : record.getCourseId().toString());
+				recordElements.add(record.getCourseTitle() == null ? "" : record.getCourseTitle());
+				recordElements.add(record.getCourseUnitId() == null ? "" : record.getCourseUnitId().toString());
+				recordElements.add(record.getCourseUnitTitle() == null ? "" : record.getCourseUnitTitle());
+				recordElements.add(record.getGroupSessionId() == null ? "" : record.getGroupSessionId().toString());
+				recordElements.add(record.getSourceTable() == null ? "" : record.getSourceTable());
+				recordElements.add(record.getSourceId() == null ? "" : record.getSourceId());
+				recordElements.add(record.getDetailsJson() == null ? "" : record.getDetailsJson());
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
 	public void runMcbDownloadReportCsv(@Nonnull InstitutionId institutionId,
-													 @Nonnull LocalDateTime startDateTime,
-													 @Nonnull LocalDateTime endDateTime,
-													 @Nonnull ZoneId reportTimeZone,
-													 @Nonnull Locale reportLocale,
-													 @Nonnull Writer writer) {
+																			@Nonnull LocalDateTime startDateTime,
+																			@Nonnull LocalDateTime endDateTime,
+																			@Nonnull ZoneId reportTimeZone,
+																			@Nonnull Locale reportLocale,
+																			@Nonnull Writer writer) {
 		requireNonNull(institutionId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
@@ -2228,506 +2766,506 @@ public class ReportingService {
 		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
 
 		List<CourseMcbDownloadReportRecord> records = getDatabase().queryForList("""
-					WITH institution_onboarding AS (
-						SELECT onboarding_screening_flow_id
-						FROM institution
-						WHERE institution_id = ?
-					),
-					report_window AS (
-						SELECT
-							?::TIMESTAMPTZ AS report_start_at,
-							?::TIMESTAMPTZ AS report_end_at
-					),
-					institution_has_reporting_keys AS (
-					SELECT (
-						EXISTS (
-							SELECT 1
-							FROM institution_onboarding io
-							JOIN screening_flow sf
-								ON sf.screening_flow_id = io.onboarding_screening_flow_id
-							JOIN screening_flow_version sfv
-								ON sfv.screening_flow_version_id = sf.active_screening_flow_version_id
-							JOIN screening s
-								ON s.screening_id = sfv.initial_screening_id
-							JOIN screening_question sq
-								ON sq.screening_version_id = s.active_screening_version_id
-							WHERE NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_onboarding_%'
-						)
-						AND (
-							EXISTS (
-								SELECT 1
-								FROM screening_flow sf
-								JOIN screening_flow_version sfv
-									ON sfv.screening_flow_version_id = sf.active_screening_flow_version_id
-								JOIN screening s
-									ON s.screening_id = sfv.initial_screening_id
-								JOIN screening_question sq
-									ON sq.screening_version_id = s.active_screening_version_id
+							WITH institution_onboarding AS (
+								SELECT onboarding_screening_flow_id
+								FROM institution
+								WHERE institution_id = ?
+							),
+							report_window AS (
+								SELECT
+									?::TIMESTAMPTZ AS report_start_at,
+									?::TIMESTAMPTZ AS report_end_at
+							),
+							institution_has_reporting_keys AS (
+							SELECT (
+								EXISTS (
+									SELECT 1
+									FROM institution_onboarding io
+									JOIN screening_flow sf
+										ON sf.screening_flow_id = io.onboarding_screening_flow_id
+									JOIN screening_flow_version sfv
+										ON sfv.screening_flow_version_id = sf.active_screening_flow_version_id
+									JOIN screening s
+										ON s.screening_id = sfv.initial_screening_id
+									JOIN screening_question sq
+										ON sq.screening_version_id = s.active_screening_version_id
+									WHERE NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_onboarding_%'
+								)
+								AND (
+									EXISTS (
+										SELECT 1
+										FROM screening_flow sf
+										JOIN screening_flow_version sfv
+											ON sfv.screening_flow_version_id = sf.active_screening_flow_version_id
+										JOIN screening s
+											ON s.screening_id = sfv.initial_screening_id
+										JOIN screening_question sq
+											ON sq.screening_version_id = s.active_screening_version_id
+										JOIN course_unit cu
+											ON cu.screening_flow_id = sf.screening_flow_id
+										JOIN course_module cm
+											ON cm.course_module_id = cu.course_module_id
+										JOIN institution_course ic
+											ON ic.course_id = cm.course_id
+										WHERE ic.institution_id = ?
+											AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_mcb_%'
+									)
+									OR EXISTS (
+										SELECT 1
+										FROM institution_course ic
+										JOIN course c
+											ON c.course_id = ic.course_id
+										WHERE ic.institution_id = ?
+											AND NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') LIKE 'bb_mcb%'
+									)
+									OR EXISTS (
+										SELECT 1
+										FROM institution_course ic
+										JOIN course_module cm
+											ON cm.course_id = ic.course_id
+										JOIN course_unit cu
+											ON cu.course_module_id = cm.course_module_id
+										WHERE ic.institution_id = ?
+											AND NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') LIKE 'bb_mcb_%'
+									)
+								)
+							) AS has_keys
+						),
+							report_accounts AS (
+								SELECT
+									a.account_id,
+									a.created AS account_created_at,
+									a.email_address,
+									a.metadata
+								FROM account a
+								JOIN report_window rw
+									ON TRUE
+								JOIN institution_has_reporting_keys ihrk
+									ON ihrk.has_keys = TRUE
+								WHERE a.institution_id = ?
+									AND a.created >= rw.report_start_at
+									AND a.created <= rw.report_end_at
+									AND a.role_id = ?
+									AND a.test_account = FALSE
+							),
+								account_site_metrics AS (
+									SELECT
+										ra.account_id,
+										COUNT(DISTINCT mv.session_id)::BIGINT AS bb_n_sitevisit
+									FROM report_accounts ra
+									JOIN report_window rw
+										ON TRUE
+									LEFT JOIN mv_analytics_dwell_time mv
+										ON mv.institution_id = ?
+										AND mv.account_id = ra.account_id
+										AND mv.page_viewed_at >= ra.account_created_at
+										AND mv.page_viewed_at <= rw.report_end_at
+									GROUP BY ra.account_id
+								),
+							account_tot_time AS (
+								SELECT
+									ra.account_id,
+									COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS bb_tot_time_seconds
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								LEFT JOIN mv_analytics_dwell_time mv
+									ON mv.institution_id = ?
+									AND mv.account_id = ra.account_id
+									AND mv.page_viewed_at >= ra.account_created_at
+									AND mv.page_viewed_at <= rw.report_end_at
+								GROUP BY ra.account_id
+							),
+							account_email_metrics AS (
+								SELECT
+									ra.account_id,
+									MIN(ai.created) AS email_entered_at,
+									MIN(ai_claimed.last_updated) AS email_verified_at
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								LEFT JOIN account_invite ai
+									ON ai.institution_id = ?
+									AND LOWER(ai.email_address) = LOWER(ra.email_address)
+									AND ai.created <= rw.report_end_at
+								LEFT JOIN account_invite ai_claimed
+									ON ai_claimed.institution_id = ai.institution_id
+									AND LOWER(ai_claimed.email_address) = LOWER(ai.email_address)
+									AND ai_claimed.claimed = TRUE
+									AND ai_claimed.last_updated <= rw.report_end_at
+								GROUP BY ra.account_id
+							),
+							account_referrer AS (
+								SELECT
+									ra.account_id,
+									first_referrer.bb_referrer
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								LEFT JOIN LATERAL (
+									SELECT
+										COALESCE(
+											NULLIF(LOWER(SPLIT_PART(REGEXP_REPLACE(COALESCE(ane.data->>'referringUrl', ''), '^https?://', ''), '/', 1)), ''),
+										NULLIF(LOWER(ane.referring_campaign), '')
+									) AS bb_referrer
+									FROM analytics_native_event ane
+									WHERE ane.institution_id = ?
+										AND ane.account_id = ra.account_id
+										AND ane.timestamp >= ra.account_created_at
+										AND ane.timestamp <= rw.report_end_at
+										AND (
+											NULLIF(ane.data->>'referringUrl', '') IS NOT NULL
+											OR NULLIF(ane.referring_campaign, '') IS NOT NULL
+									)
+								ORDER BY ane.timestamp
+								LIMIT 1
+							) first_referrer ON TRUE
+						),
+							account_unit_completions AS (
+								SELECT
+									ra.account_id,
+									NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+									CASE WHEN BOOL_OR(csu.course_session_unit_status_id = 'COMPLETED' AND csu.completed_at <= rw.report_end_at) THEN 1 ELSE 0 END AS complete_value
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								JOIN course_session cs
+									ON cs.account_id = ra.account_id
+									AND cs.created <= rw.report_end_at
+								JOIN course_session_unit csu
+									ON csu.course_session_id = cs.course_session_id
 								JOIN course_unit cu
-									ON cu.screening_flow_id = sf.screening_flow_id
-								JOIN course_module cm
-									ON cm.course_module_id = cu.course_module_id
-								JOIN institution_course ic
-									ON ic.course_id = cm.course_id
-								WHERE ic.institution_id = ?
-									AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_mcb_%'
-							)
-							OR EXISTS (
-								SELECT 1
-								FROM institution_course ic
-								JOIN course c
-									ON c.course_id = ic.course_id
-								WHERE ic.institution_id = ?
-									AND NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') LIKE 'bb_mcb%'
-							)
-							OR EXISTS (
-								SELECT 1
-								FROM institution_course ic
-								JOIN course_module cm
-									ON cm.course_id = ic.course_id
+									ON cu.course_unit_id = csu.course_unit_id
+							WHERE NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+							GROUP BY ra.account_id, reporting_key
+						),
+							account_unit_page_metrics AS (
+								SELECT
+									ra.account_id,
+									NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS unit_reporting_key,
+									cu.course_unit_type_id AS unit_type,
+									NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS course_reporting_key,
+									COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+									COUNT(*)::BIGINT AS visit_count
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								JOIN mv_analytics_dwell_time mv
+									ON mv.institution_id = ?
+									AND mv.account_id = ra.account_id
+									AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
+									AND mv.course_unit_id IS NOT NULL
+									AND mv.page_viewed_at >= ra.account_created_at
+									AND mv.page_viewed_at <= rw.report_end_at
 								JOIN course_unit cu
-									ON cu.course_module_id = cm.course_module_id
-								WHERE ic.institution_id = ?
-									AND NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') LIKE 'bb_mcb_%'
-							)
-						)
-					) AS has_keys
-				),
-					report_accounts AS (
-						SELECT
-							a.account_id,
-							a.created AS account_created_at,
-							a.email_address,
-							a.metadata
-						FROM account a
-						JOIN report_window rw
-							ON TRUE
-						JOIN institution_has_reporting_keys ihrk
-							ON ihrk.has_keys = TRUE
-						WHERE a.institution_id = ?
-							AND a.created >= rw.report_start_at
-							AND a.created <= rw.report_end_at
-							AND a.role_id = ?
-							AND a.test_account = FALSE
-					),
-						account_site_metrics AS (
+									ON cu.course_unit_id = mv.course_unit_id
+							JOIN course_module cm
+								ON cm.course_module_id = cu.course_module_id
+							JOIN course c
+								ON c.course_id = cm.course_id
+							WHERE
+								NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+								OR NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+							GROUP BY ra.account_id, unit_reporting_key, unit_type, course_reporting_key
+						),
+						account_unit_visit_rows AS (
 							SELECT
+								account_id,
+								unit_reporting_key AS reporting_key,
+								0 AS complete_value,
+								0::DOUBLE PRECISION AS time_seconds,
+								SUM(visit_count)::BIGINT AS visit_count
+							FROM account_unit_page_metrics
+							WHERE unit_reporting_key IS NOT NULL
+							GROUP BY account_id, unit_reporting_key
+						),
+						account_non_video_unit_time_rows AS (
+							SELECT
+								account_id,
+								unit_reporting_key AS reporting_key,
+								0 AS complete_value,
+								SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+								0::BIGINT AS visit_count
+							FROM account_unit_page_metrics
+							WHERE unit_reporting_key IS NOT NULL
+								AND unit_type <> 'VIDEO'
+							GROUP BY account_id, unit_reporting_key
+						),
+							account_video_unit_metric_rows AS (
+								SELECT
+									ra.account_id,
+									NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+									0 AS complete_value,
+									COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+									0::BIGINT AS visit_count
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								JOIN mv_analytics_course_unit_video_rollup vr
+									ON vr.account_id = ra.account_id
+									AND vr.first_event_at >= ra.account_created_at
+									AND vr.first_event_at <= rw.report_end_at
+								JOIN course_unit cu
+									ON cu.course_unit_id = vr.course_unit_id
+								WHERE cu.course_unit_type_id = 'VIDEO'
+									AND NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+								GROUP BY ra.account_id, NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '')
+						),
+						account_unit_completion_rows AS (
+							SELECT
+								account_id,
+								reporting_key,
+								complete_value,
+								0::DOUBLE PRECISION AS time_seconds,
+								0::BIGINT AS visit_count
+							FROM account_unit_completions
+						),
+						account_unit_metric_rows AS (
+							SELECT * FROM account_unit_completion_rows
+							UNION ALL
+							SELECT * FROM account_non_video_unit_time_rows
+							UNION ALL
+							SELECT * FROM account_video_unit_metric_rows
+							UNION ALL
+							SELECT * FROM account_unit_visit_rows
+						),
+						account_unit_metrics AS (
+							SELECT
+								account_id,
+								reporting_key,
+								MAX(complete_value) AS complete_value,
+								SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+								SUM(visit_count)::BIGINT AS visit_count
+							FROM account_unit_metric_rows
+							GROUP BY account_id, reporting_key
+						),
+							account_course_completions AS (
+								SELECT
+									ra.account_id,
+									NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+									CASE WHEN BOOL_OR(cs.course_session_status_id = 'COMPLETED' AND cs.completed_at <= rw.report_end_at) THEN 1 ELSE 0 END AS complete_value
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								JOIN course_session cs
+									ON cs.account_id = ra.account_id
+									AND cs.created <= rw.report_end_at
+								JOIN course c
+									ON c.course_id = cs.course_id
+								WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+								GROUP BY ra.account_id, reporting_key
+						),
+						account_course_visit_rows AS (
+							SELECT
+								account_id,
+								course_reporting_key AS reporting_key,
+								0 AS complete_value,
+								0::DOUBLE PRECISION AS time_seconds,
+								SUM(visit_count)::BIGINT AS visit_count
+							FROM account_unit_page_metrics
+							WHERE course_reporting_key IS NOT NULL
+							GROUP BY account_id, course_reporting_key
+						),
+						account_non_video_course_time_rows AS (
+							SELECT
+								account_id,
+								course_reporting_key AS reporting_key,
+								0 AS complete_value,
+								SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+								0::BIGINT AS visit_count
+							FROM account_unit_page_metrics
+							WHERE course_reporting_key IS NOT NULL
+								AND unit_type <> 'VIDEO'
+							GROUP BY account_id, course_reporting_key
+						),
+							account_video_course_time_rows AS (
+								SELECT
+									ra.account_id,
+									NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+									0 AS complete_value,
+									COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+									0::BIGINT AS visit_count
+								FROM report_accounts ra
+								JOIN report_window rw
+									ON TRUE
+								JOIN mv_analytics_course_unit_video_rollup vr
+									ON vr.account_id = ra.account_id
+									AND vr.first_event_at >= ra.account_created_at
+									AND vr.first_event_at <= rw.report_end_at
+								JOIN course_unit cu
+									ON cu.course_unit_id = vr.course_unit_id
+							JOIN course_module cm
+								ON cm.course_module_id = cu.course_module_id
+								JOIN course c
+									ON c.course_id = cm.course_id
+								WHERE cu.course_unit_type_id = 'VIDEO'
+									AND NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
+								GROUP BY ra.account_id, NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '')
+						),
+						account_course_completion_rows AS (
+							SELECT
+								account_id,
+								reporting_key,
+								complete_value,
+								0::DOUBLE PRECISION AS time_seconds,
+								0::BIGINT AS visit_count
+							FROM account_course_completions
+						),
+						account_course_metric_rows AS (
+							SELECT * FROM account_course_completion_rows
+							UNION ALL
+							SELECT * FROM account_non_video_course_time_rows
+							UNION ALL
+							SELECT * FROM account_video_course_time_rows
+							UNION ALL
+							SELECT * FROM account_course_visit_rows
+						),
+						account_course_metrics AS (
+							SELECT
+								account_id,
+								reporting_key,
+								MAX(complete_value) AS complete_value,
+								SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+								SUM(visit_count)::BIGINT AS visit_count
+							FROM account_course_metric_rows
+							GROUP BY account_id, reporting_key
+						),
+						account_content_metrics AS (
+							SELECT * FROM account_unit_metrics
+							UNION ALL
+							SELECT * FROM account_course_metrics
+						),
+						account_content_metric_maps AS (
+							SELECT
+								account_id,
+								COALESCE(jsonb_object_agg(reporting_key, complete_value::TEXT), '{}'::jsonb) AS metric_complete_values_json,
+								COALESCE(jsonb_object_agg(reporting_key, time_seconds::TEXT), '{}'::jsonb) AS metric_time_values_json,
+								COALESCE(jsonb_object_agg(reporting_key, visit_count::TEXT), '{}'::jsonb) AS metric_visit_values_json
+							FROM (
+								SELECT
+									account_id,
+									reporting_key,
+									MAX(complete_value) AS complete_value,
+									SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+									SUM(visit_count)::BIGINT AS visit_count
+								FROM account_content_metrics
+								GROUP BY account_id, reporting_key
+							) metrics
+							GROUP BY account_id
+						),
+							screening_question_answers AS (
+								SELECT
+									ss.target_account_id AS account_id,
+									NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
+									ssasq.screening_session_answered_screening_question_id,
+									COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
+									STRING_AGG(
+										COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
+										',' ORDER BY sa.answer_order
+									) AS reporting_value
+								FROM screening_session ss
+								JOIN report_accounts ra
+									ON ra.account_id = ss.target_account_id
+								JOIN report_window rw
+									ON TRUE
+								JOIN v_screening_session_screening sss
+									ON sss.screening_session_id = ss.screening_session_id
+							JOIN v_screening_session_answered_screening_question ssasq
+								ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+							JOIN screening_question sq
+								ON sq.screening_question_id = ssasq.screening_question_id
+							JOIN v_screening_answer sa
+								ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+								LEFT JOIN screening_answer_option sao
+									ON sao.screening_answer_option_id = sa.screening_answer_option_id
+								WHERE sq.metadata IS NOT NULL
+									AND ss.created >= ra.account_created_at
+									AND ss.created <= rw.report_end_at
+									AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') IS NOT NULL
+								GROUP BY ss.target_account_id, reporting_key, ssasq.screening_session_answered_screening_question_id
+							),
+						latest_screening_values AS (
+							SELECT DISTINCT ON (account_id, reporting_key)
+								account_id,
+								reporting_key,
+								reporting_value
+							FROM screening_question_answers
+							ORDER BY account_id, reporting_key, answered_at DESC, screening_session_answered_screening_question_id DESC
+						),
+						account_derived_screening_values AS (
+							SELECT DISTINCT ON (ra.account_id)
 								ra.account_id,
-								COUNT(DISTINCT mv.session_id)::BIGINT AS bb_n_sitevisit
+								'bb_mcb_adhd_track' AS reporting_key,
+								CASE
+									WHEN csom.course_module_id IS NOT NULL THEN '0'
+									ELSE '1'
+								END AS reporting_value
 							FROM report_accounts ra
 							JOIN report_window rw
 								ON TRUE
-							LEFT JOIN mv_analytics_dwell_time mv
-								ON mv.institution_id = ?
-								AND mv.account_id = ra.account_id
-								AND mv.page_viewed_at >= ra.account_created_at
-								AND mv.page_viewed_at <= rw.report_end_at
-							GROUP BY ra.account_id
+							JOIN course_session cs
+								ON cs.account_id = ra.account_id
+								AND cs.created <= rw.report_end_at
+							JOIN course_session_unit csu
+								ON csu.course_session_id = cs.course_session_id
+								AND csu.course_unit_id = '6d90275d-6b41-4329-8446-a02482dd2f5e'::UUID
+								AND csu.course_session_unit_status_id = 'COMPLETED'
+								AND csu.completed_at <= rw.report_end_at
+							LEFT JOIN course_session_optional_module csom
+								ON csom.course_session_id = cs.course_session_id
+								AND csom.course_module_id = 'eaf80a54-2ff0-4620-8e50-a8dcd331d8f4'::UUID
+							ORDER BY ra.account_id, csu.completed_at DESC, cs.course_session_id DESC
 						),
-					account_tot_time AS (
-						SELECT
-							ra.account_id,
-							COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS bb_tot_time_seconds
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						LEFT JOIN mv_analytics_dwell_time mv
-							ON mv.institution_id = ?
-							AND mv.account_id = ra.account_id
-							AND mv.page_viewed_at >= ra.account_created_at
-							AND mv.page_viewed_at <= rw.report_end_at
-						GROUP BY ra.account_id
-					),
-					account_email_metrics AS (
-						SELECT
-							ra.account_id,
-							MIN(ai.created) AS email_entered_at,
-							MIN(ai_claimed.last_updated) AS email_verified_at
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						LEFT JOIN account_invite ai
-							ON ai.institution_id = ?
-							AND LOWER(ai.email_address) = LOWER(ra.email_address)
-							AND ai.created <= rw.report_end_at
-						LEFT JOIN account_invite ai_claimed
-							ON ai_claimed.institution_id = ai.institution_id
-							AND LOWER(ai_claimed.email_address) = LOWER(ai.email_address)
-							AND ai_claimed.claimed = TRUE
-							AND ai_claimed.last_updated <= rw.report_end_at
-						GROUP BY ra.account_id
-					),
-					account_referrer AS (
-						SELECT
-							ra.account_id,
-							first_referrer.bb_referrer
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						LEFT JOIN LATERAL (
+						account_screening_value_rows AS (
 							SELECT
-								COALESCE(
-									NULLIF(LOWER(SPLIT_PART(REGEXP_REPLACE(COALESCE(ane.data->>'referringUrl', ''), '^https?://', ''), '/', 1)), ''),
-								NULLIF(LOWER(ane.referring_campaign), '')
-							) AS bb_referrer
-							FROM analytics_native_event ane
-							WHERE ane.institution_id = ?
-								AND ane.account_id = ra.account_id
-								AND ane.timestamp >= ra.account_created_at
-								AND ane.timestamp <= rw.report_end_at
-								AND (
-									NULLIF(ane.data->>'referringUrl', '') IS NOT NULL
-									OR NULLIF(ane.referring_campaign, '') IS NOT NULL
-							)
-						ORDER BY ane.timestamp
-						LIMIT 1
-					) first_referrer ON TRUE
-				),
-					account_unit_completions AS (
+								account_id,
+								reporting_key,
+								reporting_value
+							FROM latest_screening_values
+							UNION ALL
+							SELECT
+								account_id,
+								reporting_key,
+								reporting_value
+							FROM account_derived_screening_values
+						),
+						account_screening_values AS (
+							SELECT
+								account_id,
+								COALESCE(jsonb_object_agg(reporting_key, reporting_value), '{}'::jsonb) AS screening_values_json
+							FROM account_screening_value_rows
+							GROUP BY account_id
+						)
 						SELECT
 							ra.account_id,
-							NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-							CASE WHEN BOOL_OR(csu.course_session_unit_status_id = 'COMPLETED' AND csu.completed_at <= rw.report_end_at) THEN 1 ELSE 0 END AS complete_value
+							ra.account_created_at,
+							ra.email_address,
+							aem.email_entered_at,
+							aem.email_verified_at,
+							COALESCE(NULLIF(ra.metadata->>'zipCode', ''), asv.screening_values_json->>'bb_onboarding_6') AS bb_zipcode,
+							ar.bb_referrer,
+							COALESCE(asm.bb_n_sitevisit, 0) AS bb_n_sitevisit,
+							COALESCE(att.bb_tot_time_seconds, 0) AS bb_tot_time_seconds,
+							COALESCE(asv.screening_values_json, '{}'::jsonb)::TEXT AS screening_values_json,
+							COALESCE(acmm.metric_complete_values_json, '{}'::jsonb)::TEXT AS metric_complete_values_json,
+							COALESCE(acmm.metric_time_values_json, '{}'::jsonb)::TEXT AS metric_time_values_json,
+							COALESCE(acmm.metric_visit_values_json, '{}'::jsonb)::TEXT AS metric_visit_values_json
 						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						JOIN course_session cs
-							ON cs.account_id = ra.account_id
-							AND cs.created <= rw.report_end_at
-						JOIN course_session_unit csu
-							ON csu.course_session_id = cs.course_session_id
-						JOIN course_unit cu
-							ON cu.course_unit_id = csu.course_unit_id
-					WHERE NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-					GROUP BY ra.account_id, reporting_key
-				),
-					account_unit_page_metrics AS (
-						SELECT
-							ra.account_id,
-							NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS unit_reporting_key,
-							cu.course_unit_type_id AS unit_type,
-							NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS course_reporting_key,
-							COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS time_seconds,
-							COUNT(*)::BIGINT AS visit_count
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						JOIN mv_analytics_dwell_time mv
-							ON mv.institution_id = ?
-							AND mv.account_id = ra.account_id
-							AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
-							AND mv.course_unit_id IS NOT NULL
-							AND mv.page_viewed_at >= ra.account_created_at
-							AND mv.page_viewed_at <= rw.report_end_at
-						JOIN course_unit cu
-							ON cu.course_unit_id = mv.course_unit_id
-					JOIN course_module cm
-						ON cm.course_module_id = cu.course_module_id
-					JOIN course c
-						ON c.course_id = cm.course_id
-					WHERE
-						NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-						OR NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-					GROUP BY ra.account_id, unit_reporting_key, unit_type, course_reporting_key
-				),
-				account_unit_visit_rows AS (
-					SELECT
-						account_id,
-						unit_reporting_key AS reporting_key,
-						0 AS complete_value,
-						0::DOUBLE PRECISION AS time_seconds,
-						SUM(visit_count)::BIGINT AS visit_count
-					FROM account_unit_page_metrics
-					WHERE unit_reporting_key IS NOT NULL
-					GROUP BY account_id, unit_reporting_key
-				),
-				account_non_video_unit_time_rows AS (
-					SELECT
-						account_id,
-						unit_reporting_key AS reporting_key,
-						0 AS complete_value,
-						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
-						0::BIGINT AS visit_count
-					FROM account_unit_page_metrics
-					WHERE unit_reporting_key IS NOT NULL
-						AND unit_type <> 'VIDEO'
-					GROUP BY account_id, unit_reporting_key
-				),
-					account_video_unit_metric_rows AS (
-						SELECT
-							ra.account_id,
-							NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-							0 AS complete_value,
-							COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds,
-							0::BIGINT AS visit_count
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						JOIN mv_analytics_course_unit_video_rollup vr
-							ON vr.account_id = ra.account_id
-							AND vr.first_event_at >= ra.account_created_at
-							AND vr.first_event_at <= rw.report_end_at
-						JOIN course_unit cu
-							ON cu.course_unit_id = vr.course_unit_id
-						WHERE cu.course_unit_type_id = 'VIDEO'
-							AND NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-						GROUP BY ra.account_id, NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '')
-				),
-				account_unit_completion_rows AS (
-					SELECT
-						account_id,
-						reporting_key,
-						complete_value,
-						0::DOUBLE PRECISION AS time_seconds,
-						0::BIGINT AS visit_count
-					FROM account_unit_completions
-				),
-				account_unit_metric_rows AS (
-					SELECT * FROM account_unit_completion_rows
-					UNION ALL
-					SELECT * FROM account_non_video_unit_time_rows
-					UNION ALL
-					SELECT * FROM account_video_unit_metric_rows
-					UNION ALL
-					SELECT * FROM account_unit_visit_rows
-				),
-				account_unit_metrics AS (
-					SELECT
-						account_id,
-						reporting_key,
-						MAX(complete_value) AS complete_value,
-						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
-						SUM(visit_count)::BIGINT AS visit_count
-					FROM account_unit_metric_rows
-					GROUP BY account_id, reporting_key
-				),
-					account_course_completions AS (
-						SELECT
-							ra.account_id,
-							NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-							CASE WHEN BOOL_OR(cs.course_session_status_id = 'COMPLETED' AND cs.completed_at <= rw.report_end_at) THEN 1 ELSE 0 END AS complete_value
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						JOIN course_session cs
-							ON cs.account_id = ra.account_id
-							AND cs.created <= rw.report_end_at
-						JOIN course c
-							ON c.course_id = cs.course_id
-						WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-						GROUP BY ra.account_id, reporting_key
-				),
-				account_course_visit_rows AS (
-					SELECT
-						account_id,
-						course_reporting_key AS reporting_key,
-						0 AS complete_value,
-						0::DOUBLE PRECISION AS time_seconds,
-						SUM(visit_count)::BIGINT AS visit_count
-					FROM account_unit_page_metrics
-					WHERE course_reporting_key IS NOT NULL
-					GROUP BY account_id, course_reporting_key
-				),
-				account_non_video_course_time_rows AS (
-					SELECT
-						account_id,
-						course_reporting_key AS reporting_key,
-						0 AS complete_value,
-						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
-						0::BIGINT AS visit_count
-					FROM account_unit_page_metrics
-					WHERE course_reporting_key IS NOT NULL
-						AND unit_type <> 'VIDEO'
-					GROUP BY account_id, course_reporting_key
-				),
-					account_video_course_time_rows AS (
-						SELECT
-							ra.account_id,
-							NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
-							0 AS complete_value,
-							COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds,
-							0::BIGINT AS visit_count
-						FROM report_accounts ra
-						JOIN report_window rw
-							ON TRUE
-						JOIN mv_analytics_course_unit_video_rollup vr
-							ON vr.account_id = ra.account_id
-							AND vr.first_event_at >= ra.account_created_at
-							AND vr.first_event_at <= rw.report_end_at
-						JOIN course_unit cu
-							ON cu.course_unit_id = vr.course_unit_id
-					JOIN course_module cm
-						ON cm.course_module_id = cu.course_module_id
-						JOIN course c
-							ON c.course_id = cm.course_id
-						WHERE cu.course_unit_type_id = 'VIDEO'
-							AND NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-						GROUP BY ra.account_id, NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '')
-				),
-				account_course_completion_rows AS (
-					SELECT
-						account_id,
-						reporting_key,
-						complete_value,
-						0::DOUBLE PRECISION AS time_seconds,
-						0::BIGINT AS visit_count
-					FROM account_course_completions
-				),
-				account_course_metric_rows AS (
-					SELECT * FROM account_course_completion_rows
-					UNION ALL
-					SELECT * FROM account_non_video_course_time_rows
-					UNION ALL
-					SELECT * FROM account_video_course_time_rows
-					UNION ALL
-					SELECT * FROM account_course_visit_rows
-				),
-				account_course_metrics AS (
-					SELECT
-						account_id,
-						reporting_key,
-						MAX(complete_value) AS complete_value,
-						SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
-						SUM(visit_count)::BIGINT AS visit_count
-					FROM account_course_metric_rows
-					GROUP BY account_id, reporting_key
-				),
-				account_content_metrics AS (
-					SELECT * FROM account_unit_metrics
-					UNION ALL
-					SELECT * FROM account_course_metrics
-				),
-				account_content_metric_maps AS (
-					SELECT
-						account_id,
-						COALESCE(jsonb_object_agg(reporting_key, complete_value::TEXT), '{}'::jsonb) AS metric_complete_values_json,
-						COALESCE(jsonb_object_agg(reporting_key, time_seconds::TEXT), '{}'::jsonb) AS metric_time_values_json,
-						COALESCE(jsonb_object_agg(reporting_key, visit_count::TEXT), '{}'::jsonb) AS metric_visit_values_json
-					FROM (
-						SELECT
-							account_id,
-							reporting_key,
-							MAX(complete_value) AS complete_value,
-							SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
-							SUM(visit_count)::BIGINT AS visit_count
-						FROM account_content_metrics
-						GROUP BY account_id, reporting_key
-					) metrics
-					GROUP BY account_id
-				),
-					screening_question_answers AS (
-						SELECT
-							ss.target_account_id AS account_id,
-							NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
-							ssasq.screening_session_answered_screening_question_id,
-							COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
-							STRING_AGG(
-								COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
-								',' ORDER BY sa.answer_order
-							) AS reporting_value
-						FROM screening_session ss
-						JOIN report_accounts ra
-							ON ra.account_id = ss.target_account_id
-						JOIN report_window rw
-							ON TRUE
-						JOIN v_screening_session_screening sss
-							ON sss.screening_session_id = ss.screening_session_id
-					JOIN v_screening_session_answered_screening_question ssasq
-						ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
-					JOIN screening_question sq
-						ON sq.screening_question_id = ssasq.screening_question_id
-					JOIN v_screening_answer sa
-						ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
-						LEFT JOIN screening_answer_option sao
-							ON sao.screening_answer_option_id = sa.screening_answer_option_id
-						WHERE sq.metadata IS NOT NULL
-							AND ss.created >= ra.account_created_at
-							AND ss.created <= rw.report_end_at
-							AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') IS NOT NULL
-						GROUP BY ss.target_account_id, reporting_key, ssasq.screening_session_answered_screening_question_id
-					),
-				latest_screening_values AS (
-					SELECT DISTINCT ON (account_id, reporting_key)
-						account_id,
-						reporting_key,
-						reporting_value
-					FROM screening_question_answers
-					ORDER BY account_id, reporting_key, answered_at DESC, screening_session_answered_screening_question_id DESC
-				),
-				account_derived_screening_values AS (
-					SELECT DISTINCT ON (ra.account_id)
-						ra.account_id,
-						'bb_mcb_adhd_track' AS reporting_key,
-						CASE
-							WHEN csom.course_module_id IS NOT NULL THEN '0'
-							ELSE '1'
-						END AS reporting_value
-					FROM report_accounts ra
-					JOIN report_window rw
-						ON TRUE
-					JOIN course_session cs
-						ON cs.account_id = ra.account_id
-						AND cs.created <= rw.report_end_at
-					JOIN course_session_unit csu
-						ON csu.course_session_id = cs.course_session_id
-						AND csu.course_unit_id = '6d90275d-6b41-4329-8446-a02482dd2f5e'::UUID
-						AND csu.course_session_unit_status_id = 'COMPLETED'
-						AND csu.completed_at <= rw.report_end_at
-					LEFT JOIN course_session_optional_module csom
-						ON csom.course_session_id = cs.course_session_id
-						AND csom.course_module_id = 'eaf80a54-2ff0-4620-8e50-a8dcd331d8f4'::UUID
-					ORDER BY ra.account_id, csu.completed_at DESC, cs.course_session_id DESC
-				),
-				account_screening_value_rows AS (
-					SELECT
-						account_id,
-						reporting_key,
-						reporting_value
-					FROM latest_screening_values
-					UNION ALL
-					SELECT
-						account_id,
-						reporting_key,
-						reporting_value
-					FROM account_derived_screening_values
-				),
-				account_screening_values AS (
-					SELECT
-						account_id,
-						COALESCE(jsonb_object_agg(reporting_key, reporting_value), '{}'::jsonb) AS screening_values_json
-					FROM account_screening_value_rows
-					GROUP BY account_id
-				)
-				SELECT
-					ra.account_id,
-					ra.account_created_at,
-					ra.email_address,
-					aem.email_entered_at,
-					aem.email_verified_at,
-					COALESCE(NULLIF(ra.metadata->>'zipCode', ''), asv.screening_values_json->>'bb_onboarding_6') AS bb_zipcode,
-					ar.bb_referrer,
-					COALESCE(asm.bb_n_sitevisit, 0) AS bb_n_sitevisit,
-					COALESCE(att.bb_tot_time_seconds, 0) AS bb_tot_time_seconds,
-					COALESCE(asv.screening_values_json, '{}'::jsonb)::TEXT AS screening_values_json,
-					COALESCE(acmm.metric_complete_values_json, '{}'::jsonb)::TEXT AS metric_complete_values_json,
-					COALESCE(acmm.metric_time_values_json, '{}'::jsonb)::TEXT AS metric_time_values_json,
-					COALESCE(acmm.metric_visit_values_json, '{}'::jsonb)::TEXT AS metric_visit_values_json
-				FROM report_accounts ra
-				LEFT JOIN account_site_metrics asm
-					ON asm.account_id = ra.account_id
-				LEFT JOIN account_tot_time att
-					ON att.account_id = ra.account_id
-				LEFT JOIN account_email_metrics aem
-					ON aem.account_id = ra.account_id
-				LEFT JOIN account_referrer ar
-					ON ar.account_id = ra.account_id
-				LEFT JOIN account_screening_values asv
-					ON asv.account_id = ra.account_id
-				LEFT JOIN account_content_metric_maps acmm
-					ON acmm.account_id = ra.account_id
-				ORDER BY ra.account_created_at, ra.account_id
-					""", CourseMcbDownloadReportRecord.class, institutionId, startInstant, endInstant, institutionId, institutionId, institutionId, institutionId,
-					RoleId.PATIENT, institutionId, institutionId, institutionId, institutionId, institutionId);
+						LEFT JOIN account_site_metrics asm
+							ON asm.account_id = ra.account_id
+						LEFT JOIN account_tot_time att
+							ON att.account_id = ra.account_id
+						LEFT JOIN account_email_metrics aem
+							ON aem.account_id = ra.account_id
+						LEFT JOIN account_referrer ar
+							ON ar.account_id = ra.account_id
+						LEFT JOIN account_screening_values asv
+							ON asv.account_id = ra.account_id
+						LEFT JOIN account_content_metric_maps acmm
+							ON acmm.account_id = ra.account_id
+						ORDER BY ra.account_created_at, ra.account_id
+						""", CourseMcbDownloadReportRecord.class, institutionId, startInstant, endInstant, institutionId, institutionId, institutionId, institutionId,
+				RoleId.PATIENT, institutionId, institutionId, institutionId, institutionId, institutionId);
 
 		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
 				.withZone(institutionTimeZone)
@@ -2756,12 +3294,12 @@ public class ReportingService {
 
 	@Nonnull
 	private String resolveCourseMcbDownloadColumnValue(@Nonnull String headerColumn,
-											 @Nonnull CourseMcbDownloadReportRecord record,
-											 @Nonnull DateTimeFormatter dateFormatter,
-											 @Nonnull Map<String, String> screeningValues,
-											 @Nonnull Map<String, String> metricCompleteValues,
-											 @Nonnull Map<String, String> metricTimeValues,
-											 @Nonnull Map<String, String> metricVisitValues) {
+																										 @Nonnull CourseMcbDownloadReportRecord record,
+																										 @Nonnull DateTimeFormatter dateFormatter,
+																										 @Nonnull Map<String, String> screeningValues,
+																										 @Nonnull Map<String, String> metricCompleteValues,
+																										 @Nonnull Map<String, String> metricTimeValues,
+																										 @Nonnull Map<String, String> metricVisitValues) {
 		requireNonNull(headerColumn);
 		requireNonNull(record);
 		requireNonNull(dateFormatter);
@@ -2817,7 +3355,7 @@ public class ReportingService {
 
 	@Nonnull
 	private String formatCourseMcbDownloadScreeningValue(@Nonnull String reportingKey,
-																									 @Nullable String rawValue) {
+																											 @Nullable String rawValue) {
 		requireNonNull(reportingKey);
 
 		if (rawValue == null)
@@ -2829,22 +3367,33 @@ public class ReportingService {
 			return "";
 
 		return switch (reportingKey) {
-			case "bb_onboarding_1" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapOnboardingRelationshipResponseValue);
-			case "bb_onboarding_2" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapOnboardingReferralSourceResponseValue);
-			case "bb_onboarding_2a" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapOnboardingMedicalProviderResponseValue);
+			case "bb_onboarding_1" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapOnboardingRelationshipResponseValue);
+			case "bb_onboarding_2" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapOnboardingReferralSourceResponseValue);
+			case "bb_onboarding_2a" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapOnboardingMedicalProviderResponseValue);
 			case "bb_onboarding_2b", "bb_onboarding_4", "bb_onboarding_6", "bb_mcb_precourse_2", "bb_mcb_postcourse_qual" ->
 					mapCourseMcbOpenEndedResponseValue(trimmedRawValue);
-			case "bb_onboarding_3", "bb_mcb_precourse_3" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapGenderResponseValue);
-			case "bb_onboarding_5" -> mapCourseMcbDelimitedResponseValue(trimmedRawValue, this::mapRaceEthnicityResponseValue);
+			case "bb_onboarding_3", "bb_mcb_precourse_3" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapGenderResponseValue);
+			case "bb_onboarding_5" ->
+					mapCourseMcbDelimitedResponseValue(trimmedRawValue, this::mapRaceEthnicityResponseValue);
 			case "bb_onboarding_7" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapEducationResponseValue);
-			case "bb_onboarding_8" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapResourceAvailabilityResponseValue);
-			case "bb_mcb_precourse_1" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapMcbRelationshipResponseValue);
-			case "bb_mcb_precourse_4" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapMcbDiagnosedAdhdResponseValue);
+			case "bb_onboarding_8" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapResourceAvailabilityResponseValue);
+			case "bb_mcb_precourse_1" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapMcbRelationshipResponseValue);
+			case "bb_mcb_precourse_4" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapMcbDiagnosedAdhdResponseValue);
 			case "bb_mcb_precourse_4a", "bb_mcb_precourse_5", "bb_mcb_adhd_track" ->
 					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapYesNoResponseValue);
-			case "bb_mcb_precourse_6" -> mapCourseMcbDelimitedResponseValue(trimmedRawValue, this::mapMcbBehaviorResponseValue);
-			case "bb_mcb_precourse_7" -> mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapMcbDifficultyResponseValue);
-			case "bb_mcb_tei_1", "bb_mcb_tei_2", "bb_mcb_tei_3", "bb_mcb_tei_4", "bb_mcb_tei_5", "bb_mcb_tei_6", "bb_mcb_tei_7", "bb_mcb_tei_8", "bb_mcb_tei_9" ->
+			case "bb_mcb_precourse_6" ->
+					mapCourseMcbDelimitedResponseValue(trimmedRawValue, this::mapMcbBehaviorResponseValue);
+			case "bb_mcb_precourse_7" ->
+					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapMcbDifficultyResponseValue);
+			case "bb_mcb_tei_1", "bb_mcb_tei_2", "bb_mcb_tei_3", "bb_mcb_tei_4", "bb_mcb_tei_5", "bb_mcb_tei_6",
+					 "bb_mcb_tei_7", "bb_mcb_tei_8", "bb_mcb_tei_9" ->
 					mapCourseMcbSingleResponseValue(trimmedRawValue, this::mapLikertAgreementResponseValue);
 			default -> trimmedRawValue;
 		};
@@ -2852,7 +3401,7 @@ public class ReportingService {
 
 	@Nonnull
 	private String mapCourseMcbSingleResponseValue(@Nonnull String rawValue,
-																						 @Nonnull Function<String, String> mapper) {
+																								 @Nonnull Function<String, String> mapper) {
 		requireNonNull(rawValue);
 		requireNonNull(mapper);
 
@@ -2867,7 +3416,7 @@ public class ReportingService {
 
 	@Nonnull
 	private String mapCourseMcbDelimitedResponseValue(@Nonnull String rawValue,
-																							@Nonnull Function<String, String> mapper) {
+																										@Nonnull Function<String, String> mapper) {
 		requireNonNull(rawValue);
 		requireNonNull(mapper);
 
@@ -3301,6 +3850,254 @@ public class ReportingService {
 			return "";
 
 		return format("%s***", trimmed.substring(0, 1));
+	}
+
+	@NotThreadSafe
+	protected enum AccountTimelineEventTypeId {
+		ACCOUNT_CREATED,
+		SESSION_STARTED,
+		ACCOUNT_SIGNED_IN,
+		ACCOUNT_SIGNED_OUT,
+		PAGE_VIEW,
+		CLICKTHROUGH,
+		SCREENING_SESSION_STARTED,
+		SCREENING_SESSION_COMPLETED,
+		COURSE_SESSION_STARTED,
+		COURSE_UNIT_VIDEO_PLAYBACK,
+		COURSE_UNIT_COMPLETED,
+		COURSE_COMPLETED,
+		GROUP_SESSION_RESERVATION_CREATED
+	}
+
+	@NotThreadSafe
+	protected enum AccountTimelineActorTypeId {
+		ACCOUNT,
+		STAFF,
+		SYSTEM
+	}
+
+	@NotThreadSafe
+	protected static class AccountTimelineReportRecord {
+		@Nullable
+		private Instant occurredAt;
+		@Nullable
+		private Instant endedAt;
+		@Nullable
+		private AccountTimelineEventTypeId eventTypeId;
+		@Nullable
+		private AccountTimelineActorTypeId actorTypeId;
+		@Nullable
+		private String summary;
+		@Nullable
+		private String pageViewType;
+		@Nullable
+		private String locationLabel;
+		@Nullable
+		private Double dwellTimeSeconds;
+		@Nullable
+		private Double videoWatchedSeconds;
+		@Nullable
+		private UUID sessionId;
+		@Nullable
+		private UUID screeningSessionId;
+		@Nullable
+		private UUID courseSessionId;
+		@Nullable
+		private UUID courseId;
+		@Nullable
+		private String courseTitle;
+		@Nullable
+		private UUID courseUnitId;
+		@Nullable
+		private String courseUnitTitle;
+		@Nullable
+		private UUID groupSessionId;
+		@Nullable
+		private String sourceTable;
+		@Nullable
+		private String sourceId;
+		@Nullable
+		private String detailsJson;
+
+		@Nullable
+		public Instant getOccurredAt() {
+			return occurredAt;
+		}
+
+		public void setOccurredAt(@Nullable Instant occurredAt) {
+			this.occurredAt = occurredAt;
+		}
+
+		@Nullable
+		public Instant getEndedAt() {
+			return endedAt;
+		}
+
+		public void setEndedAt(@Nullable Instant endedAt) {
+			this.endedAt = endedAt;
+		}
+
+		@Nullable
+		public AccountTimelineEventTypeId getEventTypeId() {
+			return eventTypeId;
+		}
+
+		public void setEventTypeId(@Nullable AccountTimelineEventTypeId eventTypeId) {
+			this.eventTypeId = eventTypeId;
+		}
+
+		@Nullable
+		public AccountTimelineActorTypeId getActorTypeId() {
+			return actorTypeId;
+		}
+
+		public void setActorTypeId(@Nullable AccountTimelineActorTypeId actorTypeId) {
+			this.actorTypeId = actorTypeId;
+		}
+
+		@Nullable
+		public String getSummary() {
+			return summary;
+		}
+
+		public void setSummary(@Nullable String summary) {
+			this.summary = summary;
+		}
+
+		@Nullable
+		public String getPageViewType() {
+			return pageViewType;
+		}
+
+		public void setPageViewType(@Nullable String pageViewType) {
+			this.pageViewType = pageViewType;
+		}
+
+		@Nullable
+		public String getLocationLabel() {
+			return locationLabel;
+		}
+
+		public void setLocationLabel(@Nullable String locationLabel) {
+			this.locationLabel = locationLabel;
+		}
+
+		@Nullable
+		public Double getDwellTimeSeconds() {
+			return dwellTimeSeconds;
+		}
+
+		public void setDwellTimeSeconds(@Nullable Double dwellTimeSeconds) {
+			this.dwellTimeSeconds = dwellTimeSeconds;
+		}
+
+		@Nullable
+		public Double getVideoWatchedSeconds() {
+			return videoWatchedSeconds;
+		}
+
+		public void setVideoWatchedSeconds(@Nullable Double videoWatchedSeconds) {
+			this.videoWatchedSeconds = videoWatchedSeconds;
+		}
+
+		@Nullable
+		public UUID getSessionId() {
+			return sessionId;
+		}
+
+		public void setSessionId(@Nullable UUID sessionId) {
+			this.sessionId = sessionId;
+		}
+
+		@Nullable
+		public UUID getScreeningSessionId() {
+			return screeningSessionId;
+		}
+
+		public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
+			this.screeningSessionId = screeningSessionId;
+		}
+
+		@Nullable
+		public UUID getCourseSessionId() {
+			return courseSessionId;
+		}
+
+		public void setCourseSessionId(@Nullable UUID courseSessionId) {
+			this.courseSessionId = courseSessionId;
+		}
+
+		@Nullable
+		public UUID getCourseId() {
+			return courseId;
+		}
+
+		public void setCourseId(@Nullable UUID courseId) {
+			this.courseId = courseId;
+		}
+
+		@Nullable
+		public String getCourseTitle() {
+			return courseTitle;
+		}
+
+		public void setCourseTitle(@Nullable String courseTitle) {
+			this.courseTitle = courseTitle;
+		}
+
+		@Nullable
+		public UUID getCourseUnitId() {
+			return courseUnitId;
+		}
+
+		public void setCourseUnitId(@Nullable UUID courseUnitId) {
+			this.courseUnitId = courseUnitId;
+		}
+
+		@Nullable
+		public String getCourseUnitTitle() {
+			return courseUnitTitle;
+		}
+
+		public void setCourseUnitTitle(@Nullable String courseUnitTitle) {
+			this.courseUnitTitle = courseUnitTitle;
+		}
+
+		@Nullable
+		public UUID getGroupSessionId() {
+			return groupSessionId;
+		}
+
+		public void setGroupSessionId(@Nullable UUID groupSessionId) {
+			this.groupSessionId = groupSessionId;
+		}
+
+		@Nullable
+		public String getSourceTable() {
+			return sourceTable;
+		}
+
+		public void setSourceTable(@Nullable String sourceTable) {
+			this.sourceTable = sourceTable;
+		}
+
+		@Nullable
+		public String getSourceId() {
+			return sourceId;
+		}
+
+		public void setSourceId(@Nullable String sourceId) {
+			this.sourceId = sourceId;
+		}
+
+		@Nullable
+		public String getDetailsJson() {
+			return detailsJson;
+		}
+
+		public void setDetailsJson(@Nullable String detailsJson) {
+			this.detailsJson = detailsJson;
+		}
 	}
 
 	@NotThreadSafe
