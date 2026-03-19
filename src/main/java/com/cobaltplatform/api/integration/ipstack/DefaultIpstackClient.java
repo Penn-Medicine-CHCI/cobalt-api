@@ -126,8 +126,11 @@ public class DefaultIpstackClient implements IpstackClient {
 		if (httpResponse.getStatus() >= 400)
 			throw new RuntimeException(format("Bad HTTP response (status %s). Response body was:\n%s", httpResponse.getStatus(), responseBody));
 
-		// TODO: actually parse this out
-		IpstackStandardLookupResponse response = new IpstackStandardLookupResponse();
+		IpstackStandardLookupResponse response = getGson().fromJson(responseBody, IpstackStandardLookupResponse.class);
+
+		if (response == null)
+			response = new IpstackStandardLookupResponse();
+
 		response.setRawJson(responseBody);
 
 		return response;

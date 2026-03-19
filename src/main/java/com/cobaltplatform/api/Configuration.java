@@ -253,6 +253,8 @@ public class Configuration {
 	private final String way2HealthAccessToken;
 	@Nonnull
 	private final Way2HealthEnvironment way2HealthEnvironment;
+	@Nonnull
+	private final String ipstackAccessKey;
 
 	@Nonnull
 	private final String epicNonProdKeyId;
@@ -437,6 +439,7 @@ public class Configuration {
 
 		this.way2HealthAccessToken = valueFor("com.cobaltplatform.api.way2health.accessToken", String.class);
 		this.way2HealthEnvironment = valueFor("com.cobaltplatform.api.way2health.environment", Way2HealthEnvironment.class);
+		this.ipstackAccessKey = valueFor("com.cobaltplatform.api.ipstack.accessKey", String.class);
 
 		this.tinymceApiKey = valueFor("com.cobaltplatform.api.tinymce.apiKey", String.class);
 
@@ -1389,6 +1392,11 @@ public class Configuration {
 	@Nonnull
 	public String getWay2HealthAccessToken() {
 		return way2HealthAccessToken;
+	}
+
+	@Nonnull
+	public String getIpstackAccessKey() {
+		return ipstackAccessKey;
 	}
 
 	@Nonnull

@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CommunityService;
+import com.cobaltplatform.api.service.IpGeolocationService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.service.Way2HealthService;
@@ -96,6 +97,8 @@ public class SystemResource {
 	@Nonnull
 	private final CommunityService communityService;
 	@Nonnull
+	private final IpGeolocationService ipGeolocationService;
+	@Nonnull
 	private final Configuration configuration;
 	@Nonnull
 	private final Cache localCache;
@@ -129,6 +132,7 @@ public class SystemResource {
 	@Inject
 	public SystemResource(@Nonnull SystemService systemService,
 												@Nonnull CommunityService communityService,
+												@Nonnull IpGeolocationService ipGeolocationService,
 												@Nonnull Configuration configuration,
 												@Nonnull @LocalCache Cache localCache,
 												@Nonnull @DistributedCache Cache distributedCache,
@@ -146,6 +150,7 @@ public class SystemResource {
 												@Nonnull Strings strings) {
 		requireNonNull(systemService);
 		requireNonNull(communityService);
+		requireNonNull(ipGeolocationService);
 		requireNonNull(configuration);
 		requireNonNull(localCache);
 		requireNonNull(distributedCache);
@@ -165,6 +170,7 @@ public class SystemResource {
 
 		this.systemService = systemService;
 		this.communityService = communityService;
+		this.ipGeolocationService = ipGeolocationService;
 		this.configuration = configuration;
 		this.localCache = localCache;
 		this.distributedCache = distributedCache;
@@ -424,6 +430,29 @@ public class SystemResource {
 	}
 
 	@Nonnull
+	@POST("/system/ip-geolocations/process")
+	@AuthenticationRequired
+	public ApiResponse processIpGeolocations(@Nonnull @QueryParameter Optional<Integer> limit,
+																					 @Nonnull @QueryParameter Optional<Boolean> includeFailed) {
+		requireNonNull(limit);
+		requireNonNull(includeFailed);
+
+		if (getCurrentContext().getAccount().get().getRoleId() != RoleId.ADMINISTRATOR)
+			throw new AuthorizationException();
+
+		IpGeolocationService.ProcessingResult processingResult = getIpGeolocationService()
+				.processPendingIpGeolocations(limit.orElse(null), includeFailed.orElse(false));
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("claimedCount", processingResult.getClaimedCount());
+			put("succeededCount", processingResult.getSucceededCount());
+			put("failedCount", processingResult.getFailedCount());
+			put("skippedInvalidCount", processingResult.getSkippedInvalidCount());
+			put("skippedPrivateCount", processingResult.getSkippedPrivateCount());
+		}});
+	}
+
+	@Nonnull
 	@GET("/system/tableau-test")
 	@AuthenticationRequired
 	public BinaryResponse tableauTest() throws Exception {
@@ -553,5 +582,10 @@ public class SystemResource {
 	@Nonnull
 	protected InstitutionService getInstitutionService() {
 		return this.institutionService;
+	}
+
+	@Nonnull
+	protected IpGeolocationService getIpGeolocationService() {
+		return this.ipGeolocationService;
 	}
 }
