@@ -36,6 +36,8 @@ import com.cobaltplatform.api.integration.acuity.DefaultAcuitySchedulingClient;
 import com.cobaltplatform.api.integration.acuity.MockAcuitySchedulingClient;
 import com.cobaltplatform.api.integration.amazon.AmazonSnsRequestValidator;
 import com.cobaltplatform.api.integration.amazon.DefaultAmazonSnsRequestValidator;
+import com.cobaltplatform.api.integration.ipstack.DefaultIpstackClient;
+import com.cobaltplatform.api.integration.ipstack.IpstackClient;
 import com.cobaltplatform.api.integration.twilio.DefaultTwilioErrorResolver;
 import com.cobaltplatform.api.integration.twilio.MockTwilioRequestValidator;
 import com.cobaltplatform.api.integration.twilio.TwilioErrorResolver;
@@ -734,6 +736,14 @@ public class AppModule extends AbstractModule {
 			return new SentryErrorReporter(configuration);
 
 		return new ConsoleErrorReporter();
+	}
+
+	@Provides
+	@Singleton
+	@Nonnull
+	public IpstackClient provideIpstackClient(@Nonnull Configuration configuration) {
+		requireNonNull(configuration);
+		return new DefaultIpstackClient(configuration.getIpstackAccessKey());
 	}
 
 	@Provides
