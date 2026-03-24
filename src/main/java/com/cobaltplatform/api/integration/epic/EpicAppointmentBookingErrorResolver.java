@@ -60,6 +60,10 @@ public class EpicAppointmentBookingErrorResolver {
 	@Nonnull
 	private static final Pattern EPIC_APPOINTMENT_WARNING_DETAILS_CODE_PATTERN;
 	@Nonnull
+	private static final String EPIC_CADENCE_CHECKS_FAILED_ERROR_CODE;
+	@Nonnull
+	private static final Pattern EPIC_CADENCE_CHECK_FAILURE_DETAIL_CODE_PATTERN;
+	@Nonnull
 	private static final List<EpicAppointmentWarningType> EPIC_APPOINTMENT_WARNING_TYPE_PRIORITY;
 	@Nonnull
 	private static final Map<String, EpicAppointmentWarningType> EPIC_APPOINTMENT_WARNING_DETAIL_CODE_TO_TYPE;
@@ -67,6 +71,8 @@ public class EpicAppointmentBookingErrorResolver {
 	private static final Map<String, EpicAppointmentBookingFailureType> EPIC_COMMAND_CODE_TO_FAILURE_TYPE;
 	@Nonnull
 	private static final Map<String, EpicAppointmentBookingFailureType> EPIC_ERROR_CODE_TO_FAILURE_TYPE;
+	@Nonnull
+	private static final Map<String, EpicAppointmentBookingFailureType> EPIC_CADENCE_CHECK_FAILURE_DETAIL_CODE_TO_FAILURE_TYPE;
 
 	@Nonnull
 	private final JsonMapper jsonMapper;
@@ -79,6 +85,8 @@ public class EpicAppointmentBookingErrorResolver {
 		EPIC_DETAILS_VALUE_PATTERN = Pattern.compile("Details:\\s*([A-Z0-9_-]+)", Pattern.CASE_INSENSITIVE);
 		EPIC_APPOINTMENT_WARNING_DETAILS_VALUES_PATTERN = Pattern.compile("Details:\\s*(.+)", Pattern.CASE_INSENSITIVE);
 		EPIC_APPOINTMENT_WARNING_DETAILS_CODE_PATTERN = Pattern.compile("(\\d+)");
+		EPIC_CADENCE_CHECKS_FAILED_ERROR_CODE = "CADENCE CHECK(S) FAILED";
+		EPIC_CADENCE_CHECK_FAILURE_DETAIL_CODE_PATTERN = Pattern.compile("code:\\s*CADENCE\\s+CHECK\\(S\\)\\s+FAILED:\\s*([A-Z0-9_-]+)", Pattern.CASE_INSENSITIVE);
 		EPIC_APPOINTMENT_WARNING_TYPE_PRIORITY = List.of(
 				EpicAppointmentWarningType.TIMESLOT_UNAVAILABLE,
 				EpicAppointmentWarningType.PICK_DIFFERENT_TIME
@@ -100,6 +108,11 @@ public class EpicAppointmentBookingErrorResolver {
 		EPIC_ERROR_CODE_TO_FAILURE_TYPE = Map.of(
 				// Known EPIC error code observed in ScheduleWithInsurance failures.
 				"APTWARN", EpicAppointmentBookingFailureType.APPOINTMENT_WARNING
+		);
+		EPIC_CADENCE_CHECK_FAILURE_DETAIL_CODE_TO_FAILURE_TYPE = Map.of(
+				// Known EPIC cadence check failure detail codes observed in ScheduleWithInsurance failures:
+				// slottaken => timeslot was taken after availability was checked but before booking completed
+				"SLOTTAKEN", EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE
 		);
 	}
 
@@ -143,10 +156,12 @@ public class EpicAppointmentBookingErrorResolver {
 
 		EpicAppointmentBookingFailureType failureType;
 
-		if (appointmentWarningType == EpicAppointmentWarningType.TIMESLOT_UNAVAILABLE) {
+		if (appointmentWarningType == EpicAppointmentWarningType.TIMESLOT_UNAVAILABLE
+				|| knownFailureType == EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE) {
 			metadata.put("appointmentTimeslotUnavailable", true);
 			failureType = EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE;
-		} else if (appointmentWarningType == EpicAppointmentWarningType.PICK_DIFFERENT_TIME) {
+		} else if (appointmentWarningType == EpicAppointmentWarningType.PICK_DIFFERENT_TIME
+				|| knownFailureType == EpicAppointmentBookingFailureType.PICK_DIFFERENT_TIME) {
 			failureType = EpicAppointmentBookingFailureType.PICK_DIFFERENT_TIME;
 		} else if (knownFailureType != null) {
 			failureType = knownFailureType;
@@ -222,8 +237,14 @@ public class EpicAppointmentBookingErrorResolver {
 			if (detailsCodeMatcher.find())
 				errorCode = trimToNull(detailsCodeMatcher.group(1));
 
+			Matcher cadenceCheckFailureDetailCodeMatcher = EPIC_CADENCE_CHECK_FAILURE_DETAIL_CODE_PATTERN.matcher(details);
+			if (cadenceCheckFailureDetailCodeMatcher.find()) {
+				errorCode = EPIC_CADENCE_CHECKS_FAILED_ERROR_CODE;
+				errorDetailCode = trimToNull(cadenceCheckFailureDetailCodeMatcher.group(1));
+			}
+
 			Matcher detailsValueMatcher = EPIC_DETAILS_VALUE_PATTERN.matcher(details);
-			if (detailsValueMatcher.find())
+			if (errorDetailCode == null && detailsValueMatcher.find())
 				errorDetailCode = trimToNull(detailsValueMatcher.group(1));
 
 			if ("APTWARN".equalsIgnoreCase(trimToNull(errorCode))) {
@@ -447,6 +468,17 @@ public class EpicAppointmentBookingErrorResolver {
 
 				if (failureType != null)
 					return Optional.of(failureType);
+
+				if (EPIC_CADENCE_CHECKS_FAILED_ERROR_CODE.equalsIgnoreCase(normalizedErrorCode)) {
+					String normalizedErrorDetailCode = trimToNull(getErrorDetailCode());
+
+					if (normalizedErrorDetailCode != null) {
+						failureType = EPIC_CADENCE_CHECK_FAILURE_DETAIL_CODE_TO_FAILURE_TYPE.get(normalizedErrorDetailCode.toUpperCase(Locale.ENGLISH));
+
+						if (failureType != null)
+							return Optional.of(failureType);
+					}
+				}
 			}
 
 			return Optional.empty();
