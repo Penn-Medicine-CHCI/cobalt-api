@@ -29,6 +29,9 @@ import com.lokalized.Strings;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,6 +62,8 @@ public class InstitutionReferrerApiResponse {
 	private final String ctaTitle; // CTA to be displayed on the institution referrer page
 	@Nullable
 	private final String ctaDescription; // CTA to be displayed on the institution referrer page.  Can include HTML
+	@Nonnull
+	private final Map<String, Object> metadata;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -85,6 +90,7 @@ public class InstitutionReferrerApiResponse {
 		this.pageContent = institutionReferrer.getPageContent();
 		this.ctaTitle = institutionReferrer.getCtaTitle();
 		this.ctaDescription = institutionReferrer.getCtaDescription();
+		this.metadata = Collections.unmodifiableMap(new HashMap<>(institutionReferrer.getMetadata()));
 	}
 
 	@Nonnull
@@ -135,5 +141,10 @@ public class InstitutionReferrerApiResponse {
 	@Nonnull
 	public Optional<String> getCtaDescription() {
 		return Optional.ofNullable(this.ctaDescription);
+	}
+
+	@Nonnull
+	public Map<String, Object> getMetadata() {
+		return this.metadata;
 	}
 }

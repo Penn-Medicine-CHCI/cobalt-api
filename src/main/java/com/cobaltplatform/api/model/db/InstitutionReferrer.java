@@ -20,17 +20,33 @@
 package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.pyranid.DatabaseColumn;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class InstitutionReferrer {
+	private static final Gson GSON;
+
+	static {
+		GSON = new GsonBuilder()
+				.setPrettyPrinting()
+				.disableHtmlEscaping()
+				.create();
+	}
+
 	@Nullable
 	private UUID institutionReferrerId;
 	@Nullable
@@ -52,9 +68,35 @@ public class InstitutionReferrer {
 	@Nullable
 	private String ctaDescription; // CTA to be displayed on the institution referrer page.  Can include HTML
 	@Nullable
+	@DatabaseColumn("metadata")
+	private String metadataAsString;
+	@Nullable
+	private Map<String, Object> metadata;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
+
+	protected Gson getGson() {
+		return GSON;
+	}
+
+	@Nullable
+	public String getMetadataAsString() {
+		return this.metadataAsString;
+	}
+
+	public void setMetadataAsString(@Nullable String metadataAsString) {
+		this.metadataAsString = metadataAsString;
+
+		String metadata = trimToNull(metadataAsString);
+		this.metadata = metadata == null ? Map.of() : getGson().fromJson(metadata, new TypeToken<Map<String, Object>>() {
+		}.getType());
+	}
+
+	public Map<String, Object> getMetadata() {
+		return this.metadata == null ? Map.of() : this.metadata;
+	}
 
 	@Nullable
 	public UUID getInstitutionReferrerId() {
