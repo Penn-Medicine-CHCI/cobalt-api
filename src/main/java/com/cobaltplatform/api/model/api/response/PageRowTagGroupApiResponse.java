@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
@@ -41,6 +42,12 @@ import static java.util.Objects.requireNonNull;
 public class PageRowTagGroupApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -69,14 +76,39 @@ public class PageRowTagGroupApiResponse {
 		requireNonNull(tagGroupApiResponseFactory);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));
 		this.rowTypeId = pageRow.getRowTypeId();
 	}
 
 	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Tag Group";
+	}
+
+	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
 	}
 
 	@Nonnull
@@ -94,5 +126,4 @@ public class PageRowTagGroupApiResponse {
 		return rowTypeId;
 	}
 }
-
 

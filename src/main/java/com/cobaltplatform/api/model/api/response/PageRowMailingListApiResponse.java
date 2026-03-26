@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse.MailingListEntryApiResponseFactory;
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
@@ -49,6 +50,12 @@ import static java.util.Objects.requireNonNull;
 public class PageRowMailingListApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -93,6 +100,9 @@ public class PageRowMailingListApiResponse {
 		Set<Supplement> supplementsAsSet = supplements == null ? Set.of() : new HashSet<>(Arrays.asList(supplements));
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.mailingListId = pageRowMailingList.getMailingListId();
@@ -107,8 +117,30 @@ public class PageRowMailingListApiResponse {
 	}
 
 	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Subscribe";
+	}
+
+	@Nonnull
 	public UUID getPageRowId() {
 		return this.pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return this.pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return this.name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return this.backgroundColorId;
 	}
 
 	@Nonnull
@@ -141,5 +173,4 @@ public class PageRowMailingListApiResponse {
 		return this.mailingListEntries;
 	}
 }
-
 

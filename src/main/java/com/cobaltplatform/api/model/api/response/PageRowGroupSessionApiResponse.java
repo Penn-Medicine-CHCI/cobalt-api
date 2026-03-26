@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageStatus;
@@ -46,6 +47,12 @@ import static java.util.Objects.requireNonNull;
 public class PageRowGroupSessionApiResponse {
 	@Nullable
 	private UUID pageRowId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nullable
 	private Integer displayOrder;
 	@Nonnull
@@ -78,17 +85,41 @@ public class PageRowGroupSessionApiResponse {
 		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		//If this page is published only show ADDED group sessions
 		this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 				.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
+	}
 
-}
+	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Group Sessions";
+	}
 
 	@Nullable
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
 	}
 
 	@Nullable
@@ -106,5 +137,4 @@ public class PageRowGroupSessionApiResponse {
 		return rowTypeId;
 	}
 }
-
 

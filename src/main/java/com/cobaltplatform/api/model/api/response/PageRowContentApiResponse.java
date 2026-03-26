@@ -20,9 +20,9 @@
 package com.cobaltplatform.api.model.api.response;
 
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
-import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
@@ -47,6 +47,12 @@ import static java.util.Objects.requireNonNull;
 public class PageRowContentApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private final Integer displayOrder;
 
@@ -79,17 +85,42 @@ public class PageRowContentApiResponse {
 		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		//If this page is published only show LIVE content
 		this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 				.map(content -> contentApiResponseFactory.create(content)).collect(Collectors.toList());
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
-}
+	}
+
+	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Resources";
+	}
 
 
 	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
 	}
 
 	@Nonnull
@@ -107,5 +138,4 @@ public class PageRowContentApiResponse {
 		return rowTypeId;
 	}
 }
-
 

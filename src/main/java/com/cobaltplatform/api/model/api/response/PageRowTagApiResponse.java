@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowTag;
@@ -48,6 +49,12 @@ public class PageRowTagApiResponse {
 	private final ColorId tagGroupColorId;
 	@Nonnull
 	private final UUID pageRowId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -82,6 +89,9 @@ public class PageRowTagApiResponse {
 		Optional<TagGroup> tagGroup = tagService.findUncachedTagGroupByTagId(pageRowTag.getTagId());
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.tag = tagApiResponseFactory.create(tagService.findTagById(pageRowTag.getTagId()).get());
@@ -93,6 +103,13 @@ public class PageRowTagApiResponse {
 
 	}
 
+	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowType.RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Tag";
+	}
+
 
 	@Nonnull
 	public ColorId getTagGroupColorId() {
@@ -102,6 +119,21 @@ public class PageRowTagApiResponse {
 	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
 	}
 
 	@Nonnull
@@ -119,5 +151,4 @@ public class PageRowTagApiResponse {
 		return tag;
 	}
 }
-
 
