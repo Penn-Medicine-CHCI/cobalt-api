@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiRespon
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
@@ -64,6 +65,10 @@ public class PageRowApiResponse {
 	private final UUID pageSectionId;
 	@Nonnull
 	private final RowTypeId rowTypeId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -133,6 +138,8 @@ public class PageRowApiResponse {
 		this.pageRowId = pageRow.getPageRowId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.tagGroupColorId = null;
 		this.displayRow = true;
@@ -156,9 +163,12 @@ public class PageRowApiResponse {
 			TagGroup tagGroup = tagService.findUncachedTagGroupByTagId(pageRowTag.getTagId()).get();
 			this.tagGroupColorId = tagGroup.getColorId();
 			this.tag = tagApiResponseFactory.create(tagService.findTagById(pageRowTag.getTagId()).get());
-		} else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
+		} else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE)
+				|| this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE_RIGHT)
+				|| this.rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT))
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
-		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)) {
+		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)
+				|| this.rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT)) {
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 			this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 		} else if (this.rowTypeId.equals(RowTypeId.THREE_COLUMN_IMAGE)) {
@@ -174,6 +184,26 @@ public class PageRowApiResponse {
 	}
 
 	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		if (rowTypeId.equals(RowTypeId.RESOURCES))
+			return "Resources";
+		if (rowTypeId.equals(RowTypeId.GROUP_SESSIONS))
+			return "Group Sessions";
+		if (rowTypeId.equals(RowTypeId.TAG_GROUP))
+			return "Tag Group";
+		if (rowTypeId.equals(RowTypeId.TAG))
+			return "Tag";
+		if (rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT) || rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT))
+			return "Text";
+		if (rowTypeId.equals(RowTypeId.MAILING_LIST))
+			return "Subscribe";
+
+		return "Text & Image";
+	}
+
+	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
 	}
@@ -186,6 +216,16 @@ public class PageRowApiResponse {
 	@Nonnull
 	public RowTypeId getRowTypeId() {
 		return rowTypeId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
 	}
 
 	@Nonnull
@@ -253,5 +293,3 @@ public class PageRowApiResponse {
 		return Optional.ofNullable(this.description);
 	}
 }
-
-

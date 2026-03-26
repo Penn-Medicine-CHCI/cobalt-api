@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
@@ -43,6 +44,10 @@ public class PageRowCustomOneColumnApiResponse {
 	private final UUID pageRowId;
 	@Nonnull
 	private final Integer displayOrder;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private final PageRowColumn columnOne;
 	@Nonnull
@@ -73,8 +78,20 @@ public class PageRowCustomOneColumnApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.displayOrder = pageRow.getDisplayOrder();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
-}
+	}
+
+	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		if (rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT))
+			return "Text";
+
+		return "Text & Image";
+	}
 
 
 	@Nonnull
@@ -93,6 +110,16 @@ public class PageRowCustomOneColumnApiResponse {
 	}
 
 	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
+	}
+
+	@Nonnull
 	public RowTypeId getRowTypeId() {
 		return rowTypeId;
 	}
@@ -102,5 +129,4 @@ public class PageRowCustomOneColumnApiResponse {
 		return pageSectionId;
 	}
 }
-
 

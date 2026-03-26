@@ -24,6 +24,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 
 /**
@@ -37,6 +38,10 @@ public class PageRow {
 	private UUID pageSectionId;
 	@Nullable
 	private RowTypeId rowTypeId;
+	@Nullable
+	private String name;
+	@Nullable
+	private BackgroundColorId backgroundColorId;
 	@Nullable
 	private Boolean deletedFlag;
 	@Nullable
@@ -73,6 +78,24 @@ public class PageRow {
 
 	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
 		this.rowTypeId = rowTypeId;
+	}
+
+	@Nullable
+	public String getName() {
+		return name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
+	}
+
+	public void setBackgroundColorId(@Nullable BackgroundColorId backgroundColorId) {
+		this.backgroundColorId = backgroundColorId;
 	}
 
 	@Nullable

@@ -37,6 +37,8 @@ public class FindPagesRequest {
 	private Integer pageSize;
 	@Nullable
 	private OrderBy orderBy;
+	@Nullable
+	private String searchQuery;
 
 	public enum OrderBy {
 		CREATED_ASC,
@@ -77,5 +79,14 @@ public class FindPagesRequest {
 
 	public void setOrderBy(@Nullable OrderBy orderBy) {
 		this.orderBy = orderBy;
+	}
+
+	@Nullable
+	public String getSearchQuery() {
+		return searchQuery;
+	}
+
+	public void setSearchQuery(@Nullable String searchQuery) {
+		this.searchQuery = searchQuery;
 	}
 }

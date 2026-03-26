@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 
 import javax.annotation.Nullable;
@@ -34,6 +35,10 @@ public class CreatePageRowRequest {
 	private UUID pageSectionId;
 	@Nullable
 	private RowTypeId rowTypeId;
+	@Nullable
+	private String name;
+	@Nullable
+	private BackgroundColorId backgroundColorId;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -54,6 +59,24 @@ public class CreatePageRowRequest {
 
 	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
 		this.rowTypeId = rowTypeId;
+	}
+
+	@Nullable
+	public String getName() {
+		return name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
+	}
+
+	public void setBackgroundColorId(@Nullable BackgroundColorId backgroundColorId) {
+		this.backgroundColorId = backgroundColorId;
 	}
 
 	@Nullable

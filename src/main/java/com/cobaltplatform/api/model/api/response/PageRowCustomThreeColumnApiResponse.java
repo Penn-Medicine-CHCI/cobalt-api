@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
@@ -43,6 +44,10 @@ public class PageRowCustomThreeColumnApiResponse {
 	private final UUID pageRowId;
 	@Nonnull
 	private final Integer displayOrder;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
 	@Nonnull
 	private final PageRowColumn columnOne;
 	@Nonnull
@@ -76,10 +81,12 @@ public class PageRowCustomThreeColumnApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.displayOrder = pageRow.getDisplayOrder();
+		this.name = pageRow.getName() == null ? "Text & Image" : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
 		this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 		this.columnThree = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
-}
+	}
 
 
 	@Nonnull
@@ -95,6 +102,16 @@ public class PageRowCustomThreeColumnApiResponse {
 	@Nonnull
 	public Integer getDisplayOrder() {
 		return displayOrder;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
 	}
 
 	@Nonnull
@@ -117,5 +134,4 @@ public class PageRowCustomThreeColumnApiResponse {
 		return pageSectionId;
 	}
 }
-
 
