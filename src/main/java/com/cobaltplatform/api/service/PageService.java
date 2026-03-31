@@ -1112,6 +1112,17 @@ public class PageService {
 	}
 
 	@Nonnull
+	public Optional<PageRowColumn> findPageRowColumnById(@Nullable UUID pageRowColumnId) {
+		requireNonNull(pageRowColumnId);
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_column
+				WHERE page_row_column_id = ?
+				""", PageRowColumn.class, pageRowColumnId);
+	}
+
+	@Nonnull
 	public List<PageRowColumn> findPageRowColumnsByPageRowId(@Nullable UUID pageRowId) {
 		requireNonNull(pageRowId);
 
@@ -1476,6 +1487,81 @@ public class PageService {
 				AND column_display_order=?
 				""", headline, description, imageFileUploadId, imageAltText, pageRowId, columnDisplayOrder);
 
+	}
+
+	public void updateCustomPageRowColumn(@Nonnull UUID pageRowColumnId,
+																				@Nonnull UpdatePageRowColumnRequest request,
+																				@Nonnull InstitutionId institutionId) {
+		requireNonNull(pageRowColumnId);
+		requireNonNull(request);
+		requireNonNull(institutionId);
+
+		UUID pageRowId = request.getPageRowId();
+		ValidationException validationException = new ValidationException();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+		Optional<PageRowColumn> pageRowColumn = findPageRowColumnById(pageRowColumnId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new FieldError("pageRow", getStrings().get("Could not find page row.")));
+		else if (!pageRow.get().getRowTypeId().equals(RowTypeId.CUSTOM_ROW))
+			validationException.add(new FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.CUSTOM_ROW))));
+
+		if (!pageRowColumn.isPresent())
+			validationException.add(new FieldError("pageRowColumn", getStrings().get("Could not find page row column.")));
+		else if (!pageRowColumn.get().getPageRowId().equals(pageRowId))
+			validationException.add(new FieldError("pageRowColumn", getStrings().get("Page row column does not belong to page row.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		request.setColumnDisplayOrder(pageRowColumn.get().getColumnDisplayOrder());
+		updatePageRowColumn(request);
+	}
+
+	public void deleteCustomPageRowColumn(@Nonnull UUID pageRowId,
+																				@Nonnull UUID pageRowColumnId,
+																				@Nonnull InstitutionId institutionId) {
+		requireNonNull(pageRowId);
+		requireNonNull(pageRowColumnId);
+		requireNonNull(institutionId);
+
+		ValidationException validationException = new ValidationException();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+		Optional<PageRowColumn> pageRowColumn = findPageRowColumnById(pageRowColumnId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new FieldError("pageRow", getStrings().get("Could not find page row.")));
+		else if (!pageRow.get().getRowTypeId().equals(RowTypeId.CUSTOM_ROW))
+			validationException.add(new FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.CUSTOM_ROW))));
+
+		if (!pageRowColumn.isPresent())
+			validationException.add(new FieldError("pageRowColumn", getStrings().get("Could not find page row column.")));
+		else if (!pageRowColumn.get().getPageRowId().equals(pageRowId))
+			validationException.add(new FieldError("pageRowColumn", getStrings().get("Page row column does not belong to page row.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				DELETE FROM page_row_column
+				WHERE page_row_column_id = ?
+				AND page_row_id = ?
+				""", pageRowColumnId, pageRowId);
+
+		List<PageRowColumn> remainingPageRowColumns = findPageRowColumnsByPageRowId(pageRowId);
+		int displayOrder = 0;
+
+		for (PageRowColumn remainingPageRowColumn : remainingPageRowColumns) {
+			getDatabase().execute("""
+					UPDATE page_row_column
+					SET column_display_order = ?
+					WHERE page_row_column_id = ?
+					AND page_row_id = ?
+					""", displayOrder, remainingPageRowColumn.getPageRowColumnId(), pageRowId);
+			displayOrder++;
+		}
 	}
 
 	public void updateCustomPageRowColumnDisplayOrder(@Nonnull UpdatePageRowColumnDisplayOrderRequest request,

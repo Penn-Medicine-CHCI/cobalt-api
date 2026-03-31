@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
@@ -914,6 +915,58 @@ public class PageResource {
 
 		request.setPageRowId(pageRowId);
 		getPageService().updateCustomPageRowColumnDisplayOrder(request, institutionId);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@PUT("/pages/row/{pageRowId}/custom-row/column/{pageRowColumnId}")
+	@AuthenticationRequired
+	public ApiResponse updateCustomPageRowColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																						 @Nonnull @PathParameter("pageRowColumnId") UUID pageRowColumnId,
+																						 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(pageRowColumnId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowColumnRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowColumnRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setPageRowId(pageRowId);
+		getPageService().updateCustomPageRowColumn(pageRowColumnId, request, institutionId);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@DELETE("/pages/row/{pageRowId}/custom-row/column/{pageRowColumnId}")
+	@AuthenticationRequired
+	public ApiResponse deleteCustomPageRowColumn(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																						 @Nonnull @PathParameter("pageRowColumnId") UUID pageRowColumnId) {
+		requireNonNull(pageRowId);
+		requireNonNull(pageRowColumnId);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		getPageService().deleteCustomPageRowColumn(pageRowId, pageRowColumnId, institutionId);
 
 		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
 
