@@ -38,6 +38,7 @@ import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomOneColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomThreeColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCustomTwoColumnRequest;
@@ -99,11 +100,14 @@ import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidUrlSubdirectory;
@@ -1108,6 +1112,18 @@ public class PageService {
 	}
 
 	@Nonnull
+	public List<PageRowColumn> findPageRowColumnsByPageRowId(@Nullable UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_page_row_column
+				WHERE page_row_id = ?
+				ORDER BY column_display_order ASC
+				""", PageRowColumn.class, pageRowId);
+	}
+
+	@Nonnull
 	public UUID createPageRowOneColumn(@Nonnull CreatePageRowCustomOneColumnRequest request,
 																		 @Nonnull InstitutionId institutionId) {
 		return createPageRowOneColumn(request, institutionId, RowTypeId.ONE_COLUMN_IMAGE);
@@ -1399,6 +1415,36 @@ public class PageService {
 		return pageRowColumnId;
 	}
 
+	@Nonnull
+	public UUID createCustomPageRowColumn(@Nonnull CreatePageRowColumnRequest request,
+																				@Nonnull UUID pageRowId,
+																				@Nonnull InstitutionId institutionId) {
+		requireNonNull(request);
+		requireNonNull(pageRowId);
+		requireNonNull(institutionId);
+
+		ValidationException validationException = new ValidationException();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new FieldError("pageRow", getStrings().get("Could not find page row.")));
+		else if (!pageRow.get().getRowTypeId().equals(RowTypeId.CUSTOM_ROW))
+			validationException.add(new FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.CUSTOM_ROW))));
+
+		List<PageRowColumn> pageRowColumns = pageRow.isPresent() ? findPageRowColumnsByPageRowId(pageRowId) : List.of();
+
+		if (pageRowColumns.size() >= 4)
+			validationException.add(new FieldError("pageRowColumn", getStrings().get("Custom rows can have at most 4 columns.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		request.setColumnDisplayOrder(pageRowColumns.size());
+
+		return createPageRowColumn(request, pageRowId);
+	}
+
 	public void updatePageRowColumn(@Nonnull UpdatePageRowColumnRequest request) {
 		requireNonNull(request);
 
@@ -1432,6 +1478,55 @@ public class PageService {
 
 	}
 
+	public void updateCustomPageRowColumnDisplayOrder(@Nonnull UpdatePageRowColumnDisplayOrderRequest request,
+																										@Nonnull InstitutionId institutionId) {
+		requireNonNull(request);
+		requireNonNull(institutionId);
+
+		UUID pageRowId = request.getPageRowId();
+		List<UUID> pageRowColumnIds = request.getPageRowColumnIds();
+		ValidationException validationException = new ValidationException();
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new FieldError("pageRow", getStrings().get("Could not find page row.")));
+		else if (!pageRow.get().getRowTypeId().equals(RowTypeId.CUSTOM_ROW))
+			validationException.add(new FieldError("rowTypeId", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), RowTypeId.CUSTOM_ROW))));
+
+		if (pageRowColumnIds == null || pageRowColumnIds.isEmpty())
+			validationException.add(new FieldError("pageRowColumnIds", getStrings().get("At least one page row column is required.")));
+
+		List<PageRowColumn> existingPageRowColumns = pageRow.isPresent() ? findPageRowColumnsByPageRowId(pageRowId) : List.of();
+		Set<UUID> existingPageRowColumnIds = existingPageRowColumns.stream()
+				.map(PageRowColumn::getPageRowColumnId)
+				.collect(Collectors.toSet());
+
+		if (pageRowColumnIds != null) {
+			if (pageRowColumnIds.stream().anyMatch(Objects::isNull))
+				validationException.add(new FieldError("pageRowColumnIds", getStrings().get("Page row columns are required.")));
+			if (new HashSet<>(pageRowColumnIds).size() != pageRowColumnIds.size())
+				validationException.add(new FieldError("pageRowColumnIds", getStrings().get("Duplicate page row columns were provided.")));
+			if (!existingPageRowColumnIds.equals(new HashSet<>(pageRowColumnIds)))
+				validationException.add(new FieldError("pageRowColumnIds", getStrings().get("All custom row columns are required for reordering.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		int displayOrder = 0;
+
+		for (UUID pageRowColumnId : pageRowColumnIds) {
+			getDatabase().execute("""
+					UPDATE page_row_column
+					SET column_display_order = ?
+					WHERE page_row_column_id = ?
+					AND page_row_id = ?
+					""", displayOrder, pageRowColumnId, pageRowId);
+			displayOrder++;
+		}
+	}
+
 	@Nonnull
 	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
 		requireNonNull(rowTypeId);
@@ -1444,6 +1539,8 @@ public class PageService {
 			return "Tag Group";
 		if (rowTypeId.equals(RowTypeId.TAG))
 			return "Tag";
+		if (rowTypeId.equals(RowTypeId.CUSTOM_ROW))
+			return "Custom Row";
 		if (rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT) || rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT))
 			return "Text";
 		if (rowTypeId.equals(RowTypeId.MAILING_LIST))

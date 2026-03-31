@@ -17,51 +17,38 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class RowType {
+public class UpdatePageRowColumnDisplayOrderRequest {
 	@Nullable
-	private RowTypeId rowTypeId;
+	private UUID pageRowId;
 	@Nullable
-	private String description;
+	private List<UUID> pageRowColumnIds;
 
-	public enum RowTypeId {
-		RESOURCES,
-		GROUP_SESSIONS,
-		TAG_GROUP,
-		TAG,
-		CUSTOM_ROW,
-		ONE_COLUMN_TEXT,
-		TWO_COLUMN_TEXT,
-		ONE_COLUMN_IMAGE,
-		ONE_COLUMN_IMAGE_RIGHT,
-		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE,
-		MAILING_LIST
+	@Nullable
+	public UUID getPageRowId() {
+		return pageRowId;
+	}
+
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public List<UUID> getPageRowColumnIds() {
+		return pageRowColumnIds;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
-	}
-
-	@Nullable
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(@Nullable String description) {
-		this.description = description;
+	public void setPageRowColumnIds(@Nullable List<UUID> pageRowColumnIds) {
+		this.pageRowColumnIds = pageRowColumnIds;
 	}
 }

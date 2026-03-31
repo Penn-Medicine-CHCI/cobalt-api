@@ -51,6 +51,8 @@ public class PageRowColumnApiResponse {
 	private String imageAltText;
 	@Nullable
 	private String imageUrl;
+	@Nullable
+	private Integer columnDisplayOrder;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -75,8 +77,8 @@ public class PageRowColumnApiResponse {
 		this.imageFileUploadId = pageRowImage.getImageFileUploadId();
 		this.imageAltText = pageRowImage.getImageAltText();
 		this.imageUrl = pageRowImage.getImageUrl();
-
-}
+		this.columnDisplayOrder = pageRowImage.getColumnDisplayOrder();
+	}
 
 	@Nullable
 	public UUID getPageRowColumnId() {
@@ -112,6 +114,10 @@ public class PageRowColumnApiResponse {
 	public String getImageUrl() {
 		return imageUrl;
 	}
-}
 
+	@Nullable
+	public Integer getColumnDisplayOrder() {
+		return columnDisplayOrder;
+	}
+}
 

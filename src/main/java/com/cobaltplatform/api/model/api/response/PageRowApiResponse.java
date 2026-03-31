@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
@@ -81,6 +82,8 @@ public class PageRowApiResponse {
 	private PageRowColumn columnTwo;
 	@Nonnull
 	private PageRowColumn columnThree;
+	@Nullable
+	private List<PageRowColumnApiResponse> columns;
 	@Nonnull
 	private TagGroupApiResponse tagGroup;
 	@Nonnull
@@ -111,6 +114,7 @@ public class PageRowApiResponse {
 														@Nonnull PageService pageService,
 														@Nonnull PageCustomOneColumnApiResponseFactory pageCustomOneColumnApiResponseFactory,
 														@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
+														@Nonnull PageRowImageApiResponseFactory pageRowImageApiResponseFactory,
 														@Nonnull ContentApiResponseFactory contentApiResponseFactory,
 														@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 														@Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
@@ -125,6 +129,7 @@ public class PageRowApiResponse {
 		requireNonNull(pageCustomOneColumnApiResponseFactory);
 		requireNonNull(pageCustomTwoColumnApiResponseFactory);
 		requireNonNull(pageCustomThreeColumnApiResponseFactory);
+		requireNonNull(pageRowImageApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(tagGroupApiResponseFactory);
@@ -167,6 +172,10 @@ public class PageRowApiResponse {
 				|| this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE_RIGHT)
 				|| this.rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT))
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
+		else if (this.rowTypeId.equals(RowTypeId.CUSTOM_ROW))
+			this.columns = pageService.findPageRowColumnsByPageRowId(pageRow.getPageRowId()).stream()
+					.map(pageRowImageApiResponseFactory::create)
+					.collect(Collectors.toList());
 		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)
 				|| this.rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT)) {
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
@@ -195,6 +204,8 @@ public class PageRowApiResponse {
 			return "Tag Group";
 		if (rowTypeId.equals(RowTypeId.TAG))
 			return "Tag";
+		if (rowTypeId.equals(RowTypeId.CUSTOM_ROW))
+			return "Custom Row";
 		if (rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT) || rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT))
 			return "Text";
 		if (rowTypeId.equals(RowTypeId.MAILING_LIST))
@@ -261,6 +272,11 @@ public class PageRowApiResponse {
 	@Nonnull
 	public PageRowColumn getColumnThree() {
 		return columnThree;
+	}
+
+	@Nullable
+	public List<PageRowColumnApiResponse> getColumns() {
+		return columns;
 	}
 
 	@Nonnull
