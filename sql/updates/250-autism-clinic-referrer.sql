@@ -5,7 +5,45 @@ SELECT _v.register_patch('250-autism-clinic-referrer', NULL, NULL);
 -- This patch aligns the eligibility questions to the PDF, seeds the Penn Autism Clinic and
 -- John Skokowski as the single COBALT-scheduled provider, and routes eligible users through
 -- a data-driven fullscreen results screen before sending them to a booking page filtered to the
--- correct provider and appointment type.
+-- correct provider and appointment type. Shared modal/page content is seeded here as
+-- institution-scoped content snippets and referenced by key from both the referrer page
+-- and the fullscreen screening questions.
+
+CREATE TABLE IF NOT EXISTS content_snippet_type (
+  content_snippet_type_id VARCHAR PRIMARY KEY
+);
+
+INSERT INTO content_snippet_type (content_snippet_type_id)
+SELECT 'HTML'
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM content_snippet_type
+  WHERE content_snippet_type_id = 'HTML'
+);
+
+INSERT INTO content_snippet_type (content_snippet_type_id)
+SELECT 'TABLE'
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM content_snippet_type
+  WHERE content_snippet_type_id = 'TABLE'
+);
+
+CREATE TABLE IF NOT EXISTS content_snippet (
+  content_snippet_id UUID PRIMARY KEY,
+  institution_id VARCHAR NOT NULL REFERENCES institution,
+  content_snippet_key TEXT NOT NULL,
+  content_snippet_type_id VARCHAR NOT NULL REFERENCES content_snippet_type,
+  title TEXT,
+  body_html TEXT,
+  content JSONB NOT NULL DEFAULT '{}'::JSONB,
+  dismiss_button_text TEXT,
+  created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_content_snippet_institution_key
+  ON content_snippet(institution_id, content_snippet_key);
 
 DO $$
 DECLARE
@@ -59,49 +97,12 @@ DECLARE
       <p><strong>If you are seeking services for a dependent:</strong></p>
       <p>You must be the legal guardian of the dependent and your dependent must be covered under your UPHS or UPenn health insurance.</p>
     </section>
-    <section>
-      <h2>Accepted Insurances</h2>
-      <p><strong>You will need to confirm your insurance before booking.</strong></p>
-      <div class="referrer-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Health Insurance</th>
-              <th>Behavioral Health Insurance</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Aetna Choice Point-of-Service (POS) II</td>
-              <td>Aetna Behavioral Health Network</td>
-            </tr>
-            <tr>
-              <td>Aetna High Deductible Health Plan (HDHP) with Health Savings Account</td>
-              <td>Aetna Behavioral Health Network</td>
-            </tr>
-            <tr>
-              <td>Keystone/Amerihealth Health Maintenance Organization (HMO) administered by Independence Blue Cross (IBX)</td>
-              <td>IBX Behavioral Health</td>
-            </tr>
-            <tr>
-              <td>PennCare/Personal Choice Preferred Provider Organization (PPO) Plan administered by Independence Blue Cross (IBX)</td>
-              <td>Quest Behavioral Health</td>
-            </tr>
-            <tr>
-              <td>PennCare High Deductible Health Plan (HDHP) administered by Independence Blue Cross (IBX)</td>
-              <td>Quest Behavioral Health</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
   $page_content$;
   v_referrer_cta_title CONSTANT TEXT := 'Get started with Penn Autism Clinic';
   v_referrer_cta_description CONSTANT TEXT := 'Check your eligibility to self-schedule a Penn Autism Clinic appointment by clicking below or visit the website for more information.';
 
   v_flow_name CONSTANT TEXT := 'Penn Autism Clinic Referral Screening Flow';
   v_screening_name CONSTANT TEXT := 'Penn Autism Clinic Assessment';
-  v_insurance_list_url CONSTANT TEXT := 'REPLACE_WITH_PENN_INSURANCE_LIST_URL';
   v_result_page_path CONSTANT TEXT := '/referrals/autism-clinic/results';
   v_return_to_query_value CONSTANT TEXT := '%2Freferrals%2Fautism-clinic';
   v_booking_feature_id CONSTANT TEXT := 'MENTAL_HEALTH_PROVIDERS';
@@ -117,6 +118,7 @@ DECLARE
   v_question_5_option_3_text CONSTANT TEXT := 'I have concerns and don''t know where to start.';
   v_question_1_footer_html TEXT;
   v_question_4_footer_html TEXT;
+  v_insurance_footer_action_metadata CONSTANT TEXT := '{"footerAction":{"actionType":"OPEN_CONTENT_MODAL","label":"View Insurance List","contentSnippetKey":"AUTISM_ACCEPTED_INSURANCES"}}';
 
   v_scoring_function TEXT;
   v_orchestration_function TEXT := $orchestration$
@@ -195,15 +197,8 @@ BEGIN
     RAISE EXCEPTION 'screening flow "%" already exists for institution "%"', v_flow_name, v_from_institution_id;
   END IF;
 
-  v_question_1_footer_html := format(
-    '<div><strong>Not sure about your coverage?</strong> <a href="%s" target="_blank" rel="noopener noreferrer">View Insurance List</a></div>',
-    v_insurance_list_url
-  );
-
-  v_question_4_footer_html := format(
-    '<div><strong>Not sure about your coverage?</strong> <a href="%s" target="_blank" rel="noopener noreferrer">View Insurance List</a></div>',
-    v_insurance_list_url
-  );
+  v_question_1_footer_html := '<strong>Not sure about your coverage?</strong>';
+  v_question_4_footer_html := '<strong>Not sure about your coverage?</strong>';
 
   SELECT c.clinic_id
   INTO v_clinic_id
@@ -551,6 +546,15 @@ BEGIN
     "title": "%s",
     "instructionsHtml": "<p class='mb-0'>Please answer the questions to the best of your knowledge.</p>"
   },
+  "page": {
+    "contentSnippetSections": [
+      {
+        "contentSnippetKey": "AUTISM_ACCEPTED_INSURANCES",
+        "title": "Accepted Insurances",
+        "leadHtml": "<p><strong>You will need to confirm your insurance before booking.</strong></p>"
+      }
+    ]
+  },
   "resultScreens": {
     "INTAKE_CALL": {
       "recommendation": "Schedule a 60 minute intake call with a patient care manager",
@@ -795,7 +799,7 @@ $destination$,
       NOW(),
       v_question_1_footer_html,
       NULL,
-      NULL,
+      CAST(v_insurance_footer_action_metadata AS JSONB),
       FALSE,
       'NEXT',
       NULL
@@ -852,7 +856,7 @@ $destination$,
       NOW(),
       v_question_4_footer_html,
       NULL,
-      NULL,
+      CAST(v_insurance_footer_action_metadata AS JSONB),
       FALSE,
       'NEXT',
       NULL
@@ -1104,5 +1108,276 @@ WHERE NOT EXISTS (
   WHERE existing.institution_feature_institution_referrer_id = tr.autism_ifir_id
     AND existing.account_source_id = ifras.account_source_id
 );
+
+DO $$
+DECLARE
+  v_from_institution_id CONSTANT TEXT := 'COBALT';
+  v_referrer_url_name CONSTANT TEXT := 'autism-clinic';
+  v_screening_name CONSTANT TEXT := 'Penn Autism Clinic Assessment';
+  v_screening_title CONSTANT TEXT := 'Penn Autism Clinic Assessment';
+  v_booking_feature_id CONSTANT TEXT := 'MENTAL_HEALTH_PROVIDERS';
+  v_booking_page_title CONSTANT TEXT := 'Autism Clinic Booking';
+  v_provider_name CONSTANT TEXT := 'John Skokowski';
+  v_provider_url_name CONSTANT TEXT := 'john-skokowski';
+  v_clinic_description CONSTANT TEXT := 'Penn Autism Clinic';
+  v_intake_appointment_type_name CONSTANT TEXT := 'Autism Clinic Intake Call';
+  v_consult_appointment_type_name CONSTANT TEXT := 'Autism Clinic Consult Call';
+  v_question_1_text CONSTANT TEXT := 'Are you a benefits-eligible employee of UPHS or UPenn ?';
+  v_question_4_text CONSTANT TEXT := 'Are they covered under your Penn insurance (UPHS or UPenn)?';
+  v_question_footer_html CONSTANT TEXT := '<strong>Not sure about your coverage?</strong>';
+  v_insurance_footer_action_metadata CONSTANT TEXT := '{"footerAction":{"actionType":"OPEN_CONTENT_MODAL","label":"View Insurance List","contentSnippetKey":"AUTISM_ACCEPTED_INSURANCES"}}';
+  v_content_snippet_key CONSTANT TEXT := 'AUTISM_ACCEPTED_INSURANCES';
+  v_content_snippet_id CONSTANT UUID := '0a7f4da2-f7f7-4874-b740-7d7cdd3e25c5';
+  v_content_snippet_content CONSTANT TEXT := $content$
+{
+  "columns": [
+    { "key": "healthInsurance", "label": "Health Insurance" },
+    { "key": "behavioralHealthInsurance", "label": "Behavioral Health Insurance", "align": "right" }
+  ],
+  "rows": [
+    {
+      "healthInsurance": "Aetna Choice Point-of-Service (POS) II",
+      "behavioralHealthInsurance": "Aetna Behavioral Health Network"
+    },
+    {
+      "healthInsurance": "Aetna High Deductible Health Plan (HDHP) with Health Savings Account",
+      "behavioralHealthInsurance": "Aetna Behavioral Health Network"
+    },
+    {
+      "healthInsurance": "Keystone/Amerihealth Health Maintenance Organization (HMO) administered by Independence Blue Cross (IBX)",
+      "behavioralHealthInsurance": "IBX Behavioral Health"
+    },
+    {
+      "healthInsurance": "PennCare/Personal Choice Preferred Provider Organization (PPO) Plan administered by Independence Blue Cross (IBX)",
+      "behavioralHealthInsurance": "Quest Behavioral Health"
+    },
+    {
+      "healthInsurance": "PennCare High Deductible Health Plan (HDHP) administered by Independence Blue Cross (IBX)",
+      "behavioralHealthInsurance": "Quest Behavioral Health"
+    }
+  ]
+}
+$content$;
+  v_referrer_page_content CONSTANT TEXT := $page_content$
+    <section>
+      <h2>What is the Penn Autism Clinic?</h2>
+      <p>
+        The Penn Autism Clinic provides diagnostic assessments and ongoing support for children, teens and adults who have, or may have, autism. Clinicians can perform evaluations, offer treatment recommendations, and coordinate with intervention providers to guide families through diagnosis and long-term care.
+      </p>
+    </section>
+    <section>
+      <h2>Who can self-schedule a Penn Autism Clinic appointment?</h2>
+      <p><strong>If you are seeking services for yourself:</strong></p>
+      <p>You must be a benefits-eligible employee of UPHS or UPenn.</p>
+      <p><strong>If you are seeking services for a dependent:</strong></p>
+      <p>You must be the legal guardian of the dependent and your dependent must be covered under your UPHS or UPenn health insurance.</p>
+    </section>
+  $page_content$;
+  v_referrer_metadata TEXT;
+  v_clinic_id UUID;
+  v_provider_id UUID;
+  v_intake_appointment_type_id UUID;
+  v_consult_appointment_type_id UUID;
+BEGIN
+  SELECT c.clinic_id
+  INTO v_clinic_id
+  FROM clinic c
+  WHERE c.institution_id = v_from_institution_id
+    AND LOWER(TRIM(c.description)) = LOWER(TRIM(v_clinic_description))
+  ORDER BY c.clinic_id
+  LIMIT 1;
+
+  IF v_clinic_id IS NULL THEN
+    RAISE EXCEPTION 'Unable to find clinic "%" for institution "%"', v_clinic_description, v_from_institution_id;
+  END IF;
+
+  SELECT p.provider_id
+  INTO v_provider_id
+  FROM provider p
+  WHERE p.institution_id = v_from_institution_id
+    AND (
+      LOWER(TRIM(p.url_name)) = LOWER(TRIM(v_provider_url_name))
+      OR LOWER(TRIM(p.name)) = LOWER(TRIM(v_provider_name))
+    )
+  ORDER BY p.provider_id
+  LIMIT 1;
+
+  IF v_provider_id IS NULL THEN
+    RAISE EXCEPTION 'Unable to find provider "%" for institution "%"', v_provider_name, v_from_institution_id;
+  END IF;
+
+  SELECT at.appointment_type_id
+  INTO v_intake_appointment_type_id
+  FROM appointment_type at
+  WHERE LOWER(TRIM(at.name)) = LOWER(TRIM(v_intake_appointment_type_name))
+    AND at.scheduling_system_id = 'COBALT'
+    AND at.duration_in_minutes = 60
+  ORDER BY at.appointment_type_id
+  LIMIT 1;
+
+  IF v_intake_appointment_type_id IS NULL THEN
+    RAISE EXCEPTION 'Unable to find appointment type "%" (60 minutes)', v_intake_appointment_type_name;
+  END IF;
+
+  SELECT at.appointment_type_id
+  INTO v_consult_appointment_type_id
+  FROM appointment_type at
+  WHERE LOWER(TRIM(at.name)) = LOWER(TRIM(v_consult_appointment_type_name))
+    AND at.scheduling_system_id = 'COBALT'
+    AND at.duration_in_minutes = 30
+  ORDER BY at.appointment_type_id
+  LIMIT 1;
+
+  IF v_consult_appointment_type_id IS NULL THEN
+    RAISE EXCEPTION 'Unable to find appointment type "%" (30 minutes)', v_consult_appointment_type_name;
+  END IF;
+
+  INSERT INTO content_snippet (
+    content_snippet_id,
+    institution_id,
+    content_snippet_key,
+    content_snippet_type_id,
+    title,
+    body_html,
+    content,
+    dismiss_button_text,
+    created,
+    last_updated
+  )
+  SELECT
+    v_content_snippet_id,
+    v_from_institution_id,
+    v_content_snippet_key,
+    'TABLE',
+    'Accepted Insurances',
+    NULL,
+    CAST(v_content_snippet_content AS JSONB),
+    'Done',
+    NOW(),
+    NOW()
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM content_snippet existing
+    WHERE existing.institution_id = v_from_institution_id
+      AND existing.content_snippet_key = v_content_snippet_key
+  );
+
+  UPDATE content_snippet
+  SET
+    content_snippet_type_id = 'TABLE',
+    title = 'Accepted Insurances',
+    body_html = NULL,
+    content = CAST(v_content_snippet_content AS JSONB),
+    dismiss_button_text = 'Done',
+    last_updated = NOW()
+  WHERE institution_id = v_from_institution_id
+    AND content_snippet_key = v_content_snippet_key;
+
+  v_referrer_metadata := format($metadata$
+{
+  "screening": {
+    "fullscreen": true,
+    "title": "%s",
+    "instructionsHtml": "<p class='mb-0'>Please answer the questions to the best of your knowledge.</p>"
+  },
+  "page": {
+    "contentSnippetSections": [
+      {
+        "contentSnippetKey": "%s",
+        "title": "Accepted Insurances",
+        "leadHtml": "<p><strong>You will need to confirm your insurance before booking.</strong></p>"
+      }
+    ]
+  },
+  "resultScreens": {
+    "INTAKE_CALL": {
+      "recommendation": "Schedule a 60 minute intake call with a patient care manager",
+      "bodyHtml": "<p class='mb-4'>We'll schedule time for an intake conversation with John Skokowski so the clinic can review your needs and determine the best next step for care.</p><ul class='mb-0 ps-4'><li class='mb-3'>We'll ask you to submit any existing documentation beforehand. More details will be included in your confirmation email.</li><li class='mb-3'>During the call, the patient care manager will collect additional information, including demographics, SSN, primary care details, and a summary of concerns over the past six months.</li><li class='mb-0'>A patient folder will be created and shared with a clinician for review.</li></ul>",
+      "noteHtml": "<p class='mb-0'>If you already have reports, school documentation, or prior evaluations, please send them in before the call when possible.</p>",
+      "buttonText": "Continue to Scheduling",
+      "booking": {
+        "path": "/connect-with-support/autism-clinic-booking",
+        "featureId": "%s",
+        "pageTitle": "%s",
+        "pageDescription": "Schedule a 60 minute Penn Autism Clinic intake call with John Skokowski.",
+        "clinicIds": ["%s"],
+        "providerId": "%s",
+        "appointmentTypeIds": ["%s"]
+      }
+    },
+    "CONSULT_EVALUATION": {
+      "recommendation": "Schedule a 30 minute consult call with a patient care manager",
+      "bodyHtml": "<p class='mb-4'>We'll schedule time for a consult conversation with John Skokowski so you can discuss what is going on and assess the best next step.</p><ul class='mb-0 ps-4'><li class='mb-3'>No preparation is needed for this call.</li><li class='mb-3'>During the call, you'll discuss what is going on with the patient and assess their needs.</li><li class='mb-0'>The next step may be a longer, formal intake call with the patient care manager.</li></ul>",
+      "noteHtml": "<p class='mb-0'>While the clinic can start consultation right away, the waitlist for a formal diagnostic evaluation varies depending on age.</p>",
+      "buttonText": "Continue to Scheduling",
+      "booking": {
+        "path": "/connect-with-support/autism-clinic-booking",
+        "featureId": "%s",
+        "pageTitle": "%s",
+        "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
+        "clinicIds": ["%s"],
+        "providerId": "%s",
+        "appointmentTypeIds": ["%s"]
+      }
+    },
+    "CONSULT_GENERAL": {
+      "recommendation": "Schedule a 30 minute consult call with a patient care manager",
+      "bodyHtml": "<p class='mb-4'>We'll schedule time for a consult conversation with John Skokowski so you can talk through concerns and get an expert perspective on the best path forward.</p><ul class='mb-0 ps-4'><li class='mb-3'>No preparation is needed for this call.</li><li class='mb-3'>During the call, you'll discuss any noticed behaviors or milestones that concern you.</li><li class='mb-0'>The goal is to help you understand the best next step for support or evaluation.</li></ul>",
+      "buttonText": "Continue to Scheduling",
+      "booking": {
+        "path": "/connect-with-support/autism-clinic-booking",
+        "featureId": "%s",
+        "pageTitle": "%s",
+        "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
+        "clinicIds": ["%s"],
+        "providerId": "%s",
+        "appointmentTypeIds": ["%s"]
+      }
+    }
+  }
+}
+$metadata$,
+    v_screening_title,
+    v_content_snippet_key,
+    v_booking_feature_id,
+    v_booking_page_title,
+    v_clinic_id,
+    v_provider_id,
+    v_intake_appointment_type_id,
+    v_booking_feature_id,
+    v_booking_page_title,
+    v_clinic_id,
+    v_provider_id,
+    v_consult_appointment_type_id,
+    v_booking_feature_id,
+    v_booking_page_title,
+    v_clinic_id,
+    v_provider_id,
+    v_consult_appointment_type_id
+  );
+
+  UPDATE institution_referrer
+  SET
+    page_content = v_referrer_page_content,
+    metadata = CAST(v_referrer_metadata AS JSONB)
+  WHERE from_institution_id = v_from_institution_id
+    AND url_name = v_referrer_url_name;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Unable to find institution_referrer "%" for institution "%"', v_referrer_url_name, v_from_institution_id;
+  END IF;
+
+  UPDATE screening_question sq
+  SET
+    footer_text = v_question_footer_html,
+    metadata = CAST(v_insurance_footer_action_metadata AS JSONB),
+    last_updated = NOW()
+  FROM screening_version sv,
+       screening s
+  WHERE sq.screening_version_id = sv.screening_version_id
+    AND sv.screening_id = s.screening_id
+    AND s.name = v_screening_name
+    AND sq.question_text IN (v_question_1_text, v_question_4_text);
+END $$;
 
 COMMIT;
