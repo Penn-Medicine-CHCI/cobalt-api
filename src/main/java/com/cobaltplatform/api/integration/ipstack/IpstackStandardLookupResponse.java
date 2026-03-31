@@ -76,7 +76,7 @@ public class IpstackStandardLookupResponse {
 	@Nullable
 	private String dma;
 	@Nullable
-	private Integer radius;
+	private Double radius;
 	@SerializedName("ip_routing_type")
 	@Nullable
 	private String ipRoutingType;
@@ -824,11 +824,11 @@ public class IpstackStandardLookupResponse {
 	}
 
 	@Nullable
-	public Integer getRadius() {
+	public Double getRadius() {
 		return this.radius;
 	}
 
-	public void setRadius(@Nullable Integer radius) {
+	public void setRadius(@Nullable Double radius) {
 		this.radius = radius;
 	}
 
