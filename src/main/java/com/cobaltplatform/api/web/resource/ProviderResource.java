@@ -320,6 +320,7 @@ public class ProviderResource {
 			request.setPatientOrderId(null);
 
 		UUID patientOrderId = request.getPatientOrderId();
+		Set<UUID> requestedAppointmentTypeIds = request.getAppointmentTypeIds() == null ? Collections.emptySet() : request.getAppointmentTypeIds();
 		String connectWithSupportDescriptionOverride = null;
 
 		if (patientOrderId != null)
@@ -349,6 +350,9 @@ public class ProviderResource {
 				.collect(Collectors.toMap(appointmentType -> appointmentType.getAppointmentTypeId(), Function.identity()));
 
 		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
+
+		if (requestedAppointmentTypeIds.size() > 0)
+			filterProviderFindsByAppointmentTypeIds(providerFinds, requestedAppointmentTypeIds);
 
 		// 2. Throw out results that don't fall within specified appointment time windows
 		if (institution.getFeaturesEnabled()) {
@@ -1078,6 +1082,57 @@ public class ProviderResource {
 		}
 
 		return new ApiResponse(response);
+	}
+
+	protected void filterProviderFindsByAppointmentTypeIds(@Nonnull List<ProviderFind> providerFinds,
+																								 @Nonnull Set<UUID> appointmentTypeIds) {
+		requireNonNull(providerFinds);
+		requireNonNull(appointmentTypeIds);
+
+		if (appointmentTypeIds.size() == 0)
+			return;
+
+		for (ProviderFind providerFind : providerFinds) {
+			Set<UUID> providerAppointmentTypeIds = providerFind.getAppointmentTypeIds() == null
+					? Set.of()
+					: providerFind.getAppointmentTypeIds().stream()
+					.filter(appointmentTypeIds::contains)
+					.collect(Collectors.toSet());
+
+			providerFind.setAppointmentTypeIds(providerAppointmentTypeIds);
+
+			List<AvailabilityDate> availabilityDates = providerFind.getDates() == null ? List.of() : providerFind.getDates();
+			List<AvailabilityDate> filteredAvailabilityDates = new ArrayList<>(availabilityDates.size());
+
+			for (AvailabilityDate availabilityDate : availabilityDates) {
+				List<AvailabilityTime> availabilityTimes = availabilityDate.getTimes() == null ? List.of() : availabilityDate.getTimes();
+				List<AvailabilityTime> filteredAvailabilityTimes = new ArrayList<>(availabilityTimes.size());
+
+				for (AvailabilityTime availabilityTime : availabilityTimes) {
+					List<UUID> filteredAppointmentTypeIds = availabilityTime.getAppointmentTypeIds() == null
+							? List.of()
+							: availabilityTime.getAppointmentTypeIds().stream()
+							.filter(appointmentTypeIds::contains)
+							.collect(Collectors.toList());
+
+					if (filteredAppointmentTypeIds.size() == 0)
+						continue;
+
+					availabilityTime.setAppointmentTypeIds(filteredAppointmentTypeIds);
+					filteredAvailabilityTimes.add(availabilityTime);
+				}
+
+				if (filteredAvailabilityTimes.size() == 0)
+					continue;
+
+				availabilityDate.setTimes(filteredAvailabilityTimes);
+				availabilityDate.setFullyBooked(filteredAvailabilityTimes.stream()
+						.allMatch(availabilityTime -> availabilityTime.getStatus() == AvailabilityStatus.BOOKED));
+				filteredAvailabilityDates.add(availabilityDate);
+			}
+
+			providerFind.setDates(filteredAvailabilityDates);
+		}
 	}
 
 	@Nonnull
