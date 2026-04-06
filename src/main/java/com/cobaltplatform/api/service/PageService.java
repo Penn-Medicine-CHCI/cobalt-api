@@ -61,6 +61,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.PageRowColumn.ContentOrderId;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
@@ -1401,6 +1402,7 @@ public class PageService {
 		String imageFileUploadIdString = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
+		ContentOrderId contentOrderId = request.getContentOrderId() == null ? ContentOrderId.IMAGE_THEN_TEXT : request.getContentOrderId();
 		UUID imageFileUploadId = null;
 
 		if (isValidUUID(imageFileUploadIdString))
@@ -1418,10 +1420,10 @@ public class PageService {
 
 		getDatabase().execute("""
 				INSERT INTO page_row_column
-				  (page_row_column_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, column_display_order)
+				  (page_row_column_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, column_display_order, content_order_id)
 				VALUES
-				  (?,?,?,?,?,?,?)   
-				""", pageRowColumnId, pageRowId, headline, description, imageFileUploadId, imageAltText, columnDisplayOrder);
+				  (?,?,?,?,?,?,?,?)   
+				""", pageRowColumnId, pageRowId, headline, description, imageFileUploadId, imageAltText, columnDisplayOrder, contentOrderId.name());
 
 		return pageRowColumnId;
 	}
@@ -1464,6 +1466,7 @@ public class PageService {
 		String description = trimToNull(request.getDescription());
 		String imageAltText = trimToNull(request.getImageAltText());
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
+		ContentOrderId contentOrderId = request.getContentOrderId();
 		String imageFileUploadIdString = request.getImageFileUploadId();
 		UUID imageFileUploadId = null;
 
@@ -1482,10 +1485,10 @@ public class PageService {
 
 		getDatabase().execute("""
 				UPDATE page_row_column SET
-				headline=?, description=?, image_file_upload_id=?, image_alt_text=?
+				headline=?, description=?, image_file_upload_id=?, image_alt_text=?, content_order_id=COALESCE(?, content_order_id)
 				WHERE page_row_id=? 
 				AND column_display_order=?
-				""", headline, description, imageFileUploadId, imageAltText, pageRowId, columnDisplayOrder);
+				""", headline, description, imageFileUploadId, imageAltText, contentOrderId == null ? null : contentOrderId.name(), pageRowId, columnDisplayOrder);
 
 	}
 
@@ -2541,8 +2544,8 @@ public class PageService {
 
 				getDatabase().execute("""
 						INSERT INTO page_row_column
-						(page_row_id,headline,description,image_file_upload_id,image_alt_text,column_display_order)
-						SELECT ?,headline,description,image_file_upload_id,image_alt_text,column_display_order
+						(page_row_id,headline,description,image_file_upload_id,image_alt_text,column_display_order,content_order_id)
+						SELECT ?,headline,description,image_file_upload_id,image_alt_text,column_display_order,content_order_id
 						FROM page_row_column
 						WHERE page_row_id = ?""", newPageRowId, pageRow.getPageRowId());
 

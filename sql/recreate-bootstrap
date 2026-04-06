@@ -258,6 +258,8 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/247-acco
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/248-ip-geolocation.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/249-page-builder-v2.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-custom-page-rows.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/251-custom-row-column-content-order.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/252-custom-row-column-content-order-view.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

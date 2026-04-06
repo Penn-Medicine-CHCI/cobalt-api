@@ -19,10 +19,10 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.PageRowColumn.ContentOrderId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -40,6 +40,8 @@ public class CreatePageRowColumnRequest {
 
 	@Nullable
 	private Integer columnDisplayOrder;
+	@Nullable
+	private ContentOrderId contentOrderId;
 
 	@Nullable
 	public String getHeadline() {
@@ -84,5 +86,14 @@ public class CreatePageRowColumnRequest {
 
 	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
 		this.columnDisplayOrder = columnDisplayOrder;
+	}
+
+	@Nullable
+	public ContentOrderId getContentOrderId() {
+		return contentOrderId;
+	}
+
+	public void setContentOrderId(@Nullable ContentOrderId contentOrderId) {
+		this.contentOrderId = contentOrderId;
 	}
 }

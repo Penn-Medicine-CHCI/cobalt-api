@@ -28,6 +28,11 @@ import java.util.UUID;
  */
 @NotThreadSafe
 public class PageRowColumn {
+	public enum ContentOrderId {
+		IMAGE_THEN_TEXT,
+		TEXT_THEN_IMAGE
+	}
+
 	@Nullable
 	private UUID pageRowColumnId;
 	@Nullable
@@ -44,6 +49,8 @@ public class PageRowColumn {
 	private String imageUrl;
 	@Nullable
 	private Integer columnDisplayOrder;
+	@Nullable
+	private ContentOrderId contentOrderId;
 
 	@Nullable
 	public UUID getPageRowColumnId() {
@@ -106,6 +113,15 @@ public class PageRowColumn {
 
 	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
 		this.columnDisplayOrder = columnDisplayOrder;
+	}
+
+	@Nullable
+	public ContentOrderId getContentOrderId() {
+		return contentOrderId;
+	}
+
+	public void setContentOrderId(@Nullable ContentOrderId contentOrderId) {
+		this.contentOrderId = contentOrderId;
 	}
 
 	@Nullable

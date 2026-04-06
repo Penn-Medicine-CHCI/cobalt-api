@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.PageRowColumn.ContentOrderId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -53,6 +54,8 @@ public class PageRowColumnApiResponse {
 	private String imageUrl;
 	@Nullable
 	private Integer columnDisplayOrder;
+	@Nullable
+	private ContentOrderId contentOrderId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -78,6 +81,7 @@ public class PageRowColumnApiResponse {
 		this.imageAltText = pageRowImage.getImageAltText();
 		this.imageUrl = pageRowImage.getImageUrl();
 		this.columnDisplayOrder = pageRowImage.getColumnDisplayOrder();
+		this.contentOrderId = pageRowImage.getContentOrderId();
 	}
 
 	@Nullable
@@ -119,5 +123,9 @@ public class PageRowColumnApiResponse {
 	public Integer getColumnDisplayOrder() {
 		return columnDisplayOrder;
 	}
-}
 
+	@Nullable
+	public ContentOrderId getContentOrderId() {
+		return contentOrderId;
+	}
+}
