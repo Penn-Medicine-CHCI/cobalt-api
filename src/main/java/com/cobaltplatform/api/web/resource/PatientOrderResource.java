@@ -96,6 +96,7 @@ import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderClosureReason;
 import com.cobaltplatform.api.model.db.PatientOrderConsentStatus.PatientOrderConsentStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderDisposition.PatientOrderDispositionId;
+import com.cobaltplatform.api.model.db.PatientOrderIntakeScreeningStatus.PatientOrderIntakeScreeningStatusId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.db.PatientOrderNote;
 import com.cobaltplatform.api.model.db.PatientOrderOutreach;
@@ -459,6 +460,42 @@ public class PatientOrderResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("clinicalReport", clinicalReport);
 		}});
+	}
+
+	@Nonnull
+	@GET("/patient-orders/{patientOrderId}/assessment-answer-report")
+	@AuthenticationRequired
+	public CustomResponse patientOrderAssessmentAnswerReport(@Nonnull @PathParameter UUID patientOrderId,
+																											 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
+		requireNonNull(patientOrderId);
+		requireNonNull(httpServletResponse);
+
+		Account account = getCurrentContext().getAccount().get();
+		PatientOrder patientOrder = getPatientOrderService().findPatientOrderById(patientOrderId).orElse(null);
+
+		if (patientOrder == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canViewPatientOrderClinicalReport(patientOrder, account))
+			throw new AuthorizationException();
+
+		UUID screeningSessionId = findAssessmentAnswerReportScreeningSessionId(patientOrder).orElse(null);
+		Institution institution = getInstitutionService().findInstitutionById(patientOrder.getInstitutionId()).orElse(null);
+
+		if (screeningSessionId == null || institution == null)
+			throw new NotFoundException();
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss", account.getLocale()).withZone(account.getTimeZone());
+		String filename = format("Integrated Care Assessment Answers - %s.csv", dateTimeFormatter.format(Instant.now()));
+
+		httpServletResponse.setContentType("text/csv");
+		httpServletResponse.setHeader("Content-Disposition", format("attachment; filename=\"%s\"", filename));
+
+		try (PrintWriter printWriter = httpServletResponse.getWriter()) {
+			getScreeningService().writeScreeningAnswerReportCsv(screeningSessionId, printWriter, institution.getTimeZone(), account.getLocale());
+		}
+
+		return CustomResponse.instance();
 	}
 
 	@Nonnull
@@ -2596,6 +2633,22 @@ public class PatientOrderResource {
 		LEGACY,
 		OPTIMIZED,
 		COMPARE
+	}
+
+	@Nonnull
+	protected Optional<UUID> findAssessmentAnswerReportScreeningSessionId(@Nonnull PatientOrder patientOrder) {
+		requireNonNull(patientOrder);
+
+		if (patientOrder.getPatientOrderIntakeScreeningStatusId() == PatientOrderIntakeScreeningStatusId.IN_PROGRESS)
+			return Optional.ofNullable(patientOrder.getMostRecentIntakeScreeningSessionId());
+
+		if (patientOrder.getPatientOrderScreeningStatusId() == PatientOrderScreeningStatusId.IN_PROGRESS)
+			return Optional.ofNullable(patientOrder.getMostRecentScreeningSessionId());
+
+		if (patientOrder.getMostRecentScreeningSessionId() != null)
+			return Optional.of(patientOrder.getMostRecentScreeningSessionId());
+
+		return Optional.ofNullable(patientOrder.getMostRecentIntakeScreeningSessionId());
 	}
 
 	@Nonnull

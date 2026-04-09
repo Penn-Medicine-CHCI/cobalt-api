@@ -119,6 +119,8 @@ import com.lokalized.Strings;
 import com.pyranid.Database;
 import com.pyranid.DatabaseException;
 import com.pyranid.Transaction;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,6 +131,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.sql.Savepoint;
 import java.time.Duration;
 import java.time.Instant;
@@ -136,6 +141,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -143,6 +150,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -1236,6 +1244,62 @@ public class ScreeningService {
 				AND sa.screening_session_answered_screening_question_id=ssasq.screening_session_answered_screening_question_id
 				ORDER BY sa.created, sa.screening_answer_id
 				""", ScreeningAnswer.class, screeningQuestionContextId.getScreeningSessionScreeningId(), screeningQuestionContextId.getScreeningQuestionId());
+	}
+
+	public void writeScreeningAnswerReportCsv(@Nonnull UUID screeningSessionId,
+																						@Nonnull Writer writer,
+																						@Nonnull ZoneId timeZone,
+																						@Nonnull Locale locale) {
+		requireNonNull(screeningSessionId);
+		requireNonNull(writer);
+		requireNonNull(timeZone);
+		requireNonNull(locale);
+
+		List<ScreeningAnswerReportRow> screeningAnswerReportRows = getDatabase().queryForList("""
+				SELECT
+					s.name AS assessment,
+					sq.question_text AS question,
+					sao.answer_option_text AS answer,
+					sa.created AS answer_created_at,
+					sa.valid AS answer_valid
+				FROM screening_answer sa
+				JOIN screening_answer_option sao
+					ON sa.screening_answer_option_id = sao.screening_answer_option_id
+				JOIN screening_session_answered_screening_question ssasq
+					ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+				JOIN screening_session_screening sss
+					ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+				JOIN screening_question sq
+					ON ssasq.screening_question_id = sq.screening_question_id
+				JOIN screening_version sv
+					ON sss.screening_version_id = sv.screening_version_id
+				JOIN screening s
+					ON sv.screening_id = s.screening_id
+				WHERE sss.screening_session_id=?
+				ORDER BY sa.created
+				""", ScreeningAnswerReportRow.class, screeningSessionId);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", locale).withZone(timeZone);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(
+				"assessment",
+				"question",
+				"answer",
+				"answer_created_at",
+				"answer_valid"
+		))) {
+			for (ScreeningAnswerReportRow screeningAnswerReportRow : screeningAnswerReportRows) {
+				csvPrinter.printRecord(
+						screeningAnswerReportRow.getAssessment(),
+						screeningAnswerReportRow.getQuestion(),
+						screeningAnswerReportRow.getAnswer(),
+						screeningAnswerReportRow.getAnswerCreatedAt() == null ? null : dateTimeFormatter.format(screeningAnswerReportRow.getAnswerCreatedAt()),
+						screeningAnswerReportRow.getAnswerValid()
+				);
+			}
+		} catch (IOException e) {
+			throw new UncheckedIOException("Unable to write screening answer report CSV", e);
+		}
 	}
 
 	@Nonnull
@@ -3361,6 +3425,65 @@ public class ScreeningService {
 
 		public void setContext(@Nullable Map<String, Object> context) {
 			this.context = context;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class ScreeningAnswerReportRow {
+		@Nullable
+		private String assessment;
+		@Nullable
+		private String question;
+		@Nullable
+		private String answer;
+		@Nullable
+		private Instant answerCreatedAt;
+		@Nullable
+		private Boolean answerValid;
+
+		@Nullable
+		public String getAssessment() {
+			return this.assessment;
+		}
+
+		public void setAssessment(@Nullable String assessment) {
+			this.assessment = assessment;
+		}
+
+		@Nullable
+		public String getQuestion() {
+			return this.question;
+		}
+
+		public void setQuestion(@Nullable String question) {
+			this.question = question;
+		}
+
+		@Nullable
+		public String getAnswer() {
+			return this.answer;
+		}
+
+		public void setAnswer(@Nullable String answer) {
+			this.answer = answer;
+		}
+
+		@Nullable
+		public Instant getAnswerCreatedAt() {
+			return this.answerCreatedAt;
+		}
+
+		public void setAnswerCreatedAt(@Nullable Instant answerCreatedAt) {
+			this.answerCreatedAt = answerCreatedAt;
+		}
+
+		@Nullable
+		public Boolean getAnswerValid() {
+			return this.answerValid;
+		}
+
+		public void setAnswerValid(@Nullable Boolean answerValid) {
+			this.answerValid = answerValid;
 		}
 	}
 
