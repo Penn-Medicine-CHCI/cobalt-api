@@ -16,6 +16,7 @@ to API routes defined in `src/main/java/com/cobaltplatform/api/web/resource/Pati
 | `openPatientOrder` | PUT | `/patient-orders/{patientOrderId}/open` |
 | `resetPatientOrder` | PUT | `/patient-orders/{patientOrderId}/reset` |
 | `getClinicalReport` | GET | `/patient-orders/{patientOrderId}/clinical-report` |
+| `getAssessmentAnswerReportDownloadUrl` | GET | `/patient-orders/{patientOrderId}/assessment-answer-report` |
 
 ## Assignment, Search, and Imports
 
