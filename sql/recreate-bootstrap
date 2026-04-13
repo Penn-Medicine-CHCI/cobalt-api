@@ -259,6 +259,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/248-ip-g
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/249-institution-referrer-metadata.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/251-ip-geolocation-radius-double.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/252-page-group-table.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

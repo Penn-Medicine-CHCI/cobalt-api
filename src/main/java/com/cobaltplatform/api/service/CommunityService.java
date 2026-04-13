@@ -28,6 +28,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.MailingListEntry;
 import com.cobaltplatform.api.model.db.MailingListEntryType.MailingListEntryTypeId;
 import com.cobaltplatform.api.model.db.Page;
+import com.cobaltplatform.api.model.db.PageGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -78,6 +79,10 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class CommunityService {
 	@Nonnull
 	private static final String COMMUNITY_HIGHLIGHTS_PLATFORM_EMAIL_IMAGE_URL_FORMAT = "https://cobalt-prod-media.s3.us-east-1.amazonaws.com/prod/logos/email-v2/%s.png";
+	@Nonnull
+	private static final String COMMUNITY_HIGHLIGHTS_UTM_SOURCE = "cobalt";
+	@Nonnull
+	private static final String COMMUNITY_HIGHLIGHTS_UTM_MEDIUM = "subscription";
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
@@ -247,12 +252,12 @@ public class CommunityService {
 
 	@Nonnull
 	protected String addMessageTrackingToUrl(@Nonnull String url,
-																					 @Nonnull UUID messageId) {
+																						 @Nonnull UUID messageId) {
 		requireNonNull(url);
 		requireNonNull(messageId);
 
 		return WebUtility.appendQueryParameters(url, Map.of(
-				"a.m", FriendlyId.toFriendlyId(messageId)
+				AnalyticsService.ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME, FriendlyId.toFriendlyId(messageId)
 		));
 	}
 
@@ -297,6 +302,10 @@ public class CommunityService {
 		if (institution == null)
 			throw new IllegalStateException(format("Unable to find institution for Page Group ID %s.", pageGroupId));
 
+		PageGroup pageGroup = getPageService().findPageGroupById(pageGroupId)
+				.orElseThrow(() -> new IllegalStateException(format("Unable to find page group for Page Group ID %s.", pageGroupId)));
+		String analyticsCampaignKey = trimToNull(pageGroup.getAnalyticsCampaignKey());
+
 		Locale locale = institution.getLocale() == null ? Locale.US : institution.getLocale();
 		ZoneId defaultTimeZone = institution.getTimeZone() == null ? ZoneId.of("UTC") : institution.getTimeZone();
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
@@ -311,7 +320,7 @@ public class CommunityService {
 		List<Map<String, Object>> upcomingGroupSessionContext = new ArrayList<>(upcomingGroupSessions.size());
 
 		for (GroupSession upcomingGroupSession : upcomingGroupSessions)
-			upcomingGroupSessionContext.add(createUpcomingGroupSessionMessageContext(upcomingGroupSession, locale, defaultTimeZone, webappBaseUrl));
+			upcomingGroupSessionContext.add(createUpcomingGroupSessionMessageContext(upcomingGroupSession, locale, defaultTimeZone, webappBaseUrl, analyticsCampaignKey));
 
 		// Keep email display title aligned with the unsubscribe page's "displayName" logic: headline first, then name.
 		String pageTitle = trimToNull(page.getHeadline());
@@ -322,8 +331,10 @@ public class CommunityService {
 		if (pageTitle == null)
 			pageTitle = getStrings().get("Community");
 
-		String communityPageUrl = trimToNull(page.getUrlName()) == null ? webappBaseUrl : format("%s/pages/%s", webappBaseUrl, page.getUrlName());
-		String recordingUrl = upcomingGroupSessions.size() > 0 ? groupSessionDetailUrl(upcomingGroupSessions.get(0), webappBaseUrl) : null;
+		String communityPageUrl = addCommunityCampaignTrackingToUrl(
+				trimToNull(page.getUrlName()) == null ? webappBaseUrl : format("%s/pages/%s", webappBaseUrl, page.getUrlName()),
+				analyticsCampaignKey);
+		String recordingUrl = upcomingGroupSessions.size() > 0 ? addCommunityCampaignTrackingToUrl(groupSessionDetailUrl(upcomingGroupSessions.get(0), webappBaseUrl), analyticsCampaignKey) : null;
 		String recordingTitle = upcomingGroupSessions.size() > 0 ? trimToNull(upcomingGroupSessions.get(0).getTitle()) : null;
 		String currentMonthName = LocalDate.now(defaultTimeZone).format(DateTimeFormatter.ofPattern("MMMM", locale));
 		Boolean multipleUpcomingGroupSessions = upcomingGroupSessionContext.size() > 1;
@@ -543,9 +554,10 @@ public class CommunityService {
 
 	@Nonnull
 	protected Map<String, Object> createUpcomingGroupSessionMessageContext(@Nonnull GroupSession groupSession,
-																																					@Nonnull Locale locale,
-																																					@Nonnull ZoneId defaultTimeZone,
-																																					@Nonnull String webappBaseUrl) {
+																																						@Nonnull Locale locale,
+																																						@Nonnull ZoneId defaultTimeZone,
+																																						@Nonnull String webappBaseUrl,
+																																						@Nullable String analyticsCampaignKey) {
 		requireNonNull(groupSession);
 		requireNonNull(locale);
 		requireNonNull(defaultTimeZone);
@@ -570,9 +582,28 @@ public class CommunityService {
 		messageContext.put("title", trimToNull(groupSession.getTitle()));
 		messageContext.put("description", trimToNull(groupSession.getDescription()));
 		messageContext.put("imageUrl", trimToNull(groupSession.getImageFileUploadUrl()));
-		messageContext.put("reserveSeatUrl", groupSessionDetailUrl(groupSession, webappBaseUrl));
+		messageContext.put("reserveSeatUrl", addCommunityCampaignTrackingToUrl(groupSessionDetailUrl(groupSession, webappBaseUrl), analyticsCampaignKey));
 
 		return messageContext;
+	}
+
+	@Nullable
+	protected String addCommunityCampaignTrackingToUrl(@Nullable String url,
+																									 @Nullable String analyticsCampaignKey) {
+		if (url == null)
+			return null;
+
+		String normalizedAnalyticsCampaignKey = trimToNull(analyticsCampaignKey);
+
+		if (normalizedAnalyticsCampaignKey == null)
+			return url;
+
+		Map<String, String> queryParameters = new LinkedHashMap<>();
+		queryParameters.put("utm_source", COMMUNITY_HIGHLIGHTS_UTM_SOURCE);
+		queryParameters.put("utm_medium", COMMUNITY_HIGHLIGHTS_UTM_MEDIUM);
+		queryParameters.put("utm_campaign", normalizedAnalyticsCampaignKey);
+
+		return WebUtility.appendQueryParameters(url, queryParameters);
 	}
 
 	@Nullable

@@ -57,6 +57,7 @@ import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
+import com.cobaltplatform.api.model.db.PageGroup;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowContent;
@@ -210,6 +211,18 @@ public class PageService {
 			return Optional.empty();
 
 		return Optional.of(page);
+	}
+
+	@Nonnull
+	public Optional<PageGroup> findPageGroupById(@Nullable UUID pageGroupId) {
+		if (pageGroupId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM page_group
+				WHERE page_group_id=?
+				""", PageGroup.class, pageGroupId);
 	}
 
 	@Nonnull
@@ -368,6 +381,9 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		UUID pageGroupId = UUID.randomUUID();
+		createPageGroupIfMissing(pageGroupId);
+
 		getDatabase().execute("""
 						INSERT INTO page
 						  (page_id, name, url_name, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
@@ -375,7 +391,7 @@ public class PageService {
 						VALUES
 						  (?,?,?,?,?,?,?,?,?,?,?,?)   
 						""", pageId, name, urlName, PageStatusId.DRAFT, headline, description, imageFileUploadId, imageAltText,
-				publishedDate, institutionId, createdByAccountId, UUID.randomUUID());
+				publishedDate, institutionId, createdByAccountId, pageGroupId);
 
 		return pageId;
 	}
@@ -2189,6 +2205,8 @@ public class PageService {
 			pageGroupId = newPageId;
 		}
 
+		createPageGroupIfMissing(pageGroupId);
+
 		getDatabase().execute("""
 				INSERT INTO page
 				(page_id,name,url_name,page_status_id,headline,description,image_file_upload_id,
@@ -2320,6 +2338,16 @@ public class PageService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	protected void createPageGroupIfMissing(@Nonnull UUID pageGroupId) {
+		requireNonNull(pageGroupId);
+
+		getDatabase().execute("""
+				INSERT INTO page_group (page_group_id)
+				VALUES (?)
+				ON CONFLICT (page_group_id) DO NOTHING
+				""", pageGroupId);
 	}
 
 	@Nonnull
