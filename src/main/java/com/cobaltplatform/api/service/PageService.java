@@ -277,7 +277,7 @@ public class PageService {
 				SELECT *
 				FROM page_group_email_content
 				WHERE page_group_id = ?
-				ORDER BY content_display_order ASC
+				ORDER BY display_order ASC
 				""", PageGroupEmailContent.class, pageGroupId);
 	}
 
@@ -304,7 +304,7 @@ public class PageService {
 			parameters.add(ContentStatusId.LIVE);
 		}
 
-		query.append(" ORDER BY pgec.content_display_order");
+		query.append(" ORDER BY pgec.display_order");
 
 		return getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 	}

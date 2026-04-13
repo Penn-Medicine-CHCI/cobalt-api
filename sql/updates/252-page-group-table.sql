@@ -23,12 +23,12 @@ CREATE TABLE page_group_email_content (
   page_group_email_content_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   page_group_id UUID NOT NULL REFERENCES page_group,
   content_id UUID NOT NULL REFERENCES content,
-  content_display_order SMALLINT NOT NULL,
+  display_order SMALLINT NOT NULL,
   created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX idx_page_group_email_content_content ON page_group_email_content(page_group_id, content_id);
-CREATE UNIQUE INDEX idx_page_group_email_content_display_order ON page_group_email_content(page_group_id, content_display_order);
+CREATE UNIQUE INDEX idx_page_group_email_content_display_order ON page_group_email_content(page_group_id, display_order);
 CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_group_email_content FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 INSERT INTO page_group (page_group_id)

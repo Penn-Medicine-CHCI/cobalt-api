@@ -407,10 +407,11 @@ public class CommunityService {
 		requireNonNull(page);
 		requireNonNull(webappBaseUrl);
 
-		if (overrideEmailAddresses != null)
-			return resolveOverrideEmailRecipients(overrideEmailAddresses);
-
 		List<MailingListEntry> subscriberEntries = findSubscribedEntriesForPage(page);
+
+		if (overrideEmailAddresses != null)
+			return resolveOverrideEmailRecipients(overrideEmailAddresses, subscriberEntries, webappBaseUrl);
+
 		List<EmailRecipient> emailRecipients = new ArrayList<>(subscriberEntries.size());
 		Set<String> deduplicatedEmailAddresses = new LinkedHashSet<>();
 		int invalidEmailEntries = 0;
@@ -450,12 +451,32 @@ public class CommunityService {
 	}
 
 	@Nonnull
-	protected EmailRecipientResolution resolveOverrideEmailRecipients(@Nonnull List<String> overrideEmailAddresses) {
+	protected EmailRecipientResolution resolveOverrideEmailRecipients(@Nonnull List<String> overrideEmailAddresses,
+																																 @Nonnull List<MailingListEntry> subscriberEntries,
+																																 @Nonnull String webappBaseUrl) {
 		requireNonNull(overrideEmailAddresses);
+		requireNonNull(subscriberEntries);
+		requireNonNull(webappBaseUrl);
 
 		ValidationException validationException = new ValidationException();
 		List<EmailRecipient> emailRecipients = new ArrayList<>(overrideEmailAddresses.size());
 		Set<String> deduplicatedEmailAddresses = new LinkedHashSet<>();
+		Map<String, String> communicationPreferencesUrlsByEmailAddress = new HashMap<>(subscriberEntries.size());
+
+		for (MailingListEntry subscriberEntry : subscriberEntries) {
+			if (subscriberEntry.getMailingListEntryTypeId() != MailingListEntryTypeId.EMAIL_ADDRESS)
+				continue;
+
+			String emailAddress = trimToNull(subscriberEntry.getValue());
+
+			if (emailAddress == null || !ValidationUtility.isValidEmailAddress(emailAddress) || subscriberEntry.getMailingListEntryId() == null)
+				continue;
+
+			communicationPreferencesUrlsByEmailAddress.putIfAbsent(
+					emailAddress.toLowerCase(Locale.ROOT),
+					format("%s/mailing-list-entries/%s/unsubscribe", webappBaseUrl, subscriberEntry.getMailingListEntryId())
+			);
+		}
 
 		for (int i = 0; i < overrideEmailAddresses.size(); ++i) {
 			String overrideEmailAddress = trimToNull(overrideEmailAddresses.get(i));
@@ -470,7 +491,7 @@ public class CommunityService {
 			if (!deduplicatedEmailAddresses.add(normalizedEmailAddress))
 				continue;
 
-			emailRecipients.add(new EmailRecipient(normalizedEmailAddress, null));
+			emailRecipients.add(new EmailRecipient(normalizedEmailAddress, communicationPreferencesUrlsByEmailAddress.get(normalizedEmailAddress)));
 		}
 
 		if (validationException.hasErrors())

@@ -141,9 +141,9 @@
 
 {{#partial "footer"}}
 	You are receiving this email at {{#if recipientEmailAddress}}{{recipientEmailAddress}}{{else}}{emailaddress}{{/if}} because you subscribed to a page on
-	<span style="color:#30578E;">{{#if platformName}}{{platformName}}{{else}}Cobalt{{/if}}</span>.
+	<span style="color:#30578E;">{{#if platformName}}{{platformName}}{{else}}Cobalt{{/if}}</span>.{{#if communicationPreferencesUrl}}
 	If you need a little break, you can update your
-	<a href="{{#if communicationPreferencesUrl}}{{{communicationPreferencesUrl}}}{{else}}#{{/if}}" style="color:#30578E; text-decoration:underline;">communication preferences</a>.
+	<a href="{{{communicationPreferencesUrl}}}" style="color:#30578E; text-decoration:underline;">communication preferences</a>.{{/if}}
 {{/partial}}
 
 {{> layouts/en/v2}}

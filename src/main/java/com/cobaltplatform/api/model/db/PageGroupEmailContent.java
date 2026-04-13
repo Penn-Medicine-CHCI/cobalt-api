@@ -35,7 +35,7 @@ public class PageGroupEmailContent {
 	@Nullable
 	private UUID contentId;
 	@Nullable
-	private Integer contentDisplayOrder;
+	private Integer displayOrder;
 
 	@Nullable
 	public UUID getPageGroupEmailContentId() {
@@ -65,11 +65,11 @@ public class PageGroupEmailContent {
 	}
 
 	@Nullable
-	public Integer getContentDisplayOrder() {
-		return contentDisplayOrder;
+	public Integer getDisplayOrder() {
+		return displayOrder;
 	}
 
-	public void setContentDisplayOrder(@Nullable Integer contentDisplayOrder) {
-		this.contentDisplayOrder = contentDisplayOrder;
+	public void setDisplayOrder(@Nullable Integer displayOrder) {
+		this.displayOrder = displayOrder;
 	}
 }
