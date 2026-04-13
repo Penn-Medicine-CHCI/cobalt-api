@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCallToActionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequest;
@@ -36,6 +37,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowCallToActionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnDisplayOrderRequest;
@@ -60,6 +62,7 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowCallToAction;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowColumn.ContentOrderId;
 import com.cobaltplatform.api.model.db.PageRowContent;
@@ -872,6 +875,14 @@ public class PageService {
 				""", pageSectionId);
 
 		getDatabase().execute("""
+				DELETE FROM page_row_call_to_action
+				WHERE page_row_id IN
+				(SELECT pr.page_row_id
+				FROM page_row pr
+				WHERE pr.page_section_id =?)
+				""", pageSectionId);
+
+		getDatabase().execute("""
 				DELETE FROM page_row
 				WHERE page_section_id=?
 				""", pageSectionId);
@@ -1042,6 +1053,11 @@ public class PageService {
 
 		getDatabase().execute("""
 				DELETE FROM page_row_mailing_list
+				WHERE page_row_id =?
+				""", pageRowId);
+
+		getDatabase().execute("""
+				DELETE FROM page_row_call_to_action
 				WHERE page_row_id =?
 				""", pageRowId);
 
@@ -1634,6 +1650,10 @@ public class PageService {
 			return "Text";
 		if (rowTypeId.equals(RowTypeId.MAILING_LIST))
 			return "Subscribe";
+		if (rowTypeId.equals(RowTypeId.CALL_TO_ACTION_BLOCK))
+			return "Call-to-Action (Block)";
+		if (rowTypeId.equals(RowTypeId.CALL_TO_ACTION_FULL_WIDTH))
+			return "Call-to-Action (Full-width)";
 
 		return "Text & Image";
 	}
@@ -1881,6 +1901,18 @@ public class PageService {
 	}
 
 	@Nonnull
+	public Optional<PageRowCallToAction> findPageRowCallToActionByRowId(@Nullable UUID pageRowId) {
+		if (pageRowId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM v_page_row_call_to_action
+				WHERE page_row_id = ?
+				""", PageRowCallToAction.class, pageRowId);
+	}
+
+	@Nonnull
 	public List<PageRowMailingList> findPageRowMailingListsByPageId(@Nullable UUID pageId) {
 		if (pageId == null)
 			return List.of();
@@ -2113,6 +2145,65 @@ public class PageService {
 	}
 
 	@Nonnull
+	public UUID createPageRowCallToAction(@Nonnull CreatePageRowCallToActionRequest request,
+																			 @Nonnull RowTypeId rowTypeId) {
+		requireNonNull(request);
+		requireNonNull(rowTypeId);
+
+		UUID pageRowCallToActionId = UUID.randomUUID();
+		UUID pageSectionId = request.getPageSectionId();
+		InstitutionId institutionId = request.getInstitutionId();
+		UUID createdByAccountId = request.getCreatedByAccountId();
+		String headline = trimToEmpty(request.getHeadline());
+		String description = trimToEmpty(request.getDescription());
+		String buttonText = trimToEmpty(request.getButtonText());
+		String buttonUrl = trimToEmpty(request.getButtonUrl());
+		UUID imageFileUploadId = isValidUUID(request.getImageFileUploadId()) ? UUID.fromString(request.getImageFileUploadId()) : null;
+
+		ValidationException validationException = new ValidationException();
+
+		if (pageSectionId == null)
+			validationException.add(new FieldError("pageSectionId", getStrings().get("Page Section is required.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+		if (createdByAccountId == null)
+			validationException.add(new FieldError("createdByAccountId", getStrings().get("Created by account is required.")));
+		if (!rowTypeId.equals(RowTypeId.CALL_TO_ACTION_BLOCK) && !rowTypeId.equals(RowTypeId.CALL_TO_ACTION_FULL_WIDTH))
+			validationException.add(new FieldError("rowTypeId", getStrings().get("A valid CTA row type is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		Integer displayOrder = getDatabase().queryForObject("""
+				SELECT COALESCE(MAX(display_order) + 1, 0)
+				FROM v_page_row
+				WHERE page_section_id = ?
+				""", Integer.class, pageSectionId).get();
+
+		CreatePageRowRequest createPageRowRequest = new CreatePageRowRequest();
+		createPageRowRequest.setPageSectionId(pageSectionId);
+		createPageRowRequest.setCreatedByAccountId(createdByAccountId);
+		createPageRowRequest.setDisplayOrder(displayOrder);
+		createPageRowRequest.setRowTypeId(rowTypeId);
+
+		UUID pageRowId = createPageRow(createPageRowRequest, institutionId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_call_to_action (
+					page_row_call_to_action_id,
+					page_row_id,
+					headline,
+					description,
+					button_text,
+					button_url,
+					image_file_upload_id
+				) VALUES (?,?,?,?,?,?,?)
+				""", pageRowCallToActionId, pageRowId, headline, description, buttonText, buttonUrl, imageFileUploadId);
+
+		return pageRowId;
+	}
+
+	@Nonnull
 	public void updatePageRowMailingList(@Nonnull UpdatePageRowMailingListRequest request,
 																			 @Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
@@ -2139,6 +2230,40 @@ public class PageService {
 				SET mailing_list_id=?, title=?, description=?
 				WHERE page_row_id=?
 				""", mailingListId, title, description, pageRowId);
+	}
+
+	public void updatePageRowCallToAction(@Nonnull UpdatePageRowCallToActionRequest request,
+																			 @Nonnull InstitutionId institutionId,
+																			 @Nonnull RowTypeId expectedRowTypeId) {
+		requireNonNull(request);
+		requireNonNull(institutionId);
+		requireNonNull(expectedRowTypeId);
+
+		UUID pageRowId = request.getPageRowId();
+		String headline = trimToEmpty(request.getHeadline());
+		String description = trimToEmpty(request.getDescription());
+		String buttonText = trimToEmpty(request.getButtonText());
+		String buttonUrl = trimToEmpty(request.getButtonUrl());
+		UUID imageFileUploadId = isValidUUID(request.getImageFileUploadId()) ? UUID.fromString(request.getImageFileUploadId()) : null;
+
+		ValidationException validationException = new ValidationException();
+
+		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			validationException.add(new FieldError("pageRow", getStrings().get("Page row not found.")));
+		else if (!pageRow.get().getRowTypeId().equals(expectedRowTypeId))
+			validationException.add(new FieldError("pageRow", getStrings()
+					.get(format("Row provided is of type %s, %s is required.", pageRow.get().getRowTypeId(), expectedRowTypeId))));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE page_row_call_to_action
+				SET headline=?, description=?, button_text=?, button_url=?, image_file_upload_id=?
+				WHERE page_row_id=?
+				""", headline, description, buttonText, buttonUrl, imageFileUploadId, pageRowId);
 	}
 
 	@Nonnull
@@ -2586,6 +2711,14 @@ public class PageService {
 						(page_row_id, mailing_list_id, title, description)
 						SELECT ?, mailing_list_id, title, description
 						FROM page_row_mailing_list
+						WHERE page_row_id=?
+						""", newPageRowId, pageRow.getPageRowId());
+
+				getDatabase().execute("""
+						INSERT INTO page_row_call_to_action
+						(page_row_id, headline, description, button_text, button_url, image_file_upload_id)
+						SELECT ?, headline, description, button_text, button_url, image_file_upload_id
+						FROM page_row_call_to_action
 						WHERE page_row_id=?
 						""", newPageRowId, pageRow.getPageRowId());
 			}

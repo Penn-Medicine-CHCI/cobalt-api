@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowCallToAction;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.PageRowTag;
@@ -95,7 +96,17 @@ public class PageRowApiResponse {
 	@Nullable
 	private String title;
 	@Nullable
+	private String headline;
+	@Nullable
 	private String description;
+	@Nullable
+	private String buttonText;
+	@Nullable
+	private String buttonUrl;
+	@Nullable
+	private UUID imageFileUploadId;
+	@Nullable
+	private String imageUrl;
 
 	@Nonnull
 	private Boolean displayRow;
@@ -189,6 +200,14 @@ public class PageRowApiResponse {
 			this.mailingListId = pageRowMailingList == null ? null : pageRowMailingList.getMailingListId();
 			this.title = pageRowMailingList == null ? null : pageRowMailingList.getTitle();
 			this.description = pageRowMailingList == null ? null : pageRowMailingList.getDescription();
+		} else if (this.rowTypeId.equals(RowTypeId.CALL_TO_ACTION_BLOCK) || this.rowTypeId.equals(RowTypeId.CALL_TO_ACTION_FULL_WIDTH)) {
+			PageRowCallToAction pageRowCallToAction = pageService.findPageRowCallToActionByRowId(pageRow.getPageRowId()).orElse(null);
+			this.headline = pageRowCallToAction == null ? null : pageRowCallToAction.getHeadline();
+			this.description = pageRowCallToAction == null ? null : pageRowCallToAction.getDescription();
+			this.buttonText = pageRowCallToAction == null ? null : pageRowCallToAction.getButtonText();
+			this.buttonUrl = pageRowCallToAction == null ? null : pageRowCallToAction.getButtonUrl();
+			this.imageFileUploadId = pageRowCallToAction == null ? null : pageRowCallToAction.getImageFileUploadId();
+			this.imageUrl = pageRowCallToAction == null ? null : pageRowCallToAction.getImageUrl();
 		}
 	}
 
@@ -210,6 +229,10 @@ public class PageRowApiResponse {
 			return "Text";
 		if (rowTypeId.equals(RowTypeId.MAILING_LIST))
 			return "Subscribe";
+		if (rowTypeId.equals(RowTypeId.CALL_TO_ACTION_BLOCK))
+			return "Call-to-Action (Block)";
+		if (rowTypeId.equals(RowTypeId.CALL_TO_ACTION_FULL_WIDTH))
+			return "Call-to-Action (Full-width)";
 
 		return "Text & Image";
 	}
@@ -307,5 +330,30 @@ public class PageRowApiResponse {
 	@Nonnull
 	public Optional<String> getDescription() {
 		return Optional.ofNullable(this.description);
+	}
+
+	@Nonnull
+	public Optional<String> getHeadline() {
+		return Optional.ofNullable(this.headline);
+	}
+
+	@Nonnull
+	public Optional<String> getButtonText() {
+		return Optional.ofNullable(this.buttonText);
+	}
+
+	@Nonnull
+	public Optional<String> getButtonUrl() {
+		return Optional.ofNullable(this.buttonUrl);
+	}
+
+	@Nonnull
+	public Optional<UUID> getImageFileUploadId() {
+		return Optional.ofNullable(this.imageFileUploadId);
+	}
+
+	@Nonnull
+	public Optional<String> getImageUrl() {
+		return Optional.ofNullable(this.imageUrl);
 	}
 }

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateFileUploadRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRequest;
+import com.cobaltplatform.api.model.api.request.CreatePageRowCallToActionRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowContentRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageRowCustomOneColumnRequest;
@@ -36,6 +37,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
+import com.cobaltplatform.api.model.api.request.UpdatePageRowCallToActionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnDisplayOrderRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowContentRequest;
@@ -1223,6 +1225,116 @@ public class PageResource {
 			throw new NotFoundException();
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("pageRow", getPageRowMailingListApiResponseFactory().create(pageRow.get(), pageRowMailingList.get()));
+		}});
+	}
+
+	@POST("/pages/row/{pageSectionId}/call-to-action-block")
+	@AuthenticationRequired
+	public ApiResponse createPageRowCallToActionBlock(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																										@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowCallToActionRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCallToActionRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setInstitutionId(institutionId);
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
+
+		UUID pageRowId = getPageService().createPageRowCallToAction(request, RowTypeId.CALL_TO_ACTION_BLOCK);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@PUT("/pages/row/{pageRowId}/call-to-action-block")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowCallToActionBlock(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																										@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowCallToActionRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowCallToActionRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setPageRowId(pageRowId);
+		getPageService().updatePageRowCallToAction(request, institutionId, RowTypeId.CALL_TO_ACTION_BLOCK);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@POST("/pages/row/{pageSectionId}/call-to-action-full-width")
+	@AuthenticationRequired
+	public ApiResponse createPageRowCallToActionFullWidth(@Nonnull @PathParameter("pageSectionId") UUID pageSectionId,
+																												@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageSectionId);
+		requireNonNull(requestBody);
+
+		CreatePageRowCallToActionRequest request = getRequestBodyParser().parse(requestBody, CreatePageRowCallToActionRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setInstitutionId(institutionId);
+		request.setCreatedByAccountId(account.getAccountId());
+		request.setPageSectionId(pageSectionId);
+
+		UUID pageRowId = getPageService().createPageRowCallToAction(request, RowTypeId.CALL_TO_ACTION_FULL_WIDTH);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
+		}});
+	}
+
+	@PUT("/pages/row/{pageRowId}/call-to-action-full-width")
+	@AuthenticationRequired
+	public ApiResponse updatePageRowCallToActionFullWidth(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
+																												@Nonnull @RequestBody String requestBody) {
+		requireNonNull(pageRowId);
+		requireNonNull(requestBody);
+
+		UpdatePageRowCallToActionRequest request = getRequestBodyParser().parse(requestBody, UpdatePageRowCallToActionRequest.class);
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		request.setPageRowId(pageRowId);
+		getPageService().updatePageRowCallToAction(request, institutionId, RowTypeId.CALL_TO_ACTION_FULL_WIDTH);
+
+		Optional<PageRow> pageRow = getPageService().findPageRowById(pageRowId, institutionId);
+
+		if (!pageRow.isPresent())
+			throw new NotFoundException();
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowApiResponseFactory().create(pageRow.get()));
 		}});
 	}
 

@@ -17,45 +17,46 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
+package com.cobaltplatform.api.model.api.request;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class RowType {
+public class UpdatePageRowCallToActionRequest {
 	@Nullable
-	private RowTypeId rowTypeId;
+	private UUID pageRowId;
+	@Nullable
+	private String headline;
 	@Nullable
 	private String description;
+	@Nullable
+	private String buttonText;
+	@Nullable
+	private String buttonUrl;
+	@Nullable
+	private String imageFileUploadId;
 
-	public enum RowTypeId {
-		RESOURCES,
-		GROUP_SESSIONS,
-		TAG_GROUP,
-		TAG,
-		CUSTOM_ROW,
-		ONE_COLUMN_TEXT,
-		TWO_COLUMN_TEXT,
-		ONE_COLUMN_IMAGE,
-		ONE_COLUMN_IMAGE_RIGHT,
-		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE,
-		MAILING_LIST,
-		CALL_TO_ACTION_BLOCK,
-		CALL_TO_ACTION_FULL_WIDTH
+	@Nullable
+	public UUID getPageRowId() {
+		return pageRowId;
+	}
+
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
 	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public String getHeadline() {
+		return headline;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
+	public void setHeadline(@Nullable String headline) {
+		this.headline = headline;
 	}
 
 	@Nullable
@@ -65,5 +66,32 @@ public class RowType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getButtonText() {
+		return buttonText;
+	}
+
+	public void setButtonText(@Nullable String buttonText) {
+		this.buttonText = buttonText;
+	}
+
+	@Nullable
+	public String getButtonUrl() {
+		return buttonUrl;
+	}
+
+	public void setButtonUrl(@Nullable String buttonUrl) {
+		this.buttonUrl = buttonUrl;
+	}
+
+	@Nullable
+	public String getImageFileUploadId() {
+		return imageFileUploadId;
+	}
+
+	public void setImageFileUploadId(@Nullable String imageFileUploadId) {
+		this.imageFileUploadId = imageFileUploadId;
 	}
 }
