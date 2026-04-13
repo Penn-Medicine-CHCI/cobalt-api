@@ -1,16 +1,24 @@
 {{#partial "body"}}
 	<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center">
 		<tr>
-			<td align="left" class="em_h1" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:28px; line-height:40px; font-weight:700; color:#20406C;">
+			<td align="left" class="em_h1" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:28px; line-height:36px; font-weight:700; color:#20406C;">
 				{{pageTitle}}
 			</td>
 		</tr>
 		<tr>
-			<td height="12" style="height:12px; line-height:12px; font-size:1px;">&nbsp;</td>
+			<td height="4" style="height:4px; line-height:4px; font-size:1px;">&nbsp;</td>
+		</tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:18px; line-height:24px; font-weight:700; color:#292827;">
+				Community Highlights
+			</td>
+		</tr>
+		<tr>
+			<td height="16" style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td>
 		</tr>
 		<tr>
 			<td align="left" class="em_body_copy" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#292827;">
-				Thank you for subscribing. Here {{#if multipleUpcomingGroupSessions}}are{{else}}is{{/if}} {{#if currentMonthName}}{{currentMonthName}}{{else}}this month{{/if}}&apos;s {{#if multipleUpcomingGroupSessions}}highlights{{else}}highlight{{/if}}.
+				Thanks for subscribing to {{pageTitle}}. Check out {{#if currentMonthName}}{{currentMonthName}}{{else}}this month{{/if}}&apos;s highlighted {{#if multipleUpcomingGroupSessions}}sessions{{else}}session{{/if}} below.
 			</td>
 		</tr>
 		<tr>
@@ -48,19 +56,19 @@
 				</tr>
 				<tr>
 					<td align="left">
-						<div class="em_session_title" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:24px; line-height:36px; color:#000000; font-weight:700;">
+						<div class="em_session_title" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:24px; line-height:32px; color:#000000; font-weight:700;">
 							{{#if title}}{{title}}{{else}}Group Session Title{{/if}}
 						</div>
-						<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:24px; color:#30578E; font-weight:700;">
+						<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:#30578E; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; padding-top:8px;">
 							{{#if time}}
 								{{#if month}}{{month}}{{#if day}} {{day}} at{{/if}} {{/if}}{{time}}
 							{{else}}
 								November 15 at 2:00PM (EST)
 							{{/if}}
 						</div>
-						<div class="em_body_copy" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:18px; line-height:24px; color:#000000; padding-top:8px; padding-bottom:24px;">
+						<div class="em_body_copy em_session_description" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#000000; padding-top:12px; padding-bottom:24px;">
 							{{#if description}}
-								{{description}}
+								{{{description}}}
 							{{else}}
 								Description could go here. It could be the description from the group session or unique copy written specifically for the email.
 							{{/if}}
@@ -95,13 +103,13 @@
 			</tr>
 			<tr>
 				<td align="left">
-					<div class="em_session_title" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:24px; line-height:36px; color:#000000; font-weight:700;">
+					<div class="em_session_title" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:24px; line-height:32px; color:#000000; font-weight:700;">
 						Group Session Title
 					</div>
-					<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:24px; color:#30578E; font-weight:700;">
+					<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:#30578E; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; padding-top:8px;">
 						November 15 at 2:00PM (EST)
 					</div>
-					<div class="em_body_copy" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:18px; line-height:24px; color:#000000; padding-top:8px; padding-bottom:24px;">
+					<div class="em_body_copy em_session_description" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#000000; padding-top:12px; padding-bottom:24px;">
 						Description could go here. It could be the description from the group session or unique copy written specifically for the email.
 					</div>
 					<div align="center">

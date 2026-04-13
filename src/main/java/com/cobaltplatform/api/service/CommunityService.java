@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageContextKey;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateCommunitySubscriberNotificationRequest;
 import com.cobaltplatform.api.model.db.GroupSession;
@@ -75,6 +76,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @Singleton
 @ThreadSafe
 public class CommunityService {
+	@Nonnull
+	private static final String COMMUNITY_HIGHLIGHTS_PLATFORM_EMAIL_IMAGE_URL_FORMAT = "https://cobalt-prod-media.s3.us-east-1.amazonaws.com/prod/logos/email-v2/%s.png";
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
@@ -333,6 +336,8 @@ public class CommunityService {
 		baseMessageContext.put("recordingUrl", recordingUrl);
 		baseMessageContext.put("recordingTitle", recordingTitle);
 		baseMessageContext.put("upcomingGroupSessions", upcomingGroupSessionContext);
+		baseMessageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(),
+				format(COMMUNITY_HIGHLIGHTS_PLATFORM_EMAIL_IMAGE_URL_FORMAT, institution.getInstitutionId().name()));
 
 		return new NotifySubscribersContext(
 				institution.getInstitutionId(),
