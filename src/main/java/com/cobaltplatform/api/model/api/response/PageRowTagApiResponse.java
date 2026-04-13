@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.RowType;
 import com.cobaltplatform.api.model.db.Tag;
@@ -55,6 +56,8 @@ public class PageRowTagApiResponse {
 	private final String name;
 	@Nonnull
 	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PaddingId paddingId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -92,6 +95,7 @@ public class PageRowTagApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingId = pageRow.getPaddingId() == null ? PaddingId.MEDIUM : pageRow.getPaddingId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.tag = tagApiResponseFactory.create(tagService.findTagById(pageRowTag.getTagId()).get());
@@ -137,6 +141,11 @@ public class PageRowTagApiResponse {
 	}
 
 	@Nonnull
+	public PaddingId getPaddingId() {
+		return paddingId;
+	}
+
+	@Nonnull
 	public Integer getDisplayOrder() {
 		return displayOrder;
 	}
@@ -151,4 +160,3 @@ public class PageRowTagApiResponse {
 		return tag;
 	}
 }
-

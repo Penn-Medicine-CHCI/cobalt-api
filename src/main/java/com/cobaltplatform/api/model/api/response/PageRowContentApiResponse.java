@@ -23,6 +23,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
@@ -53,6 +54,8 @@ public class PageRowContentApiResponse {
 	private final String name;
 	@Nonnull
 	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PaddingId paddingId;
 	@Nonnull
 	private final Integer displayOrder;
 
@@ -88,6 +91,7 @@ public class PageRowContentApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingId = pageRow.getPaddingId() == null ? PaddingId.MEDIUM : pageRow.getPaddingId();
 		//If this page is published only show LIVE content
 		this.contents = pageService.findContentByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 				.map(content -> contentApiResponseFactory.create(content)).collect(Collectors.toList());
@@ -124,6 +128,11 @@ public class PageRowContentApiResponse {
 	}
 
 	@Nonnull
+	public PaddingId getPaddingId() {
+		return paddingId;
+	}
+
+	@Nonnull
 	public List<ContentApiResponse> getContents() {
 		return contents;
 	}
@@ -138,4 +147,3 @@ public class PageRowContentApiResponse {
 		return rowTypeId;
 	}
 }
-

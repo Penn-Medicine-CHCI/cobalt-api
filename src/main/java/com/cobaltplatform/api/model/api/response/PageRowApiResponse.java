@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 import com.cobaltplatform.api.model.db.PageRowCallToAction;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
@@ -71,6 +72,8 @@ public class PageRowApiResponse {
 	private final String name;
 	@Nonnull
 	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PaddingId paddingId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -156,6 +159,7 @@ public class PageRowApiResponse {
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingId = pageRow.getPaddingId() == null ? PaddingId.MEDIUM : pageRow.getPaddingId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.tagGroupColorId = null;
 		this.displayRow = true;
@@ -260,6 +264,11 @@ public class PageRowApiResponse {
 	@Nonnull
 	public BackgroundColorId getBackgroundColorId() {
 		return backgroundColorId;
+	}
+
+	@Nonnull
+	public PaddingId getPaddingId() {
+		return paddingId;
 	}
 
 	@Nonnull

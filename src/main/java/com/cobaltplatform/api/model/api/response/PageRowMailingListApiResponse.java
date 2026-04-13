@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse.MailingListEntryApiResponseFactory;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.service.MailingListService;
@@ -56,6 +57,8 @@ public class PageRowMailingListApiResponse {
 	private final String name;
 	@Nonnull
 	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PaddingId paddingId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -103,6 +106,7 @@ public class PageRowMailingListApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingId = pageRow.getPaddingId() == null ? PaddingId.MEDIUM : pageRow.getPaddingId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.mailingListId = pageRowMailingList.getMailingListId();
@@ -144,6 +148,11 @@ public class PageRowMailingListApiResponse {
 	}
 
 	@Nonnull
+	public PaddingId getPaddingId() {
+		return this.paddingId;
+	}
+
+	@Nonnull
 	public Integer getDisplayOrder() {
 		return this.displayOrder;
 	}
@@ -173,4 +182,3 @@ public class PageRowMailingListApiResponse {
 		return this.mailingListEntries;
 	}
 }
-

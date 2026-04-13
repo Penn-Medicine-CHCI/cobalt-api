@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
@@ -53,6 +54,8 @@ public class PageRowGroupSessionApiResponse {
 	private final String name;
 	@Nonnull
 	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PaddingId paddingId;
 	@Nullable
 	private Integer displayOrder;
 	@Nonnull
@@ -88,6 +91,7 @@ public class PageRowGroupSessionApiResponse {
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingId = pageRow.getPaddingId() == null ? PaddingId.MEDIUM : pageRow.getPaddingId();
 		//If this page is published only show ADDED group sessions
 		this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 				.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
@@ -122,6 +126,11 @@ public class PageRowGroupSessionApiResponse {
 		return backgroundColorId;
 	}
 
+	@Nonnull
+	public PaddingId getPaddingId() {
+		return paddingId;
+	}
+
 	@Nullable
 	public Integer getDisplayOrder() {
 		return displayOrder;
@@ -137,4 +146,3 @@ public class PageRowGroupSessionApiResponse {
 		return rowTypeId;
 	}
 }
-

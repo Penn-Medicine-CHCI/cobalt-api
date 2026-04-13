@@ -62,6 +62,7 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 import com.cobaltplatform.api.model.db.PageRowCallToAction;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowColumn.ContentOrderId;
@@ -962,6 +963,7 @@ public class PageService {
 		RowTypeId rowTypeId = request.getRowTypeId();
 		String name = trimToNull(request.getName());
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
+		PaddingId paddingId = request.getPaddingId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		Integer displayOrder = request.getDisplayOrder();
 		ValidationException validationException = new ValidationException();
@@ -987,6 +989,8 @@ public class PageService {
 
 		if (backgroundColorId == null)
 			backgroundColorId = BackgroundColorId.WHITE;
+		if (paddingId == null)
+			paddingId = PaddingId.MEDIUM;
 
 		if (displayOrder == null)
 			displayOrder = getDatabase().queryForObject("""
@@ -997,10 +1001,10 @@ public class PageService {
 
 		getDatabase().execute("""
 				INSERT INTO page_row
-				  (page_row_id, page_section_id, row_type_id, name, background_color_id, created_by_account_id, display_order)
+				  (page_row_id, page_section_id, row_type_id, name, background_color_id, padding_id, created_by_account_id, display_order)
 				VALUES
-				  (?,?,?,?,?,?,?)
-				""", pageRowId, pageSectionId, rowTypeId, name, backgroundColorId, createdByAccountId, displayOrder);
+				  (?,?,?,?,?,?,?,?)
+				""", pageRowId, pageSectionId, rowTypeId, name, backgroundColorId, paddingId, createdByAccountId, displayOrder);
 
 		return pageRowId;
 	}
@@ -1091,6 +1095,7 @@ public class PageService {
 		UUID pageRowId = request.getPageRowId();
 		String name = trimToNull(request.getName());
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
+		PaddingId paddingId = request.getPaddingId();
 		ValidationException validationException = new ValidationException();
 
 		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
@@ -1101,15 +1106,17 @@ public class PageService {
 			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
 		if (backgroundColorId == null)
 			validationException.add(new FieldError("backgroundColorId", getStrings().get("Background Color is required.")));
+		if (paddingId == null)
+			validationException.add(new FieldError("paddingId", getStrings().get("Padding is required.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
 				UPDATE page_row SET
-				  name=?, background_color_id=?
+				  name=?, background_color_id=?, padding_id=?
 				WHERE page_row_id=?
-				""", name, backgroundColorId, pageRowId);
+				""", name, backgroundColorId, paddingId, pageRowId);
 
 		return pageRowId;
 	}
@@ -2661,8 +2668,8 @@ public class PageService {
 
 				getDatabase().execute("""
 						INSERT INTO page_row
-						(page_row_id,page_section_id,row_type_id,name,background_color_id,deleted_flag,display_order,created_by_account_id)
-						SELECT ?, ?, row_type_id,name,background_color_id,deleted_flag,display_order, ?
+						(page_row_id,page_section_id,row_type_id,name,background_color_id,padding_id,deleted_flag,display_order,created_by_account_id)
+						SELECT ?, ?, row_type_id,name,background_color_id,padding_id,deleted_flag,display_order, ?
 						FROM page_row
 						WHERE page_row_id = ?
 						""", newPageRowId, newPageSectionId, accountId, pageRow.getPageRowId());

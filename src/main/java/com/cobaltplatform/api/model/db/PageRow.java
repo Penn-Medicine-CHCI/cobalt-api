@@ -32,6 +32,12 @@ import com.cobaltplatform.api.model.db.RowType.RowTypeId;
  */
 @NotThreadSafe
 public class PageRow {
+	public enum PaddingId {
+		SMALL,
+		MEDIUM,
+		LARGE
+	}
+
 	@Nullable
 	private UUID pageRowId;
 	@Nullable
@@ -42,6 +48,8 @@ public class PageRow {
 	private String name;
 	@Nullable
 	private BackgroundColorId backgroundColorId;
+	@Nullable
+	private PaddingId paddingId;
 	@Nullable
 	private Boolean deletedFlag;
 	@Nullable
@@ -96,6 +104,15 @@ public class PageRow {
 
 	public void setBackgroundColorId(@Nullable BackgroundColorId backgroundColorId) {
 		this.backgroundColorId = backgroundColorId;
+	}
+
+	@Nullable
+	public PaddingId getPaddingId() {
+		return paddingId;
+	}
+
+	public void setPaddingId(@Nullable PaddingId paddingId) {
+		this.paddingId = paddingId;
 	}
 
 	@Nullable

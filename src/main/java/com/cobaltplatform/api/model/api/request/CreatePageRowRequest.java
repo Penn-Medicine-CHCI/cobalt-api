@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 
 import javax.annotation.Nullable;
@@ -39,6 +40,8 @@ public class CreatePageRowRequest {
 	private String name;
 	@Nullable
 	private BackgroundColorId backgroundColorId;
+	@Nullable
+	private PaddingId paddingId;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
@@ -77,6 +80,15 @@ public class CreatePageRowRequest {
 
 	public void setBackgroundColorId(@Nullable BackgroundColorId backgroundColorId) {
 		this.backgroundColorId = backgroundColorId;
+	}
+
+	@Nullable
+	public PaddingId getPaddingId() {
+		return paddingId;
+	}
+
+	public void setPaddingId(@Nullable PaddingId paddingId) {
+		this.paddingId = paddingId;
 	}
 
 	@Nullable

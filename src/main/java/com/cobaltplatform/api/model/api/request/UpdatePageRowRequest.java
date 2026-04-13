@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
+import com.cobaltplatform.api.model.db.PageRow.PaddingId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -36,6 +37,8 @@ public class UpdatePageRowRequest {
 	private String name;
 	@Nullable
 	private BackgroundColorId backgroundColorId;
+	@Nullable
+	private PaddingId paddingId;
 
 	@Nullable
 	public UUID getPageRowId() {
@@ -62,5 +65,14 @@ public class UpdatePageRowRequest {
 
 	public void setBackgroundColorId(@Nullable BackgroundColorId backgroundColorId) {
 		this.backgroundColorId = backgroundColorId;
+	}
+
+	@Nullable
+	public PaddingId getPaddingId() {
+		return paddingId;
+	}
+
+	public void setPaddingId(@Nullable PaddingId paddingId) {
+		this.paddingId = paddingId;
 	}
 }
