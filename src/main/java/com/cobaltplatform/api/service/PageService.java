@@ -58,6 +58,8 @@ import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageGroup;
+import com.cobaltplatform.api.model.db.PageGroupEmailContent;
+import com.cobaltplatform.api.model.db.PageGroupEmailGroupSession;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowContent;
@@ -223,6 +225,88 @@ public class PageService {
 				FROM page_group
 				WHERE page_group_id=?
 				""", PageGroup.class, pageGroupId);
+	}
+
+	@Nonnull
+	public List<PageGroupEmailGroupSession> findPageGroupEmailGroupSessionsByPageGroupId(@Nullable UUID pageGroupId) {
+		if (pageGroupId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM page_group_email_group_session
+				WHERE page_group_id = ?
+				ORDER BY display_order ASC
+				""", PageGroupEmailGroupSession.class, pageGroupId);
+	}
+
+	@Nonnull
+	public List<GroupSession> findHighlightedGroupSessionsByPageGroupId(@Nullable UUID pageGroupId,
+																														 @Nullable Boolean includeOnlyAdded) {
+		requireNonNull(includeOnlyAdded);
+
+		if (pageGroupId == null)
+			return List.of();
+
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
+				SELECT vgs.*
+				FROM page_group_email_group_session pgegs, v_group_session vgs
+				WHERE pgegs.group_session_id = vgs.group_session_id
+				AND pgegs.page_group_id = ?
+				""");
+
+		parameters.add(pageGroupId);
+
+		if (includeOnlyAdded) {
+			query.append(" AND group_session_status_id = ? ");
+			parameters.add(GroupSessionStatusId.ADDED);
+		}
+
+		query.append(" ORDER BY pgegs.display_order");
+
+		return getDatabase().queryForList(query.toString(), GroupSession.class, parameters.toArray());
+	}
+
+	@Nonnull
+	public List<PageGroupEmailContent> findPageGroupEmailContentByPageGroupId(@Nullable UUID pageGroupId) {
+		if (pageGroupId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM page_group_email_content
+				WHERE page_group_id = ?
+				ORDER BY content_display_order ASC
+				""", PageGroupEmailContent.class, pageGroupId);
+	}
+
+	@Nonnull
+	public List<Content> findHighlightedContentByPageGroupId(@Nullable UUID pageGroupId,
+																											 @Nullable Boolean includeOnlyLive) {
+		requireNonNull(includeOnlyLive);
+
+		if (pageGroupId == null)
+			return List.of();
+
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
+				SELECT vac.*
+				FROM page_group_email_content pgec, v_admin_content vac
+				WHERE pgec.content_id = vac.content_id
+				AND pgec.page_group_id = ?
+				""");
+
+		parameters.add(pageGroupId);
+
+		if (includeOnlyLive) {
+			query.append(" AND content_status_id = ? ");
+			parameters.add(ContentStatusId.LIVE);
+		}
+
+		query.append(" ORDER BY pgec.content_display_order");
+
+		return getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 	}
 
 	@Nonnull

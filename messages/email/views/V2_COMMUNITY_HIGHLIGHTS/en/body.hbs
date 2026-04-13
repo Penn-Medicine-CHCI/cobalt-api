@@ -131,10 +131,10 @@
 		</tr>
 		<tr>
 			<td align="left" class="em_body_copy" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#292827;">
-					Can&rsquo;t make this session? Visit the
-					<a href="{{#if communityPageUrl}}{{{communityPageUrl}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{pageTitle}} Community Page</a>
-						for additional resources including last month&rsquo;s group session recordings.
-					</td>
+				Can&rsquo;t make this session? Visit the
+				<a href="{{#if communityPageUrl}}{{{communityPageUrl}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{pageTitle}} Community Page</a>
+				for additional resources{{#if footerContents}}, including {{#if multipleFooterContents}}recent group session recordings such as {{#each footerContents}}{{#unless @first}}, {{/unless}}<a href="{{#if url}}{{{url}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{title}}</a>{{/each}}{{else}}last month&rsquo;s group session recording on <a href="{{#if recordingUrl}}{{{recordingUrl}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{recordingTitle}}</a>{{/if}}{{/if}}.
+			</td>
 			</tr>
 	</table>
 {{/partial}}

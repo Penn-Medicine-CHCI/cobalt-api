@@ -23,12 +23,15 @@ import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageContextKey;
 import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.CreateCommunitySubscriberNotificationRequest;
+import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.MailingListEntry;
 import com.cobaltplatform.api.model.db.MailingListEntryType.MailingListEntryTypeId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageGroup;
+import com.cobaltplatform.api.model.db.PageGroupEmailContent;
+import com.cobaltplatform.api.model.db.PageGroupEmailGroupSession;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -217,22 +220,8 @@ public class CommunityService {
 		addMessageTrackingToContextUrl(messageContext, "communityPageUrl", messageId);
 		addMessageTrackingToContextUrl(messageContext, "recordingUrl", messageId);
 		addMessageTrackingToContextUrl(messageContext, "communicationPreferencesUrl", messageId);
-
-		@SuppressWarnings("unchecked")
-		List<Map<String, Object>> upcomingGroupSessions = (List<Map<String, Object>>) messageContext.get("upcomingGroupSessions");
-
-		if (upcomingGroupSessions == null)
-			return;
-
-		List<Map<String, Object>> trackedUpcomingGroupSessions = new ArrayList<>(upcomingGroupSessions.size());
-
-		for (Map<String, Object> upcomingGroupSession : upcomingGroupSessions) {
-			Map<String, Object> trackedUpcomingGroupSession = new HashMap<>(upcomingGroupSession);
-			addMessageTrackingToContextUrl(trackedUpcomingGroupSession, "reserveSeatUrl", messageId);
-			trackedUpcomingGroupSessions.add(trackedUpcomingGroupSession);
-		}
-
-		messageContext.put("upcomingGroupSessions", trackedUpcomingGroupSessions);
+		addMessageTrackingToContextUrls(messageContext, "upcomingGroupSessions", "reserveSeatUrl", messageId);
+		addMessageTrackingToContextUrls(messageContext, "footerContents", "url", messageId);
 	}
 
 	protected void addMessageTrackingToContextUrl(@Nonnull Map<String, Object> messageContext,
@@ -248,6 +237,32 @@ public class CommunityService {
 			return;
 
 		messageContext.put(contextUrlKey, addMessageTrackingToUrl(contextUrlString, messageId));
+	}
+
+	protected void addMessageTrackingToContextUrls(@Nonnull Map<String, Object> messageContext,
+																								 @Nonnull String contextCollectionKey,
+																								 @Nonnull String contextUrlKey,
+																								 @Nonnull UUID messageId) {
+		requireNonNull(messageContext);
+		requireNonNull(contextCollectionKey);
+		requireNonNull(contextUrlKey);
+		requireNonNull(messageId);
+
+		@SuppressWarnings("unchecked")
+		List<Map<String, Object>> contextCollection = (List<Map<String, Object>>) messageContext.get(contextCollectionKey);
+
+		if (contextCollection == null)
+			return;
+
+		List<Map<String, Object>> trackedContextCollection = new ArrayList<>(contextCollection.size());
+
+		for (Map<String, Object> contextCollectionItem : contextCollection) {
+			Map<String, Object> trackedContextCollectionItem = new HashMap<>(contextCollectionItem);
+			addMessageTrackingToContextUrl(trackedContextCollectionItem, contextUrlKey, messageId);
+			trackedContextCollection.add(trackedContextCollectionItem);
+		}
+
+		messageContext.put(contextCollectionKey, trackedContextCollection);
 	}
 
 	@Nonnull
@@ -315,12 +330,31 @@ public class CommunityService {
 			throw new IllegalStateException(format("Unable to find patient webapp URL for institution %s.", institution.getInstitutionId()));
 
 		EmailRecipientResolution emailRecipientResolution = resolveEmailRecipientsForPage(page, webappBaseUrl, overrideEmailAddresses);
-		List<GroupSession> upcomingGroupSessions = findUpcomingGroupSessionsForPage(page, defaultTimeZone);
+		List<PageGroupEmailGroupSession> highlightedGroupSessionSelections = getPageService().findPageGroupEmailGroupSessionsByPageGroupId(pageGroupId);
+		List<GroupSession> upcomingGroupSessions = findUpcomingGroupSessionsForSubscriberEmail(page, highlightedGroupSessionSelections, pageGroupId, defaultTimeZone);
+		List<Content> footerContents = findFooterContentForSubscriberEmail(pageGroupId);
+		Map<UUID, PageGroupEmailGroupSession> highlightedGroupSessionSelectionsByGroupSessionId = new HashMap<>(highlightedGroupSessionSelections.size());
 
 		List<Map<String, Object>> upcomingGroupSessionContext = new ArrayList<>(upcomingGroupSessions.size());
+		List<Map<String, Object>> footerContentContext = new ArrayList<>(footerContents.size());
+
+		for (PageGroupEmailGroupSession highlightedGroupSessionSelection : highlightedGroupSessionSelections) {
+			if (highlightedGroupSessionSelection.getGroupSessionId() != null)
+				highlightedGroupSessionSelectionsByGroupSessionId.put(highlightedGroupSessionSelection.getGroupSessionId(), highlightedGroupSessionSelection);
+		}
 
 		for (GroupSession upcomingGroupSession : upcomingGroupSessions)
-			upcomingGroupSessionContext.add(createUpcomingGroupSessionMessageContext(upcomingGroupSession, locale, defaultTimeZone, webappBaseUrl, analyticsCampaignKey));
+			upcomingGroupSessionContext.add(createUpcomingGroupSessionMessageContext(
+					upcomingGroupSession,
+					upcomingGroupSession.getGroupSessionId() == null ? null : highlightedGroupSessionSelectionsByGroupSessionId.get(upcomingGroupSession.getGroupSessionId()),
+					locale,
+					defaultTimeZone,
+					webappBaseUrl,
+					analyticsCampaignKey
+			));
+
+		for (Content footerContent : footerContents)
+			footerContentContext.add(createFooterContentMessageContext(footerContent, webappBaseUrl, analyticsCampaignKey));
 
 		// Keep email display title aligned with the unsubscribe page's "displayName" logic: headline first, then name.
 		String pageTitle = trimToNull(page.getHeadline());
@@ -334,18 +368,21 @@ public class CommunityService {
 		String communityPageUrl = addCommunityCampaignTrackingToUrl(
 				trimToNull(page.getUrlName()) == null ? webappBaseUrl : format("%s/pages/%s", webappBaseUrl, page.getUrlName()),
 				analyticsCampaignKey);
-		String recordingUrl = upcomingGroupSessions.size() > 0 ? addCommunityCampaignTrackingToUrl(groupSessionDetailUrl(upcomingGroupSessions.get(0), webappBaseUrl), analyticsCampaignKey) : null;
-		String recordingTitle = upcomingGroupSessions.size() > 0 ? trimToNull(upcomingGroupSessions.get(0).getTitle()) : null;
+		String recordingUrl = footerContentContext.size() > 0 ? (String) footerContentContext.get(0).get("url") : null;
+		String recordingTitle = footerContentContext.size() > 0 ? (String) footerContentContext.get(0).get("title") : null;
 		String currentMonthName = LocalDate.now(defaultTimeZone).format(DateTimeFormatter.ofPattern("MMMM", locale));
 		Boolean multipleUpcomingGroupSessions = upcomingGroupSessionContext.size() > 1;
+		Boolean multipleFooterContents = footerContentContext.size() > 1;
 
-		Map<String, Object> baseMessageContext = new HashMap<>(10);
+		Map<String, Object> baseMessageContext = new HashMap<>(12);
 		baseMessageContext.put("pageTitle", pageTitle);
 		baseMessageContext.put("currentMonthName", currentMonthName);
 		baseMessageContext.put("multipleUpcomingGroupSessions", multipleUpcomingGroupSessions);
+		baseMessageContext.put("multipleFooterContents", multipleFooterContents);
 		baseMessageContext.put("communityPageUrl", communityPageUrl);
 		baseMessageContext.put("recordingUrl", recordingUrl);
 		baseMessageContext.put("recordingTitle", recordingTitle);
+		baseMessageContext.put("footerContents", footerContentContext);
 		baseMessageContext.put("upcomingGroupSessions", upcomingGroupSessionContext);
 		baseMessageContext.put(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name(),
 				format(COMMUNITY_HIGHLIGHTS_PLATFORM_EMAIL_IMAGE_URL_FORMAT, institution.getInstitutionId().name()));
@@ -536,6 +573,41 @@ public class CommunityService {
 		return upcomingGroupSessions;
 	}
 
+	@Nonnull
+	protected List<GroupSession> findUpcomingGroupSessionsForSubscriberEmail(@Nonnull Page page,
+																															 @Nonnull List<PageGroupEmailGroupSession> highlightedGroupSessionSelections,
+																															 @Nonnull UUID pageGroupId,
+																															 @Nonnull ZoneId defaultTimeZone) {
+		requireNonNull(page);
+		requireNonNull(highlightedGroupSessionSelections);
+		requireNonNull(pageGroupId);
+		requireNonNull(defaultTimeZone);
+
+		if (highlightedGroupSessionSelections.isEmpty())
+			return findUpcomingGroupSessionsForPage(page, defaultTimeZone);
+
+		List<GroupSession> upcomingHighlightedGroupSessions = new ArrayList<>();
+
+		for (GroupSession highlightedGroupSession : getPageService().findHighlightedGroupSessionsByPageGroupId(pageGroupId, true)) {
+			if (isUpcomingGroupSession(highlightedGroupSession, defaultTimeZone))
+				upcomingHighlightedGroupSessions.add(highlightedGroupSession);
+		}
+
+		return upcomingHighlightedGroupSessions;
+	}
+
+	@Nonnull
+	protected List<Content> findFooterContentForSubscriberEmail(@Nonnull UUID pageGroupId) {
+		requireNonNull(pageGroupId);
+
+		List<PageGroupEmailContent> footerContentSelections = getPageService().findPageGroupEmailContentByPageGroupId(pageGroupId);
+
+		if (footerContentSelections.isEmpty())
+			return List.of();
+
+		return getPageService().findHighlightedContentByPageGroupId(pageGroupId, true);
+	}
+
 	protected boolean isUpcomingGroupSession(@Nonnull GroupSession groupSession,
 																					 @Nonnull ZoneId defaultTimeZone) {
 		requireNonNull(groupSession);
@@ -554,6 +626,7 @@ public class CommunityService {
 
 	@Nonnull
 	protected Map<String, Object> createUpcomingGroupSessionMessageContext(@Nonnull GroupSession groupSession,
+																																						@Nullable PageGroupEmailGroupSession highlightedGroupSessionSelection,
 																																						@Nonnull Locale locale,
 																																						@Nonnull ZoneId defaultTimeZone,
 																																						@Nonnull String webappBaseUrl,
@@ -579,11 +652,29 @@ public class CommunityService {
 			messageContext.put("time", format("%s %s", time, timeZoneAbbreviation));
 		}
 
+		String description = trimToNull(highlightedGroupSessionSelection == null ? null : highlightedGroupSessionSelection.getDescriptionOverride());
+
+		if (description == null)
+			description = trimToNull(groupSession.getDescription());
+
 		messageContext.put("title", trimToNull(groupSession.getTitle()));
-		messageContext.put("description", trimToNull(groupSession.getDescription()));
+		messageContext.put("description", description);
 		messageContext.put("imageUrl", trimToNull(groupSession.getImageFileUploadUrl()));
 		messageContext.put("reserveSeatUrl", addCommunityCampaignTrackingToUrl(groupSessionDetailUrl(groupSession, webappBaseUrl), analyticsCampaignKey));
 
+		return messageContext;
+	}
+
+	@Nonnull
+	protected Map<String, Object> createFooterContentMessageContext(@Nonnull Content content,
+																																	@Nonnull String webappBaseUrl,
+																																	@Nullable String analyticsCampaignKey) {
+		requireNonNull(content);
+		requireNonNull(webappBaseUrl);
+
+		Map<String, Object> messageContext = new HashMap<>(2);
+		messageContext.put("title", trimToNull(content.getTitle()));
+		messageContext.put("url", addCommunityCampaignTrackingToUrl(resourceLibraryContentUrl(content, webappBaseUrl), analyticsCampaignKey));
 		return messageContext;
 	}
 
@@ -621,6 +712,20 @@ public class CommunityService {
 			return null;
 
 		return format("%s/group-sessions/%s", webappBaseUrl, identifier);
+	}
+
+	@Nullable
+	protected String resourceLibraryContentUrl(@Nonnull Content content,
+																						 @Nonnull String webappBaseUrl) {
+		requireNonNull(content);
+		requireNonNull(webappBaseUrl);
+
+		UUID contentId = content.getContentId();
+
+		if (contentId == null)
+			return null;
+
+		return format("%s/resource-library/%s", webappBaseUrl, contentId);
 	}
 
 	@Immutable
