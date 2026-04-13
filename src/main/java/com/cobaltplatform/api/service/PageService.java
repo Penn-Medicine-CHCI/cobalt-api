@@ -57,6 +57,9 @@ import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.GroupSessionStatus.GroupSessionStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
+import com.cobaltplatform.api.model.db.PageGroup;
+import com.cobaltplatform.api.model.db.PageGroupEmailContent;
+import com.cobaltplatform.api.model.db.PageGroupEmailGroupSession;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowContent;
@@ -210,6 +213,100 @@ public class PageService {
 			return Optional.empty();
 
 		return Optional.of(page);
+	}
+
+	@Nonnull
+	public Optional<PageGroup> findPageGroupById(@Nullable UUID pageGroupId) {
+		if (pageGroupId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM page_group
+				WHERE page_group_id=?
+				""", PageGroup.class, pageGroupId);
+	}
+
+	@Nonnull
+	public List<PageGroupEmailGroupSession> findPageGroupEmailGroupSessionsByPageGroupId(@Nullable UUID pageGroupId) {
+		if (pageGroupId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM page_group_email_group_session
+				WHERE page_group_id = ?
+				ORDER BY display_order ASC
+				""", PageGroupEmailGroupSession.class, pageGroupId);
+	}
+
+	@Nonnull
+	public List<GroupSession> findHighlightedGroupSessionsByPageGroupId(@Nullable UUID pageGroupId,
+																														 @Nullable Boolean includeOnlyAdded) {
+		requireNonNull(includeOnlyAdded);
+
+		if (pageGroupId == null)
+			return List.of();
+
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
+				SELECT vgs.*
+				FROM page_group_email_group_session pgegs, v_group_session vgs
+				WHERE pgegs.group_session_id = vgs.group_session_id
+				AND pgegs.page_group_id = ?
+				""");
+
+		parameters.add(pageGroupId);
+
+		if (includeOnlyAdded) {
+			query.append(" AND group_session_status_id = ? ");
+			parameters.add(GroupSessionStatusId.ADDED);
+		}
+
+		query.append(" ORDER BY pgegs.display_order");
+
+		return getDatabase().queryForList(query.toString(), GroupSession.class, parameters.toArray());
+	}
+
+	@Nonnull
+	public List<PageGroupEmailContent> findPageGroupEmailContentByPageGroupId(@Nullable UUID pageGroupId) {
+		if (pageGroupId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM page_group_email_content
+				WHERE page_group_id = ?
+				ORDER BY display_order ASC
+				""", PageGroupEmailContent.class, pageGroupId);
+	}
+
+	@Nonnull
+	public List<Content> findHighlightedContentByPageGroupId(@Nullable UUID pageGroupId,
+																											 @Nullable Boolean includeOnlyLive) {
+		requireNonNull(includeOnlyLive);
+
+		if (pageGroupId == null)
+			return List.of();
+
+		List<Object> parameters = new ArrayList<>();
+		StringBuilder query = new StringBuilder("""
+				SELECT vac.*
+				FROM page_group_email_content pgec, v_admin_content vac
+				WHERE pgec.content_id = vac.content_id
+				AND pgec.page_group_id = ?
+				""");
+
+		parameters.add(pageGroupId);
+
+		if (includeOnlyLive) {
+			query.append(" AND content_status_id = ? ");
+			parameters.add(ContentStatusId.LIVE);
+		}
+
+		query.append(" ORDER BY pgec.display_order");
+
+		return getDatabase().queryForList(query.toString(), Content.class, parameters.toArray());
 	}
 
 	@Nonnull
@@ -368,6 +465,9 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		UUID pageGroupId = UUID.randomUUID();
+		createPageGroupIfMissing(pageGroupId);
+
 		getDatabase().execute("""
 						INSERT INTO page
 						  (page_id, name, url_name, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
@@ -375,7 +475,7 @@ public class PageService {
 						VALUES
 						  (?,?,?,?,?,?,?,?,?,?,?,?)   
 						""", pageId, name, urlName, PageStatusId.DRAFT, headline, description, imageFileUploadId, imageAltText,
-				publishedDate, institutionId, createdByAccountId, UUID.randomUUID());
+				publishedDate, institutionId, createdByAccountId, pageGroupId);
 
 		return pageId;
 	}
@@ -2189,6 +2289,8 @@ public class PageService {
 			pageGroupId = newPageId;
 		}
 
+		createPageGroupIfMissing(pageGroupId);
+
 		getDatabase().execute("""
 				INSERT INTO page
 				(page_id,name,url_name,page_status_id,headline,description,image_file_upload_id,
@@ -2320,6 +2422,16 @@ public class PageService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	protected void createPageGroupIfMissing(@Nonnull UUID pageGroupId) {
+		requireNonNull(pageGroupId);
+
+		getDatabase().execute("""
+				INSERT INTO page_group (page_group_id)
+				VALUES (?)
+				ON CONFLICT (page_group_id) DO NOTHING
+				""", pageGroupId);
 	}
 
 	@Nonnull
