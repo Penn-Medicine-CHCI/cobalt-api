@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('252-custom-row-column-content-order-view', NULL, NULL);
+SELECT _v.register_patch('256-custom-row-column-content-order-view', NULL, NULL);
 
 DROP VIEW IF EXISTS v_page_row_column;
 

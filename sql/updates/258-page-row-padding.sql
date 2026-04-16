@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('254-page-row-padding', NULL, NULL);
+SELECT _v.register_patch('258-page-row-padding', NULL, NULL);
 
 ALTER TABLE page_row
   ADD COLUMN padding_id TEXT NOT NULL DEFAULT 'MEDIUM',

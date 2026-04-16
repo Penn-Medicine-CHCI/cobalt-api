@@ -96,6 +96,25 @@ public class EpicAppointmentBookingErrorResolverTests {
 	}
 
 	@Test
+	public void testParseEpicCadenceCheckSlotTakenFailure() {
+		String epicExceptionMessage = """
+				Bad HTTP response 400 for EPIC endpoint POST https://example.org/api/epic/2014/PatientAccess/External/ScheduleAppointmentWithInsurance/Scheduling/Open/ScheduleWithInsurance with query params [none] and request body [none]. Response body was
+				{"Message":"An error occurred while executing the command: MAKE-FAIL details: code:CADENCE CHECK(S) FAILED: slottaken Details:20.","ExceptionMessage":"An error occurred while executing the command: MAKE-FAIL details: code:CADENCE CHECK(S) FAILED: slottaken Details:20.","ExceptionType":"System.Web.HttpException","StackTrace":null}
+				""".trim();
+
+		EpicAppointmentBookingErrorResolution resolution = new EpicAppointmentBookingErrorResolver(new JsonMapper()).resolve(epicExceptionMessage);
+		Optional<EpicAppointmentBookingErrorDetails> errorDetails = resolution.getErrorDetails();
+
+		assertTrue(errorDetails.isPresent());
+		assertEquals(Integer.valueOf(400), errorDetails.get().getHttpStatus());
+		assertEquals("MAKE-FAIL", errorDetails.get().getCommand());
+		assertEquals("CADENCE CHECK(S) FAILED", errorDetails.get().getErrorCode());
+		assertEquals("slottaken", errorDetails.get().getErrorDetailCode());
+		assertEquals(EpicAppointmentBookingFailureType.TIMESLOT_UNAVAILABLE, resolution.getFailureType());
+		assertEquals(Boolean.TRUE, resolution.getMetadata().get("appointmentTimeslotUnavailable"));
+	}
+
+	@Test
 	public void testParseEpicMissingDateOfBirthError() {
 		String epicExceptionMessage = """
 				Bad HTTP response 400 for EPIC endpoint POST https://example.org/api/epic/2012/EMPI/PatientCreate with query params [none] and request body [none]. Response body was

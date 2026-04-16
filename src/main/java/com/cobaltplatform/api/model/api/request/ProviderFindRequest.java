@@ -63,6 +63,8 @@ public class ProviderFindRequest {
 	@Nullable
 	private Set<VisitTypeId> visitTypeIds; // Empty means "any"
 	@Nullable
+	private Set<UUID> appointmentTypeIds; // Empty means "any"
+	@Nullable
 	private Set<ProviderFindSupplement> supplements; // Instructions to include extra data in response
 	@Nullable
 	private Set<ProviderFindLicenseType> licenseTypes; // Empty means "any"
@@ -206,6 +208,15 @@ public class ProviderFindRequest {
 
 	public void setVisitTypeIds(@Nullable Set<VisitTypeId> visitTypeIds) {
 		this.visitTypeIds = visitTypeIds;
+	}
+
+	@Nullable
+	public Set<UUID> getAppointmentTypeIds() {
+		return appointmentTypeIds;
+	}
+
+	public void setAppointmentTypeIds(@Nullable Set<UUID> appointmentTypeIds) {
+		this.appointmentTypeIds = appointmentTypeIds;
 	}
 
 	@Nullable

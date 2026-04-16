@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('249-page-builder-v2', NULL, NULL);
+SELECT _v.register_patch('253-page-builder-v2', NULL, NULL);
 
 ALTER TABLE page_row
   ADD COLUMN name TEXT NULL,

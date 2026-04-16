@@ -256,12 +256,16 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/245-mcb-
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/246-course-unit-video-rollups.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/247-account-timeline-report.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/248-ip-geolocation.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/249-page-builder-v2.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-custom-page-rows.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/251-custom-row-column-content-order.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/252-custom-row-column-content-order-view.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/253-page-row-call-to-action.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/254-page-row-padding.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/249-institution-referrer-metadata.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-autism-clinic-referrer.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/251-ip-geolocation-radius-double.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/252-page-group-table.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/253-page-builder-v2.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/254-custom-page-rows.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/255-custom-row-column-content-order.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-custom-row-column-content-order-view.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/257-page-row-call-to-action.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/258-page-row-padding.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

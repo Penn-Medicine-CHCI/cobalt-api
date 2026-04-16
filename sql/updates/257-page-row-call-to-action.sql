@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('253-page-row-call-to-action', NULL, NULL);
+SELECT _v.register_patch('257-page-row-call-to-action', NULL, NULL);
 
 INSERT INTO row_type (row_type_id, description) VALUES ('CALL_TO_ACTION_BLOCK', 'Call-to-Action (Block)');
 INSERT INTO row_type (row_type_id, description) VALUES ('CALL_TO_ACTION_FULL_WIDTH', 'Call-to-Action (Full Width)');
