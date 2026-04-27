@@ -266,6 +266,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/255-custom-row
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-custom-row-column-content-order-view.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-page-row-call-to-action.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/258-page-row-padding.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/259-page-row-padding-none.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

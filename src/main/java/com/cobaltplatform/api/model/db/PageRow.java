@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 @NotThreadSafe
 public class PageRow {
 	public enum PaddingId {
+		NONE,
 		SMALL,
 		MEDIUM,
 		LARGE
