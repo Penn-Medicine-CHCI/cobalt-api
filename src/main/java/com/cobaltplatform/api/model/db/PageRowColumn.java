@@ -48,6 +48,8 @@ public class PageRowColumn {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	private Boolean usePlaceholderImage;
+	@Nullable
 	private Integer columnDisplayOrder;
 	@Nullable
 	private ContentOrderId contentOrderId;
@@ -131,5 +133,14 @@ public class PageRowColumn {
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public Boolean getUsePlaceholderImage() {
+		return usePlaceholderImage;
+	}
+
+	public void setUsePlaceholderImage(@Nullable Boolean usePlaceholderImage) {
+		this.usePlaceholderImage = usePlaceholderImage;
 	}
 }

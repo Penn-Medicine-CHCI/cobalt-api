@@ -43,6 +43,8 @@ public class UpdatePageRowColumnRequest {
 	@Nullable
 	private String imageAltText;
 	@Nullable
+	private Boolean usePlaceholderImage;
+	@Nullable
 	private ContentOrderId contentOrderId;
 
 	@Nullable
@@ -88,6 +90,15 @@ public class UpdatePageRowColumnRequest {
 
 	public void setImageAltText(@Nullable String imageAltText) {
 		this.imageAltText = imageAltText;
+	}
+
+	@Nullable
+	public Boolean getUsePlaceholderImage() {
+		return usePlaceholderImage;
+	}
+
+	public void setUsePlaceholderImage(@Nullable Boolean usePlaceholderImage) {
+		this.usePlaceholderImage = usePlaceholderImage;
 	}
 
 	@Nullable

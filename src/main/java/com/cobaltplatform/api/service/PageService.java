@@ -130,6 +130,8 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @Singleton
 @ThreadSafe
 public class PageService {
+	private static final String DEFAULT_CUSTOM_ROW_COLUMN_DESCRIPTION = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
+
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
@@ -1524,6 +1526,7 @@ public class PageService {
 		String description = trimToNull(request.getDescription());
 		String imageFileUploadIdString = request.getImageFileUploadId();
 		String imageAltText = trimToNull(request.getImageAltText());
+		Boolean usePlaceholderImage = request.getUsePlaceholderImage() == null ? false : request.getUsePlaceholderImage();
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
 		ContentOrderId contentOrderId = request.getContentOrderId() == null ? ContentOrderId.IMAGE_THEN_TEXT : request.getContentOrderId();
 		UUID imageFileUploadId = null;
@@ -1543,10 +1546,10 @@ public class PageService {
 
 		getDatabase().execute("""
 				INSERT INTO page_row_column
-				  (page_row_column_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, column_display_order, content_order_id)
+				  (page_row_column_id, page_row_id, headline, description, image_file_upload_id, image_alt_text, use_placeholder_image, column_display_order, content_order_id)
 				VALUES
-				  (?,?,?,?,?,?,?,?)   
-				""", pageRowColumnId, pageRowId, headline, description, imageFileUploadId, imageAltText, columnDisplayOrder, contentOrderId.name());
+				  (?,?,?,?,?,?,?,?,?)   
+				""", pageRowColumnId, pageRowId, headline, description, imageFileUploadId, imageAltText, usePlaceholderImage, columnDisplayOrder, contentOrderId.name());
 
 		return pageRowColumnId;
 	}
@@ -1576,6 +1579,11 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		if (request.getUsePlaceholderImage() == null)
+			request.setUsePlaceholderImage(trimToNull(request.getImageFileUploadId()) == null);
+		if (trimToNull(request.getDescription()) == null)
+			request.setDescription(DEFAULT_CUSTOM_ROW_COLUMN_DESCRIPTION);
+
 		request.setColumnDisplayOrder(pageRowColumns.size());
 
 		return createPageRowColumn(request, pageRowId);
@@ -1588,6 +1596,7 @@ public class PageService {
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		String imageAltText = trimToNull(request.getImageAltText());
+		Boolean usePlaceholderImage = request.getUsePlaceholderImage();
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
 		ContentOrderId contentOrderId = request.getContentOrderId();
 		String imageFileUploadIdString = request.getImageFileUploadId();
@@ -1608,10 +1617,10 @@ public class PageService {
 
 		getDatabase().execute("""
 				UPDATE page_row_column SET
-				headline=?, description=?, image_file_upload_id=?, image_alt_text=?, content_order_id=COALESCE(?, content_order_id)
+				headline=?, description=?, image_file_upload_id=?, image_alt_text=?, use_placeholder_image=COALESCE(?, use_placeholder_image), content_order_id=COALESCE(?, content_order_id)
 				WHERE page_row_id=? 
 				AND column_display_order=?
-				""", headline, description, imageFileUploadId, imageAltText, contentOrderId == null ? null : contentOrderId.name(), pageRowId, columnDisplayOrder);
+				""", headline, description, imageFileUploadId, imageAltText, usePlaceholderImage, contentOrderId == null ? null : contentOrderId.name(), pageRowId, columnDisplayOrder);
 
 	}
 
@@ -2778,8 +2787,8 @@ public class PageService {
 
 				getDatabase().execute("""
 						INSERT INTO page_row_column
-						(page_row_id,headline,description,image_file_upload_id,image_alt_text,column_display_order,content_order_id)
-						SELECT ?,headline,description,image_file_upload_id,image_alt_text,column_display_order,content_order_id
+						(page_row_id,headline,description,image_file_upload_id,image_alt_text,use_placeholder_image,column_display_order,content_order_id)
+						SELECT ?,headline,description,image_file_upload_id,image_alt_text,use_placeholder_image,column_display_order,content_order_id
 						FROM page_row_column
 						WHERE page_row_id = ?""", newPageRowId, pageRow.getPageRowId());
 

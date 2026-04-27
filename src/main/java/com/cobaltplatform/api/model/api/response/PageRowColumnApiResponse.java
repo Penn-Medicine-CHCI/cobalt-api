@@ -53,6 +53,8 @@ public class PageRowColumnApiResponse {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	private Boolean usePlaceholderImage;
+	@Nullable
 	private Integer columnDisplayOrder;
 	@Nullable
 	private ContentOrderId contentOrderId;
@@ -80,6 +82,7 @@ public class PageRowColumnApiResponse {
 		this.imageFileUploadId = pageRowImage.getImageFileUploadId();
 		this.imageAltText = pageRowImage.getImageAltText();
 		this.imageUrl = pageRowImage.getImageUrl();
+		this.usePlaceholderImage = pageRowImage.getUsePlaceholderImage();
 		this.columnDisplayOrder = pageRowImage.getColumnDisplayOrder();
 		this.contentOrderId = pageRowImage.getContentOrderId();
 	}
@@ -117,6 +120,11 @@ public class PageRowColumnApiResponse {
 	@Nullable
 	public String getImageUrl() {
 		return imageUrl;
+	}
+
+	@Nullable
+	public Boolean getUsePlaceholderImage() {
+		return usePlaceholderImage;
 	}
 
 	@Nullable

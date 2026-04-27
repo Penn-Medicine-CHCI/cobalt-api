@@ -37,6 +37,8 @@ public class CreatePageRowColumnRequest {
 	private String imageFileUploadId;
 	@Nullable
 	private String imageAltText;
+	@Nullable
+	private Boolean usePlaceholderImage;
 
 	@Nullable
 	private Integer columnDisplayOrder;
@@ -77,6 +79,15 @@ public class CreatePageRowColumnRequest {
 
 	public void setImageAltText(@Nullable String imageAltText) {
 		this.imageAltText = imageAltText;
+	}
+
+	@Nullable
+	public Boolean getUsePlaceholderImage() {
+		return usePlaceholderImage;
+	}
+
+	public void setUsePlaceholderImage(@Nullable Boolean usePlaceholderImage) {
+		this.usePlaceholderImage = usePlaceholderImage;
 	}
 
 	@Nullable
