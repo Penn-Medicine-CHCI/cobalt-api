@@ -1593,6 +1593,8 @@ public class ScreeningService {
 			throw validationException;
 
 		ScreeningSession screeningSession = findScreeningSessionById(screeningSessionScreening.getScreeningSessionId()).get();
+		Account targetAccount = screeningSession.getTargetAccountId() == null ? null
+				: getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
 
 		if (accountPhoneNumberToUpdate != null) {
 			getLogger().info("Setting phone number for account ID {} to {}...", screeningSession.getTargetAccountId(), accountPhoneNumberToUpdate);
@@ -1758,6 +1760,9 @@ public class ScreeningService {
 
 			throw e;
 		}
+
+		getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).postProcessScreeningAnswers(
+				createdByAccount, targetAccount, screeningSession, screeningFlowVersion, screeningQuestion, screeningAnswerOptions);
 
 		// Score the individual screening by calling its scoring function
 		List<ScreeningQuestionWithAnswerOptions> screeningQuestionsWithAnswerOptions =
@@ -2067,6 +2072,10 @@ public class ScreeningService {
 
 				// Frontend should look for this special metadata field "screeningConfirmationPrompt" and present the user with it
 				ScreeningConfirmationPrompt screeningConfirmationPrompt = findScreeningConfirmationPromptById(screeningFlowVersion.getPreCompletionScreeningConfirmationPromptId()).get();
+				Account refreshedTargetAccount = screeningSession.getTargetAccountId() == null ? null
+						: getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
+				screeningConfirmationPrompt = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId()).customizeScreeningConfirmationPrompt(
+						createdByAccount, refreshedTargetAccount, screeningSession, screeningFlowVersion, screeningConfirmationPrompt);
 				screeningConfirmationPromptValidationException.setMetadata(Map.of("screeningConfirmationPrompt", getScreeningConfirmationPromptApiResponseFactory().create(screeningConfirmationPrompt)));
 
 				throw screeningConfirmationPromptValidationException;

@@ -21,9 +21,11 @@ package com.cobaltplatform.api.model.db;
 
 import com.cobaltplatform.api.model.db.ScreeningImage.ScreeningImageId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -41,6 +43,8 @@ public class ScreeningConfirmationPrompt {
 	private String titleText;
 	@Nullable
 	private String actionText;
+	@Nullable
+	private List<ScreeningConfirmationPromptCallout> callouts;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -91,6 +95,15 @@ public class ScreeningConfirmationPrompt {
 		this.actionText = actionText;
 	}
 
+	@Nonnull
+	public List<ScreeningConfirmationPromptCallout> getCallouts() {
+		return this.callouts == null ? List.of() : this.callouts;
+	}
+
+	public void setCallouts(@Nullable List<ScreeningConfirmationPromptCallout> callouts) {
+		this.callouts = callouts;
+	}
+
 	@Nullable
 	public Instant getCreated() {
 		return this.created;
@@ -107,5 +120,67 @@ public class ScreeningConfirmationPrompt {
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
 		this.lastUpdated = lastUpdated;
+	}
+
+	@NotThreadSafe
+	public static class ScreeningConfirmationPromptCallout {
+		@Nullable
+		private String title;
+		@Nullable
+		private String descriptionHtml;
+		@Nullable
+		private String url;
+		@Nullable
+		private String urlText;
+
+		public ScreeningConfirmationPromptCallout() {
+
+		}
+
+		public ScreeningConfirmationPromptCallout(@Nullable String title,
+																						 @Nullable String descriptionHtml,
+																						 @Nullable String url,
+																						 @Nullable String urlText) {
+			this.title = title;
+			this.descriptionHtml = descriptionHtml;
+			this.url = url;
+			this.urlText = urlText;
+		}
+
+		@Nullable
+		public String getTitle() {
+			return this.title;
+		}
+
+		public void setTitle(@Nullable String title) {
+			this.title = title;
+		}
+
+		@Nullable
+		public String getDescriptionHtml() {
+			return this.descriptionHtml;
+		}
+
+		public void setDescriptionHtml(@Nullable String descriptionHtml) {
+			this.descriptionHtml = descriptionHtml;
+		}
+
+		@Nullable
+		public String getUrl() {
+			return this.url;
+		}
+
+		public void setUrl(@Nullable String url) {
+			this.url = url;
+		}
+
+		@Nullable
+		public String getUrlText() {
+			return this.urlText;
+		}
+
+		public void setUrlText(@Nullable String urlText) {
+			this.urlText = urlText;
+		}
 	}
 }
