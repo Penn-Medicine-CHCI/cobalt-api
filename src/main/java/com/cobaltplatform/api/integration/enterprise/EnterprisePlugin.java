@@ -57,7 +57,11 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.PatientOrder;
 import com.cobaltplatform.api.model.db.PatientOrderReferralSource.PatientOrderReferralSourceId;
+import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
+import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
+import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
 import com.cobaltplatform.api.model.db.ScreeningQuestion;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.Tag;
 import com.cobaltplatform.api.model.service.CallToAction;
 import com.cobaltplatform.api.model.service.CallToActionDisplayAreaId;
@@ -337,5 +341,35 @@ public interface EnterprisePlugin {
 																																 @Nonnull Map<String, Object> metadata) {
 		// No-op by default
 		return metadata;
+	}
+
+	default void postProcessScreeningAnswers(@Nonnull Account createdByAccount,
+																					 @Nullable Account targetAccount,
+																					 @Nonnull ScreeningSession screeningSession,
+																					 @Nonnull ScreeningFlowVersion screeningFlowVersion,
+																					 @Nonnull ScreeningQuestion screeningQuestion,
+																					 @Nonnull List<ScreeningAnswerOption> selectedScreeningAnswerOptions) {
+		requireNonNull(createdByAccount);
+		requireNonNull(screeningSession);
+		requireNonNull(screeningFlowVersion);
+		requireNonNull(screeningQuestion);
+		requireNonNull(selectedScreeningAnswerOptions);
+
+		// No-op by default
+	}
+
+	@Nonnull
+	default ScreeningConfirmationPrompt customizeScreeningConfirmationPrompt(@Nonnull Account createdByAccount,
+																																					@Nullable Account targetAccount,
+																																					@Nonnull ScreeningSession screeningSession,
+																																					@Nonnull ScreeningFlowVersion screeningFlowVersion,
+																																					@Nonnull ScreeningConfirmationPrompt screeningConfirmationPrompt) {
+		requireNonNull(createdByAccount);
+		requireNonNull(screeningSession);
+		requireNonNull(screeningFlowVersion);
+		requireNonNull(screeningConfirmationPrompt);
+
+		// No-op by default
+		return screeningConfirmationPrompt;
 	}
 }
