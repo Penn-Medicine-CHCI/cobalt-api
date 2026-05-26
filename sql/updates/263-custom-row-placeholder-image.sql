@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('260-custom-row-placeholder-image', NULL, NULL);
+SELECT _v.register_patch('263-custom-row-placeholder-image', NULL, NULL);
 
 ALTER TABLE page_row_column
   ADD COLUMN use_placeholder_image BOOLEAN NOT NULL DEFAULT FALSE;

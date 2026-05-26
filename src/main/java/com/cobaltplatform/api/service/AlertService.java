@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.api.request.CreateAccountAlertRequest;
 import com.cobaltplatform.api.model.api.request.CreateAlertDismissalRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Alert;
@@ -103,20 +104,105 @@ public class AlertService {
 
 	@Nonnull
 	public List<Alert> findUndismissedInstitutionAlertsByAccountId(@Nullable UUID accountId) {
+		return findUndismissedAlertsByAccountId(accountId);
+	}
+
+	@Nonnull
+	public List<Alert> findUndismissedAlertsByAccountId(@Nullable UUID accountId) {
 		if (accountId == null)
 			return List.of();
 
 		return getDatabase().queryForList("""
+				WITH eligible_alert AS (
+					SELECT ai.alert_id
+					FROM institution_alert ai, account ac
+					WHERE ai.institution_id=ac.institution_id
+					AND ac.account_id=?
+					AND ai.active=TRUE
+
+					UNION
+
+					SELECT aa.alert_id
+					FROM account_alert aa
+					WHERE aa.account_id=?
+					AND aa.active=TRUE
+				)
 				SELECT a.*
-				FROM alert a, institution_alert ai, account ac, alert_type at
-				WHERE a.alert_id=ai.alert_id
-				AND ai.active=TRUE
-				AND ai.institution_id=ac.institution_id				
-				AND ac.account_id=?
+				FROM alert a, eligible_alert ea, alert_type at
+				WHERE a.alert_id=ea.alert_id
 				AND a.alert_type_id=at.alert_type_id
-				AND a.alert_id NOT IN (SELECT ad.alert_id FROM alert_dismissal ad WHERE ad.account_id=ac.account_id)
+				AND a.alert_id NOT IN (SELECT ad.alert_id FROM alert_dismissal ad WHERE ad.account_id=?)
 				ORDER BY at.severity DESC, a.title, a.message
-				""", Alert.class, accountId);
+				""", Alert.class, accountId, accountId, accountId);
+	}
+
+	@Nonnull
+	public UUID createAccountAlert(@Nonnull CreateAccountAlertRequest request) {
+		requireNonNull(request);
+
+		UUID accountId = request.getAccountId();
+		UUID alertId = request.getAlertId();
+		UUID accountAlertId = UUID.randomUUID();
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else {
+			Account account = getAccountService().findAccountById(accountId).orElse(null);
+
+			if (account == null)
+				validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (alertId == null) {
+			validationException.add(new FieldError("alertId", getStrings().get("Alert ID is required.")));
+		} else {
+			Alert alert = findAlertById(alertId).orElse(null);
+
+			if (alert == null)
+				validationException.add(new FieldError("alertId", getStrings().get("Alert ID is invalid.")));
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		return getDatabase().queryForObject("""
+				INSERT INTO account_alert (
+					account_alert_id,
+					account_id,
+					alert_id,
+					active
+				) VALUES (?,?,?,TRUE)
+				ON CONFLICT (account_id, alert_id)
+				DO UPDATE SET active=TRUE
+				RETURNING account_alert_id
+				""", UUID.class, accountAlertId, accountId, alertId).get();
+	}
+
+	@Nonnull
+	public UUID createAccountAlert(@Nonnull UUID accountId,
+																 @Nonnull UUID alertId) {
+		requireNonNull(accountId);
+		requireNonNull(alertId);
+
+		CreateAccountAlertRequest request = new CreateAccountAlertRequest();
+		request.setAccountId(accountId);
+		request.setAlertId(alertId);
+
+		return createAccountAlert(request);
+	}
+
+	public void deactivateAccountAlert(@Nonnull UUID accountId,
+																		 @Nonnull UUID alertId) {
+		requireNonNull(accountId);
+		requireNonNull(alertId);
+
+		getDatabase().execute("""
+				UPDATE account_alert
+				SET active=FALSE
+				WHERE account_id=?
+				AND alert_id=?
+				""", accountId, alertId);
 	}
 
 	@Nonnull

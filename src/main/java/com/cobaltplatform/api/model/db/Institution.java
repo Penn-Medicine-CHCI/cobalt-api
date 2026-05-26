@@ -242,6 +242,8 @@ public class Institution {
 	@Nullable
 	private String externalContactUsUrl;
 	@Nullable
+	private String continuingEducationUrl;
+	@Nullable
 	@DatabaseColumn("mychart_instructions_url")
 	private String myChartInstructionsUrl;
 	@Nullable
@@ -1343,6 +1345,15 @@ public class Institution {
 
 	public void setExternalContactUsUrl(@Nullable String externalContactUsUrl) {
 		this.externalContactUsUrl = externalContactUsUrl;
+	}
+
+	@Nullable
+	public String getContinuingEducationUrl() {
+		return this.continuingEducationUrl;
+	}
+
+	public void setContinuingEducationUrl(@Nullable String continuingEducationUrl) {
+		this.continuingEducationUrl = continuingEducationUrl;
 	}
 
 	@Nullable

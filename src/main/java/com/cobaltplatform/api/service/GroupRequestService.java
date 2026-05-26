@@ -123,6 +123,7 @@ public class GroupRequestService {
 				SELECT *
 				FROM group_topic
 				WHERE institution_id=?
+				AND archived=FALSE
 				ORDER BY display_order
 				""", GroupTopic.class, institutionId);
 	}
@@ -132,7 +133,7 @@ public class GroupRequestService {
 		if (groupTopicId == null)
 			return Optional.empty();
 
-		return getDatabase().queryForObject("SELECT * FROM group_topic WHERE group_topic_id=?",
+		return getDatabase().queryForObject("SELECT * FROM group_topic WHERE group_topic_id=? AND archived=FALSE",
 				GroupTopic.class, groupTopicId);
 	}
 

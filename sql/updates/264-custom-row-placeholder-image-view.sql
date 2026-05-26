@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('261-custom-row-placeholder-image-view', NULL, NULL);
+SELECT _v.register_patch('264-custom-row-placeholder-image-view', NULL, NULL);
 
 DROP VIEW IF EXISTS v_page_row_column;
 

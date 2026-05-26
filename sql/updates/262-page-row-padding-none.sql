@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('259-page-row-padding-none', NULL, NULL);
+SELECT _v.register_patch('262-page-row-padding-none', NULL, NULL);
 
 ALTER TABLE page_row
   DROP CONSTRAINT IF EXISTS page_row_padding_id_check;

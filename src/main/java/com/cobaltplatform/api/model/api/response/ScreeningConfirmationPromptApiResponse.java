@@ -30,6 +30,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static java.lang.String.format;
@@ -50,6 +51,8 @@ public class ScreeningConfirmationPromptApiResponse {
 	private final String titleText;
 	@Nonnull
 	private final String actionText;
+	@Nonnull
+	private final List<ScreeningConfirmationPrompt.ScreeningConfirmationPromptCallout> callouts;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -71,6 +74,7 @@ public class ScreeningConfirmationPromptApiResponse {
 		this.text = screeningConfirmationPrompt.getText();
 		this.titleText = screeningConfirmationPrompt.getTitleText();
 		this.actionText = screeningConfirmationPrompt.getActionText();
+		this.callouts = screeningConfirmationPrompt.getCallouts();
 	}
 
 	@Override
@@ -102,5 +106,10 @@ public class ScreeningConfirmationPromptApiResponse {
 	@Nonnull
 	public String getActionText() {
 		return this.actionText;
+	}
+
+	@Nonnull
+	public List<ScreeningConfirmationPrompt.ScreeningConfirmationPromptCallout> getCallouts() {
+		return this.callouts;
 	}
 }

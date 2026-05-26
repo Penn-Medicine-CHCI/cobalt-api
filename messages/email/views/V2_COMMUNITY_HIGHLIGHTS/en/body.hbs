@@ -59,11 +59,9 @@
 						<div class="em_session_title" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:24px; line-height:32px; color:#000000; font-weight:700;">
 							{{#if title}}{{title}}{{else}}Group Session Title{{/if}}
 						</div>
-						<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:#30578E; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; padding-top:8px;">
-							{{#if time}}
-								{{#if month}}{{month}}{{#if day}} {{day}} at{{/if}} {{/if}}{{time}}
-							{{else}}
-								November 15 at 2:00PM (EST)
+						<div style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:#30578E; font-weight:700; letter-spacing:0.02em; padding-top:8px;">
+							{{#if dateTimeDescription}}
+								{{dateTimeDescription}}
 							{{/if}}
 						</div>
 						<div class="em_body_copy em_session_description" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:#000000; padding-top:12px; padding-bottom:24px;">

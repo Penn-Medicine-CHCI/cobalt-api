@@ -42,6 +42,8 @@ public class GroupTopic {
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
+	private Boolean archived;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -89,6 +91,15 @@ public class GroupTopic {
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
+	}
+
+	@Nullable
+	public Boolean getArchived() {
+		return this.archived;
+	}
+
+	public void setArchived(@Nullable Boolean archived) {
+		this.archived = archived;
 	}
 
 	@Nullable

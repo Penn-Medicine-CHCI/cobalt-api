@@ -373,9 +373,14 @@ public class CommunityService {
 		String currentMonthName = LocalDate.now(defaultTimeZone).format(DateTimeFormatter.ofPattern("MMMM", locale));
 		Boolean multipleUpcomingGroupSessions = upcomingGroupSessionContext.size() > 1;
 		Boolean multipleFooterContents = footerContentContext.size() > 1;
+		String singleUpcomingGroupSessionTitle = null;
+
+		if (upcomingGroupSessionContext.size() == 1)
+			singleUpcomingGroupSessionTitle = trimToNull((String) upcomingGroupSessionContext.get(0).get("title"));
 
 		Map<String, Object> baseMessageContext = new HashMap<>(12);
 		baseMessageContext.put("pageTitle", pageTitle);
+		baseMessageContext.put("singleUpcomingGroupSessionTitle", singleUpcomingGroupSessionTitle);
 		baseMessageContext.put("currentMonthName", currentMonthName);
 		baseMessageContext.put("multipleUpcomingGroupSessions", multipleUpcomingGroupSessions);
 		baseMessageContext.put("multipleFooterContents", multipleFooterContents);
@@ -659,18 +664,11 @@ public class CommunityService {
 
 		Map<String, Object> messageContext = new HashMap<>(8);
 		LocalDateTime startDateTime = groupSession.getStartDateTime();
+		LocalDateTime endDateTime = groupSession.getEndDateTime();
 		ZoneId timeZone = groupSession.getTimeZone() == null ? defaultTimeZone : groupSession.getTimeZone();
 
 		if (startDateTime != null) {
-			LocalDate startDate = startDateTime.toLocalDate();
-			String month = startDate.format(DateTimeFormatter.ofPattern("MMMM", locale)).toUpperCase(locale);
-			String day = String.valueOf(startDate.getDayOfMonth());
-			String time = startDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("h:mma", locale)).toUpperCase(locale);
-			String timeZoneAbbreviation = startDateTime.atZone(timeZone).format(DateTimeFormatter.ofPattern("z", locale)).toUpperCase(locale);
-
-			messageContext.put("month", month);
-			messageContext.put("day", day);
-			messageContext.put("time", format("%s %s", time, timeZoneAbbreviation));
+			messageContext.put("dateTimeDescription", formatGroupSessionDateTimeDescription(startDateTime, endDateTime, timeZone, locale));
 		}
 
 		String description = trimToNull(highlightedGroupSessionSelection == null ? null : highlightedGroupSessionSelection.getDescriptionOverride());
@@ -684,6 +682,42 @@ public class CommunityService {
 		messageContext.put("reserveSeatUrl", addCommunityCampaignTrackingToUrl(groupSessionDetailUrl(groupSession, webappBaseUrl), analyticsCampaignKey));
 
 		return messageContext;
+	}
+
+	@Nonnull
+	protected String formatGroupSessionDateTimeDescription(@Nonnull LocalDateTime startDateTime,
+																												 @Nullable LocalDateTime endDateTime,
+																												 @Nonnull ZoneId timeZone,
+																												 @Nonnull Locale locale) {
+		requireNonNull(startDateTime);
+		requireNonNull(timeZone);
+		requireNonNull(locale);
+
+		String date = startDateTime.toLocalDate().format(DateTimeFormatter.ofPattern("EEE, MMM d", locale));
+		String time = formatGroupSessionTimeRange(startDateTime, endDateTime, locale);
+		String timeZoneAbbreviation = startDateTime.atZone(timeZone).format(DateTimeFormatter.ofPattern("z", locale)).toUpperCase(locale);
+
+		return format("%s @ %s %s", date, time, timeZoneAbbreviation);
+	}
+
+	@Nonnull
+	protected String formatGroupSessionTimeRange(@Nonnull LocalDateTime startDateTime,
+																							 @Nullable LocalDateTime endDateTime,
+																							 @Nonnull Locale locale) {
+		requireNonNull(startDateTime);
+		requireNonNull(locale);
+
+		if (endDateTime == null)
+			return startDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("h:mma", locale)).toUpperCase(locale);
+
+		String startAmPm = startDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("a", locale));
+		String endAmPm = endDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("a", locale));
+		String startTime = startDateTime.toLocalTime()
+				.format(DateTimeFormatter.ofPattern(startAmPm.equals(endAmPm) ? "h:mm" : "h:mma", locale))
+				.toUpperCase(locale);
+		String endTime = endDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("h:mma", locale)).toUpperCase(locale);
+
+		return format("%s-%s", startTime, endTime);
 	}
 
 	@Nonnull

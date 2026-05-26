@@ -219,6 +219,10 @@ public class ReportingResource {
 				getReportingService().runAdminAnalyticsAccountOnboardingIncompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.ACCOUNT_ONBOARDING_COMPLETE)
 				getReportingService().runAdminAnalyticsAccountOnboardingCompleteReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.ACCOUNT_ONBOARDING_COMPLETE_V2)
+				getReportingService().runAccountOnboardingCompleteV2ReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.ACCOUNT_GEOLOCATION)
+				getReportingService().runAccountGeolocationReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.COURSE_MCB_DOWNLOAD)
 				getReportingService().runMcbDownloadReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.ACCOUNT_TIMELINE)

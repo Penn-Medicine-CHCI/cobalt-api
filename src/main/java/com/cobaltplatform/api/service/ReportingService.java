@@ -215,6 +215,12 @@ public class ReportingService {
 					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_ONBOARDING_COMPLETE)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
+					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_ONBOARDING_COMPLETE_V2)
+						return accountCapabilityFlags.isCanViewAnalytics();
+
+					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_GEOLOCATION)
+						return accountCapabilityFlags.isCanViewAnalytics();
+
 					if (reportType.getReportTypeId() == ReportTypeId.COURSE_MCB_DOWNLOAD)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
@@ -2002,6 +2008,190 @@ public class ReportingService {
 	}
 
 	@Nonnull
+	private static final List<String> ACCOUNT_GEOLOCATION_HEADER_COLUMNS = List.of(
+			"account_id",
+			"email_address",
+			"account_created_at",
+			"role_id",
+			"ip_address",
+			"first_analytics_event_at",
+			"last_analytics_event_at",
+			"ip_geolocation_status_id",
+			"ip_type",
+			"continent_code",
+			"continent_name",
+			"country_code",
+			"country_name",
+			"region_code",
+			"region_name",
+			"city",
+			"postal_code",
+			"latitude",
+			"longitude",
+			"msa",
+			"dma",
+			"radius",
+			"ip_routing_type",
+			"connection_type",
+			"connection_asn",
+			"connection_isp",
+			"connection_organization_type",
+			"connection_home",
+			"hostname",
+			"time_zone_id",
+			"time_zone_gmt_offset",
+			"time_zone_code",
+			"location_geoname_id",
+			"location_is_eu",
+			"provider_error_code",
+			"provider_error_type",
+			"provider_error_message",
+			"last_lookup_attempted_at",
+			"last_lookup_succeeded_at"
+	);
+
+	public void runAccountGeolocationReportCsv(@Nonnull InstitutionId institutionId,
+																						 @Nonnull LocalDateTime startDateTime,
+																						 @Nonnull LocalDateTime endDateTime,
+																						 @Nonnull ZoneId reportTimeZone,
+																						 @Nonnull Locale reportLocale,
+																						 @Nonnull Writer writer) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
+
+		Instant startInstant = startDateTime.atZone(institutionTimeZone).toInstant();
+		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
+
+		List<AccountGeolocationReportRecord> records = getDatabase().queryForList("""
+						WITH event_ip_aggregates AS (
+							SELECT
+								ane.account_id,
+								ane.ip_address AS ip_address_inet,
+								host(ane.ip_address) AS ip_address,
+								MIN(ane.timestamp) AS first_analytics_event_at,
+								MAX(ane.timestamp) AS last_analytics_event_at
+							FROM analytics_native_event ane
+							WHERE ane.institution_id = ?
+								AND ane.timestamp >= ?
+								AND ane.timestamp <= ?
+								AND ane.account_id IS NOT NULL
+								AND ane.ip_address IS NOT NULL
+							GROUP BY ane.account_id, ane.ip_address
+						)
+						SELECT
+							a.account_id,
+							a.email_address,
+							a.created AS account_created_at,
+							a.role_id,
+							eia.ip_address,
+							eia.first_analytics_event_at,
+							eia.last_analytics_event_at,
+							COALESCE(ipg.ip_geolocation_status_id, 'PENDING') AS ip_geolocation_status_id,
+							ipg.ip_type,
+							ipg.continent_code,
+							ipg.continent_name,
+							ipg.country_code,
+							ipg.country_name,
+							ipg.region_code,
+							ipg.region_name,
+							ipg.city,
+							ipg.postal_code,
+							ipg.latitude,
+							ipg.longitude,
+							ipg.msa,
+							ipg.dma,
+							ipg.radius,
+							ipg.ip_routing_type,
+							ipg.connection_type,
+							ipg.connection_asn,
+							ipg.connection_isp,
+							ipg.connection_organization_type,
+							ipg.connection_home,
+							ipg.hostname,
+							ipg.time_zone_id,
+							ipg.time_zone_gmt_offset,
+							ipg.time_zone_code,
+							ipg.location_geoname_id,
+							ipg.location_is_eu,
+							ipg.provider_error_code,
+							ipg.provider_error_type,
+							ipg.provider_error_message,
+							ipg.last_lookup_attempted_at,
+							ipg.last_lookup_succeeded_at
+						FROM event_ip_aggregates eia
+						JOIN account a
+							ON a.account_id = eia.account_id
+							AND a.institution_id = ?
+						LEFT JOIN ip_geolocation ipg
+							ON ipg.ip_address = eia.ip_address_inet
+						ORDER BY eia.last_analytics_event_at DESC, a.created DESC, a.account_id, eia.ip_address
+						""", AccountGeolocationReportRecord.class, institutionId, startInstant, endInstant, institutionId);
+
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+				.withZone(institutionTimeZone)
+				.withLocale(reportLocale);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(ACCOUNT_GEOLOCATION_HEADER_COLUMNS.toArray(new String[0])))) {
+			for (AccountGeolocationReportRecord record : records) {
+				List<String> recordElements = new ArrayList<>(ACCOUNT_GEOLOCATION_HEADER_COLUMNS.size());
+
+				recordElements.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
+				recordElements.add(record.getEmailAddress());
+				recordElements.add(record.getAccountCreatedAt() == null ? "" : dateTimeFormatter.format(record.getAccountCreatedAt()));
+				recordElements.add(record.getRoleId() == null ? "" : record.getRoleId().name());
+				recordElements.add(record.getIpAddress());
+				recordElements.add(record.getFirstAnalyticsEventAt() == null ? "" : dateTimeFormatter.format(record.getFirstAnalyticsEventAt()));
+				recordElements.add(record.getLastAnalyticsEventAt() == null ? "" : dateTimeFormatter.format(record.getLastAnalyticsEventAt()));
+				recordElements.add(record.getIpGeolocationStatusId());
+				recordElements.add(record.getIpType());
+				recordElements.add(record.getContinentCode());
+				recordElements.add(record.getContinentName());
+				recordElements.add(record.getCountryCode());
+				recordElements.add(record.getCountryName());
+				recordElements.add(record.getRegionCode());
+				recordElements.add(record.getRegionName());
+				recordElements.add(record.getCity());
+				recordElements.add(record.getPostalCode());
+				recordElements.add(record.getLatitude() == null ? "" : record.getLatitude().toString());
+				recordElements.add(record.getLongitude() == null ? "" : record.getLongitude().toString());
+				recordElements.add(record.getMsa());
+				recordElements.add(record.getDma());
+				recordElements.add(record.getRadius() == null ? "" : record.getRadius().toString());
+				recordElements.add(record.getIpRoutingType());
+				recordElements.add(record.getConnectionType());
+				recordElements.add(record.getConnectionAsn() == null ? "" : record.getConnectionAsn().toString());
+				recordElements.add(record.getConnectionIsp());
+				recordElements.add(record.getConnectionOrganizationType());
+				recordElements.add(record.getConnectionHome() == null ? "" : record.getConnectionHome().toString());
+				recordElements.add(record.getHostname());
+				recordElements.add(record.getTimeZoneId());
+				recordElements.add(record.getTimeZoneGmtOffset() == null ? "" : record.getTimeZoneGmtOffset().toString());
+				recordElements.add(record.getTimeZoneCode());
+				recordElements.add(record.getLocationGeonameId() == null ? "" : record.getLocationGeonameId().toString());
+				recordElements.add(record.getLocationIsEu() == null ? "" : record.getLocationIsEu().toString());
+				recordElements.add(record.getProviderErrorCode() == null ? "" : record.getProviderErrorCode().toString());
+				recordElements.add(record.getProviderErrorType());
+				recordElements.add(record.getProviderErrorMessage());
+				recordElements.add(record.getLastLookupAttemptedAt() == null ? "" : dateTimeFormatter.format(record.getLastLookupAttemptedAt()));
+				recordElements.add(record.getLastLookupSucceededAt() == null ? "" : dateTimeFormatter.format(record.getLastLookupSucceededAt()));
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@Nonnull
 	private static final String METRIC_COMPLETE_COLUMN_SUFFIX = "_complete";
 	@Nonnull
 	private static final String METRIC_TIME_COLUMN_SUFFIX = "_time";
@@ -2213,6 +2403,21 @@ public class ReportingService {
 			"bb_mcb_additional_info_time",
 			"bb_mcb_additional_info_visit"
 	);
+
+	@Nonnull
+	private static final List<String> ACCOUNT_ONBOARDING_COMPLETE_V2_HEADER_COLUMNS = courseMcbDownloadHeaderColumnsThrough("bb_mcb_visit");
+
+	@Nonnull
+	private static List<String> courseMcbDownloadHeaderColumnsThrough(@Nonnull String headerColumn) {
+		requireNonNull(headerColumn);
+
+		int headerColumnIndex = COURSE_MCB_DOWNLOAD_HEADER_COLUMNS.indexOf(headerColumn);
+
+		if (headerColumnIndex < 0)
+			throw new IllegalStateException(format("Missing expected COURSE_MCB_DOWNLOAD header column '%s'", headerColumn));
+
+		return List.copyOf(COURSE_MCB_DOWNLOAD_HEADER_COLUMNS.subList(0, headerColumnIndex + 1));
+	}
 
 	@Nonnull
 	private static final List<String> ACCOUNT_TIMELINE_HEADER_COLUMNS = List.of(
@@ -2753,14 +2958,382 @@ public class ReportingService {
 																			@Nonnull LocalDateTime startDateTime,
 																			@Nonnull LocalDateTime endDateTime,
 																			@Nonnull ZoneId reportTimeZone,
-																			@Nonnull Locale reportLocale,
-																			@Nonnull Writer writer) {
+																									@Nonnull Locale reportLocale,
+																									@Nonnull Writer writer) {
+		runCourseMcbDownloadStyleReportCsv(institutionId, startDateTime, endDateTime, reportTimeZone, reportLocale, writer,
+				COURSE_MCB_DOWNLOAD_HEADER_COLUMNS);
+	}
+
+	public void runAccountOnboardingCompleteV2ReportCsv(@Nonnull InstitutionId institutionId,
+																											@Nonnull LocalDateTime startDateTime,
+																											@Nonnull LocalDateTime endDateTime,
+																											@Nonnull ZoneId reportTimeZone,
+																											@Nonnull Locale reportLocale,
+																											@Nonnull Writer writer) {
 		requireNonNull(institutionId);
 		requireNonNull(startDateTime);
 		requireNonNull(endDateTime);
 		requireNonNull(reportTimeZone);
 		requireNonNull(reportLocale);
 		requireNonNull(writer);
+
+		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
+		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
+
+		Instant startInstant = startDateTime.atZone(institutionTimeZone).toInstant();
+		Instant endInstant = endDateTime.atZone(institutionTimeZone).toInstant();
+
+		List<CourseMcbDownloadReportRecord> records = getDatabase().queryForList("""
+						WITH institution_onboarding AS (
+							SELECT onboarding_screening_flow_id
+							FROM institution
+							WHERE institution_id = ?
+						),
+						report_window AS (
+							SELECT
+								?::TIMESTAMPTZ AS report_start_at,
+								?::TIMESTAMPTZ AS report_end_at
+						),
+						target_course_keys AS (
+							SELECT UNNEST(ARRAY[
+								'bb_sleep',
+								'bb_trauma',
+								'bb_teens',
+								'bb_mcb'
+							]) AS reporting_key
+						),
+						report_accounts AS (
+							SELECT
+								a.account_id,
+								a.created AS account_created_at,
+								a.email_address,
+								a.metadata
+							FROM account a
+							JOIN report_window rw
+								ON TRUE
+							JOIN institution_onboarding io
+								ON io.onboarding_screening_flow_id IS NOT NULL
+							WHERE a.institution_id = ?
+								AND a.created >= rw.report_start_at
+								AND a.created <= rw.report_end_at
+								AND a.role_id = ?
+								AND a.test_account = FALSE
+								AND EXISTS (
+									SELECT 1
+									FROM screening_session ss_completed
+									JOIN screening_flow_version sfv_completed
+										ON sfv_completed.screening_flow_version_id = ss_completed.screening_flow_version_id
+									WHERE ss_completed.target_account_id = a.account_id
+										AND sfv_completed.screening_flow_id = io.onboarding_screening_flow_id
+										AND ss_completed.completed = TRUE
+								)
+						),
+						account_analytics_metrics AS MATERIALIZED (
+							SELECT
+								ra.account_id,
+								COUNT(DISTINCT mv.session_id)::BIGINT AS bb_n_sitevisit,
+								COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS bb_tot_time_seconds
+							FROM report_accounts ra
+							JOIN report_window rw
+								ON TRUE
+							LEFT JOIN mv_analytics_dwell_time mv
+								ON mv.institution_id = ?
+								AND mv.account_id = ra.account_id
+								AND mv.page_viewed_at >= ra.account_created_at
+								AND mv.page_viewed_at <= rw.report_end_at
+							GROUP BY ra.account_id
+						),
+						account_email_metrics AS MATERIALIZED (
+							SELECT
+								ra.account_id,
+								first_invite.email_entered_at,
+								first_claimed.email_verified_at
+							FROM report_accounts ra
+							JOIN report_window rw
+								ON TRUE
+							LEFT JOIN LATERAL (
+								SELECT ai.created AS email_entered_at
+								FROM account_invite ai
+								WHERE ai.institution_id = ?
+									AND LOWER(ai.email_address) = LOWER(ra.email_address)
+									AND ai.created <= rw.report_end_at
+								ORDER BY ai.created
+								LIMIT 1
+							) first_invite ON TRUE
+							LEFT JOIN LATERAL (
+								SELECT ai_claimed.last_updated AS email_verified_at
+								FROM account_invite ai_claimed
+								WHERE ai_claimed.institution_id = ?
+									AND LOWER(ai_claimed.email_address) = LOWER(ra.email_address)
+									AND ai_claimed.claimed = TRUE
+									AND ai_claimed.last_updated <= rw.report_end_at
+								ORDER BY ai_claimed.last_updated
+								LIMIT 1
+							) first_claimed ON TRUE
+						),
+						account_referrer AS MATERIALIZED (
+							SELECT
+								ra.account_id,
+								first_referrer.bb_referrer
+							FROM report_accounts ra
+							JOIN report_window rw
+								ON TRUE
+							LEFT JOIN LATERAL (
+								SELECT
+									COALESCE(
+										NULLIF(LOWER(SPLIT_PART(REGEXP_REPLACE(COALESCE(ane.data->>'referringUrl', ''), '^https?://', ''), '/', 1)), ''),
+										NULLIF(LOWER(ane.referring_campaign), '')
+									) AS bb_referrer
+								FROM analytics_native_event ane
+								WHERE ane.institution_id = ?
+									AND ane.account_id = ra.account_id
+									AND ane.timestamp >= ra.account_created_at
+									AND ane.timestamp <= rw.report_end_at
+									AND (
+										NULLIF(ane.data->>'referringUrl', '') IS NOT NULL
+										OR NULLIF(ane.referring_campaign, '') IS NOT NULL
+									)
+								ORDER BY ane.timestamp
+								LIMIT 1
+							) first_referrer ON TRUE
+						),
+						screening_question_answers AS (
+							SELECT
+								ss.target_account_id AS account_id,
+								NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
+								ssasq.screening_session_answered_screening_question_id,
+								COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
+								STRING_AGG(
+									COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
+									',' ORDER BY sa.answer_order
+								) AS reporting_value
+							FROM screening_session ss
+							JOIN report_accounts ra
+								ON ra.account_id = ss.target_account_id
+							JOIN report_window rw
+								ON TRUE
+							JOIN institution_onboarding io
+								ON io.onboarding_screening_flow_id IS NOT NULL
+							JOIN screening_flow_version sfv
+								ON sfv.screening_flow_version_id = ss.screening_flow_version_id
+								AND sfv.screening_flow_id = io.onboarding_screening_flow_id
+							JOIN v_screening_session_screening sss
+								ON sss.screening_session_id = ss.screening_session_id
+							JOIN v_screening_session_answered_screening_question ssasq
+								ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+							JOIN screening_question sq
+								ON sq.screening_question_id = ssasq.screening_question_id
+							JOIN v_screening_answer sa
+								ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+							LEFT JOIN screening_answer_option sao
+								ON sao.screening_answer_option_id = sa.screening_answer_option_id
+							WHERE sq.metadata IS NOT NULL
+								AND ss.created >= ra.account_created_at
+								AND ss.created <= rw.report_end_at
+								AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_onboarding_%'
+							GROUP BY 1, 2, 3
+						),
+						latest_screening_values AS (
+							SELECT DISTINCT ON (account_id, reporting_key)
+								account_id,
+								reporting_key,
+								reporting_value
+							FROM screening_question_answers
+							ORDER BY account_id, reporting_key, answered_at DESC, screening_session_answered_screening_question_id DESC
+						),
+						account_screening_values AS MATERIALIZED (
+							SELECT
+								account_id,
+								COALESCE(jsonb_object_agg(reporting_key, reporting_value), '{}'::jsonb) AS screening_values_json
+							FROM latest_screening_values
+							GROUP BY account_id
+						),
+						account_course_completions AS (
+							SELECT
+								ra.account_id,
+								NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+								CASE WHEN BOOL_OR(cs.course_session_status_id = 'COMPLETED' AND cs.completed_at <= rw.report_end_at) THEN 1 ELSE 0 END AS complete_value
+							FROM report_accounts ra
+							JOIN report_window rw
+								ON TRUE
+							JOIN course_session cs
+								ON cs.account_id = ra.account_id
+								AND cs.created <= rw.report_end_at
+							JOIN course c
+								ON c.course_id = cs.course_id
+							JOIN target_course_keys tck
+								ON tck.reporting_key = NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '')
+							GROUP BY 1, 2
+						),
+						account_course_page_metrics AS (
+							SELECT
+								ra.account_id,
+								NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+								0 AS complete_value,
+								COALESCE(SUM(
+									CASE
+										WHEN cu.course_unit_type_id <> 'VIDEO' THEN mv.dwell_time_seconds
+										ELSE 0
+									END
+								), 0)::DOUBLE PRECISION AS time_seconds,
+								COUNT(*)::BIGINT AS visit_count
+							FROM report_accounts ra
+							JOIN report_window rw
+								ON TRUE
+							JOIN mv_analytics_dwell_time mv
+								ON mv.institution_id = ?
+								AND mv.account_id = ra.account_id
+								AND mv.page_view_type = 'PAGE_VIEW_COURSE_UNIT'
+								AND mv.course_unit_id IS NOT NULL
+								AND mv.page_viewed_at >= ra.account_created_at
+								AND mv.page_viewed_at <= rw.report_end_at
+							JOIN course_unit cu
+								ON cu.course_unit_id = mv.course_unit_id
+							JOIN course_module cm
+								ON cm.course_module_id = cu.course_module_id
+							JOIN course c
+								ON c.course_id = cm.course_id
+							JOIN target_course_keys tck
+								ON tck.reporting_key = NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '')
+							GROUP BY 1, 2
+						),
+						account_video_course_time_rows AS (
+							SELECT
+								ra.account_id,
+								NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') AS reporting_key,
+								0 AS complete_value,
+								COALESCE(SUM(vr.cumulative_watched_seconds), 0)::DOUBLE PRECISION AS time_seconds,
+								0::BIGINT AS visit_count
+							FROM report_accounts ra
+							JOIN report_window rw
+								ON TRUE
+							JOIN mv_analytics_course_unit_video_rollup vr
+								ON vr.institution_id = ?
+								AND vr.account_id = ra.account_id
+								AND vr.first_event_at >= ra.account_created_at
+								AND vr.first_event_at <= rw.report_end_at
+							JOIN course_unit cu
+								ON cu.course_unit_id = vr.course_unit_id
+							JOIN course_module cm
+								ON cm.course_module_id = cu.course_module_id
+							JOIN course c
+								ON c.course_id = cm.course_id
+							JOIN target_course_keys tck
+								ON tck.reporting_key = NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '')
+							WHERE cu.course_unit_type_id = 'VIDEO'
+							GROUP BY 1, 2
+						),
+						account_course_metric_rows AS (
+							SELECT
+								account_id,
+								reporting_key,
+								complete_value,
+								0::DOUBLE PRECISION AS time_seconds,
+								0::BIGINT AS visit_count
+							FROM account_course_completions
+							UNION ALL
+							SELECT
+								account_id,
+								reporting_key,
+								complete_value,
+								time_seconds,
+								visit_count
+							FROM account_course_page_metrics
+							UNION ALL
+							SELECT
+								account_id,
+								reporting_key,
+								complete_value,
+								time_seconds,
+								visit_count
+							FROM account_video_course_time_rows
+						),
+						account_content_metric_maps AS MATERIALIZED (
+							SELECT
+								account_id,
+								COALESCE(jsonb_object_agg(reporting_key, complete_value::TEXT), '{}'::jsonb) AS metric_complete_values_json,
+								COALESCE(jsonb_object_agg(reporting_key, time_seconds::TEXT), '{}'::jsonb) AS metric_time_values_json,
+								COALESCE(jsonb_object_agg(reporting_key, visit_count::TEXT), '{}'::jsonb) AS metric_visit_values_json
+							FROM (
+								SELECT
+									account_id,
+									reporting_key,
+									MAX(complete_value) AS complete_value,
+									SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
+									SUM(visit_count)::BIGINT AS visit_count
+								FROM account_course_metric_rows
+								GROUP BY 1, 2
+							) metrics
+							GROUP BY account_id
+						)
+						SELECT
+							ra.account_id,
+							ra.account_created_at,
+							ra.email_address,
+							aem.email_entered_at,
+							aem.email_verified_at,
+							COALESCE(NULLIF(ra.metadata->>'zipCode', ''), asv.screening_values_json->>'bb_onboarding_6') AS bb_zipcode,
+							ar.bb_referrer,
+							COALESCE(aam.bb_n_sitevisit, 0) AS bb_n_sitevisit,
+							COALESCE(aam.bb_tot_time_seconds, 0) AS bb_tot_time_seconds,
+							COALESCE(asv.screening_values_json, '{}'::jsonb)::TEXT AS screening_values_json,
+							COALESCE(acmm.metric_complete_values_json, '{}'::jsonb)::TEXT AS metric_complete_values_json,
+							COALESCE(acmm.metric_time_values_json, '{}'::jsonb)::TEXT AS metric_time_values_json,
+							COALESCE(acmm.metric_visit_values_json, '{}'::jsonb)::TEXT AS metric_visit_values_json
+						FROM report_accounts ra
+						LEFT JOIN account_analytics_metrics aam
+							ON aam.account_id = ra.account_id
+						LEFT JOIN account_email_metrics aem
+							ON aem.account_id = ra.account_id
+						LEFT JOIN account_referrer ar
+							ON ar.account_id = ra.account_id
+						LEFT JOIN account_screening_values asv
+							ON asv.account_id = ra.account_id
+						LEFT JOIN account_content_metric_maps acmm
+							ON acmm.account_id = ra.account_id
+						ORDER BY ra.account_created_at, ra.account_id
+						""", CourseMcbDownloadReportRecord.class, institutionId, startInstant, endInstant, institutionId, RoleId.PATIENT,
+				institutionId, institutionId, institutionId, institutionId, institutionId, institutionId);
+
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+				.withZone(institutionTimeZone)
+				.withLocale(reportLocale);
+
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(ACCOUNT_ONBOARDING_COMPLETE_V2_HEADER_COLUMNS.toArray(new String[0])))) {
+			for (CourseMcbDownloadReportRecord record : records) {
+				Map<String, String> screeningValues = parseJsonObjectAsStringMap(record.getScreeningValuesJson());
+				Map<String, String> metricCompleteValues = parseJsonObjectAsStringMap(record.getMetricCompleteValuesJson());
+				Map<String, String> metricTimeValues = parseJsonObjectAsStringMap(record.getMetricTimeValuesJson());
+				Map<String, String> metricVisitValues = parseJsonObjectAsStringMap(record.getMetricVisitValuesJson());
+
+				List<String> recordElements = new ArrayList<>(ACCOUNT_ONBOARDING_COMPLETE_V2_HEADER_COLUMNS.size());
+
+				for (String headerColumn : ACCOUNT_ONBOARDING_COMPLETE_V2_HEADER_COLUMNS)
+					recordElements.add(resolveCourseMcbDownloadColumnValue(headerColumn, record, dateFormatter, screeningValues, metricCompleteValues, metricTimeValues, metricVisitValues));
+
+				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
+			}
+
+			csvPrinter.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	private void runCourseMcbDownloadStyleReportCsv(@Nonnull InstitutionId institutionId,
+																									@Nonnull LocalDateTime startDateTime,
+																									@Nonnull LocalDateTime endDateTime,
+																									@Nonnull ZoneId reportTimeZone,
+																									@Nonnull Locale reportLocale,
+																									@Nonnull Writer writer,
+																									@Nonnull List<String> headerColumns) {
+		requireNonNull(institutionId);
+		requireNonNull(startDateTime);
+		requireNonNull(endDateTime);
+		requireNonNull(reportTimeZone);
+		requireNonNull(reportLocale);
+		requireNonNull(writer);
+		requireNonNull(headerColumns);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId institutionTimeZone = institution.getTimeZone() != null ? institution.getTimeZone() : reportTimeZone;
@@ -2851,7 +3424,7 @@ public class ReportingService {
 									AND a.role_id = ?
 									AND a.test_account = FALSE
 							),
-								account_site_metrics AS (
+								account_site_metrics AS MATERIALIZED (
 									SELECT
 										ra.account_id,
 										COUNT(DISTINCT mv.session_id)::BIGINT AS bb_n_sitevisit
@@ -2865,7 +3438,7 @@ public class ReportingService {
 										AND mv.page_viewed_at <= rw.report_end_at
 									GROUP BY ra.account_id
 								),
-							account_tot_time AS (
+							account_tot_time AS MATERIALIZED (
 								SELECT
 									ra.account_id,
 									COALESCE(SUM(mv.dwell_time_seconds), 0)::DOUBLE PRECISION AS bb_tot_time_seconds
@@ -2879,7 +3452,7 @@ public class ReportingService {
 									AND mv.page_viewed_at <= rw.report_end_at
 								GROUP BY ra.account_id
 							),
-							account_email_metrics AS (
+							account_email_metrics AS MATERIALIZED (
 								SELECT
 									ra.account_id,
 									MIN(ai.created) AS email_entered_at,
@@ -2898,7 +3471,7 @@ public class ReportingService {
 									AND ai_claimed.last_updated <= rw.report_end_at
 								GROUP BY ra.account_id
 							),
-							account_referrer AS (
+							account_referrer AS MATERIALIZED (
 								SELECT
 									ra.account_id,
 									first_referrer.bb_referrer
@@ -2940,9 +3513,9 @@ public class ReportingService {
 								JOIN course_unit cu
 									ON cu.course_unit_id = csu.course_unit_id
 							WHERE NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-							GROUP BY ra.account_id, reporting_key
+							GROUP BY 1, 2
 						),
-							account_unit_page_metrics AS (
+							account_unit_page_metrics AS MATERIALIZED (
 								SELECT
 									ra.account_id,
 									NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') AS unit_reporting_key,
@@ -2969,7 +3542,7 @@ public class ReportingService {
 							WHERE
 								NULLIF(REGEXP_REPLACE(cu.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
 								OR NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-							GROUP BY ra.account_id, unit_reporting_key, unit_type, course_reporting_key
+							GROUP BY 1, 2, 3, 4
 						),
 						account_unit_visit_rows AS (
 							SELECT
@@ -2980,7 +3553,7 @@ public class ReportingService {
 								SUM(visit_count)::BIGINT AS visit_count
 							FROM account_unit_page_metrics
 							WHERE unit_reporting_key IS NOT NULL
-							GROUP BY account_id, unit_reporting_key
+							GROUP BY 1, 2
 						),
 						account_non_video_unit_time_rows AS (
 							SELECT
@@ -2992,7 +3565,7 @@ public class ReportingService {
 							FROM account_unit_page_metrics
 							WHERE unit_reporting_key IS NOT NULL
 								AND unit_type <> 'VIDEO'
-							GROUP BY account_id, unit_reporting_key
+							GROUP BY 1, 2
 						),
 							account_video_unit_metric_rows AS (
 								SELECT
@@ -3040,7 +3613,7 @@ public class ReportingService {
 								SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
 								SUM(visit_count)::BIGINT AS visit_count
 							FROM account_unit_metric_rows
-							GROUP BY account_id, reporting_key
+							GROUP BY 1, 2
 						),
 							account_course_completions AS (
 								SELECT
@@ -3056,7 +3629,7 @@ public class ReportingService {
 								JOIN course c
 									ON c.course_id = cs.course_id
 								WHERE NULLIF(REGEXP_REPLACE(c.reporting_key, '\\s+', '', 'g'), '') IS NOT NULL
-								GROUP BY ra.account_id, reporting_key
+								GROUP BY 1, 2
 						),
 						account_course_visit_rows AS (
 							SELECT
@@ -3067,7 +3640,7 @@ public class ReportingService {
 								SUM(visit_count)::BIGINT AS visit_count
 							FROM account_unit_page_metrics
 							WHERE course_reporting_key IS NOT NULL
-							GROUP BY account_id, course_reporting_key
+							GROUP BY 1, 2
 						),
 						account_non_video_course_time_rows AS (
 							SELECT
@@ -3079,7 +3652,7 @@ public class ReportingService {
 							FROM account_unit_page_metrics
 							WHERE course_reporting_key IS NOT NULL
 								AND unit_type <> 'VIDEO'
-							GROUP BY account_id, course_reporting_key
+							GROUP BY 1, 2
 						),
 							account_video_course_time_rows AS (
 								SELECT
@@ -3131,14 +3704,14 @@ public class ReportingService {
 								SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
 								SUM(visit_count)::BIGINT AS visit_count
 							FROM account_course_metric_rows
-							GROUP BY account_id, reporting_key
+							GROUP BY 1, 2
 						),
 						account_content_metrics AS (
 							SELECT * FROM account_unit_metrics
 							UNION ALL
 							SELECT * FROM account_course_metrics
 						),
-						account_content_metric_maps AS (
+						account_content_metric_maps AS MATERIALIZED (
 							SELECT
 								account_id,
 								COALESCE(jsonb_object_agg(reporting_key, complete_value::TEXT), '{}'::jsonb) AS metric_complete_values_json,
@@ -3152,7 +3725,7 @@ public class ReportingService {
 									SUM(time_seconds)::DOUBLE PRECISION AS time_seconds,
 									SUM(visit_count)::BIGINT AS visit_count
 								FROM account_content_metrics
-								GROUP BY account_id, reporting_key
+								GROUP BY 1, 2
 							) metrics
 							GROUP BY account_id
 						),
@@ -3185,7 +3758,7 @@ public class ReportingService {
 									AND ss.created >= ra.account_created_at
 									AND ss.created <= rw.report_end_at
 									AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') IS NOT NULL
-								GROUP BY ss.target_account_id, reporting_key, ssasq.screening_session_answered_screening_question_id
+								GROUP BY 1, 2, 3
 							),
 						latest_screening_values AS (
 							SELECT DISTINCT ON (account_id, reporting_key)
@@ -3232,7 +3805,7 @@ public class ReportingService {
 								reporting_value
 							FROM account_derived_screening_values
 						),
-						account_screening_values AS (
+						account_screening_values AS MATERIALIZED (
 							SELECT
 								account_id,
 								COALESCE(jsonb_object_agg(reporting_key, reporting_value), '{}'::jsonb) AS screening_values_json
@@ -3274,16 +3847,16 @@ public class ReportingService {
 				.withZone(institutionTimeZone)
 				.withLocale(reportLocale);
 
-		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(COURSE_MCB_DOWNLOAD_HEADER_COLUMNS.toArray(new String[0])))) {
+		try (CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerColumns.toArray(new String[0])))) {
 			for (CourseMcbDownloadReportRecord record : records) {
 				Map<String, String> screeningValues = parseJsonObjectAsStringMap(record.getScreeningValuesJson());
 				Map<String, String> metricCompleteValues = parseJsonObjectAsStringMap(record.getMetricCompleteValuesJson());
 				Map<String, String> metricTimeValues = parseJsonObjectAsStringMap(record.getMetricTimeValuesJson());
 				Map<String, String> metricVisitValues = parseJsonObjectAsStringMap(record.getMetricVisitValuesJson());
 
-				List<String> recordElements = new ArrayList<>(COURSE_MCB_DOWNLOAD_HEADER_COLUMNS.size());
+				List<String> recordElements = new ArrayList<>(headerColumns.size());
 
-				for (String headerColumn : COURSE_MCB_DOWNLOAD_HEADER_COLUMNS)
+				for (String headerColumn : headerColumns)
 					recordElements.add(resolveCourseMcbDownloadColumnValue(headerColumn, record, dateFormatter, screeningValues, metricCompleteValues, metricTimeValues, metricVisitValues));
 
 				csvPrinter.printRecord(recordElements.toArray(new Object[0]));
@@ -4100,6 +4673,516 @@ public class ReportingService {
 
 		public void setDetailsJson(@Nullable String detailsJson) {
 			this.detailsJson = detailsJson;
+		}
+	}
+
+	@NotThreadSafe
+	protected static class AccountGeolocationReportRecord {
+		@Nullable
+		private UUID accountId;
+		@Nullable
+		private String emailAddress;
+		@Nullable
+		private Instant accountCreatedAt;
+		@Nullable
+		private RoleId roleId;
+		@Nullable
+		private AccountSourceId accountSourceId;
+		@Nullable
+		private UUID accountInviteId;
+		@Nullable
+		private Boolean inviteClaimed;
+		@Nullable
+		private Instant inviteCreatedAt;
+		@Nullable
+		private Instant inviteLastUpdatedAt;
+		@Nullable
+		private String ipAddress;
+		@Nullable
+		private Long analyticsEventCount;
+		@Nullable
+		private Long analyticsSessionCount;
+		@Nullable
+		private Instant firstAnalyticsEventAt;
+		@Nullable
+		private Instant lastAnalyticsEventAt;
+		@Nullable
+		private String ipGeolocationStatusId;
+		@Nullable
+		private String ipType;
+		@Nullable
+		private String continentCode;
+		@Nullable
+		private String continentName;
+		@Nullable
+		private String countryCode;
+		@Nullable
+		private String countryName;
+		@Nullable
+		private String regionCode;
+		@Nullable
+		private String regionName;
+		@Nullable
+		private String city;
+		@Nullable
+		private String postalCode;
+		@Nullable
+		private Double latitude;
+		@Nullable
+		private Double longitude;
+		@Nullable
+		private String msa;
+		@Nullable
+		private String dma;
+		@Nullable
+		private Double radius;
+		@Nullable
+		private String ipRoutingType;
+		@Nullable
+		private String connectionType;
+		@Nullable
+		private Long connectionAsn;
+		@Nullable
+		private String connectionIsp;
+		@Nullable
+		private String connectionOrganizationType;
+		@Nullable
+		private Boolean connectionHome;
+		@Nullable
+		private String hostname;
+		@Nullable
+		private String timeZoneId;
+		@Nullable
+		private Integer timeZoneGmtOffset;
+		@Nullable
+		private String timeZoneCode;
+		@Nullable
+		private Long locationGeonameId;
+		@Nullable
+		private Boolean locationIsEu;
+		@Nullable
+		private Integer providerErrorCode;
+		@Nullable
+		private String providerErrorType;
+		@Nullable
+		private String providerErrorMessage;
+		@Nullable
+		private Instant lastLookupAttemptedAt;
+		@Nullable
+		private Instant lastLookupSucceededAt;
+
+		@Nullable
+		public UUID getAccountId() {
+			return accountId;
+		}
+
+		public void setAccountId(@Nullable UUID accountId) {
+			this.accountId = accountId;
+		}
+
+		@Nullable
+		public String getEmailAddress() {
+			return emailAddress;
+		}
+
+		public void setEmailAddress(@Nullable String emailAddress) {
+			this.emailAddress = emailAddress;
+		}
+
+		@Nullable
+		public Instant getAccountCreatedAt() {
+			return accountCreatedAt;
+		}
+
+		public void setAccountCreatedAt(@Nullable Instant accountCreatedAt) {
+			this.accountCreatedAt = accountCreatedAt;
+		}
+
+		@Nullable
+		public RoleId getRoleId() {
+			return roleId;
+		}
+
+		public void setRoleId(@Nullable RoleId roleId) {
+			this.roleId = roleId;
+		}
+
+		@Nullable
+		public AccountSourceId getAccountSourceId() {
+			return accountSourceId;
+		}
+
+		public void setAccountSourceId(@Nullable AccountSourceId accountSourceId) {
+			this.accountSourceId = accountSourceId;
+		}
+
+		@Nullable
+		public UUID getAccountInviteId() {
+			return accountInviteId;
+		}
+
+		public void setAccountInviteId(@Nullable UUID accountInviteId) {
+			this.accountInviteId = accountInviteId;
+		}
+
+		@Nullable
+		public Boolean getInviteClaimed() {
+			return inviteClaimed;
+		}
+
+		public void setInviteClaimed(@Nullable Boolean inviteClaimed) {
+			this.inviteClaimed = inviteClaimed;
+		}
+
+		@Nullable
+		public Instant getInviteCreatedAt() {
+			return inviteCreatedAt;
+		}
+
+		public void setInviteCreatedAt(@Nullable Instant inviteCreatedAt) {
+			this.inviteCreatedAt = inviteCreatedAt;
+		}
+
+		@Nullable
+		public Instant getInviteLastUpdatedAt() {
+			return inviteLastUpdatedAt;
+		}
+
+		public void setInviteLastUpdatedAt(@Nullable Instant inviteLastUpdatedAt) {
+			this.inviteLastUpdatedAt = inviteLastUpdatedAt;
+		}
+
+		@Nullable
+		public String getIpAddress() {
+			return ipAddress;
+		}
+
+		public void setIpAddress(@Nullable String ipAddress) {
+			this.ipAddress = ipAddress;
+		}
+
+		@Nullable
+		public Long getAnalyticsEventCount() {
+			return analyticsEventCount;
+		}
+
+		public void setAnalyticsEventCount(@Nullable Long analyticsEventCount) {
+			this.analyticsEventCount = analyticsEventCount;
+		}
+
+		@Nullable
+		public Long getAnalyticsSessionCount() {
+			return analyticsSessionCount;
+		}
+
+		public void setAnalyticsSessionCount(@Nullable Long analyticsSessionCount) {
+			this.analyticsSessionCount = analyticsSessionCount;
+		}
+
+		@Nullable
+		public Instant getFirstAnalyticsEventAt() {
+			return firstAnalyticsEventAt;
+		}
+
+		public void setFirstAnalyticsEventAt(@Nullable Instant firstAnalyticsEventAt) {
+			this.firstAnalyticsEventAt = firstAnalyticsEventAt;
+		}
+
+		@Nullable
+		public Instant getLastAnalyticsEventAt() {
+			return lastAnalyticsEventAt;
+		}
+
+		public void setLastAnalyticsEventAt(@Nullable Instant lastAnalyticsEventAt) {
+			this.lastAnalyticsEventAt = lastAnalyticsEventAt;
+		}
+
+		@Nullable
+		public String getIpGeolocationStatusId() {
+			return ipGeolocationStatusId;
+		}
+
+		public void setIpGeolocationStatusId(@Nullable String ipGeolocationStatusId) {
+			this.ipGeolocationStatusId = ipGeolocationStatusId;
+		}
+
+		@Nullable
+		public String getIpType() {
+			return ipType;
+		}
+
+		public void setIpType(@Nullable String ipType) {
+			this.ipType = ipType;
+		}
+
+		@Nullable
+		public String getContinentCode() {
+			return continentCode;
+		}
+
+		public void setContinentCode(@Nullable String continentCode) {
+			this.continentCode = continentCode;
+		}
+
+		@Nullable
+		public String getContinentName() {
+			return continentName;
+		}
+
+		public void setContinentName(@Nullable String continentName) {
+			this.continentName = continentName;
+		}
+
+		@Nullable
+		public String getCountryCode() {
+			return countryCode;
+		}
+
+		public void setCountryCode(@Nullable String countryCode) {
+			this.countryCode = countryCode;
+		}
+
+		@Nullable
+		public String getCountryName() {
+			return countryName;
+		}
+
+		public void setCountryName(@Nullable String countryName) {
+			this.countryName = countryName;
+		}
+
+		@Nullable
+		public String getRegionCode() {
+			return regionCode;
+		}
+
+		public void setRegionCode(@Nullable String regionCode) {
+			this.regionCode = regionCode;
+		}
+
+		@Nullable
+		public String getRegionName() {
+			return regionName;
+		}
+
+		public void setRegionName(@Nullable String regionName) {
+			this.regionName = regionName;
+		}
+
+		@Nullable
+		public String getCity() {
+			return city;
+		}
+
+		public void setCity(@Nullable String city) {
+			this.city = city;
+		}
+
+		@Nullable
+		public String getPostalCode() {
+			return postalCode;
+		}
+
+		public void setPostalCode(@Nullable String postalCode) {
+			this.postalCode = postalCode;
+		}
+
+		@Nullable
+		public Double getLatitude() {
+			return latitude;
+		}
+
+		public void setLatitude(@Nullable Double latitude) {
+			this.latitude = latitude;
+		}
+
+		@Nullable
+		public Double getLongitude() {
+			return longitude;
+		}
+
+		public void setLongitude(@Nullable Double longitude) {
+			this.longitude = longitude;
+		}
+
+		@Nullable
+		public String getMsa() {
+			return msa;
+		}
+
+		public void setMsa(@Nullable String msa) {
+			this.msa = msa;
+		}
+
+		@Nullable
+		public String getDma() {
+			return dma;
+		}
+
+		public void setDma(@Nullable String dma) {
+			this.dma = dma;
+		}
+
+		@Nullable
+		public Double getRadius() {
+			return radius;
+		}
+
+		public void setRadius(@Nullable Double radius) {
+			this.radius = radius;
+		}
+
+		@Nullable
+		public String getIpRoutingType() {
+			return ipRoutingType;
+		}
+
+		public void setIpRoutingType(@Nullable String ipRoutingType) {
+			this.ipRoutingType = ipRoutingType;
+		}
+
+		@Nullable
+		public String getConnectionType() {
+			return connectionType;
+		}
+
+		public void setConnectionType(@Nullable String connectionType) {
+			this.connectionType = connectionType;
+		}
+
+		@Nullable
+		public Long getConnectionAsn() {
+			return connectionAsn;
+		}
+
+		public void setConnectionAsn(@Nullable Long connectionAsn) {
+			this.connectionAsn = connectionAsn;
+		}
+
+		@Nullable
+		public String getConnectionIsp() {
+			return connectionIsp;
+		}
+
+		public void setConnectionIsp(@Nullable String connectionIsp) {
+			this.connectionIsp = connectionIsp;
+		}
+
+		@Nullable
+		public String getConnectionOrganizationType() {
+			return connectionOrganizationType;
+		}
+
+		public void setConnectionOrganizationType(@Nullable String connectionOrganizationType) {
+			this.connectionOrganizationType = connectionOrganizationType;
+		}
+
+		@Nullable
+		public Boolean getConnectionHome() {
+			return connectionHome;
+		}
+
+		public void setConnectionHome(@Nullable Boolean connectionHome) {
+			this.connectionHome = connectionHome;
+		}
+
+		@Nullable
+		public String getHostname() {
+			return hostname;
+		}
+
+		public void setHostname(@Nullable String hostname) {
+			this.hostname = hostname;
+		}
+
+		@Nullable
+		public String getTimeZoneId() {
+			return timeZoneId;
+		}
+
+		public void setTimeZoneId(@Nullable String timeZoneId) {
+			this.timeZoneId = timeZoneId;
+		}
+
+		@Nullable
+		public Integer getTimeZoneGmtOffset() {
+			return timeZoneGmtOffset;
+		}
+
+		public void setTimeZoneGmtOffset(@Nullable Integer timeZoneGmtOffset) {
+			this.timeZoneGmtOffset = timeZoneGmtOffset;
+		}
+
+		@Nullable
+		public String getTimeZoneCode() {
+			return timeZoneCode;
+		}
+
+		public void setTimeZoneCode(@Nullable String timeZoneCode) {
+			this.timeZoneCode = timeZoneCode;
+		}
+
+		@Nullable
+		public Long getLocationGeonameId() {
+			return locationGeonameId;
+		}
+
+		public void setLocationGeonameId(@Nullable Long locationGeonameId) {
+			this.locationGeonameId = locationGeonameId;
+		}
+
+		@Nullable
+		public Boolean getLocationIsEu() {
+			return locationIsEu;
+		}
+
+		public void setLocationIsEu(@Nullable Boolean locationIsEu) {
+			this.locationIsEu = locationIsEu;
+		}
+
+		@Nullable
+		public Integer getProviderErrorCode() {
+			return providerErrorCode;
+		}
+
+		public void setProviderErrorCode(@Nullable Integer providerErrorCode) {
+			this.providerErrorCode = providerErrorCode;
+		}
+
+		@Nullable
+		public String getProviderErrorType() {
+			return providerErrorType;
+		}
+
+		public void setProviderErrorType(@Nullable String providerErrorType) {
+			this.providerErrorType = providerErrorType;
+		}
+
+		@Nullable
+		public String getProviderErrorMessage() {
+			return providerErrorMessage;
+		}
+
+		public void setProviderErrorMessage(@Nullable String providerErrorMessage) {
+			this.providerErrorMessage = providerErrorMessage;
+		}
+
+		@Nullable
+		public Instant getLastLookupAttemptedAt() {
+			return lastLookupAttemptedAt;
+		}
+
+		public void setLastLookupAttemptedAt(@Nullable Instant lastLookupAttemptedAt) {
+			this.lastLookupAttemptedAt = lastLookupAttemptedAt;
+		}
+
+		@Nullable
+		public Instant getLastLookupSucceededAt() {
+			return lastLookupSucceededAt;
+		}
+
+		public void setLastLookupSucceededAt(@Nullable Instant lastLookupSucceededAt) {
+			this.lastLookupSucceededAt = lastLookupSucceededAt;
 		}
 	}
 

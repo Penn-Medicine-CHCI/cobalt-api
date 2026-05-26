@@ -145,6 +145,8 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String externalContactUsUrl;
 	@Nullable
+	private final String continuingEducationUrl;
+	@Nullable
 	private final String myChartInstructionsUrl;
 	@Nonnull
 	private final Boolean epicFhirEnabled;
@@ -369,6 +371,7 @@ public class InstitutionApiResponse {
 
 		this.faqEnabled = institution.getFaqEnabled();
 		this.externalContactUsUrl = institution.getExternalContactUsUrl();
+		this.continuingEducationUrl = institution.getContinuingEducationUrl();
 		this.myChartInstructionsUrl = institution.getMyChartInstructionsUrl();
 		this.epicFhirEnabled = institution.getEpicFhirEnabled();
 		this.featuredTopicCenterId = institution.getFeaturedTopicCenterId();
@@ -435,7 +438,7 @@ public class InstitutionApiResponse {
 					.map(alert -> alertApiResponseFactory.create(alert))
 					.collect(Collectors.toList());
 		} else {
-			this.alerts = alertService.findUndismissedInstitutionAlertsByAccountId(account.getAccountId()).stream()
+			this.alerts = alertService.findUndismissedAlertsByAccountId(account.getAccountId()).stream()
 					.map(alert -> alertApiResponseFactory.create(alert))
 					.collect(Collectors.toList());
 		}
@@ -664,6 +667,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getExternalContactUsUrl() {
 		return this.externalContactUsUrl;
+	}
+
+	@Nullable
+	public String getContinuingEducationUrl() {
+		return this.continuingEducationUrl;
 	}
 
 	@Nullable
