@@ -65,10 +65,10 @@ import com.cobaltplatform.api.model.db.PageGroup;
 import com.cobaltplatform.api.model.db.PageGroupEmailContent;
 import com.cobaltplatform.api.model.db.PageGroupEmailGroupSession;
 import com.cobaltplatform.api.model.db.PageRow;
-import com.cobaltplatform.api.model.db.PageRow.PaddingId;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
 import com.cobaltplatform.api.model.db.PageRowCallToAction;
 import com.cobaltplatform.api.model.db.PageRowColumn;
-import com.cobaltplatform.api.model.db.PageRowColumn.ContentOrderId;
+import com.cobaltplatform.api.model.db.PageRowColumnContentOrder.PageRowColumnContentOrderId;
 import com.cobaltplatform.api.model.db.PageRowContent;
 import com.cobaltplatform.api.model.db.PageRowGroupSession;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
@@ -1063,9 +1063,9 @@ public class PageService {
 		RowTypeId rowTypeId = request.getRowTypeId();
 		String name = trimToNull(request.getName());
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
-		PaddingId paddingId = request.getPaddingId();
-		PaddingId paddingTopId = request.getPaddingTopId();
-		PaddingId paddingBottomId = request.getPaddingBottomId();
+		PageRowPaddingId paddingId = request.getPaddingId();
+		PageRowPaddingId paddingTopId = request.getPaddingTopId();
+		PageRowPaddingId paddingBottomId = request.getPaddingBottomId();
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		Integer displayOrder = request.getDisplayOrder();
 		ValidationException validationException = new ValidationException();
@@ -1096,9 +1096,9 @@ public class PageService {
 		if (paddingBottomId == null)
 			paddingBottomId = paddingId;
 		if (paddingTopId == null)
-			paddingTopId = PaddingId.MEDIUM;
+			paddingTopId = PageRowPaddingId.MEDIUM;
 		if (paddingBottomId == null)
-			paddingBottomId = PaddingId.MEDIUM;
+			paddingBottomId = PageRowPaddingId.MEDIUM;
 
 		if (displayOrder == null)
 			displayOrder = getDatabase().queryForObject("""
@@ -1203,9 +1203,9 @@ public class PageService {
 		UUID pageRowId = request.getPageRowId();
 		String name = trimToNull(request.getName());
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
-		PaddingId paddingId = request.getPaddingId();
-		PaddingId paddingTopId = request.getPaddingTopId();
-		PaddingId paddingBottomId = request.getPaddingBottomId();
+		PageRowPaddingId paddingId = request.getPaddingId();
+		PageRowPaddingId paddingTopId = request.getPaddingTopId();
+		PageRowPaddingId paddingBottomId = request.getPaddingBottomId();
 		ValidationException validationException = new ValidationException();
 
 		Optional<PageRow> pageRow = findPageRowById(pageRowId, institutionId);
@@ -1543,7 +1543,7 @@ public class PageService {
 		String imageAltText = trimToNull(request.getImageAltText());
 		Boolean usePlaceholderImage = request.getUsePlaceholderImage() == null ? false : request.getUsePlaceholderImage();
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
-		ContentOrderId contentOrderId = request.getContentOrderId() == null ? ContentOrderId.IMAGE_THEN_TEXT : request.getContentOrderId();
+		PageRowColumnContentOrderId contentOrderId = request.getContentOrderId() == null ? PageRowColumnContentOrderId.IMAGE_THEN_TEXT : request.getContentOrderId();
 		UUID imageFileUploadId = null;
 
 		if (isValidUUID(imageFileUploadIdString))
@@ -1608,7 +1608,7 @@ public class PageService {
 		String imageAltText = trimToNull(request.getImageAltText());
 		Boolean usePlaceholderImage = request.getUsePlaceholderImage();
 		Integer columnDisplayOrder = request.getColumnDisplayOrder();
-		ContentOrderId contentOrderId = request.getContentOrderId();
+		PageRowColumnContentOrderId contentOrderId = request.getContentOrderId();
 		String imageFileUploadIdString = request.getImageFileUploadId();
 		UUID imageFileUploadId = null;
 

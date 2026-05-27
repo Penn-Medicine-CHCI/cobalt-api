@@ -20,7 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
-import com.cobaltplatform.api.model.db.PageRow.PaddingId;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -38,11 +38,11 @@ public class UpdatePageRowRequest {
 	@Nullable
 	private BackgroundColorId backgroundColorId;
 	@Nullable
-	private PaddingId paddingId;
+	private PageRowPaddingId paddingId;
 	@Nullable
-	private PaddingId paddingTopId;
+	private PageRowPaddingId paddingTopId;
 	@Nullable
-	private PaddingId paddingBottomId;
+	private PageRowPaddingId paddingBottomId;
 
 	@Nullable
 	public UUID getPageRowId() {
@@ -72,29 +72,29 @@ public class UpdatePageRowRequest {
 	}
 
 	@Nullable
-	public PaddingId getPaddingId() {
+	public PageRowPaddingId getPaddingId() {
 		return paddingId;
 	}
 
-	public void setPaddingId(@Nullable PaddingId paddingId) {
+	public void setPaddingId(@Nullable PageRowPaddingId paddingId) {
 		this.paddingId = paddingId;
 	}
 
 	@Nullable
-	public PaddingId getPaddingTopId() {
+	public PageRowPaddingId getPaddingTopId() {
 		return paddingTopId;
 	}
 
-	public void setPaddingTopId(@Nullable PaddingId paddingTopId) {
+	public void setPaddingTopId(@Nullable PageRowPaddingId paddingTopId) {
 		this.paddingTopId = paddingTopId;
 	}
 
 	@Nullable
-	public PaddingId getPaddingBottomId() {
+	public PageRowPaddingId getPaddingBottomId() {
 		return paddingBottomId;
 	}
 
-	public void setPaddingBottomId(@Nullable PaddingId paddingBottomId) {
+	public void setPaddingBottomId(@Nullable PageRowPaddingId paddingBottomId) {
 		this.paddingBottomId = paddingBottomId;
 	}
 }

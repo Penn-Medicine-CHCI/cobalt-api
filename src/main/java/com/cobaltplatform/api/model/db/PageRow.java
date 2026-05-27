@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 
 /**
@@ -32,13 +33,6 @@ import com.cobaltplatform.api.model.db.RowType.RowTypeId;
  */
 @NotThreadSafe
 public class PageRow {
-	public enum PaddingId {
-		NONE,
-		SMALL,
-		MEDIUM,
-		LARGE
-	}
-
 	@Nullable
 	private UUID pageRowId;
 	@Nullable
@@ -50,11 +44,11 @@ public class PageRow {
 	@Nullable
 	private BackgroundColorId backgroundColorId;
 	@Nullable
-	private PaddingId paddingId;
+	private PageRowPaddingId paddingId;
 	@Nullable
-	private PaddingId paddingTopId;
+	private PageRowPaddingId paddingTopId;
 	@Nullable
-	private PaddingId paddingBottomId;
+	private PageRowPaddingId paddingBottomId;
 	@Nullable
 	private Boolean deletedFlag;
 	@Nullable
@@ -112,29 +106,29 @@ public class PageRow {
 	}
 
 	@Nullable
-	public PaddingId getPaddingId() {
+	public PageRowPaddingId getPaddingId() {
 		return paddingId;
 	}
 
-	public void setPaddingId(@Nullable PaddingId paddingId) {
+	public void setPaddingId(@Nullable PageRowPaddingId paddingId) {
 		this.paddingId = paddingId;
 	}
 
 	@Nullable
-	public PaddingId getPaddingTopId() {
+	public PageRowPaddingId getPaddingTopId() {
 		return paddingTopId;
 	}
 
-	public void setPaddingTopId(@Nullable PaddingId paddingTopId) {
+	public void setPaddingTopId(@Nullable PageRowPaddingId paddingTopId) {
 		this.paddingTopId = paddingTopId;
 	}
 
 	@Nullable
-	public PaddingId getPaddingBottomId() {
+	public PageRowPaddingId getPaddingBottomId() {
 		return paddingBottomId;
 	}
 
-	public void setPaddingBottomId(@Nullable PaddingId paddingBottomId) {
+	public void setPaddingBottomId(@Nullable PageRowPaddingId paddingBottomId) {
 		this.paddingBottomId = paddingBottomId;
 	}
 

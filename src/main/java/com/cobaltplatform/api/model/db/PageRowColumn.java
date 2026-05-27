@@ -23,16 +23,13 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
 
+import com.cobaltplatform.api.model.db.PageRowColumnContentOrder.PageRowColumnContentOrderId;
+
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
 public class PageRowColumn {
-	public enum ContentOrderId {
-		IMAGE_THEN_TEXT,
-		TEXT_THEN_IMAGE
-	}
-
 	@Nullable
 	private UUID pageRowColumnId;
 	@Nullable
@@ -52,7 +49,7 @@ public class PageRowColumn {
 	@Nullable
 	private Integer columnDisplayOrder;
 	@Nullable
-	private ContentOrderId contentOrderId;
+	private PageRowColumnContentOrderId contentOrderId;
 
 	@Nullable
 	public UUID getPageRowColumnId() {
@@ -118,11 +115,11 @@ public class PageRowColumn {
 	}
 
 	@Nullable
-	public ContentOrderId getContentOrderId() {
+	public PageRowColumnContentOrderId getContentOrderId() {
 		return contentOrderId;
 	}
 
-	public void setContentOrderId(@Nullable ContentOrderId contentOrderId) {
+	public void setContentOrderId(@Nullable PageRowColumnContentOrderId contentOrderId) {
 		this.contentOrderId = contentOrderId;
 	}
 

@@ -43,23 +43,42 @@ CREATE TABLE page_builder_v2_256_backup_page_row_mailing_list AS
 SELECT NOW() AS backed_up_at, prml.*
 FROM page_row_mailing_list prml;
 
+-- Define reusable page-row padding values instead of inline CHECK constraints
+CREATE TABLE page_row_padding (
+  page_row_padding_id TEXT PRIMARY KEY,
+  description TEXT NOT NULL
+);
+
+INSERT INTO page_row_padding (page_row_padding_id, description)
+VALUES
+  ('NONE', 'None'),
+  ('SMALL', 'Small'),
+  ('MEDIUM', 'Medium'),
+  ('LARGE', 'Large');
+
+-- Define reusable custom-row column content order values instead of inline CHECK constraints
+CREATE TABLE page_row_column_content_order (
+  page_row_column_content_order_id TEXT PRIMARY KEY,
+  description TEXT NOT NULL
+);
+
+INSERT INTO page_row_column_content_order (page_row_column_content_order_id, description)
+VALUES
+  ('IMAGE_THEN_TEXT', 'Image Then Text'),
+  ('TEXT_THEN_IMAGE', 'Text Then Image');
+
 -- Add page-row metadata used by the page builder editor and renderer
 ALTER TABLE page_row
   ADD COLUMN name TEXT NULL,
   ADD COLUMN background_color_id TEXT NOT NULL REFERENCES background_color DEFAULT 'WHITE',
-  ADD COLUMN padding_id TEXT NOT NULL DEFAULT 'MEDIUM',
-  ADD COLUMN padding_top_id TEXT NOT NULL DEFAULT 'MEDIUM',
-  ADD COLUMN padding_bottom_id TEXT NOT NULL DEFAULT 'MEDIUM',
-  ADD CONSTRAINT page_row_padding_id_check CHECK (padding_id IN ('NONE', 'SMALL', 'MEDIUM', 'LARGE')),
-  ADD CONSTRAINT page_row_padding_top_id_check CHECK (padding_top_id IN ('NONE', 'SMALL', 'MEDIUM', 'LARGE')),
-  ADD CONSTRAINT page_row_padding_bottom_id_check CHECK (padding_bottom_id IN ('NONE', 'SMALL', 'MEDIUM', 'LARGE'));
+  ADD COLUMN padding_id TEXT NOT NULL REFERENCES page_row_padding DEFAULT 'MEDIUM',
+  ADD COLUMN padding_top_id TEXT NOT NULL REFERENCES page_row_padding DEFAULT 'MEDIUM',
+  ADD COLUMN padding_bottom_id TEXT NOT NULL REFERENCES page_row_padding DEFAULT 'MEDIUM';
 
 -- Add custom-row column presentation settings
 ALTER TABLE page_row_column
-  ADD COLUMN content_order_id TEXT NOT NULL DEFAULT 'IMAGE_THEN_TEXT',
-  ADD COLUMN use_placeholder_image BOOLEAN NOT NULL DEFAULT FALSE,
-  ADD CONSTRAINT page_row_column_content_order_id_check
-    CHECK (content_order_id IN ('IMAGE_THEN_TEXT', 'TEXT_THEN_IMAGE'));
+  ADD COLUMN content_order_id TEXT NOT NULL REFERENCES page_row_column_content_order DEFAULT 'IMAGE_THEN_TEXT',
+  ADD COLUMN use_placeholder_image BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Register the new page builder row types
 INSERT INTO row_type (row_type_id, description)
