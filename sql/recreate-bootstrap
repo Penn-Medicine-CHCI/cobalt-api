@@ -264,15 +264,6 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/253-acco
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/254-group-topic-archived.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/255-account-onboarding-complete-v2-report.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-page-builder-v2.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/257-custom-page-rows.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/258-custom-row-column-content-order.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/259-custom-row-column-content-order-view.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/260-page-row-call-to-action.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/261-page-row-padding.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/262-page-row-padding-none.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/263-custom-row-placeholder-image.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/264-custom-row-placeholder-image-view.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/265-page-row-split-padding.sql
 
 if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."

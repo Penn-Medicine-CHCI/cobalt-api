@@ -1,34 +1,36 @@
 BEGIN;
+
 SELECT _v.register_patch('256-page-builder-v2', NULL, NULL);
 
+-- Add page-row metadata used by the page builder editor and renderer
 ALTER TABLE page_row
   ADD COLUMN name TEXT NULL,
-  ADD COLUMN background_color_id TEXT NOT NULL REFERENCES background_color DEFAULT 'WHITE';
+  ADD COLUMN background_color_id TEXT NOT NULL REFERENCES background_color DEFAULT 'WHITE',
+  ADD COLUMN padding_id TEXT NOT NULL DEFAULT 'MEDIUM',
+  ADD COLUMN padding_top_id TEXT NOT NULL DEFAULT 'MEDIUM',
+  ADD COLUMN padding_bottom_id TEXT NOT NULL DEFAULT 'MEDIUM',
+  ADD CONSTRAINT page_row_padding_id_check CHECK (padding_id IN ('NONE', 'SMALL', 'MEDIUM', 'LARGE')),
+  ADD CONSTRAINT page_row_padding_top_id_check CHECK (padding_top_id IN ('NONE', 'SMALL', 'MEDIUM', 'LARGE')),
+  ADD CONSTRAINT page_row_padding_bottom_id_check CHECK (padding_bottom_id IN ('NONE', 'SMALL', 'MEDIUM', 'LARGE'));
 
-CREATE OR REPLACE VIEW v_page_row AS
-SELECT
-  pr.page_row_id,
-  pr.page_section_id,
-  pr.row_type_id,
-  pr.deleted_flag,
-  pr.display_order,
-  pr.created_by_account_id,
-  pr.created,
-  pr.last_updated,
-  p.institution_id,
-  pr.name,
-  pr.background_color_id
-FROM page_row pr, page_section ps, page p
-WHERE pr.page_section_id = ps.page_section_id
-AND ps.page_id = p.page_id
-AND pr.deleted_flag = false;
+-- Add custom-row column presentation settings
+ALTER TABLE page_row_column
+  ADD COLUMN content_order_id TEXT NOT NULL DEFAULT 'IMAGE_THEN_TEXT',
+  ADD COLUMN use_placeholder_image BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD CONSTRAINT page_row_column_content_order_id_check
+    CHECK (content_order_id IN ('IMAGE_THEN_TEXT', 'TEXT_THEN_IMAGE'));
 
+-- Register the new page builder row types
 INSERT INTO row_type (row_type_id, description)
 VALUES
   ('ONE_COLUMN_TEXT', 'One Column Text'),
   ('TWO_COLUMN_TEXT', 'Two Column Text'),
-  ('ONE_COLUMN_IMAGE_RIGHT', 'One Column Image Right');
+  ('ONE_COLUMN_IMAGE_RIGHT', 'One Column Image Right'),
+  ('CUSTOM_ROW', 'Custom Row'),
+  ('CALL_TO_ACTION_BLOCK', 'Call-to-Action (Block)'),
+  ('CALL_TO_ACTION_FULL_WIDTH', 'Call-to-Action (Full Width)');
 
+-- Ensure each existing page has at least one content section to hold rows
 INSERT INTO page_section (
   page_section_id,
   page_id,
@@ -57,6 +59,7 @@ WHERE p.deleted_flag = FALSE
       AND ps.deleted_flag = FALSE
   );
 
+-- Move legacy section headline/description content into text rows and collapse each page to one content section
 WITH ordered_sections AS (
   SELECT
     ps.page_id,
@@ -220,5 +223,84 @@ DELETE FROM page_section ps
 USING keeper_sections ks
 WHERE ps.page_id = ks.page_id
   AND ps.page_section_id <> ks.keeper_section_id;
+
+-- Preserve intended placeholder image display for custom rows without uploaded images
+UPDATE page_row_column
+SET use_placeholder_image = TRUE
+WHERE image_file_upload_id IS NULL
+  AND page_row_id IN (
+    SELECT page_row_id
+    FROM page_row
+    WHERE row_type_id = 'CUSTOM_ROW'
+  );
+
+-- Store call-to-action row content separately from the generic page row metadata
+CREATE TABLE page_row_call_to_action (
+  page_row_call_to_action_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  page_row_id UUID NOT NULL REFERENCES page_row,
+  headline TEXT NOT NULL,
+  description TEXT NOT NULL,
+  button_text TEXT NOT NULL,
+  button_url TEXT NOT NULL,
+  image_file_upload_id UUID REFERENCES file_upload,
+  created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Enforce one call-to-action record per row and keep audit timestamps current
+CREATE UNIQUE INDEX idx_page_row_call_to_action_row ON page_row_call_to_action(page_row_id);
+CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page_row_call_to_action FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+-- Replace the page-row view with the final row metadata exposed to application code
+CREATE OR REPLACE VIEW v_page_row AS
+SELECT
+  pr.page_row_id,
+  pr.page_section_id,
+  pr.row_type_id,
+  pr.deleted_flag,
+  pr.display_order,
+  pr.created_by_account_id,
+  pr.created,
+  pr.last_updated,
+  p.institution_id,
+  pr.name,
+  pr.background_color_id,
+  pr.padding_top_id,
+  pr.padding_bottom_id
+FROM page_row pr, page_section ps, page p
+WHERE pr.page_section_id = ps.page_section_id
+AND ps.page_id = p.page_id
+AND pr.deleted_flag = false;
+
+-- Recreate the row-column view so it exposes the new columns plus resolved image URL
+DROP VIEW IF EXISTS v_page_row_column;
+
+CREATE VIEW v_page_row_column AS
+SELECT pr.*, fu.url AS image_url
+FROM page_row_column pr
+LEFT OUTER JOIN file_upload fu ON pr.image_file_upload_id = fu.file_upload_id;
+
+-- Expose call-to-action rows with row ordering and resolved image URL
+CREATE VIEW v_page_row_call_to_action AS
+SELECT
+  prcta.page_row_call_to_action_id,
+  pr.page_row_id,
+  pr.page_section_id,
+  pr.display_order,
+  pr.row_type_id,
+  prcta.headline,
+  prcta.description,
+  prcta.button_text,
+  prcta.button_url,
+  prcta.image_file_upload_id,
+  fu.url AS image_url,
+  pr.created,
+  pr.last_updated
+FROM
+  page_row_call_to_action prcta
+  JOIN page_row pr ON prcta.page_row_id = pr.page_row_id
+  LEFT OUTER JOIN file_upload fu ON prcta.image_file_upload_id = fu.file_upload_id
+WHERE
+  pr.deleted_flag = FALSE;
 
 COMMIT;
