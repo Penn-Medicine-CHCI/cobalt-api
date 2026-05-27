@@ -2,6 +2,47 @@ BEGIN;
 
 SELECT _v.register_patch('256-page-builder-v2', NULL, NULL);
 
+-- Preserve pre-migration page data for audit and manual recovery after the section-to-row reshape
+CREATE TABLE page_builder_v2_256_backup_page AS
+SELECT NOW() AS backed_up_at, p.*
+FROM page p;
+
+CREATE TABLE page_builder_v2_256_backup_page_site_location AS
+SELECT NOW() AS backed_up_at, psl.*
+FROM page_site_location psl;
+
+CREATE TABLE page_builder_v2_256_backup_page_section AS
+SELECT NOW() AS backed_up_at, ps.*
+FROM page_section ps;
+
+CREATE TABLE page_builder_v2_256_backup_page_row AS
+SELECT NOW() AS backed_up_at, pr.*
+FROM page_row pr;
+
+CREATE TABLE page_builder_v2_256_backup_page_row_column AS
+SELECT NOW() AS backed_up_at, prc.*
+FROM page_row_column prc;
+
+CREATE TABLE page_builder_v2_256_backup_page_row_group_session AS
+SELECT NOW() AS backed_up_at, prgs.*
+FROM page_row_group_session prgs;
+
+CREATE TABLE page_builder_v2_256_backup_page_row_content AS
+SELECT NOW() AS backed_up_at, prc.*
+FROM page_row_content prc;
+
+CREATE TABLE page_builder_v2_256_backup_page_row_tag_group AS
+SELECT NOW() AS backed_up_at, prtg.*
+FROM page_row_tag_group prtg;
+
+CREATE TABLE page_builder_v2_256_backup_page_row_tag AS
+SELECT NOW() AS backed_up_at, prt.*
+FROM page_row_tag prt;
+
+CREATE TABLE page_builder_v2_256_backup_page_row_mailing_list AS
+SELECT NOW() AS backed_up_at, prml.*
+FROM page_row_mailing_list prml;
+
 -- Add page-row metadata used by the page builder editor and renderer
 ALTER TABLE page_row
   ADD COLUMN name TEXT NULL,
