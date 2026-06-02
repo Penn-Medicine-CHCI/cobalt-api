@@ -126,6 +126,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
@@ -322,15 +323,15 @@ public class ProviderResource {
 
 		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
 		List<UUID> providerIds = providerFinds.stream()
-				.map(providerFind -> providerFind.getProviderId())
-				.filter(providerId -> providerId != null)
+				.map(ProviderFind::getProviderId)
+				.filter(Objects::nonNull)
 				.distinct()
-				.collect(Collectors.toList());
+				.toList();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providerIds.stream()
 					.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
-					.filter(provider -> provider != null)
+					.filter(Objects::nonNull)
 					.map(provider -> getProviderApiResponseFactory().create(provider))
 					.collect(Collectors.toList()));
 		}});
