@@ -299,6 +299,45 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	@GET("/providers/search")
+	@AuthenticationRequired
+	public ApiResponse searchProviders(@Nonnull @QueryParameter FeatureId featureId,
+																			@Nonnull @QueryParameter UUID institutionLocationId) {
+		requireNonNull(featureId);
+		requireNonNull(institutionLocationId);
+
+		Account account = getCurrentContext().getAccount().get();
+		List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(featureId);
+
+		if (supportRoleIds.size() == 0)
+			return new ApiResponse(new HashMap<String, Object>() {{
+				put("providers", List.of());
+			}});
+
+		ProviderFindRequest request = new ProviderFindRequest();
+		request.setInstitutionId(account.getInstitutionId());
+		request.setInstitutionLocationId(institutionLocationId);
+		request.setSupportRoleIds(new HashSet<>(supportRoleIds));
+		request.setIncludePastAvailability(false);
+
+		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
+		List<UUID> providerIds = providerFinds.stream()
+				.map(providerFind -> providerFind.getProviderId())
+				.filter(providerId -> providerId != null)
+				.distinct()
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("providers", providerIds.stream()
+					.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
+					.filter(provider -> provider != null)
+					.map(provider -> getProviderApiResponseFactory().create(provider))
+					.collect(Collectors.toList()));
+		}});
+	}
+	
+
+	@Nonnull
 	@POST("/providers/find")
 	@AuthenticationRequired
 	public Object findProviders(@Nonnull @RequestBody String requestBody,
