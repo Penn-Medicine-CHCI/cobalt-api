@@ -60,7 +60,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 	@Nullable
 	private final String description;
 	@Nonnull
-	private final List<ProviderContactTypeId> contactTypeIds;
+	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 	@Nullable
 	private final ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
 	@Nullable
@@ -70,7 +70,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 	@Nonnull
 	private final Boolean hasMoreAppointments;
 
-	public enum ProviderContactTypeId {
+	public enum ProviderAppointmentModalityId {
 		PHONE,
 		IN_PERSON,
 		VIRTUAL
@@ -113,7 +113,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 		AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
 
 		this.description = providerFind.getDescription();
-		this.contactTypeIds = contactTypeIdsFor(provider);
+		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(provider, strings);
 		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(provider, providerFind);
 		this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
@@ -121,20 +121,26 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 	}
 
 	@Nonnull
-	protected List<ProviderContactTypeId> contactTypeIdsFor(@Nonnull Provider provider) {
+	protected List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalitiesFor(@Nonnull Provider provider,
+																																													 @Nonnull Strings strings) {
 		requireNonNull(provider);
+		requireNonNull(strings);
 
-		List<ProviderContactTypeId> contactTypeIds = new ArrayList<>(2);
+		List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities = new ArrayList<>(2);
 		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
 
 		if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE
 				|| (trimToNull(provider.getPhoneNumber()) != null && !Boolean.TRUE.equals(provider.getDisplayPhoneNumberOnlyForBooking())))
-			contactTypeIds.add(ProviderContactTypeId.PHONE);
+			supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(ProviderAppointmentModalityId.PHONE, strings.get("Phone")));
 
 		if (videoconferencePlatformId != null && videoconferencePlatformId != VideoconferencePlatformId.TELEPHONE)
-			contactTypeIds.add(ProviderContactTypeId.VIRTUAL);
+			supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(ProviderAppointmentModalityId.VIRTUAL, strings.get("Virtual")));
 
-		return contactTypeIds;
+		if (supportedAppointmentModalities.size() == 0)
+			// TODO: Identify an explicit provider or appointment-type source for IN_PERSON instead of inferring it from missing remote modalities.
+			supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(ProviderAppointmentModalityId.IN_PERSON, strings.get("In Person")));
+
+		return supportedAppointmentModalities;
 	}
 
 	@Nullable
@@ -228,8 +234,8 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 	}
 
 	@Nonnull
-	public List<ProviderContactTypeId> getContactTypeIds() {
-		return contactTypeIds;
+	public List<ProviderAppointmentModalityApiResponse> getSupportedAppointmentModalities() {
+		return supportedAppointmentModalities;
 	}
 
 	@Nullable
@@ -250,6 +256,33 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 	@Nonnull
 	public Boolean getHasMoreAppointments() {
 		return hasMoreAppointments;
+	}
+
+	@ThreadSafe
+	public static class ProviderAppointmentModalityApiResponse {
+		@Nonnull
+		private final ProviderAppointmentModalityId appointmentModalityId;
+		@Nonnull
+		private final String description;
+
+		public ProviderAppointmentModalityApiResponse(@Nonnull ProviderAppointmentModalityId appointmentModalityId,
+																									@Nonnull String description) {
+			requireNonNull(appointmentModalityId);
+			requireNonNull(description);
+
+			this.appointmentModalityId = appointmentModalityId;
+			this.description = description;
+		}
+
+		@Nonnull
+		public ProviderAppointmentModalityId getAppointmentModalityId() {
+			return appointmentModalityId;
+		}
+
+		@Nonnull
+		public String getDescription() {
+			return description;
+		}
 	}
 
 	@ThreadSafe
