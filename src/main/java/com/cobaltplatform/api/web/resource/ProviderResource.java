@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApi
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderListDetailsApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
@@ -171,6 +172,8 @@ public class ProviderResource {
 	@Nonnull
 	private final ProviderApiResponseFactory providerApiResponseFactory;
 	@Nonnull
+	private final ProviderListDetailsApiResponseFactory providerListDetailsApiResponseFactory;
+	@Nonnull
 	private final ClinicApiResponseFactory clinicApiResponseFactory;
 	@Nonnull
 	private final AppointmentApiResponseFactory appointmentApiResponseFactory;
@@ -220,6 +223,7 @@ public class ProviderResource {
 													@Nonnull ScreeningService screeningService,
 													@Nonnull PatientOrderService patientOrderService,
 													@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
+													@Nonnull ProviderListDetailsApiResponseFactory providerListDetailsApiResponseFactory,
 													@Nonnull ClinicApiResponseFactory clinicApiResponseFactory,
 													@Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 													@Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
@@ -249,6 +253,7 @@ public class ProviderResource {
 		requireNonNull(screeningService);
 		requireNonNull(patientOrderService);
 		requireNonNull(providerApiResponseFactory);
+		requireNonNull(providerListDetailsApiResponseFactory);
 		requireNonNull(clinicApiResponseFactory);
 		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(availabilityTimeApiResponseFactory);
@@ -279,6 +284,7 @@ public class ProviderResource {
 		this.screeningService = screeningService;
 		this.patientOrderService = patientOrderService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
+		this.providerListDetailsApiResponseFactory = providerListDetailsApiResponseFactory;
 		this.clinicApiResponseFactory = clinicApiResponseFactory;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
 		this.availabilityTimeApiResponseFactory = availabilityTimeApiResponseFactory;
@@ -327,12 +333,20 @@ public class ProviderResource {
 				.filter(Objects::nonNull)
 				.distinct()
 				.toList();
+		Map<UUID, AppointmentType> appointmentTypesById = getAppointmentService().findAppointmentTypesByInstitutionId(account.getInstitutionId()).stream()
+				.collect(Collectors.toMap(AppointmentType::getAppointmentTypeId, Function.identity()));
+		Map<UUID, Provider> providersById = providerIds.stream()
+				.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
+				.filter(Objects::nonNull)
+				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("providers", providerIds.stream()
-					.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
+			put("providers", providerFinds.stream()
+					.map(providerFind -> {
+						Provider provider = providersById.get(providerFind.getProviderId());
+						return provider == null ? null : getProviderListDetailsApiResponseFactory().create(provider, providerFind, appointmentTypesById);
+					})
 					.filter(Objects::nonNull)
-					.map(provider -> getProviderApiResponseFactory().create(provider))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -1301,6 +1315,11 @@ public class ProviderResource {
 	@Nonnull
 	protected ProviderApiResponseFactory getProviderApiResponseFactory() {
 		return this.providerApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ProviderListDetailsApiResponseFactory getProviderListDetailsApiResponseFactory() {
+		return this.providerListDetailsApiResponseFactory;
 	}
 
 	@Nonnull
