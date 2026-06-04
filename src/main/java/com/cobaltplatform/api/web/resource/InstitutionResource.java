@@ -46,6 +46,7 @@ import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
@@ -320,6 +321,18 @@ public class InstitutionResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("locations", institutionLocations);
+		}});
+	}
+
+	@Nonnull
+	@GET("/institution/care-types")
+	@AuthenticationRequired
+	public ApiResponse getInstitutionCareTypes() {
+		Account account = getCurrentContext().getAccount().get();
+		List<FeatureForInstitution> careTypes = getInstitutionService().findCareTypesByInstitutionId(account.getInstitutionId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careTypes", careTypes);
 		}});
 	}
 

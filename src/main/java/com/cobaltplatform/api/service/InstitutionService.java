@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
+import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
 import com.cobaltplatform.api.model.db.PatientOrderReferralSource;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
@@ -339,6 +340,48 @@ public class InstitutionService {
 
 		return getDatabase().queryForList("SELECT * FROM institution WHERE metadata @> CAST(? AS JSONB)",
 				Institution.class, metadataAsJson);
+	}
+
+	@Nonnull
+	public List<FeatureForInstitution> findCareTypesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		List<FeatureForInstitution> careTypes = getDatabase().queryForList("""
+				SELECT f.feature_id,
+				       f.url_name,
+				       COALESCE(institution_feature.name_override, f.name) AS name,
+				       COALESCE(institution_feature.subtitle_override, f.subtitle) AS subtitle,
+				       institution_feature.description,
+				       institution_feature.nav_description,
+				       institution_feature.nav_visible,
+				       institution_feature.landing_page_visible,
+				       institution_feature.treatment_description,
+				       FALSE AS recommended,
+				       f.navigation_header_id,
+				       institution_feature.banner_message,
+				       institution_feature.banner_message_display_type_id,
+				       institution_feature.recommendation_title_override,
+				       institution_feature.recommendation_description_override,
+				       institution_feature.recommendation_booking_title_override,
+				       institution_feature.recommendation_booking_url_override
+				FROM institution_feature, feature f
+				WHERE f.feature_id=institution_feature.feature_id
+				AND institution_feature.institution_id=?
+				AND institution_feature.nav_visible=TRUE
+				AND f.navigation_header_id=?
+				AND EXISTS (
+				  SELECT 1
+				  FROM feature_support_role fsr
+				  WHERE fsr.feature_id=f.feature_id
+				)
+				ORDER BY institution_feature.display_order,
+				         COALESCE(institution_feature.name_override, f.name)
+				""", FeatureForInstitution.class, institutionId, NavigationHeaderId.CONNECT_WITH_SUPPORT);
+
+		careTypes.forEach(careType -> careType.setSupportRoleIds(getFeatureService().findSupportRoleByFeatureId(careType.getFeatureId())));
+
+		return careTypes;
 	}
 
 	@Nonnull
