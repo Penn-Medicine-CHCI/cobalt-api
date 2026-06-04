@@ -19,18 +19,28 @@
 
 package com.cobaltplatform.api.web.resource;
 
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import org.junit.Test;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Transmogrify, LLC.
  */
 public class ProviderResourceTests {
+	@Test
+	public void providerSearchArgumentsAbsent() {
+		assertTrue(ProviderResource.providerSearchArgumentsAbsent(Optional.empty(), null));
+		assertFalse(ProviderResource.providerSearchArgumentsAbsent(Optional.of(FeatureId.THERAPY), null));
+		assertFalse(ProviderResource.providerSearchArgumentsAbsent(Optional.empty(), "na"));
+	}
+
 	@Test
 	public void normalizeInstitutionLocationIdForProviderSearch() {
 		assertNull(ProviderResource.normalizeInstitutionLocationIdForProviderSearch(Optional.empty()));

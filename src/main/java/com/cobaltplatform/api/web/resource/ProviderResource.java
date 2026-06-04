@@ -40,6 +40,8 @@ import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApi
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderListDetailsApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.ProviderSearchResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
@@ -178,6 +180,8 @@ public class ProviderResource {
 	@Nonnull
 	private final ProviderListDetailsApiResponseFactory providerListDetailsApiResponseFactory;
 	@Nonnull
+	private final ProviderSearchResultApiResponseFactory providerSearchResultApiResponseFactory;
+	@Nonnull
 	private final ClinicApiResponseFactory clinicApiResponseFactory;
 	@Nonnull
 	private final AppointmentApiResponseFactory appointmentApiResponseFactory;
@@ -228,6 +232,7 @@ public class ProviderResource {
 													@Nonnull PatientOrderService patientOrderService,
 													@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 													@Nonnull ProviderListDetailsApiResponseFactory providerListDetailsApiResponseFactory,
+													@Nonnull ProviderSearchResultApiResponseFactory providerSearchResultApiResponseFactory,
 													@Nonnull ClinicApiResponseFactory clinicApiResponseFactory,
 													@Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 													@Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
@@ -258,6 +263,7 @@ public class ProviderResource {
 		requireNonNull(patientOrderService);
 		requireNonNull(providerApiResponseFactory);
 		requireNonNull(providerListDetailsApiResponseFactory);
+		requireNonNull(providerSearchResultApiResponseFactory);
 		requireNonNull(clinicApiResponseFactory);
 		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(availabilityTimeApiResponseFactory);
@@ -289,6 +295,7 @@ public class ProviderResource {
 		this.patientOrderService = patientOrderService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
 		this.providerListDetailsApiResponseFactory = providerListDetailsApiResponseFactory;
+		this.providerSearchResultApiResponseFactory = providerSearchResultApiResponseFactory;
 		this.clinicApiResponseFactory = clinicApiResponseFactory;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
 		this.availabilityTimeApiResponseFactory = availabilityTimeApiResponseFactory;
@@ -312,12 +319,18 @@ public class ProviderResource {
 	@Nonnull
 	@GET("/providers/search")
 	@AuthenticationRequired
-	public ApiResponse searchProviders(@Nonnull @QueryParameter FeatureId featureId,
+	public ApiResponse searchProviders(@Nonnull @QueryParameter Optional<FeatureId> featureId,
 																				@Nonnull @QueryParameter Optional<String> institutionLocationId) {
 		requireNonNull(featureId);
 		requireNonNull(institutionLocationId);
 
 		String institutionLocationIdAsString = normalizeInstitutionLocationIdForProviderSearch(institutionLocationId);
+
+		if (providerSearchArgumentsAbsent(featureId, institutionLocationIdAsString))
+			return emptyProviderSearchResponse();
+
+		if (featureId.isEmpty())
+			throw new ValidationException(new ValidationException.FieldError("featureId", getStrings().get("Feature ID is required.")));
 
 		if (institutionLocationIdAsString == null)
 			return emptyProviderSearchResponse();
@@ -331,38 +344,12 @@ public class ProviderResource {
 		}
 
 		Account account = getCurrentContext().getAccount().get();
-		List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(featureId);
-
-		if (supportRoleIds.size() == 0)
-			return emptyProviderSearchResponse();
-
-		ProviderFindRequest request = new ProviderFindRequest();
-		request.setInstitutionId(account.getInstitutionId());
-		request.setInstitutionLocationId(parsedInstitutionLocationId);
-		request.setSupportRoleIds(new HashSet<>(supportRoleIds));
-		request.setIncludePastAvailability(false);
-
-		List<ProviderFind> providerFinds = getProviderService().findProviders(request, account);
-		List<UUID> providerIds = providerFinds.stream()
-				.map(ProviderFind::getProviderId)
-				.filter(Objects::nonNull)
-				.distinct()
-				.toList();
-		Map<UUID, AppointmentType> appointmentTypesById = getAppointmentService().findAppointmentTypesByInstitutionId(account.getInstitutionId()).stream()
-				.collect(Collectors.toMap(AppointmentType::getAppointmentTypeId, Function.identity()));
-		Map<UUID, Provider> providersById = providerIds.stream()
-				.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
-				.filter(Objects::nonNull)
-				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
+		List<ProviderSearchResultApiResponse> providerSearchResults = getProviderService().findProviderSearchResults(featureId.get(), parsedInstitutionLocationId, account).stream()
+				.map(providerSearchResult -> getProviderSearchResultApiResponseFactory().create(providerSearchResult))
+				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("providers", providerFinds.stream()
-					.map(providerFind -> {
-						Provider provider = providersById.get(providerFind.getProviderId());
-						return provider == null ? null : getProviderListDetailsApiResponseFactory().create(provider, providerFind, appointmentTypesById);
-					})
-					.filter(Objects::nonNull)
-					.collect(Collectors.toList()));
+			put("providers", providerSearchResults);
 		}});
 	}
 
@@ -371,6 +358,12 @@ public class ProviderResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", List.of());
 		}});
+	}
+
+	protected static boolean providerSearchArgumentsAbsent(@Nonnull Optional<FeatureId> featureId,
+																												 @Nullable String institutionLocationId) {
+		requireNonNull(featureId);
+		return featureId.isEmpty() && institutionLocationId == null;
 	}
 
 	@Nullable
@@ -1368,6 +1361,11 @@ public class ProviderResource {
 	@Nonnull
 	protected ProviderListDetailsApiResponseFactory getProviderListDetailsApiResponseFactory() {
 		return this.providerListDetailsApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ProviderSearchResultApiResponseFactory getProviderSearchResultApiResponseFactory() {
+		return this.providerSearchResultApiResponseFactory;
 	}
 
 	@Nonnull

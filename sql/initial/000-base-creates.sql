@@ -724,6 +724,7 @@ CREATE TABLE clinic (
 	created timestamptz NOT NULL DEFAULT now(),
 	last_updated timestamptz NOT NULL DEFAULT now(),
 	show_intake_assessment_prompt bool NOT NULL DEFAULT true,
+	bookable_as_provider bool NOT NULL DEFAULT false,
 	CONSTRAINT clinic_pkey PRIMARY KEY (clinic_id),
 	CONSTRAINT clinic_institution_id_fkey FOREIGN KEY (institution_id) REFERENCES institution(institution_id),
 	CONSTRAINT clinic_intake_assessment_id_fkey FOREIGN KEY (intake_assessment_id) REFERENCES assessment(assessment_id)

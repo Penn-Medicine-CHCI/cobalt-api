@@ -161,6 +161,7 @@ import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.Pres
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderListDetailsApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.ProviderSearchResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.QuestionApiResponse.QuestionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ReportTypeApiResponse.ReportTypeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ResourcePacketApiResponse.ResourcePacketApiResponseFactory;
@@ -289,6 +290,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ContentSnippetApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ProviderApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ProviderListDetailsApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ProviderSearchResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AvailabilityTimeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AppointmentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ActivityTrackingApiResponseFactory.class)));

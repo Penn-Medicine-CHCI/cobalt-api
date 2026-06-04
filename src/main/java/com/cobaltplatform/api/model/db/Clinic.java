@@ -45,6 +45,8 @@ public class Clinic {
 	@Nullable
 	private Boolean showIntakeAssessmentPrompt;
 	@Nullable
+	private Boolean bookableAsProvider;
+	@Nullable
 	private String imageUrl;
 	@Nullable
 	private String phoneNumber;
@@ -107,6 +109,15 @@ public class Clinic {
 
 	public void setShowIntakeAssessmentPrompt(@Nullable Boolean showIntakeAssessmentPrompt) {
 		this.showIntakeAssessmentPrompt = showIntakeAssessmentPrompt;
+	}
+
+	@Nullable
+	public Boolean getBookableAsProvider() {
+		return bookableAsProvider;
+	}
+
+	public void setBookableAsProvider(@Nullable Boolean bookableAsProvider) {
+		this.bookableAsProvider = bookableAsProvider;
 	}
 
 	@Nullable
