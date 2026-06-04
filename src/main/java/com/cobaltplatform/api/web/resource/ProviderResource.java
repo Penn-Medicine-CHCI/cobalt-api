@@ -137,8 +137,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -147,6 +149,8 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 @ThreadSafe
 public class ProviderResource {
+	@Nonnull
+	protected static final String ALL_INSTITUTION_LOCATIONS_ID = "na";
 	@Nonnull
 	private final AssessmentService assessmentService;
 	@Nonnull
@@ -309,21 +313,32 @@ public class ProviderResource {
 	@GET("/providers/search")
 	@AuthenticationRequired
 	public ApiResponse searchProviders(@Nonnull @QueryParameter FeatureId featureId,
-																			@Nonnull @QueryParameter UUID institutionLocationId) {
+																				@Nonnull @QueryParameter Optional<String> institutionLocationId) {
 		requireNonNull(featureId);
 		requireNonNull(institutionLocationId);
+
+		String institutionLocationIdAsString = normalizeInstitutionLocationIdForProviderSearch(institutionLocationId);
+
+		if (institutionLocationIdAsString == null)
+			return emptyProviderSearchResponse();
+
+		UUID parsedInstitutionLocationId;
+
+		try {
+			parsedInstitutionLocationId = parseInstitutionLocationIdForProviderSearch(institutionLocationIdAsString);
+		} catch (IllegalArgumentException e) {
+			throw new ValidationException(new ValidationException.FieldError("institutionLocationId", getStrings().get("Institution Location ID is invalid.")));
+		}
 
 		Account account = getCurrentContext().getAccount().get();
 		List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(featureId);
 
 		if (supportRoleIds.size() == 0)
-			return new ApiResponse(new HashMap<String, Object>() {{
-				put("providers", List.of());
-			}});
+			return emptyProviderSearchResponse();
 
 		ProviderFindRequest request = new ProviderFindRequest();
 		request.setInstitutionId(account.getInstitutionId());
-		request.setInstitutionLocationId(institutionLocationId);
+		request.setInstitutionLocationId(parsedInstitutionLocationId);
 		request.setSupportRoleIds(new HashSet<>(supportRoleIds));
 		request.setIncludePastAvailability(false);
 
@@ -350,7 +365,40 @@ public class ProviderResource {
 					.collect(Collectors.toList()));
 		}});
 	}
-	
+
+	@Nonnull
+	protected ApiResponse emptyProviderSearchResponse() {
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("providers", List.of());
+		}});
+	}
+
+	@Nullable
+	protected static String normalizeInstitutionLocationIdForProviderSearch(@Nonnull Optional<String> institutionLocationId) {
+		requireNonNull(institutionLocationId);
+		return trimToNull(institutionLocationId.orElse(null));
+	}
+
+	@Nullable
+	protected static UUID parseInstitutionLocationIdForProviderSearch(@Nonnull String institutionLocationId) {
+		requireNonNull(institutionLocationId);
+
+		institutionLocationId = trimToNull(institutionLocationId);
+
+		if (institutionLocationId == null)
+			throw new IllegalArgumentException("Institution Location ID is required.");
+
+		if (ALL_INSTITUTION_LOCATIONS_ID.equalsIgnoreCase(institutionLocationId)) {
+			// TODO: Reassess whether all-location search should include providers with no provider_institution_location
+			// rows, or only the union of providers explicitly available across the institution's locations.
+			return null;
+		}
+
+		if (!isValidUUID(institutionLocationId))
+			throw new IllegalArgumentException("Institution Location ID is invalid.");
+
+		return UUID.fromString(institutionLocationId);
+	}
 
 	@Nonnull
 	@POST("/providers/find")
