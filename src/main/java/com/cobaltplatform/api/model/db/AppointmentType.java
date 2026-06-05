@@ -55,6 +55,8 @@ public class AppointmentType {
 	@Nullable
 	private Long durationInMinutes;
 	@Nullable
+	private UUID screeningFlowId;
+	@Nullable
 	private Integer hexColor;
 	@Nullable
 	private Boolean deleted;
@@ -161,6 +163,15 @@ public class AppointmentType {
 
 	public void setDurationInMinutes(@Nullable Long durationInMinutes) {
 		this.durationInMinutes = durationInMinutes;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return this.screeningFlowId;
+	}
+
+	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+		this.screeningFlowId = screeningFlowId;
 	}
 
 	@Nullable

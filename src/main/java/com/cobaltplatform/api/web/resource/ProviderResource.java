@@ -665,6 +665,7 @@ public class ProviderResource {
 					appointmentTypeJson.put("name", appointmentType.getName());
 					appointmentTypeJson.put("description", appointmentType.getDescription());
 					appointmentTypeJson.put("durationInMinutes", appointmentType.getDurationInMinutes());
+					appointmentTypeJson.put("screeningFlowId", appointmentType.getScreeningFlowId());
 					appointmentTypeJson.put("durationInMinutesDescription", getStrings().get("{{duration}} minutes", new HashMap<String, Object>() {{
 						put("duration", appointmentType.getDurationInMinutes());
 					}}));

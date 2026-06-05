@@ -74,6 +74,8 @@ public class AppointmentTypeApiResponse {
 	@Nonnull
 	private final String hexColor;
 	@Nullable
+	private final UUID screeningFlowId;
+	@Nullable
 	private final UUID assessmentId;
 	@Nullable
 	private List<PatientIntakeQuestionApiResponse> patientIntakeQuestions;
@@ -128,6 +130,7 @@ public class AppointmentTypeApiResponse {
 			put("duration", appointmentType.getDurationInMinutes());
 		}});
 		this.hexColor = formatter.formatHexColor(appointmentType.getHexColor());
+		this.screeningFlowId = appointmentType.getScreeningFlowId();
 		this.assessmentId = appointmentType.getAssessmentId();
 
 		if (appointmentType.getAssessmentId() != null && (supplements.contains(AppointmentTypeApiResponseSupplement.ASSESSMENT) || supplements.contains(AppointmentTypeApiResponseSupplement.EVERYTHING))) {
@@ -261,6 +264,11 @@ public class AppointmentTypeApiResponse {
 	@Nonnull
 	public String getHexColor() {
 		return hexColor;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return this.screeningFlowId;
 	}
 
 	@Nullable

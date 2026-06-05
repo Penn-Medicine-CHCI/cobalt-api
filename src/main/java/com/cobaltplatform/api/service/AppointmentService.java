@@ -68,7 +68,9 @@ import com.cobaltplatform.api.model.api.request.CreateInteractionInstanceRequest
 import com.cobaltplatform.api.model.api.request.CreateMicrosoftTeamsMeetingRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientIntakeQuestionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScheduledMessageRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
+import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
@@ -107,10 +109,13 @@ import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
@@ -202,6 +207,8 @@ public class AppointmentService {
 	@Nonnull
 	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<ScreeningService> screeningServiceProvider;
+	@Nonnull
 	private final Logger logger;
 	@Nonnull
 	private final javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider;
@@ -247,6 +254,7 @@ public class AppointmentService {
 														@Nonnull javax.inject.Provider<MessageService> messageServiceProvider,
 														@Nonnull javax.inject.Provider<SystemService> systemServiceProvider,
 														@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
+														@Nonnull javax.inject.Provider<ScreeningService> screeningServiceProvider,
 														@Nonnull Formatter formatter,
 														@Nonnull Normalizer normalizer,
 														@Nonnull SessionService sessionService,
@@ -273,6 +281,7 @@ public class AppointmentService {
 		requireNonNull(messageServiceProvider);
 		requireNonNull(systemServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
+		requireNonNull(screeningServiceProvider);
 		requireNonNull(formatter);
 		requireNonNull(normalizer);
 		requireNonNull(sessionService);
@@ -301,6 +310,7 @@ public class AppointmentService {
 		this.messageServiceProvider = messageServiceProvider;
 		this.systemServiceProvider = systemServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
+		this.screeningServiceProvider = screeningServiceProvider;
 		this.formatter = formatter;
 		this.normalizer = normalizer;
 		this.sessionService = sessionService;
@@ -716,6 +726,154 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	public AppointmentBookingRequirements findAppointmentBookingRequirements(@Nonnull FindAppointmentBookingRequirementsRequest request,
+																																					@Nonnull Account currentAccount) {
+		requireNonNull(request);
+		requireNonNull(currentAccount);
+
+		UUID accountId = request.getAccountId();
+		UUID providerId = request.getProviderId();
+		UUID appointmentTypeId = request.getAppointmentTypeId();
+		AppointmentType appointmentType = null;
+		Provider provider = null;
+		ValidationException validationException = new ValidationException();
+
+		if (accountId == null) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+		} else if (getAccountService().findAccountById(accountId).isEmpty()) {
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is invalid.")));
+		}
+
+		if (providerId == null) {
+			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		} else {
+			provider = getProviderService().findProviderById(providerId).orElse(null);
+
+			if (provider == null)
+				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
+		}
+
+		if (appointmentTypeId == null) {
+			validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment type ID is required.")));
+		} else {
+			appointmentType = findAppointmentTypeById(appointmentTypeId).orElse(null);
+
+			if (appointmentType == null)
+				validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment type ID is invalid.")));
+		}
+
+		if (provider != null && appointmentType != null && !providerOffersAppointmentType(provider.getProviderId(), appointmentType.getAppointmentTypeId()))
+			validationException.add(new FieldError("appointmentTypeId", getStrings().get("Appointment type ID is invalid for this provider.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UUID screeningFlowId = appointmentType.getScreeningFlowId();
+		Map<String, Object> appointmentBookingContext = appointmentBookingContextFor(request, screeningFlowId);
+
+		if (screeningFlowId == null)
+			return new AppointmentBookingRequirements(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+					accountId, providerId, appointmentTypeId, request.getAppointmentSelectionTypeId(), null, false, true, null,
+					appointmentBookingContext);
+
+		ScreeningSession completedScreeningSession = findMostRecentAppointmentBookingScreeningSession(accountId, providerId, appointmentTypeId,
+				screeningFlowId, true).orElse(null);
+
+		if (completedScreeningSession != null)
+			return new AppointmentBookingRequirements(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+					accountId, providerId, appointmentTypeId, request.getAppointmentSelectionTypeId(), screeningFlowId, true, true, null,
+					appointmentBookingContext);
+
+		ScreeningSession screeningSession = findMostRecentAppointmentBookingScreeningSession(accountId, providerId, appointmentTypeId,
+				screeningFlowId, false).orElse(null);
+
+		if (screeningSession == null) {
+			CreateScreeningSessionRequest createScreeningSessionRequest = new CreateScreeningSessionRequest();
+			createScreeningSessionRequest.setScreeningFlowId(screeningFlowId);
+			createScreeningSessionRequest.setTargetAccountId(accountId);
+			createScreeningSessionRequest.setCreatedByAccountId(currentAccount.getAccountId());
+			createScreeningSessionRequest.setMetadata(Map.of("appointmentBooking", appointmentBookingContext));
+
+			UUID screeningSessionId = getScreeningService().createScreeningSession(createScreeningSessionRequest);
+			screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
+		}
+
+		return new AppointmentBookingRequirements(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+				accountId, providerId, appointmentTypeId, request.getAppointmentSelectionTypeId(), screeningFlowId, true, false, screeningSession,
+				appointmentBookingContext);
+	}
+
+	protected boolean providerOffersAppointmentType(@Nonnull UUID providerId,
+																									@Nonnull UUID appointmentTypeId) {
+		requireNonNull(providerId);
+		requireNonNull(appointmentTypeId);
+
+		return getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM provider_appointment_type
+				WHERE provider_id=?
+				AND appointment_type_id=?
+				""", Boolean.class, providerId, appointmentTypeId).orElse(false);
+	}
+
+	@Nonnull
+	protected Optional<ScreeningSession> findMostRecentAppointmentBookingScreeningSession(@Nonnull UUID accountId,
+																																											 @Nonnull UUID providerId,
+																																											 @Nonnull UUID appointmentTypeId,
+																																											 @Nonnull UUID screeningFlowId,
+																																											 boolean completed) {
+		requireNonNull(accountId);
+		requireNonNull(providerId);
+		requireNonNull(appointmentTypeId);
+		requireNonNull(screeningFlowId);
+
+		return getDatabase().queryForObject("""
+				SELECT ss.*
+				FROM screening_session ss, screening_flow_version sfv
+				WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
+				AND sfv.screening_flow_id=?
+				AND ss.target_account_id=?
+				AND ss.completed=?
+				AND ss.skipped=FALSE
+				AND ss.metadata->'appointmentBooking'->>'providerId'=?
+				AND ss.metadata->'appointmentBooking'->>'appointmentTypeId'=?
+				ORDER BY ss.last_updated DESC
+				LIMIT 1
+				""", ScreeningSession.class, screeningFlowId, accountId, completed, providerId.toString(), appointmentTypeId.toString());
+	}
+
+	@Nonnull
+	protected Map<String, Object> appointmentBookingContextFor(@Nonnull FindAppointmentBookingRequirementsRequest request,
+																														 @Nullable UUID screeningFlowId) {
+		requireNonNull(request);
+
+		Map<String, Object> context = new HashMap<>();
+		context.put("accountId", request.getAccountId().toString());
+		context.put("providerId", request.getProviderId().toString());
+		context.put("appointmentTypeId", request.getAppointmentTypeId().toString());
+
+		if (request.getAppointmentSelectionTypeId() != null)
+			context.put("appointmentSelectionTypeId", request.getAppointmentSelectionTypeId().name());
+
+		if (screeningFlowId != null)
+			context.put("screeningFlowId", screeningFlowId.toString());
+
+		if (request.getDate() != null)
+			context.put("date", request.getDate().toString());
+
+		if (request.getTime() != null)
+			context.put("time", request.getTime().toString());
+
+		if (request.getEpicDepartmentId() != null)
+			context.put("epicDepartmentId", request.getEpicDepartmentId().toString());
+
+		if (trimToNull(request.getEpicAppointmentFhirId()) != null)
+			context.put("epicAppointmentFhirId", trimToNull(request.getEpicAppointmentFhirId()));
+
+		return context;
+	}
+
+	@Nonnull
 	public UUID createAcuityAppointmentType(@Nonnull CreateAcuityAppointmentTypeRequest request) {
 		requireNonNull(request);
 
@@ -899,6 +1057,15 @@ public class AppointmentService {
 				validationException.add(getStrings().get("Based on your responses you are not permitted to book with this provider."));
 			else if (intakeSession == null)
 				validationException.add(getStrings().get("You did not answer the necessary intake questions to book with this provider."));
+		}
+
+		if (providerId != null && appointmentType != null && appointmentType.getScreeningFlowId() != null) {
+			ScreeningSession completedAppointmentBookingScreeningSession =
+					findMostRecentAppointmentBookingScreeningSession(accountId, providerId, appointmentTypeId,
+							appointmentType.getScreeningFlowId(), true).orElse(null);
+
+			if (completedAppointmentBookingScreeningSession == null)
+				validationException.add(getStrings().get("You did not complete the necessary screening questions to book this appointment."));
 		}
 
 		if (validationException.hasErrors())
@@ -1637,11 +1804,12 @@ public class AppointmentService {
 		String name = trimToNull(request.getName());
 		String description = trimToNull(request.getDescription());
 		Long durationInMinutes = request.getDurationInMinutes();
+		UUID screeningFlowId = request.getScreeningFlowId();
 		String hexColor = trimToNull(request.getHexColor());
 		List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions = request.getPatientIntakeQuestions() == null ? Collections.emptyList() : request.getPatientIntakeQuestions();
 		List<CreateScreeningQuestionRequest> screeningQuestions = request.getScreeningQuestions() == null ? Collections.emptyList() : request.getScreeningQuestions();
 		UUID appointmentTypeId = UUID.randomUUID();
-		Provider provider;
+		Provider provider = null;
 
 		ValidationException validationException = new ValidationException();
 
@@ -1653,6 +1821,8 @@ public class AppointmentService {
 			if (provider == null)
 				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
 		}
+
+		validateAppointmentTypeScreeningFlowId(screeningFlowId, provider, validationException);
 
 		if (name == null)
 			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
@@ -1728,9 +1898,9 @@ public class AppointmentService {
 		Integer normalizedHexColor = getNormalizer().normalizeHexColor(hexColor).get();
 
 		getDatabase().execute("INSERT INTO appointment_type (appointment_type_id, visit_type_id, " +
-						"name, description, duration_in_minutes, scheduling_system_id, hex_color) VALUES (?,?,?,?,?,?,?)",
+						"name, description, duration_in_minutes, scheduling_system_id, hex_color, screening_flow_id) VALUES (?,?,?,?,?,?,?,?)",
 				appointmentTypeId, visitTypeId, name, description,
-				durationInMinutes, schedulingSystemId, normalizedHexColor);
+				durationInMinutes, schedulingSystemId, normalizedHexColor, screeningFlowId);
 
 		getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
 						"SELECT ?,?, COALESCE(MAX(display_order) + 1, 1) FROM provider_appointment_type WHERE provider_id=?",
@@ -1758,6 +1928,25 @@ public class AppointmentService {
 		return appointmentTypeId;
 	}
 
+	protected void validateAppointmentTypeScreeningFlowId(@Nullable UUID screeningFlowId,
+																												@Nullable Provider provider,
+																												@Nonnull ValidationException validationException) {
+		requireNonNull(validationException);
+
+		if (screeningFlowId == null || provider == null)
+			return;
+
+		Boolean screeningFlowExists = getDatabase().queryForObject("""
+				SELECT COUNT(*) > 0
+				FROM screening_flow
+				WHERE screening_flow_id=?
+				AND institution_id=?
+				""", Boolean.class, screeningFlowId, provider.getInstitutionId()).orElse(false);
+
+		if (!screeningFlowExists)
+			validationException.add(new FieldError("screeningFlowId", getStrings().get("Screening flow ID is invalid.")));
+	}
+
 	@Nonnull
 	public Boolean updateAppointmentType(@Nonnull UpdateAppointmentTypeRequest request) {
 		requireNonNull(request);
@@ -1769,10 +1958,11 @@ public class AppointmentService {
 		String name = trimToNull(request.getName());
 		String description = trimToNull(request.getDescription());
 		Long durationInMinutes = request.getDurationInMinutes();
+		UUID screeningFlowId = request.getScreeningFlowId();
 		String hexColor = trimToNull(request.getHexColor());
 		List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions = request.getPatientIntakeQuestions() == null ? Collections.emptyList() : request.getPatientIntakeQuestions();
 		List<CreateScreeningQuestionRequest> screeningQuestions = request.getScreeningQuestions() == null ? Collections.emptyList() : request.getScreeningQuestions();
-		Provider provider;
+		Provider provider = null;
 
 		ValidationException validationException = new ValidationException();
 
@@ -1787,6 +1977,8 @@ public class AppointmentService {
 			if (provider == null)
 				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
 		}
+
+		validateAppointmentTypeScreeningFlowId(screeningFlowId, provider, validationException);
 
 		if (name == null)
 			validationException.add(new FieldError("name", getStrings().get("Name is required.")));
@@ -1860,8 +2052,8 @@ public class AppointmentService {
 		Integer normalizedHexColor = getNormalizer().normalizeHexColor(hexColor).get();
 
 		getDatabase().execute("UPDATE appointment_type SET visit_type_id=?, " +
-						"name=?, description=?, duration_in_minutes=?, scheduling_system_id=?, hex_color=? WHERE appointment_type_id=?", visitTypeId, name,
-				description, durationInMinutes, schedulingSystemId, normalizedHexColor, appointmentTypeId);
+						"name=?, description=?, duration_in_minutes=?, scheduling_system_id=?, hex_color=?, screening_flow_id=? WHERE appointment_type_id=?", visitTypeId, name,
+				description, durationInMinutes, schedulingSystemId, normalizedHexColor, screeningFlowId, appointmentTypeId);
 
 		getDatabase().execute("DELETE FROM provider_appointment_type WHERE provider_id=? AND appointment_type_id=?", providerId, appointmentTypeId);
 
@@ -2747,6 +2939,11 @@ public class AppointmentService {
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningServiceProvider.get();
 	}
 
 	@Nonnull

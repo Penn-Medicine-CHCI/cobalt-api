@@ -340,6 +340,8 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 		@Nullable
 		private final UUID assessmentId;
 		@Nullable
+		private final UUID screeningFlowId;
+		@Nullable
 		private final UUID epicDepartmentId;
 		@Nullable
 		private final String epicAppointmentFhirId;
@@ -362,6 +364,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 			this.appointmentTypeIds = availabilityTime.getAppointmentTypeIds();
 			this.appointmentDescription = appointmentType == null ? null : descriptionFor(appointmentType);
 			this.assessmentId = appointmentType == null ? null : appointmentType.getAssessmentId();
+			this.screeningFlowId = appointmentType == null ? null : appointmentType.getScreeningFlowId();
 			this.epicDepartmentId = availabilityTime.getEpicDepartmentId();
 			this.epicAppointmentFhirId = availabilityTime.getEpicAppointmentFhirId();
 		}
@@ -423,6 +426,11 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 		@Nullable
 		public UUID getAssessmentId() {
 			return assessmentId;
+		}
+
+		@Nullable
+		public UUID getScreeningFlowId() {
+			return this.screeningFlowId;
 		}
 
 		@Nullable

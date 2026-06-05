@@ -45,6 +45,8 @@ public class CreateAppointmentTypeRequest {
 	@Nullable
 	private Long durationInMinutes;
 	@Nullable
+	private UUID screeningFlowId;
+	@Nullable
 	private String hexColor; // of the form "#FFFFFF"
 	@Nullable
 	private List<CreatePatientIntakeQuestionRequest> patientIntakeQuestions;
@@ -103,6 +105,15 @@ public class CreateAppointmentTypeRequest {
 
 	public void setDurationInMinutes(@Nullable Long durationInMinutes) {
 		this.durationInMinutes = durationInMinutes;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return this.screeningFlowId;
+	}
+
+	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+		this.screeningFlowId = screeningFlowId;
 	}
 
 	@Nullable

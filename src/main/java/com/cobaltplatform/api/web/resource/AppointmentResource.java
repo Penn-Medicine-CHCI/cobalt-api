@@ -25,10 +25,13 @@ import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
@@ -38,7 +41,9 @@ import com.cobaltplatform.api.model.db.AuditLogEvent;
 import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
@@ -107,6 +112,8 @@ public class AppointmentResource {
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
+	private final ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
@@ -134,6 +141,7 @@ public class AppointmentResource {
 														 @Nonnull AccountService accountService,
 														 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 														 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
+														 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 														 @Nonnull RequestBodyParser requestBodyParser,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
@@ -148,6 +156,7 @@ public class AppointmentResource {
 		requireNonNull(accountService);
 		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
+		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -163,6 +172,7 @@ public class AppointmentResource {
 		this.accountService = accountService;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
+		this.screeningSessionApiResponseFactory = screeningSessionApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -361,6 +371,34 @@ public class AppointmentResource {
 	}
 
 	@Nonnull
+	@POST("/appointments/booking-requirements")
+	@AuthenticationRequired
+	public ApiResponse appointmentBookingRequirements(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+		FindAppointmentBookingRequirementsRequest request = getRequestBodyParser().parse(requestBody, FindAppointmentBookingRequirementsRequest.class);
+
+		if (request.getAccountId() == null)
+			request.setAccountId(currentAccount.getAccountId());
+
+		Account targetAccount = getAccountService().findAccountById(request.getAccountId()).orElse(null);
+
+		if (targetAccount == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(targetAccount, currentAccount))
+			throw new AuthorizationException();
+
+		AppointmentBookingRequirements appointmentBookingRequirements =
+				getAppointmentService().findAppointmentBookingRequirements(request, currentAccount);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointmentBookingRequirements", appointmentBookingRequirementsApiResponse(appointmentBookingRequirements));
+		}});
+	}
+
+	@Nonnull
 	@POST("/appointments")
 	@AuthenticationRequired
 	public ApiResponse createAppointment(@Nonnull @RequestBody String requestBody) {
@@ -536,6 +574,29 @@ public class AppointmentResource {
 	}
 
 	@Nonnull
+	protected Map<String, Object> appointmentBookingRequirementsApiResponse(@Nonnull AppointmentBookingRequirements appointmentBookingRequirements) {
+		requireNonNull(appointmentBookingRequirements);
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("appointmentBookingRequirementsDestinationId", appointmentBookingRequirements.getAppointmentBookingRequirementsDestinationId());
+		response.put("accountId", appointmentBookingRequirements.getAccountId());
+		response.put("providerId", appointmentBookingRequirements.getProviderId());
+		response.put("appointmentTypeId", appointmentBookingRequirements.getAppointmentTypeId());
+		response.put("appointmentSelectionTypeId", appointmentBookingRequirements.getAppointmentSelectionTypeId());
+		response.put("screeningFlowId", appointmentBookingRequirements.getScreeningFlowId());
+		response.put("screeningRequired", appointmentBookingRequirements.getScreeningRequired());
+		response.put("screeningSatisfied", appointmentBookingRequirements.getScreeningSatisfied());
+		response.put("context", appointmentBookingRequirements.getContext());
+
+		ScreeningSession screeningSession = appointmentBookingRequirements.getScreeningSession();
+
+		if (screeningSession != null)
+			response.put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
+
+		return response;
+	}
+
+	@Nonnull
 	protected AppointmentService getAppointmentService() {
 		return appointmentService;
 	}
@@ -553,6 +614,11 @@ public class AppointmentResource {
 	@Nonnull
 	protected AccountApiResponseFactory getAccountApiResponseFactory() {
 		return accountApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningSessionApiResponseFactory getScreeningSessionApiResponseFactory() {
+		return this.screeningSessionApiResponseFactory;
 	}
 
 	@Nonnull

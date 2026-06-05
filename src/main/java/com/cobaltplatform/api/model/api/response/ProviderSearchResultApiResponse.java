@@ -47,6 +47,7 @@ import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -145,7 +146,7 @@ public class ProviderSearchResultApiResponse {
 			this.imageUrl = providerFind.getImageUrl();
 			this.formattedPhoneNumber = formatter.formatPhoneNumber(providerFind.getPhoneNumber(), provider.getLocale());
 			this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(provider, strings);
-			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(provider, providerFind);
+			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(List.of(providerFind), Map.of(provider.getProviderId(), provider), availableAppointments);
 			this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 			this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
 			this.hasMoreAppointments = availableAppointments.size() > 1;
@@ -172,7 +173,7 @@ public class ProviderSearchResultApiResponse {
 			this.imageUrl = clinic.getImageUrl();
 			this.formattedPhoneNumber = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 			this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerFinds, providersById, strings);
-			this.appointmentSelectionTypeId = null;
+			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments);
 			this.appointmentDescription = firstAvailableAppointment == null || firstAvailableAppointment.getAppointmentType() == null
 					? null
 					: descriptionFor(firstAvailableAppointment.getAppointmentType());
@@ -208,7 +209,7 @@ public class ProviderSearchResultApiResponse {
 		this.imageUrl = providerFind.getImageUrl();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(providerFind.getPhoneNumber(), provider.getLocale());
 		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(provider, strings);
-		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(provider, providerFind);
+		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(List.of(providerFind), Map.of(provider.getProviderId(), provider), availableAppointments);
 		this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
 		this.hasMoreAppointments = availableAppointments.size() > 1;
@@ -246,7 +247,7 @@ public class ProviderSearchResultApiResponse {
 		this.imageUrl = clinic.getImageUrl();
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerFinds, providersById, strings);
-		this.appointmentSelectionTypeId = null;
+		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments);
 		this.appointmentDescription = firstAvailableAppointment == null || firstAvailableAppointment.getAppointmentType() == null
 				? null
 				: descriptionFor(firstAvailableAppointment.getAppointmentType());
@@ -332,20 +333,86 @@ public class ProviderSearchResultApiResponse {
 		return providerAppointmentModalityIds;
 	}
 
-	@Nullable
-	protected ProviderAppointmentSelectionTypeId appointmentSelectionTypeIdFor(@Nonnull Provider provider,
-																																						 @Nonnull ProviderFind providerFind) {
-		requireNonNull(provider);
-		requireNonNull(providerFind);
+	@Nonnull
+	protected static ProviderAppointmentSelectionTypeId appointmentSelectionTypeIdFor(@Nonnull List<ProviderFind> providerFinds,
+																																									 @Nonnull Map<UUID, Provider> providersById,
+																																									 @Nonnull List<AvailableAppointment> availableAppointments) {
+		requireNonNull(providerFinds);
+		requireNonNull(providersById);
+		requireNonNull(availableAppointments);
 
-		if (provider.getVideoconferencePlatformId() == VideoconferencePlatformId.TELEPHONE)
+		if (appointmentByPhoneFor(providerFinds, providersById))
 			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
 
-		int appointmentTypeCount = providerFind.getAppointmentTypeIds() == null ? 0 : providerFind.getAppointmentTypeIds().size();
+		Set<UUID> appointmentTypeIds = distinctAppointmentTypeIdsForAvailableAppointments(availableAppointments);
 
-		return appointmentTypeCount == 1
+		if (appointmentTypeIds == null)
+			appointmentTypeIds = distinctAppointmentTypeIdsForProviderFinds(providerFinds);
+
+		return appointmentTypeIds.size() == 1
 				? ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED
 				: ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED;
+	}
+
+	protected static boolean appointmentByPhoneFor(@Nonnull List<ProviderFind> providerFinds,
+																								 @Nonnull Map<UUID, Provider> providersById) {
+		requireNonNull(providerFinds);
+		requireNonNull(providersById);
+
+		if (providerFinds.size() == 0)
+			return false;
+
+		for (ProviderFind providerFind : providerFinds) {
+			Provider provider = providersById.get(providerFind.getProviderId());
+
+			if (provider == null || provider.getVideoconferencePlatformId() != VideoconferencePlatformId.TELEPHONE)
+				return false;
+		}
+
+		return true;
+	}
+
+	@Nullable
+	protected static Set<UUID> distinctAppointmentTypeIdsForAvailableAppointments(@Nonnull List<AvailableAppointment> availableAppointments) {
+		requireNonNull(availableAppointments);
+
+		if (availableAppointments.size() == 0)
+			return null;
+
+		Set<UUID> appointmentTypeIds = new HashSet<>();
+
+		for (AvailableAppointment availableAppointment : availableAppointments) {
+			List<UUID> availableAppointmentTypeIds = availableAppointment.getAvailabilityTime().getAppointmentTypeIds();
+
+			if (availableAppointmentTypeIds == null || availableAppointmentTypeIds.stream().noneMatch(appointmentTypeId -> appointmentTypeId != null))
+				return null;
+
+			for (UUID appointmentTypeId : availableAppointmentTypeIds)
+				if (appointmentTypeId != null)
+					appointmentTypeIds.add(appointmentTypeId);
+		}
+
+		return appointmentTypeIds;
+	}
+
+	@Nonnull
+	protected static Set<UUID> distinctAppointmentTypeIdsForProviderFinds(@Nonnull List<ProviderFind> providerFinds) {
+		requireNonNull(providerFinds);
+
+		Set<UUID> appointmentTypeIds = new HashSet<>();
+
+		for (ProviderFind providerFind : providerFinds) {
+			Set<UUID> providerFindAppointmentTypeIds = providerFind.getAppointmentTypeIds();
+
+			if (providerFindAppointmentTypeIds == null || providerFindAppointmentTypeIds.stream().noneMatch(appointmentTypeId -> appointmentTypeId != null))
+				return Set.of();
+
+			for (UUID appointmentTypeId : providerFindAppointmentTypeIds)
+				if (appointmentTypeId != null)
+					appointmentTypeIds.add(appointmentTypeId);
+		}
+
+		return appointmentTypeIds;
 	}
 
 	@Nonnull
@@ -573,6 +640,8 @@ public class ProviderSearchResultApiResponse {
 		@Nullable
 		private final UUID assessmentId;
 		@Nullable
+		private final UUID screeningFlowId;
+		@Nullable
 		private final UUID epicDepartmentId;
 		@Nullable
 		private final String epicAppointmentFhirId;
@@ -595,6 +664,7 @@ public class ProviderSearchResultApiResponse {
 			this.appointmentTypeIds = availabilityTime.getAppointmentTypeIds();
 			this.appointmentDescription = appointmentType == null ? null : descriptionFor(appointmentType);
 			this.assessmentId = appointmentType == null ? null : appointmentType.getAssessmentId();
+			this.screeningFlowId = appointmentType == null ? null : appointmentType.getScreeningFlowId();
 			this.epicDepartmentId = availabilityTime.getEpicDepartmentId();
 			this.epicAppointmentFhirId = availabilityTime.getEpicAppointmentFhirId();
 		}
@@ -647,6 +717,11 @@ public class ProviderSearchResultApiResponse {
 		@Nullable
 		public UUID getAssessmentId() {
 			return this.assessmentId;
+		}
+
+		@Nullable
+		public UUID getScreeningFlowId() {
+			return this.screeningFlowId;
 		}
 
 		@Nullable
