@@ -159,6 +159,7 @@ import com.cobaltplatform.api.model.api.response.PatientOrderVoicemailTaskApiRes
 import com.cobaltplatform.api.model.api.response.PinboardNoteApiResponse.PinboardNoteApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PresignedUploadApiResponse.PresignedUploadApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderAvailabilityApiResponse.ProviderAvailabilityApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderListDetailsApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.ProviderSearchResultApiResponseFactory;
@@ -289,6 +290,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(ContentApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ContentSnippetApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ProviderApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(ProviderAvailabilityApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ProviderListDetailsApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ProviderSearchResultApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(AvailabilityTimeApiResponseFactory.class)));
