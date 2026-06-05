@@ -20,12 +20,14 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.response.ProviderAvailabilityApiResponse.AppointmentTypeAvailabilityApiResponse;
+import com.cobaltplatform.api.model.api.response.ProviderAvailabilityApiResponse.AppointmentModalityAvailabilityApiResponse;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
@@ -49,13 +51,13 @@ import static org.junit.Assert.assertEquals;
  */
 public class ProviderAvailabilityApiResponseTests {
 	@Test
-	public void providerAvailabilityGroupsAvailableSlotsByAppointmentTypeAndDate() {
+	public void providerAvailabilityGroupsAvailableSlotsByAppointmentModalityAndDate() {
 		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
 		UUID firstAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000011");
 		UUID secondAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000012");
 		UUID unknownAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000099");
 		LocalDate date = LocalDate.of(2026, 1, 1);
-		Provider provider = provider(providerId, "Test Provider");
+		Provider provider = provider(providerId, "Test Provider", VideoconferencePlatformId.SWITCHBOARD, "215-555-1000");
 		AppointmentType firstAppointmentType = appointmentType(firstAppointmentTypeId, "Alpha Visit");
 		AppointmentType secondAppointmentType = appointmentType(secondAppointmentTypeId, "Beta Visit");
 		ProviderFind providerFind = providerFind(providerId, "Test Provider", availabilityDate(date, List.of(
@@ -72,19 +74,26 @@ public class ProviderAvailabilityApiResponseTests {
 
 		assertEquals(providerId, response.getProviderId());
 		assertEquals(2, response.getAppointmentTypes().size());
+		assertEquals(firstAppointmentTypeId, response.getAppointmentTypes().get(0).getAppointmentTypeId());
+		assertEquals(secondAppointmentTypeId, response.getAppointmentTypes().get(1).getAppointmentTypeId());
+		assertEquals(2, response.getAppointmentModalities().size());
 
-		AppointmentTypeAvailabilityApiResponse firstAvailability = response.getAppointmentTypes().get(0);
-		AppointmentTypeAvailabilityApiResponse secondAvailability = response.getAppointmentTypes().get(1);
+		AppointmentModalityAvailabilityApiResponse phoneAvailability = response.getAppointmentModalities().get(0);
+		AppointmentModalityAvailabilityApiResponse virtualAvailability = response.getAppointmentModalities().get(1);
 
-		assertEquals(firstAppointmentTypeId, firstAvailability.getAppointmentTypeId());
-		assertEquals(1, firstAvailability.getAvailability().size());
-		assertEquals(date, firstAvailability.getAvailability().get(0).getDate());
-		assertEquals(1, firstAvailability.getAvailability().get(0).getTimes().size());
-		assertEquals(LocalTime.of(9, 0), firstAvailability.getAvailability().get(0).getTimes().get(0).getTime());
+		assertEquals(ProviderAppointmentModalityId.PHONE, phoneAvailability.getAppointmentModalityId());
+		assertEquals(1, phoneAvailability.getAvailability().size());
+		assertEquals(date, phoneAvailability.getAvailability().get(0).getDate());
+		assertEquals(1, phoneAvailability.getAvailability().get(0).getTimes().size());
+		assertEquals(LocalTime.of(9, 0), phoneAvailability.getAvailability().get(0).getTimes().get(0).getTime());
+		assertEquals(List.of(firstAppointmentTypeId, secondAppointmentTypeId),
+				phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
 
-		assertEquals(secondAppointmentTypeId, secondAvailability.getAppointmentTypeId());
-		assertEquals(1, secondAvailability.getAvailability().get(0).getTimes().size());
-		assertEquals(LocalTime.of(9, 0), secondAvailability.getAvailability().get(0).getTimes().get(0).getTime());
+		assertEquals(ProviderAppointmentModalityId.VIRTUAL, virtualAvailability.getAppointmentModalityId());
+		assertEquals(1, virtualAvailability.getAvailability().get(0).getTimes().size());
+		assertEquals(LocalTime.of(9, 0), virtualAvailability.getAvailability().get(0).getTimes().get(0).getTime());
+		assertEquals(List.of(firstAppointmentTypeId, secondAppointmentTypeId),
+				virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
 	}
 
 	@Test
@@ -94,8 +103,8 @@ public class ProviderAvailabilityApiResponseTests {
 		UUID clinicId = UUID.fromString("00000000-0000-0000-0000-000000000003");
 		UUID appointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000011");
 		LocalDate date = LocalDate.of(2026, 1, 1);
-		Provider firstProvider = provider(firstProviderId, "Alpha Provider");
-		Provider secondProvider = provider(secondProviderId, "Beta Provider");
+		Provider firstProvider = provider(firstProviderId, "Alpha Provider", VideoconferencePlatformId.SWITCHBOARD, null);
+		Provider secondProvider = provider(secondProviderId, "Beta Provider", VideoconferencePlatformId.TELEPHONE, null);
 		Clinic clinic = clinic(clinicId, "Test Clinic");
 		AppointmentType appointmentType = appointmentType(appointmentTypeId, "Alpha Visit");
 		List<ProviderFind> providerFinds = List.of(
@@ -113,9 +122,11 @@ public class ProviderAvailabilityApiResponseTests {
 
 		assertEquals(clinicId, response.getClinicId());
 		assertEquals(1, response.getAppointmentTypes().size());
-		assertEquals(2, response.getAppointmentTypes().get(0).getAvailability().get(0).getTimes().size());
-		assertEquals(firstProviderId, response.getAppointmentTypes().get(0).getAvailability().get(0).getTimes().get(0).getProviderId());
-		assertEquals(secondProviderId, response.getAppointmentTypes().get(0).getAvailability().get(0).getTimes().get(1).getProviderId());
+		assertEquals(2, response.getAppointmentModalities().size());
+		assertEquals(ProviderAppointmentModalityId.PHONE, response.getAppointmentModalities().get(0).getAppointmentModalityId());
+		assertEquals(ProviderAppointmentModalityId.VIRTUAL, response.getAppointmentModalities().get(1).getAppointmentModalityId());
+		assertEquals(secondProviderId, response.getAppointmentModalities().get(0).getAvailability().get(0).getTimes().get(0).getProviderId());
+		assertEquals(firstProviderId, response.getAppointmentModalities().get(1).getAvailability().get(0).getTimes().get(0).getProviderId());
 	}
 
 	@Nonnull
@@ -126,11 +137,21 @@ public class ProviderAvailabilityApiResponseTests {
 	@Nonnull
 	protected Provider provider(@Nonnull UUID providerId,
 															@Nonnull String name) {
+		return provider(providerId, name, null, null);
+	}
+
+	@Nonnull
+	protected Provider provider(@Nonnull UUID providerId,
+															@Nonnull String name,
+															VideoconferencePlatformId videoconferencePlatformId,
+															String phoneNumber) {
 		Provider provider = new Provider();
 		provider.setProviderId(providerId);
 		provider.setInstitutionId(InstitutionId.COBALT);
 		provider.setName(name);
 		provider.setActive(true);
+		provider.setVideoconferencePlatformId(videoconferencePlatformId);
+		provider.setPhoneNumber(phoneNumber);
 		return provider;
 	}
 

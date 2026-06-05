@@ -20,10 +20,12 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
@@ -42,11 +44,13 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -54,6 +58,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -73,7 +78,9 @@ public class ProviderAvailabilityApiResponse {
 	@Nonnull
 	private final LocalDate endDate;
 	@Nonnull
-	private final List<AppointmentTypeAvailabilityApiResponse> appointmentTypes;
+	private final List<AppointmentTypeSummaryApiResponse> appointmentTypes;
+	@Nonnull
+	private final List<AppointmentModalityAvailabilityApiResponse> appointmentModalities;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -108,14 +115,17 @@ public class ProviderAvailabilityApiResponse {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
+		Map<UUID, Provider> providersById = Map.of(provider.getProviderId(), provider);
+		Locale locale = currentContextProvider.get().getLocale();
+
 		this.providerId = provider.getProviderId();
 		this.providerName = provider.getName();
 		this.clinicId = null;
 		this.clinicDescription = null;
 		this.startDate = startDate;
 		this.endDate = endDate;
-		this.appointmentTypes = appointmentTypeAvailabilitiesFor(providerFinds, Map.of(provider.getProviderId(), provider),
-				appointmentTypesById, currentContextProvider.get().getLocale());
+		this.appointmentTypes = appointmentTypesFor(providerFinds, appointmentTypesById);
+		this.appointmentModalities = appointmentModalityAvailabilitiesFor(providerFinds, providersById, appointmentTypesById, locale);
 	}
 
 	@AssistedInject
@@ -134,27 +144,45 @@ public class ProviderAvailabilityApiResponse {
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 
+		Locale locale = currentContextProvider.get().getLocale();
+
 		this.providerId = null;
 		this.providerName = null;
 		this.clinicId = clinic.getClinicId();
 		this.clinicDescription = clinic.getDescription();
 		this.startDate = startDate;
 		this.endDate = endDate;
-		this.appointmentTypes = appointmentTypeAvailabilitiesFor(providerFinds, providersById,
-				appointmentTypesById, currentContextProvider.get().getLocale());
+		this.appointmentTypes = appointmentTypesFor(providerFinds, appointmentTypesById);
+		this.appointmentModalities = appointmentModalityAvailabilitiesFor(providerFinds, providersById, appointmentTypesById, locale);
 	}
 
 	@Nonnull
-	protected static List<AppointmentTypeAvailabilityApiResponse> appointmentTypeAvailabilitiesFor(@Nonnull List<ProviderFind> providerFinds,
-																																																 @Nonnull Map<UUID, Provider> providersById,
-																																																 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																																																 @Nonnull Locale locale) {
+	protected static List<AppointmentTypeSummaryApiResponse> appointmentTypesFor(@Nonnull List<ProviderFind> providerFinds,
+																																							 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(providerFinds);
+		requireNonNull(appointmentTypesById);
+
+		return availableAppointmentTypeIdsFor(providerFinds, appointmentTypesById).stream()
+				.map(appointmentTypesById::get)
+				.filter(Objects::nonNull)
+				.sorted(Comparator
+						.comparing(AppointmentType::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+						.thenComparing(AppointmentType::getAppointmentTypeId))
+				.map(AppointmentTypeSummaryApiResponse::new)
+				.collect(Collectors.toList());
+	}
+
+	@Nonnull
+	protected static List<AppointmentModalityAvailabilityApiResponse> appointmentModalityAvailabilitiesFor(@Nonnull List<ProviderFind> providerFinds,
+																																																			 @Nonnull Map<UUID, Provider> providersById,
+																																																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																																																			 @Nonnull Locale locale) {
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(appointmentTypesById);
 		requireNonNull(locale);
 
-		Map<UUID, SortedMap<LocalDate, List<TimeApiResponse>>> timesByDateByAppointmentTypeId = new LinkedHashMap<>();
+		Map<ProviderAppointmentModalityId, SortedMap<LocalDate, List<TimeApiResponse>>> timesByDateByAppointmentModalityId = new LinkedHashMap<>();
 
 		for (ProviderFind providerFind : providerFinds) {
 			UUID providerId = providerFind.getProviderId();
@@ -163,7 +191,12 @@ public class ProviderAvailabilityApiResponse {
 				continue;
 
 			Provider provider = providersById.get(providerId);
-			String providerName = providerFind.getName() == null && provider != null ? provider.getName() : providerFind.getName();
+
+			if (provider == null)
+				continue;
+
+			Set<ProviderAppointmentModalityId> providerAppointmentModalityIds = providerAppointmentModalityIdsFor(provider);
+			String providerName = providerFind.getName() == null ? provider.getName() : providerFind.getName();
 
 			for (AvailabilityDate availabilityDate : providerFind.getDates()) {
 				LocalDate date = availabilityDate.getDate();
@@ -172,33 +205,94 @@ public class ProviderAvailabilityApiResponse {
 					continue;
 
 				for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+					List<UUID> knownAppointmentTypeIds = knownAppointmentTypeIdsFor(availabilityTime, appointmentTypesById);
+
 					if (availabilityTime.getTime() == null || availabilityTime.getStatus() != AvailabilityStatus.AVAILABLE
-							|| availabilityTime.getAppointmentTypeIds() == null)
+							|| knownAppointmentTypeIds.size() == 0)
 						continue;
 
-					for (UUID appointmentTypeId : availabilityTime.getAppointmentTypeIds()) {
-						if (appointmentTypeId == null || !appointmentTypesById.containsKey(appointmentTypeId))
-							continue;
+					TimeApiResponse time = new TimeApiResponse(providerId, providerName, date, availabilityTime, knownAppointmentTypeIds, locale);
 
+					for (ProviderAppointmentModalityId providerAppointmentModalityId : providerAppointmentModalityIds) {
 						SortedMap<LocalDate, List<TimeApiResponse>> timesByDate =
-								timesByDateByAppointmentTypeId.computeIfAbsent(appointmentTypeId, ignored -> new TreeMap<>());
+								timesByDateByAppointmentModalityId.computeIfAbsent(providerAppointmentModalityId, ignored -> new TreeMap<>());
 						List<TimeApiResponse> times = timesByDate.computeIfAbsent(date, ignored -> new ArrayList<>());
-
-						times.add(new TimeApiResponse(providerId, providerName, date, availabilityTime, locale));
+						times.add(time);
 					}
 				}
 			}
 		}
 
-		return timesByDateByAppointmentTypeId.keySet().stream()
-				.map(appointmentTypeId -> appointmentTypesById.get(appointmentTypeId))
-				.filter(Objects::nonNull)
-				.sorted(Comparator
-						.comparing(AppointmentType::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
-						.thenComparing(AppointmentType::getAppointmentTypeId))
-				.map(appointmentType -> new AppointmentTypeAvailabilityApiResponse(appointmentType,
-						timesByDateByAppointmentTypeId.get(appointmentType.getAppointmentTypeId())))
+		return List.of(ProviderAppointmentModalityId.PHONE, ProviderAppointmentModalityId.VIRTUAL, ProviderAppointmentModalityId.IN_PERSON).stream()
+				.filter(timesByDateByAppointmentModalityId::containsKey)
+				.map(providerAppointmentModalityId -> new AppointmentModalityAvailabilityApiResponse(providerAppointmentModalityId,
+						timesByDateByAppointmentModalityId.get(providerAppointmentModalityId)))
 				.collect(Collectors.toList());
+	}
+
+	@Nonnull
+	protected static Set<UUID> availableAppointmentTypeIdsFor(@Nonnull List<ProviderFind> providerFinds,
+																														@Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(providerFinds);
+		requireNonNull(appointmentTypesById);
+
+		return providerFinds.stream()
+				.filter(providerFind -> providerFind.getDates() != null)
+				.flatMap(providerFind -> providerFind.getDates().stream())
+				.filter(availabilityDate -> availabilityDate.getTimes() != null)
+				.flatMap(availabilityDate -> availabilityDate.getTimes().stream())
+				.filter(availabilityTime -> availabilityTime.getStatus() == AvailabilityStatus.AVAILABLE)
+				.filter(availabilityTime -> availabilityTime.getTime() != null)
+				.flatMap(availabilityTime -> knownAppointmentTypeIdsFor(availabilityTime, appointmentTypesById).stream())
+				.collect(Collectors.toSet());
+	}
+
+	@Nonnull
+	protected static List<UUID> knownAppointmentTypeIdsFor(@Nonnull AvailabilityTime availabilityTime,
+																												 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(availabilityTime);
+		requireNonNull(appointmentTypesById);
+
+		if (availabilityTime.getAppointmentTypeIds() == null)
+			return List.of();
+
+		return availabilityTime.getAppointmentTypeIds().stream()
+				.filter(Objects::nonNull)
+				.filter(appointmentTypesById::containsKey)
+				.distinct()
+				.sorted()
+				.collect(Collectors.toList());
+	}
+
+	@Nonnull
+	protected static Set<ProviderAppointmentModalityId> providerAppointmentModalityIdsFor(@Nonnull Provider provider) {
+		requireNonNull(provider);
+
+		EnumSet<ProviderAppointmentModalityId> providerAppointmentModalityIds = EnumSet.noneOf(ProviderAppointmentModalityId.class);
+		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
+
+		if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE
+				|| (trimToNull(provider.getPhoneNumber()) != null && !Boolean.TRUE.equals(provider.getDisplayPhoneNumberOnlyForBooking())))
+			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.PHONE);
+
+		if (videoconferencePlatformId != null && videoconferencePlatformId != VideoconferencePlatformId.TELEPHONE)
+			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.VIRTUAL);
+
+		if (providerAppointmentModalityIds.size() == 0)
+			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.IN_PERSON);
+
+		return providerAppointmentModalityIds;
+	}
+
+	@Nonnull
+	protected static String providerAppointmentModalityDescriptionFor(@Nonnull ProviderAppointmentModalityId providerAppointmentModalityId) {
+		requireNonNull(providerAppointmentModalityId);
+
+		return switch (providerAppointmentModalityId) {
+			case PHONE -> "Phone";
+			case VIRTUAL -> "Virtual";
+			case IN_PERSON -> "In Person";
+		};
 	}
 
 	@Nullable
@@ -232,12 +326,17 @@ public class ProviderAvailabilityApiResponse {
 	}
 
 	@Nonnull
-	public List<AppointmentTypeAvailabilityApiResponse> getAppointmentTypes() {
+	public List<AppointmentTypeSummaryApiResponse> getAppointmentTypes() {
 		return appointmentTypes;
 	}
 
+	@Nonnull
+	public List<AppointmentModalityAvailabilityApiResponse> getAppointmentModalities() {
+		return appointmentModalities;
+	}
+
 	@ThreadSafe
-	public static class AppointmentTypeAvailabilityApiResponse {
+	public static class AppointmentTypeSummaryApiResponse {
 		@Nonnull
 		private final UUID appointmentTypeId;
 		@Nullable
@@ -262,13 +361,9 @@ public class ProviderAvailabilityApiResponse {
 		private final UUID screeningFlowId;
 		@Nullable
 		private final UUID assessmentId;
-		@Nonnull
-		private final List<AvailabilityApiResponse> availability;
 
-		public AppointmentTypeAvailabilityApiResponse(@Nonnull AppointmentType appointmentType,
-																									@Nonnull SortedMap<LocalDate, List<TimeApiResponse>> timesByDate) {
+		public AppointmentTypeSummaryApiResponse(@Nonnull AppointmentType appointmentType) {
 			requireNonNull(appointmentType);
-			requireNonNull(timesByDate);
 
 			this.appointmentTypeId = appointmentType.getAppointmentTypeId();
 			this.schedulingSystemId = appointmentType.getSchedulingSystemId();
@@ -284,9 +379,6 @@ public class ProviderAvailabilityApiResponse {
 					: format("%s minutes", appointmentType.getDurationInMinutes());
 			this.screeningFlowId = appointmentType.getScreeningFlowId();
 			this.assessmentId = appointmentType.getAssessmentId();
-			this.availability = timesByDate.entrySet().stream()
-					.map(entry -> new AvailabilityApiResponse(entry.getKey(), entry.getValue()))
-					.collect(Collectors.toList());
 		}
 
 		@Nonnull
@@ -348,6 +440,38 @@ public class ProviderAvailabilityApiResponse {
 		public UUID getAssessmentId() {
 			return assessmentId;
 		}
+	}
+
+	@ThreadSafe
+	public static class AppointmentModalityAvailabilityApiResponse {
+		@Nonnull
+		private final ProviderAppointmentModalityId appointmentModalityId;
+		@Nonnull
+		private final String description;
+		@Nonnull
+		private final List<AvailabilityApiResponse> availability;
+
+		public AppointmentModalityAvailabilityApiResponse(@Nonnull ProviderAppointmentModalityId appointmentModalityId,
+																											@Nonnull SortedMap<LocalDate, List<TimeApiResponse>> timesByDate) {
+			requireNonNull(appointmentModalityId);
+			requireNonNull(timesByDate);
+
+			this.appointmentModalityId = appointmentModalityId;
+			this.description = providerAppointmentModalityDescriptionFor(appointmentModalityId);
+			this.availability = timesByDate.entrySet().stream()
+					.map(entry -> new AvailabilityApiResponse(entry.getKey(), entry.getValue()))
+					.collect(Collectors.toList());
+		}
+
+		@Nonnull
+		public ProviderAppointmentModalityId getAppointmentModalityId() {
+			return appointmentModalityId;
+		}
+
+		@Nonnull
+		public String getDescription() {
+			return description;
+		}
 
 		@Nonnull
 		public List<AvailabilityApiResponse> getAvailability() {
@@ -399,6 +523,8 @@ public class ProviderAvailabilityApiResponse {
 		private final String timeDescription;
 		@Nonnull
 		private final LocalDateTime dateTime;
+		@Nonnull
+		private final List<UUID> appointmentTypeIds;
 		@Nullable
 		private final UUID epicDepartmentId;
 		@Nullable
@@ -408,11 +534,13 @@ public class ProviderAvailabilityApiResponse {
 													 @Nullable String providerName,
 													 @Nonnull LocalDate date,
 													 @Nonnull AvailabilityTime availabilityTime,
+													 @Nonnull List<UUID> appointmentTypeIds,
 													 @Nonnull Locale locale) {
 			requireNonNull(providerId);
 			requireNonNull(date);
 			requireNonNull(availabilityTime);
 			requireNonNull(availabilityTime.getTime());
+			requireNonNull(appointmentTypeIds);
 			requireNonNull(locale);
 
 			this.providerId = providerId;
@@ -422,6 +550,7 @@ public class ProviderAvailabilityApiResponse {
 					.withLocale(locale)
 					.format(this.time), locale);
 			this.dateTime = LocalDateTime.of(date, this.time);
+			this.appointmentTypeIds = appointmentTypeIds;
 			this.epicDepartmentId = availabilityTime.getEpicDepartmentId();
 			this.epicAppointmentFhirId = availabilityTime.getEpicAppointmentFhirId();
 		}
@@ -458,6 +587,11 @@ public class ProviderAvailabilityApiResponse {
 		@Nonnull
 		public LocalDateTime getDateTime() {
 			return dateTime;
+		}
+
+		@Nonnull
+		public List<UUID> getAppointmentTypeIds() {
+			return appointmentTypeIds;
 		}
 
 		@Nullable
