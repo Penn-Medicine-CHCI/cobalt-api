@@ -623,13 +623,26 @@ public class AnalyticsXrayService {
 				  GROUP BY 1
 				),
 				finished AS (
-				  -- Among those latest-in-window sessions, count how many are marked completed
-				  -- (ignore completed_at timestamp for bucketing to avoid cross-midnight mismatch)
+				  -- Among those latest-in-window accounts, count an account as finished if any
+				  -- non-skipped onboarding session for the account was completed in the window.
+				  -- Bucket by latest.created so started/finished bars remain aligned.
 				  SELECT
 				      (timezone((SELECT tz FROM inst LIMIT 1), l.created))::date AS day,
 				      COUNT(*)::bigint AS finished_accounts
 				  FROM latest l
-				  WHERE l.completed IS TRUE
+				  WHERE EXISTS (
+				    SELECT 1
+				    FROM screening_session completed_ss
+				    JOIN screening_flow_version completed_sfv
+				      ON completed_sfv.screening_flow_version_id = completed_ss.screening_flow_version_id
+				    JOIN inst x
+				      ON completed_sfv.screening_flow_id = x.flow_id
+				    WHERE completed_ss.target_account_id = l.target_account_id
+				      AND completed_ss.completed IS TRUE
+				      AND completed_ss.skipped IS FALSE
+				      AND completed_ss.created >= (SELECT start_utc FROM inst LIMIT 1)
+				      AND completed_ss.created <  (SELECT end_utc   FROM inst LIMIT 1)
+				  )
 				  GROUP BY 1
 				)
 				SELECT d.day,
