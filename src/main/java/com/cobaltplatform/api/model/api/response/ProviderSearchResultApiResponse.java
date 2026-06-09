@@ -344,6 +344,9 @@ public class ProviderSearchResultApiResponse {
 		if (appointmentByPhoneFor(providerFinds, providersById))
 			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
 
+		if (availableAppointments.size() == 0)
+			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
+
 		Set<UUID> appointmentTypeIds = distinctAppointmentTypeIdsForAvailableAppointments(availableAppointments);
 
 		if (appointmentTypeIds == null)

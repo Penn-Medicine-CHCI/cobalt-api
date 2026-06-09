@@ -100,6 +100,20 @@ public class ProviderSearchResultApiResponseTests {
 	}
 
 	@Test
+	public void appointmentSelectionTypeUsesPhoneWhenNoFutureAvailabilityCanBeDetermined() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFind(providerId, Set.of(appointmentTypeId));
+
+		ProviderAppointmentSelectionTypeId appointmentSelectionTypeId =
+				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
+						Map.of(providerId, provider), List.of());
+
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, appointmentSelectionTypeId);
+	}
+
+	@Test
 	public void appointmentSelectionTypeOnlyUsesByPhoneWhenEveryProviderIsPhoneOnly() {
 		UUID firstProviderId = UUID.randomUUID();
 		UUID secondProviderId = UUID.randomUUID();
