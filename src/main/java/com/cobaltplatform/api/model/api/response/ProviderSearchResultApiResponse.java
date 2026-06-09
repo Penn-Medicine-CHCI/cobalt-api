@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.model.service.ProviderSearchResult;
+import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -97,6 +98,8 @@ public class ProviderSearchResultApiResponse {
 	private final FirstAvailableAppointmentApiResponse firstAvailableAppointment;
 	@Nonnull
 	private final Boolean hasMoreAppointments;
+	@Nonnull
+	private final List<ProviderSearchScreeningRequirement> screeningRequirements;
 
 	public enum ProviderSearchResultTypeId {
 		PROVIDER,
@@ -153,6 +156,7 @@ public class ProviderSearchResultApiResponse {
 			this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 			this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
 			this.hasMoreAppointments = availableAppointments.size() > 1;
+			this.screeningRequirements = providerSearchResult.getScreeningRequirements();
 		} else {
 			Clinic clinic = requireNonNull(providerSearchResult.getClinic());
 			List<ProviderFind> providerFinds = providerSearchResult.getProviderFinds();
@@ -183,6 +187,7 @@ public class ProviderSearchResultApiResponse {
 					: descriptionFor(firstAvailableAppointment.getAppointmentType());
 			this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, locale);
 			this.hasMoreAppointments = availableAppointments.size() > 1;
+			this.screeningRequirements = providerSearchResult.getScreeningRequirements();
 		}
 	}
 
@@ -218,6 +223,7 @@ public class ProviderSearchResultApiResponse {
 		this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
 		this.hasMoreAppointments = availableAppointments.size() > 1;
+		this.screeningRequirements = List.of();
 	}
 
 	@AssistedInject
@@ -259,6 +265,7 @@ public class ProviderSearchResultApiResponse {
 				: descriptionFor(firstAvailableAppointment.getAppointmentType());
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, locale);
 		this.hasMoreAppointments = availableAppointments.size() > 1;
+		this.screeningRequirements = List.of();
 	}
 
 	@Nonnull
@@ -588,6 +595,11 @@ public class ProviderSearchResultApiResponse {
 	@Nonnull
 	public Boolean getHasMoreAppointments() {
 		return this.hasMoreAppointments;
+	}
+
+	@Nonnull
+	public List<ProviderSearchScreeningRequirement> getScreeningRequirements() {
+		return this.screeningRequirements;
 	}
 
 	@ThreadSafe

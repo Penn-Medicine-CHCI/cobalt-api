@@ -55,6 +55,8 @@ public class ProviderSearchResult {
 	private final Map<UUID, Provider> providersById;
 	@Nonnull
 	private final Map<UUID, AppointmentType> appointmentTypesById;
+	@Nonnull
+	private final List<ProviderSearchScreeningRequirement> screeningRequirements;
 
 	public enum ProviderSearchResultTypeId {
 		PROVIDER,
@@ -63,29 +65,49 @@ public class ProviderSearchResult {
 
 	@Nonnull
 	public static ProviderSearchResult forProvider(@Nonnull Provider provider,
-																								 @Nonnull ProviderFind providerFind,
-																								 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+																									 @Nonnull ProviderFind providerFind,
+																									 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		return forProvider(provider, providerFind, appointmentTypesById, List.of());
+	}
+
+	@Nonnull
+	public static ProviderSearchResult forProvider(@Nonnull Provider provider,
+																									 @Nonnull ProviderFind providerFind,
+																									 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																									 @Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements) {
 		requireNonNull(provider);
 		requireNonNull(providerFind);
 		requireNonNull(appointmentTypesById);
+		requireNonNull(screeningRequirements);
 
 		return new ProviderSearchResult(ProviderSearchResultTypeId.PROVIDER, requireNonNull(provider.getProviderId()),
 				providerFind.getName(), provider, providerFind, null, List.of(providerFind), Map.of(provider.getProviderId(), provider),
-				appointmentTypesById);
+				appointmentTypesById, List.copyOf(screeningRequirements));
 	}
 
 	@Nonnull
 	public static ProviderSearchResult forClinic(@Nonnull Clinic clinic,
-																							 @Nonnull List<ProviderFind> providerFinds,
-																							 @Nonnull Map<UUID, Provider> providersById,
-																							 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+																								 @Nonnull List<ProviderFind> providerFinds,
+																								 @Nonnull Map<UUID, Provider> providersById,
+																								 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		return forClinic(clinic, providerFinds, providersById, appointmentTypesById, List.of());
+	}
+
+	@Nonnull
+	public static ProviderSearchResult forClinic(@Nonnull Clinic clinic,
+																								 @Nonnull List<ProviderFind> providerFinds,
+																								 @Nonnull Map<UUID, Provider> providersById,
+																								 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																								 @Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements) {
 		requireNonNull(clinic);
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(appointmentTypesById);
+		requireNonNull(screeningRequirements);
 
 		return new ProviderSearchResult(ProviderSearchResultTypeId.CLINIC, requireNonNull(clinic.getClinicId()),
-				clinic.getDescription(), null, null, clinic, List.copyOf(providerFinds), providersById, appointmentTypesById);
+				clinic.getDescription(), null, null, clinic, List.copyOf(providerFinds), providersById, appointmentTypesById,
+				List.copyOf(screeningRequirements));
 	}
 
 	protected ProviderSearchResult(@Nonnull ProviderSearchResultTypeId providerSearchResultTypeId,
@@ -93,15 +115,17 @@ public class ProviderSearchResult {
 																 @Nullable String name,
 																 @Nullable Provider provider,
 																 @Nullable ProviderFind providerFind,
-																 @Nullable Clinic clinic,
-																 @Nonnull List<ProviderFind> providerFinds,
-																 @Nonnull Map<UUID, Provider> providersById,
-																 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+																	 @Nullable Clinic clinic,
+																	 @Nonnull List<ProviderFind> providerFinds,
+																	 @Nonnull Map<UUID, Provider> providersById,
+																	 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																	 @Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements) {
 		requireNonNull(providerSearchResultTypeId);
 		requireNonNull(providerSearchResultId);
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(appointmentTypesById);
+		requireNonNull(screeningRequirements);
 
 		this.providerSearchResultTypeId = providerSearchResultTypeId;
 		this.providerSearchResultId = providerSearchResultId;
@@ -112,6 +136,7 @@ public class ProviderSearchResult {
 		this.providerFinds = providerFinds;
 		this.providersById = providersById;
 		this.appointmentTypesById = appointmentTypesById;
+		this.screeningRequirements = screeningRequirements;
 	}
 
 	@Nonnull
@@ -157,5 +182,10 @@ public class ProviderSearchResult {
 	@Nonnull
 	public Map<UUID, AppointmentType> getAppointmentTypesById() {
 		return appointmentTypesById;
+	}
+
+	@Nonnull
+	public List<ProviderSearchScreeningRequirement> getScreeningRequirements() {
+		return this.screeningRequirements;
 	}
 }

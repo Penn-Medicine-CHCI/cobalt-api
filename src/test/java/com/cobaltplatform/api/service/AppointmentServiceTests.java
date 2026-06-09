@@ -27,17 +27,21 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Transmogrify, LLC.
@@ -99,6 +103,11 @@ public class AppointmentServiceTests {
 
 			assertEquals(screeningSessionId, resumedAppointmentBookingRequirements.getScreeningSession().getScreeningSessionId());
 
+			AppointmentBookingScreeningKey expectedScreeningKey =
+					new AppointmentBookingScreeningKey(pair.getProviderId(), pair.getAppointmentTypeId(), screeningFlowId);
+			assertTrue(appointmentService.findCompletedAppointmentBookingScreeningKeys(account.getAccountId(),
+					Set.of(expectedScreeningKey)).isEmpty());
+
 			database.execute("""
 					UPDATE screening_session
 					SET completed=TRUE,
@@ -114,6 +123,18 @@ public class AppointmentServiceTests {
 			assertEquals(true, satisfiedAppointmentBookingRequirements.getScreeningRequired());
 			assertEquals(true, satisfiedAppointmentBookingRequirements.getScreeningSatisfied());
 			assertNull(satisfiedAppointmentBookingRequirements.getScreeningSession());
+
+			AppointmentBookingScreeningKey otherProviderScreeningKey =
+					new AppointmentBookingScreeningKey(UUID.randomUUID(), pair.getAppointmentTypeId(), screeningFlowId);
+			AppointmentBookingScreeningKey otherAppointmentTypeScreeningKey =
+					new AppointmentBookingScreeningKey(pair.getProviderId(), UUID.randomUUID(), screeningFlowId);
+			Set<AppointmentBookingScreeningKey> completedScreeningKeys =
+					appointmentService.findCompletedAppointmentBookingScreeningKeys(account.getAccountId(), Set.of(
+							expectedScreeningKey, otherProviderScreeningKey, otherAppointmentTypeScreeningKey));
+
+			assertTrue(completedScreeningKeys.contains(expectedScreeningKey));
+			assertFalse(completedScreeningKeys.contains(otherProviderScreeningKey));
+			assertFalse(completedScreeningKeys.contains(otherAppointmentTypeScreeningKey));
 		});
 	}
 

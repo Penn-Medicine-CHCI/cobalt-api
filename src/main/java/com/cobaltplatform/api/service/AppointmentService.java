@@ -116,6 +116,7 @@ import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.EvidenceScores;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
@@ -132,6 +133,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -817,11 +819,56 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	public Set<AppointmentBookingScreeningKey> findCompletedAppointmentBookingScreeningKeys(@Nonnull UUID accountId,
+																																													@Nonnull Set<AppointmentBookingScreeningKey> appointmentBookingScreeningKeys) {
+		requireNonNull(accountId);
+		requireNonNull(appointmentBookingScreeningKeys);
+
+		if (appointmentBookingScreeningKeys.size() == 0)
+			return Set.of();
+
+		Set<String> providerIds = appointmentBookingScreeningKeys.stream()
+				.map(appointmentBookingScreeningKey -> appointmentBookingScreeningKey.getProviderId().toString())
+				.collect(Collectors.toSet());
+		Set<String> appointmentTypeIds = appointmentBookingScreeningKeys.stream()
+				.map(appointmentBookingScreeningKey -> appointmentBookingScreeningKey.getAppointmentTypeId().toString())
+				.collect(Collectors.toSet());
+		Set<UUID> screeningFlowIds = appointmentBookingScreeningKeys.stream()
+				.map(AppointmentBookingScreeningKey::getScreeningFlowId)
+				.collect(Collectors.toSet());
+
+		List<Object> parameters = new ArrayList<>();
+		parameters.add(accountId);
+		parameters.addAll(providerIds);
+		parameters.addAll(appointmentTypeIds);
+		parameters.addAll(screeningFlowIds);
+
+		return getDatabase().queryForList(format("""
+						SELECT DISTINCT
+						  ss.metadata->'appointmentBooking'->>'providerId' AS provider_id,
+						  ss.metadata->'appointmentBooking'->>'appointmentTypeId' AS appointment_type_id,
+						  sfv.screening_flow_id
+						FROM screening_session ss, screening_flow_version sfv
+						WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
+						AND ss.target_account_id=?
+						AND ss.completed=TRUE
+						AND ss.skipped=FALSE
+						AND ss.metadata->'appointmentBooking'->>'providerId' IN %s
+						AND ss.metadata->'appointmentBooking'->>'appointmentTypeId' IN %s
+						AND sfv.screening_flow_id IN %s
+						""", sqlInListPlaceholders(providerIds), sqlInListPlaceholders(appointmentTypeIds),
+				sqlInListPlaceholders(screeningFlowIds)), CompletedAppointmentBookingScreeningKey.class, parameters.toArray(new Object[]{})).stream()
+				.map(CompletedAppointmentBookingScreeningKey::toAppointmentBookingScreeningKey)
+				.filter(appointmentBookingScreeningKey -> appointmentBookingScreeningKeys.contains(appointmentBookingScreeningKey))
+				.collect(Collectors.toSet());
+	}
+
+	@Nonnull
 	protected Optional<ScreeningSession> findMostRecentAppointmentBookingScreeningSession(@Nonnull UUID accountId,
-																																											 @Nonnull UUID providerId,
-																																											 @Nonnull UUID appointmentTypeId,
-																																											 @Nonnull UUID screeningFlowId,
-																																											 boolean completed) {
+																																												 @Nonnull UUID providerId,
+																																												 @Nonnull UUID appointmentTypeId,
+																																												 @Nonnull UUID screeningFlowId,
+																																												 boolean completed) {
 		requireNonNull(accountId);
 		requireNonNull(providerId);
 		requireNonNull(appointmentTypeId);
@@ -835,11 +882,54 @@ public class AppointmentService {
 				AND ss.target_account_id=?
 				AND ss.completed=?
 				AND ss.skipped=FALSE
-				AND ss.metadata->'appointmentBooking'->>'providerId'=?
-				AND ss.metadata->'appointmentBooking'->>'appointmentTypeId'=?
-				ORDER BY ss.last_updated DESC
-				LIMIT 1
-				""", ScreeningSession.class, screeningFlowId, accountId, completed, providerId.toString(), appointmentTypeId.toString());
+					AND ss.metadata->'appointmentBooking'->>'providerId'=?
+					AND ss.metadata->'appointmentBooking'->>'appointmentTypeId'=?
+					ORDER BY ss.last_updated DESC
+					LIMIT 1
+					""", ScreeningSession.class, screeningFlowId, accountId, completed, providerId.toString(), appointmentTypeId.toString());
+	}
+
+	@NotThreadSafe
+	protected static class CompletedAppointmentBookingScreeningKey {
+		@Nullable
+		private String providerId;
+		@Nullable
+		private String appointmentTypeId;
+		@Nullable
+		private UUID screeningFlowId;
+
+		@Nonnull
+		public AppointmentBookingScreeningKey toAppointmentBookingScreeningKey() {
+			return new AppointmentBookingScreeningKey(UUID.fromString(requireNonNull(getProviderId())),
+					UUID.fromString(requireNonNull(getAppointmentTypeId())), requireNonNull(getScreeningFlowId()));
+		}
+
+		@Nullable
+		public String getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable String providerId) {
+			this.providerId = providerId;
+		}
+
+		@Nullable
+		public String getAppointmentTypeId() {
+			return this.appointmentTypeId;
+		}
+
+		public void setAppointmentTypeId(@Nullable String appointmentTypeId) {
+			this.appointmentTypeId = appointmentTypeId;
+		}
+
+		@Nullable
+		public UUID getScreeningFlowId() {
+			return this.screeningFlowId;
+		}
+
+		public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+			this.screeningFlowId = screeningFlowId;
+		}
 	}
 
 	@Nonnull
