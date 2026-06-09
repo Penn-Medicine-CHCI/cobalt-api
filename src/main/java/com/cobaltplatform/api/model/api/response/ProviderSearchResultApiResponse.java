@@ -84,7 +84,9 @@ public class ProviderSearchResultApiResponse {
 	@Nullable
 	private final String imageUrl;
 	@Nullable
-	private final String formattedPhoneNumber;
+	private final String phoneNumber;
+	@Nullable
+	private final String phoneNumberDescription;
 	@Nonnull
 	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 	@Nullable
@@ -144,7 +146,8 @@ public class ProviderSearchResultApiResponse {
 			this.description = providerFind.getDescription();
 			this.treatmentDescription = providerFind.getTreatmentDescription();
 			this.imageUrl = providerFind.getImageUrl();
-			this.formattedPhoneNumber = formatter.formatPhoneNumber(providerFind.getPhoneNumber(), provider.getLocale());
+			this.phoneNumber = providerFind.getPhoneNumber();
+			this.phoneNumberDescription = formatter.formatPhoneNumber(providerFind.getPhoneNumber(), provider.getLocale());
 			this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(provider, strings);
 			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(List.of(providerFind), Map.of(provider.getProviderId(), provider), availableAppointments);
 			this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
@@ -171,7 +174,8 @@ public class ProviderSearchResultApiResponse {
 			this.description = clinic.getDescription();
 			this.treatmentDescription = clinic.getTreatmentDescription();
 			this.imageUrl = clinic.getImageUrl();
-			this.formattedPhoneNumber = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
+			this.phoneNumber = clinic.getPhoneNumber();
+			this.phoneNumberDescription = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 			this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerFinds, providersById, strings);
 			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments);
 			this.appointmentDescription = firstAvailableAppointment == null || firstAvailableAppointment.getAppointmentType() == null
@@ -207,7 +211,8 @@ public class ProviderSearchResultApiResponse {
 		this.description = providerFind.getDescription();
 		this.treatmentDescription = providerFind.getTreatmentDescription();
 		this.imageUrl = providerFind.getImageUrl();
-		this.formattedPhoneNumber = formatter.formatPhoneNumber(providerFind.getPhoneNumber(), provider.getLocale());
+		this.phoneNumber = providerFind.getPhoneNumber();
+		this.phoneNumberDescription = formatter.formatPhoneNumber(providerFind.getPhoneNumber(), provider.getLocale());
 		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(provider, strings);
 		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(List.of(providerFind), Map.of(provider.getProviderId(), provider), availableAppointments);
 		this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
@@ -245,7 +250,8 @@ public class ProviderSearchResultApiResponse {
 		this.description = clinic.getDescription();
 		this.treatmentDescription = clinic.getTreatmentDescription();
 		this.imageUrl = clinic.getImageUrl();
-		this.formattedPhoneNumber = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
+		this.phoneNumber = clinic.getPhoneNumber();
+		this.phoneNumberDescription = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerFinds, providersById, strings);
 		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments);
 		this.appointmentDescription = firstAvailableAppointment == null || firstAvailableAppointment.getAppointmentType() == null
@@ -550,8 +556,13 @@ public class ProviderSearchResultApiResponse {
 	}
 
 	@Nullable
-	public String getFormattedPhoneNumber() {
-		return this.formattedPhoneNumber;
+	public String getPhoneNumber() {
+		return this.phoneNumber;
+	}
+
+	@Nullable
+	public String getPhoneNumberDescription() {
+		return this.phoneNumberDescription;
 	}
 
 	@Nonnull
