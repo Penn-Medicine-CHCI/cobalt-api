@@ -2354,7 +2354,7 @@ public class ScreeningService {
 		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
 		Object appointmentBookingContext = screeningSession.getMetadata().get("appointmentBooking");
 
-		if (screeningSessionDestinationId == ScreeningSessionDestinationId.APPOINTMENT_BOOKING && appointmentBookingContext instanceof Map)
+		if (screeningSessionDestinationId == ScreeningSessionDestinationId.PROVIDER_APPOINTMENT_BOOKING && appointmentBookingContext instanceof Map)
 			context.putIfAbsent("appointmentBooking", appointmentBookingContext);
 
 		ScreeningSessionDestination screeningSessionDestination = new ScreeningSessionDestination(screeningSessionDestinationId, context);

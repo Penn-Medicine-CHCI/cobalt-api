@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
@@ -45,7 +46,7 @@ public class Clinic {
 	@Nullable
 	private Boolean showIntakeAssessmentPrompt;
 	@Nullable
-	private Boolean bookableAsProvider;
+	private AppointmentBookingLevelId appointmentBookingLevelId;
 	@Nullable
 	private String imageUrl;
 	@Nullable
@@ -112,12 +113,12 @@ public class Clinic {
 	}
 
 	@Nullable
-	public Boolean getBookableAsProvider() {
-		return bookableAsProvider;
+	public AppointmentBookingLevelId getAppointmentBookingLevelId() {
+		return this.appointmentBookingLevelId;
 	}
 
-	public void setBookableAsProvider(@Nullable Boolean bookableAsProvider) {
-		this.bookableAsProvider = bookableAsProvider;
+	public void setAppointmentBookingLevelId(@Nullable AppointmentBookingLevelId appointmentBookingLevelId) {
+		this.appointmentBookingLevelId = appointmentBookingLevelId;
 	}
 
 	@Nullable

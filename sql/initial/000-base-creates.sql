@@ -709,6 +709,19 @@ CREATE TABLE category_mapping (
 CREATE UNIQUE INDEX category_mapping_category_id_loading_category_description_idx ON cobalt.category_mapping USING btree (category_id, loading_category_description);
 
 
+-- cobalt.appointment_booking_level definition
+
+-- Drop table
+
+-- DROP TABLE appointment_booking_level;
+
+CREATE TABLE appointment_booking_level (
+	appointment_booking_level_id text NOT NULL,
+	description text NOT NULL,
+	CONSTRAINT appointment_booking_level_pkey PRIMARY KEY (appointment_booking_level_id)
+);
+
+
 -- cobalt.clinic definition
 
 -- Drop table
@@ -724,8 +737,9 @@ CREATE TABLE clinic (
 	created timestamptz NOT NULL DEFAULT now(),
 	last_updated timestamptz NOT NULL DEFAULT now(),
 	show_intake_assessment_prompt bool NOT NULL DEFAULT true,
-	bookable_as_provider bool NOT NULL DEFAULT false,
+	appointment_booking_level_id text NOT NULL DEFAULT 'PROVIDER',
 	CONSTRAINT clinic_pkey PRIMARY KEY (clinic_id),
+	CONSTRAINT clinic_appointment_booking_level_id_fkey FOREIGN KEY (appointment_booking_level_id) REFERENCES appointment_booking_level(appointment_booking_level_id),
 	CONSTRAINT clinic_institution_id_fkey FOREIGN KEY (institution_id) REFERENCES institution(institution_id),
 	CONSTRAINT clinic_intake_assessment_id_fkey FOREIGN KEY (intake_assessment_id) REFERENCES assessment(assessment_id)
 );

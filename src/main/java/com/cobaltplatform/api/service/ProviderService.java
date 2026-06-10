@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.BusinessHour;
@@ -522,7 +523,7 @@ public class ProviderService {
 				continue;
 
 			for (Clinic clinic : providerClinics) {
-				if (!clinicBookableAsProvider(clinic))
+				if (!clinicBookedAtClinicLevel(clinic))
 					continue;
 
 				clinicsById.putIfAbsent(clinic.getClinicId(), clinic);
@@ -694,9 +695,9 @@ public class ProviderService {
 		return copiedRequest;
 	}
 
-	protected static boolean clinicBookableAsProvider(@Nonnull Clinic clinic) {
+	protected static boolean clinicBookedAtClinicLevel(@Nonnull Clinic clinic) {
 		requireNonNull(clinic);
-		return Boolean.TRUE.equals(clinic.getBookableAsProvider());
+		return clinic.getAppointmentBookingLevelId() == AppointmentBookingLevelId.CLINIC;
 	}
 
 	@Nonnull

@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -68,6 +69,8 @@ public class ProviderSearchResultApiResponse {
 	private final ProviderSearchResultTypeId providerSearchResultTypeId;
 	@Nonnull
 	private final UUID providerSearchResultId;
+	@Nullable
+	private final AppointmentBookingLevelId appointmentBookingLevelId;
 	@Nullable
 	private final UUID providerId;
 	@Nullable
@@ -141,6 +144,7 @@ public class ProviderSearchResultApiResponse {
 
 			this.providerSearchResultTypeId = ProviderSearchResultTypeId.PROVIDER;
 			this.providerSearchResultId = provider.getProviderId();
+			this.appointmentBookingLevelId = providerSearchResult.getAppointmentBookingLevelId();
 			this.providerId = provider.getProviderId();
 			this.clinicId = null;
 			this.institutionId = provider.getInstitutionId();
@@ -170,6 +174,7 @@ public class ProviderSearchResultApiResponse {
 
 			this.providerSearchResultTypeId = ProviderSearchResultTypeId.CLINIC;
 			this.providerSearchResultId = clinic.getClinicId();
+			this.appointmentBookingLevelId = providerSearchResult.getAppointmentBookingLevelId();
 			this.providerId = null;
 			this.clinicId = clinic.getClinicId();
 			this.institutionId = clinic.getInstitutionId();
@@ -208,6 +213,7 @@ public class ProviderSearchResultApiResponse {
 
 		this.providerSearchResultTypeId = ProviderSearchResultTypeId.PROVIDER;
 		this.providerSearchResultId = provider.getProviderId();
+		this.appointmentBookingLevelId = AppointmentBookingLevelId.PROVIDER;
 		this.providerId = provider.getProviderId();
 		this.clinicId = null;
 		this.institutionId = provider.getInstitutionId();
@@ -248,6 +254,7 @@ public class ProviderSearchResultApiResponse {
 
 		this.providerSearchResultTypeId = ProviderSearchResultTypeId.CLINIC;
 		this.providerSearchResultId = clinic.getClinicId();
+		this.appointmentBookingLevelId = clinic.getAppointmentBookingLevelId();
 		this.providerId = null;
 		this.clinicId = clinic.getClinicId();
 		this.institutionId = clinic.getInstitutionId();
@@ -520,6 +527,11 @@ public class ProviderSearchResultApiResponse {
 	@Nonnull
 	public UUID getProviderSearchResultId() {
 		return this.providerSearchResultId;
+	}
+
+	@Nullable
+	public AppointmentBookingLevelId getAppointmentBookingLevelId() {
+		return this.appointmentBookingLevelId;
 	}
 
 	@Nullable

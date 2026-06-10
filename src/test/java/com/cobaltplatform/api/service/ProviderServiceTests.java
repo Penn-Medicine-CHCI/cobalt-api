@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
@@ -52,7 +53,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class ProviderServiceTests {
 	@Test
-	public void providerSearchResultsIncludeCurrentBookableClinicFixture() {
+	public void providerSearchResultsIncludeCurrentClinicLevelBookingFixture() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
@@ -61,8 +62,8 @@ public class ProviderServiceTests {
 			UUID clinicId = UUID.fromString("ab629384-400a-4688-8465-04636ec2eaa2");
 			UUID providerId = UUID.fromString("dc7aeafd-0fc8-4c4d-b09a-09d4dc3079c1");
 
-			database.execute("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS bookable_as_provider BOOLEAN NOT NULL DEFAULT FALSE");
-			database.execute("UPDATE clinic SET bookable_as_provider=TRUE WHERE clinic_id=?", clinicId);
+			database.execute("UPDATE clinic SET appointment_booking_level_id=? WHERE clinic_id=?",
+					AppointmentBookingLevelId.CLINIC, clinicId);
 
 			List<ProviderSearchResult> providerSearchResults = providerService.findProviderSearchResults(FeatureId.SPIRITUAL_SUPPORT, null, account);
 
@@ -70,19 +71,21 @@ public class ProviderServiceTests {
 					providerSearchResults.stream()
 							.anyMatch(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.PROVIDER
 									&& providerSearchResult.getProviderSearchResultId().equals(providerId)));
-			assertTrue("Expected current bookable clinic fixture to be included as a clinic result",
+			assertTrue("Expected current clinic-level booking fixture to be included as a clinic result",
 					providerSearchResults.stream()
 							.anyMatch(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.CLINIC
-									&& providerSearchResult.getProviderSearchResultId().equals(clinicId)));
+									&& providerSearchResult.getProviderSearchResultId().equals(clinicId)
+									&& providerSearchResult.getAppointmentBookingLevelId() == AppointmentBookingLevelId.CLINIC));
 
-			database.execute("UPDATE clinic SET bookable_as_provider=FALSE WHERE clinic_id=?", clinicId);
+			database.execute("UPDATE clinic SET appointment_booking_level_id=? WHERE clinic_id=?",
+					AppointmentBookingLevelId.PROVIDER, clinicId);
 			providerSearchResults = providerService.findProviderSearchResults(FeatureId.SPIRITUAL_SUPPORT, null, account);
 
 			assertTrue("Expected spiritual-support provider result to remain visible when clinic is not bookable",
 					providerSearchResults.stream()
 							.anyMatch(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.PROVIDER
 									&& providerSearchResult.getProviderSearchResultId().equals(providerId)));
-			assertFalse("Expected non-bookable clinic to be excluded as a clinic result",
+			assertFalse("Expected provider-level booking clinic to be excluded as a clinic result",
 					providerSearchResults.stream()
 							.anyMatch(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.CLINIC
 									&& providerSearchResult.getProviderSearchResultId().equals(clinicId)));
@@ -102,10 +105,10 @@ public class ProviderServiceTests {
 			UUID rabbiGraysonProviderId = UUID.fromString("dc7aeafd-0fc8-4c4d-b09a-09d4dc3079c1");
 			UUID joeFritzProviderId = UUID.fromString("360d46c4-2ee9-4031-aab6-aa6a16f398d7");
 
-			database.execute("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS bookable_as_provider BOOLEAN NOT NULL DEFAULT FALSE");
-			database.execute("UPDATE clinic SET bookable_as_provider=TRUE WHERE clinic_id=?", adultAutismServicesClinicId);
-			categorizeProvider(database, rabbiGraysonProviderId, "Cobalt General");
-			categorizeProvider(database, joeFritzProviderId, "Cobalt Health System");
+			database.execute("UPDATE clinic SET appointment_booking_level_id=? WHERE clinic_id=?",
+					AppointmentBookingLevelId.CLINIC, adultAutismServicesClinicId);
+			ensureProviderCategorized(database, rabbiGraysonProviderId, "Cobalt General");
+			ensureProviderCategorized(database, joeFritzProviderId, "Cobalt Health System");
 
 			List<ProviderSearchResult> cobaltGeneralSpiritualSupportResults =
 					providerService.findProviderSearchResults(FeatureId.SPIRITUAL_SUPPORT, cobaltGeneralLocationId, account);
@@ -128,26 +131,26 @@ public class ProviderServiceTests {
 	}
 
 	@Test
-	public void clinicBookableAsProvider() {
+	public void clinicBookedAtClinicLevel() {
 		Clinic clinic = new Clinic();
 
-		clinic.setBookableAsProvider(true);
+		clinic.setAppointmentBookingLevelId(AppointmentBookingLevelId.CLINIC);
 
-		assertTrue(ProviderService.clinicBookableAsProvider(clinic));
+		assertTrue(ProviderService.clinicBookedAtClinicLevel(clinic));
 	}
 
 	@Test
-	public void clinicBookableAsProviderRejectsFalse() {
+	public void clinicBookedAtClinicLevelRejectsProviderLevel() {
 		Clinic clinic = new Clinic();
 
-		clinic.setBookableAsProvider(false);
+		clinic.setAppointmentBookingLevelId(AppointmentBookingLevelId.PROVIDER);
 
-		assertFalse(ProviderService.clinicBookableAsProvider(clinic));
+		assertFalse(ProviderService.clinicBookedAtClinicLevel(clinic));
 	}
 
 	@Test
-	public void clinicBookableAsProviderRejectsMissingFlag() {
-		assertFalse(ProviderService.clinicBookableAsProvider(new Clinic()));
+	public void clinicBookedAtClinicLevelRejectsMissingLevel() {
+		assertFalse(ProviderService.clinicBookedAtClinicLevel(new Clinic()));
 	}
 
 	@Test
@@ -158,7 +161,7 @@ public class ProviderServiceTests {
 		List<ProviderSearchResult> providerSearchResults = ProviderService.providerSearchResultsFor(
 				List.of(providerFind(providerId, "Spiritual Support")),
 				Map.of(providerId, provider(providerId, "Spiritual Support")),
-				Map.of(providerId, List.of(clinic(clinicId, "Spiritual Care", true))),
+				Map.of(providerId, List.of(clinic(clinicId, "Spiritual Care", AppointmentBookingLevelId.CLINIC))),
 				Map.of());
 
 		assertTrue("Expected clinic result even when linked provider has no available dates",
@@ -178,12 +181,15 @@ public class ProviderServiceTests {
 				Map.of(
 						betaProviderId, provider(betaProviderId, "Beta"),
 						alphaProviderId, provider(alphaProviderId, "Alpha")),
-				Map.of(alphaProviderId, List.of(clinic(alphaClinicId, "Alpha", true))),
+				Map.of(alphaProviderId, List.of(clinic(alphaClinicId, "Alpha", AppointmentBookingLevelId.CLINIC))),
 				Map.of());
 
 		assertEquals(alphaProviderId, providerSearchResults.get(0).getProviderSearchResultId());
+		assertEquals(AppointmentBookingLevelId.PROVIDER, providerSearchResults.get(0).getAppointmentBookingLevelId());
 		assertEquals(alphaClinicId, providerSearchResults.get(1).getProviderSearchResultId());
+		assertEquals(AppointmentBookingLevelId.CLINIC, providerSearchResults.get(1).getAppointmentBookingLevelId());
 		assertEquals(betaProviderId, providerSearchResults.get(2).getProviderSearchResultId());
+		assertEquals(AppointmentBookingLevelId.PROVIDER, providerSearchResults.get(2).getAppointmentBookingLevelId());
 	}
 
 	@Test
@@ -304,12 +310,12 @@ public class ProviderServiceTests {
 	@Nonnull
 	protected Clinic clinic(@Nonnull UUID clinicId,
 													@Nonnull String description,
-													boolean bookableAsProvider) {
+													@Nullable AppointmentBookingLevelId appointmentBookingLevelId) {
 		Clinic clinic = new Clinic();
 		clinic.setClinicId(clinicId);
 		clinic.setDescription(description);
 		clinic.setInstitutionId(InstitutionId.COBALT);
-		clinic.setBookableAsProvider(bookableAsProvider);
+		clinic.setAppointmentBookingLevelId(appointmentBookingLevelId);
 
 		return clinic;
 	}
@@ -325,10 +331,9 @@ public class ProviderServiceTests {
 				""", UUID.class, InstitutionId.COBALT, name).get();
 	}
 
-	protected void categorizeProvider(@Nonnull Database database,
-																	 @Nonnull UUID providerId,
-																	 @Nonnull String institutionLocationName) {
-		database.execute("DELETE FROM provider_institution_location WHERE provider_id=?", providerId);
+	protected void ensureProviderCategorized(@Nonnull Database database,
+																					 @Nonnull UUID providerId,
+																					 @Nonnull String institutionLocationName) {
 		database.execute("""
 				INSERT INTO provider_institution_location (
 					provider_id,
@@ -338,7 +343,13 @@ public class ProviderServiceTests {
 				FROM institution_location
 				WHERE institution_id=?
 				AND name=?
-				""", providerId, InstitutionId.COBALT, institutionLocationName);
+				AND NOT EXISTS (
+					SELECT 1
+					FROM provider_institution_location existing_provider_location
+					WHERE existing_provider_location.provider_id=?
+					AND existing_provider_location.institution_location_id=institution_location.institution_location_id
+				)
+				""", providerId, InstitutionId.COBALT, institutionLocationName, providerId);
 	}
 
 	protected void assertContainsProviderSearchResult(@Nonnull List<ProviderSearchResult> providerSearchResults,

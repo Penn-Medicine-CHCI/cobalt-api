@@ -19,23 +19,35 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.cache.Cache;
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
+import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.util.Formatter;
+import com.lokalized.Strings;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.lang.reflect.Proxy;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,6 +56,32 @@ import static org.junit.Assert.assertEquals;
  */
 @ThreadSafe
 public class ProviderSearchResultApiResponseTests {
+	@Test
+	public void responseExposesProviderBookingLevelForProvider() {
+		UUID providerId = UUID.randomUUID();
+		Provider provider = provider(providerId, null);
+		ProviderFind providerFind = providerFind(providerId, null);
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), provider,
+				providerFind, Map.of());
+
+		assertEquals(AppointmentBookingLevelId.PROVIDER, response.getAppointmentBookingLevelId());
+	}
+
+	@Test
+	public void responseExposesClinicBookingLevelForClinic() {
+		UUID providerId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		Provider provider = provider(providerId, null);
+		ProviderFind providerFind = providerFind(providerId, null);
+		Clinic clinic = clinic(clinicId, AppointmentBookingLevelId.CLINIC);
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), clinic,
+				List.of(providerFind), Map.of(providerId, provider), Map.of());
+
+		assertEquals(AppointmentBookingLevelId.CLINIC, response.getAppointmentBookingLevelId());
+	}
+
 	@Test
 	public void appointmentSelectionTypeUsesKnownSlotAppointmentTypeIdsFirst() {
 		UUID providerId = UUID.randomUUID();
@@ -136,8 +174,22 @@ public class ProviderSearchResultApiResponseTests {
 															@Nullable VideoconferencePlatformId videoconferencePlatformId) {
 		Provider provider = new Provider();
 		provider.setProviderId(providerId);
+		provider.setInstitutionId(InstitutionId.COBALT);
+		provider.setLocale(Locale.US);
 		provider.setVideoconferencePlatformId(videoconferencePlatformId);
 		return provider;
+	}
+
+	@Nonnull
+	protected Clinic clinic(@Nonnull UUID clinicId,
+													@Nonnull AppointmentBookingLevelId appointmentBookingLevelId) {
+		Clinic clinic = new Clinic();
+		clinic.setClinicId(clinicId);
+		clinic.setInstitutionId(InstitutionId.COBALT);
+		clinic.setDescription("Clinic");
+		clinic.setLocale(Locale.US);
+		clinic.setAppointmentBookingLevelId(appointmentBookingLevelId);
+		return clinic;
 	}
 
 	@Nonnull
@@ -158,5 +210,83 @@ public class ProviderSearchResultApiResponseTests {
 		availabilityTime.setAppointmentTypeIds(appointmentTypeIds);
 
 		return new ProviderSearchResultApiResponse.AvailableAppointment(provider, LocalDate.of(2026, 1, 1), availabilityTime, null);
+	}
+
+	@Nonnull
+	protected Formatter formatter() {
+		Cache cache = cache();
+
+		return new Formatter(cache,
+				() -> new CurrentContext.Builder(InstitutionId.COBALT, Locale.US, ZoneId.of("America/New_York")).build(),
+				() -> cache,
+				strings());
+	}
+
+	@Nonnull
+	protected Strings strings() {
+		return (Strings) Proxy.newProxyInstance(Strings.class.getClassLoader(), new Class[]{Strings.class},
+				(proxy, method, args) -> {
+					if (method.getName().equals("get") && args != null && args.length > 0)
+						return args[0];
+
+					if (method.getName().equals("toString"))
+						return "TestStrings";
+
+					return null;
+				});
+	}
+
+	@Nonnull
+	protected Cache cache() {
+		return new Cache() {
+			@Nonnull
+			@Override
+			public <T> Optional<T> get(@Nonnull String key,
+																 @Nonnull Class<T> type) {
+				return Optional.empty();
+			}
+
+			@Nonnull
+			@Override
+			public <T> Optional<List<T>> getList(@Nonnull String key,
+																					 @Nonnull Class<T> type) {
+				return Optional.empty();
+			}
+
+			@Nonnull
+			@Override
+			public <T> T get(@Nonnull String key,
+											 @Nonnull Supplier<T> supplier,
+											 @Nonnull Class<T> type) {
+				return supplier.get();
+			}
+
+			@Nonnull
+			@Override
+			public <T> List<T> getList(@Nonnull String key,
+																 @Nonnull Supplier<List<T>> supplier,
+																 @Nonnull Class<T> type) {
+				return supplier.get();
+			}
+
+			@Override
+			public void put(@Nonnull String key,
+											@Nonnull Object value) {
+			}
+
+			@Override
+			public void invalidate(@Nonnull String key) {
+			}
+
+			@Override
+			public void invalidateAll() {
+			}
+
+			@Nonnull
+			@Override
+			public Set<String> getKeys() {
+				return Set.of();
+			}
+		};
 	}
 }

@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.service;
 
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Provider;
@@ -41,6 +42,8 @@ public class ProviderSearchResult {
 	private final ProviderSearchResultTypeId providerSearchResultTypeId;
 	@Nonnull
 	private final UUID providerSearchResultId;
+	@Nullable
+	private final AppointmentBookingLevelId appointmentBookingLevelId;
 	@Nullable
 	private final String name;
 	@Nullable
@@ -81,7 +84,7 @@ public class ProviderSearchResult {
 		requireNonNull(screeningRequirements);
 
 		return new ProviderSearchResult(ProviderSearchResultTypeId.PROVIDER, requireNonNull(provider.getProviderId()),
-				providerFind.getName(), provider, providerFind, null, List.of(providerFind), Map.of(provider.getProviderId(), provider),
+				AppointmentBookingLevelId.PROVIDER, providerFind.getName(), provider, providerFind, null, List.of(providerFind), Map.of(provider.getProviderId(), provider),
 				appointmentTypesById, List.copyOf(screeningRequirements));
 	}
 
@@ -106,12 +109,13 @@ public class ProviderSearchResult {
 		requireNonNull(screeningRequirements);
 
 		return new ProviderSearchResult(ProviderSearchResultTypeId.CLINIC, requireNonNull(clinic.getClinicId()),
-				clinic.getDescription(), null, null, clinic, List.copyOf(providerFinds), providersById, appointmentTypesById,
+				clinic.getAppointmentBookingLevelId(), clinic.getDescription(), null, null, clinic, List.copyOf(providerFinds), providersById, appointmentTypesById,
 				List.copyOf(screeningRequirements));
 	}
 
 	protected ProviderSearchResult(@Nonnull ProviderSearchResultTypeId providerSearchResultTypeId,
 																 @Nonnull UUID providerSearchResultId,
+																 @Nullable AppointmentBookingLevelId appointmentBookingLevelId,
 																 @Nullable String name,
 																 @Nullable Provider provider,
 																 @Nullable ProviderFind providerFind,
@@ -129,6 +133,7 @@ public class ProviderSearchResult {
 
 		this.providerSearchResultTypeId = providerSearchResultTypeId;
 		this.providerSearchResultId = providerSearchResultId;
+		this.appointmentBookingLevelId = appointmentBookingLevelId;
 		this.name = name;
 		this.provider = provider;
 		this.providerFind = providerFind;
@@ -147,6 +152,11 @@ public class ProviderSearchResult {
 	@Nonnull
 	public UUID getProviderSearchResultId() {
 		return providerSearchResultId;
+	}
+
+	@Nullable
+	public AppointmentBookingLevelId getAppointmentBookingLevelId() {
+		return this.appointmentBookingLevelId;
 	}
 
 	@Nullable
