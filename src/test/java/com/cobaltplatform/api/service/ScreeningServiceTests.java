@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -82,7 +83,9 @@ public class ScreeningServiceTests {
 				setCreatedByAccountId(accountId);
 				setMetadata(Map.of("appointmentBooking", Map.of(
 						"providerId", providerId.toString(),
-						"appointmentTypeId", appointmentTypeId.toString()
+						"appointmentTypeId", appointmentTypeId.toString(),
+						"date", "2026-01-01",
+						"time", "09:30:00"
 				)));
 			}});
 
@@ -95,18 +98,19 @@ public class ScreeningServiceTests {
 
 			ScreeningSessionDestination screeningSessionDestination =
 					screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
-			Map<String, Object> appointmentBookingContext =
-					(Map<String, Object>) screeningSessionDestination.getContext().get("appointmentBooking");
 
 			assertEquals(ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION,
 					screeningSessionDestination.getScreeningSessionDestinationId());
-			assertEquals(providerId.toString(), appointmentBookingContext.get("providerId"));
-			assertEquals(appointmentTypeId.toString(), appointmentBookingContext.get("appointmentTypeId"));
+			assertEquals("SUCCESS", screeningSessionDestination.getContext().get("result"));
+			assertEquals(providerId.toString(), screeningSessionDestination.getContext().get("providerId"));
+			assertEquals(appointmentTypeId.toString(), screeningSessionDestination.getContext().get("appointmentTypeId"));
+			assertEquals("2026-01-01", screeningSessionDestination.getContext().get("date"));
+			assertEquals("09:30:00", screeningSessionDestination.getContext().get("time"));
 		});
 	}
 
 	@Test
-	public void legacyProviderAppointmentBookingDestinationCarriesAppointmentBookingContext() {
+	public void legacyProviderAppointmentBookingDestinationCarriesFlatAppointmentBookingContext() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionId institutionId = InstitutionId.COBALT;
 			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
@@ -151,13 +155,141 @@ public class ScreeningServiceTests {
 
 			ScreeningSessionDestination screeningSessionDestination =
 					screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
-			Map<String, Object> appointmentBookingContext =
-					(Map<String, Object>) screeningSessionDestination.getContext().get("appointmentBooking");
 
 			assertEquals(ScreeningSessionDestinationId.PROVIDER_APPOINTMENT_BOOKING,
 					screeningSessionDestination.getScreeningSessionDestinationId());
+			assertEquals("SUCCESS", screeningSessionDestination.getContext().get("result"));
+			assertEquals(providerId.toString(), screeningSessionDestination.getContext().get("providerId"));
+			assertEquals(appointmentTypeId.toString(), screeningSessionDestination.getContext().get("appointmentTypeId"));
+		});
+	}
+
+	@Test
+	public void institutionReferrerDestinationWithAppointmentBookingMetadataPreservesDestination() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionId institutionId = InstitutionId.COBALT;
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Institution institution = institutionService.findInstitutionById(institutionId).get();
+			ScreeningFlow screeningFlow = screeningService.findScreeningFlowById(institution.getFeatureScreeningFlowId()).get();
+			UUID providerId = UUID.randomUUID();
+			UUID appointmentTypeId = UUID.randomUUID();
+
+			database.execute("""
+					UPDATE screening_flow_version
+					SET destination_function=?
+					WHERE screening_flow_version_id=?
+					""", """
+					output.screeningSessionDestinationId = 'INSTITUTION_REFERRER_DETAIL';
+					output.context = { institutionReferrerUrlName: 'autism-clinic' };
+					""", screeningFlow.getActiveScreeningFlowVersionId());
+
+			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSourceId.ANONYMOUS);
+				setInstitutionId(institutionId);
+			}});
+
+			UUID screeningSessionId = screeningService.createScreeningSession(new CreateScreeningSessionRequest() {{
+				setScreeningFlowId(screeningFlow.getScreeningFlowId());
+				setTargetAccountId(accountId);
+				setCreatedByAccountId(accountId);
+				setMetadata(Map.of("appointmentBooking", Map.of(
+						"providerId", providerId.toString(),
+						"appointmentTypeId", appointmentTypeId.toString()
+				)));
+			}});
+
+			database.execute("""
+					UPDATE screening_session
+					SET completed=TRUE,
+					completed_at=NOW()
+					WHERE screening_session_id=?
+					""", screeningSessionId);
+
+			ScreeningSessionDestination screeningSessionDestination =
+					screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
+			Map<String, Object> appointmentBookingContext =
+					(Map<String, Object>) screeningSessionDestination.getContext().get("appointmentBooking");
+
+			assertEquals(ScreeningSessionDestinationId.INSTITUTION_REFERRER_DETAIL,
+					screeningSessionDestination.getScreeningSessionDestinationId());
+			assertEquals("autism-clinic", screeningSessionDestination.getContext().get("institutionReferrerUrlName"));
+			assertEquals(ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION.name(),
+					screeningSessionDestination.getContext().get("appointmentBookingCompletionDestinationId"));
 			assertEquals(providerId.toString(), appointmentBookingContext.get("providerId"));
 			assertEquals(appointmentTypeId.toString(), appointmentBookingContext.get("appointmentTypeId"));
+		});
+	}
+
+	@Test
+	public void institutionReferralDestinationWithAppointmentBookingMetadataAppendsBookingQueryParameters() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionId institutionId = InstitutionId.COBALT;
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Institution institution = institutionService.findInstitutionById(institutionId).get();
+			ScreeningFlow screeningFlow = screeningService.findScreeningFlowById(institution.getFeatureScreeningFlowId()).get();
+			UUID providerId = UUID.randomUUID();
+			UUID appointmentTypeId = UUID.randomUUID();
+
+			database.execute("""
+					UPDATE screening_flow_version
+					SET destination_function=?
+					WHERE screening_flow_version_id=?
+					""", """
+					output.screeningSessionDestinationId = 'INSTITUTION_REFERRAL';
+					output.context = {
+					  institutionReferralUrl: '/referrals/autism-clinic/CONSULT_EVALUATION?returnTo=%2Freferrals%2Fautism-clinic'
+					};
+					""", screeningFlow.getActiveScreeningFlowVersionId());
+
+			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSourceId.ANONYMOUS);
+				setInstitutionId(institutionId);
+			}});
+
+			UUID screeningSessionId = screeningService.createScreeningSession(new CreateScreeningSessionRequest() {{
+				setScreeningFlowId(screeningFlow.getScreeningFlowId());
+				setTargetAccountId(accountId);
+				setCreatedByAccountId(accountId);
+				setMetadata(Map.of("appointmentBooking", Map.of(
+						"providerId", providerId.toString(),
+						"appointmentTypeId", appointmentTypeId.toString(),
+						"date", "2026-01-01",
+						"time", "09:30:00"
+				)));
+			}});
+
+			database.execute("""
+					UPDATE screening_session
+					SET completed=TRUE,
+					completed_at=NOW()
+					WHERE screening_session_id=?
+					""", screeningSessionId);
+
+			ScreeningSessionDestination screeningSessionDestination =
+					screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
+			Map<String, Object> appointmentBookingContext =
+					(Map<String, Object>) screeningSessionDestination.getContext().get("appointmentBooking");
+			String institutionReferralUrl = (String) screeningSessionDestination.getContext().get("institutionReferralUrl");
+
+			assertEquals(ScreeningSessionDestinationId.INSTITUTION_REFERRAL,
+					screeningSessionDestination.getScreeningSessionDestinationId());
+			assertEquals(ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION.name(),
+					screeningSessionDestination.getContext().get("appointmentBookingCompletionDestinationId"));
+			assertEquals(providerId.toString(), appointmentBookingContext.get("providerId"));
+			assertEquals(appointmentTypeId.toString(), appointmentBookingContext.get("appointmentTypeId"));
+			Assert.assertTrue(institutionReferralUrl.startsWith("/referrals/autism-clinic/CONSULT_EVALUATION?"));
+			Assert.assertTrue(institutionReferralUrl.contains("returnTo=%2Freferrals%2Fautism-clinic"));
+			Assert.assertTrue(institutionReferralUrl.contains("appointmentBookingCompletionDestinationId=APPOINTMENT_BOOKING_CONFIRMATION"));
+			Assert.assertTrue(institutionReferralUrl.contains(format("providerId=%s", providerId)));
+			Assert.assertTrue(institutionReferralUrl.contains(format("appointmentTypeId=%s", appointmentTypeId)));
+			Assert.assertTrue(institutionReferralUrl.contains("date=2026-01-01"));
+			Assert.assertTrue(institutionReferralUrl.contains("time=09%3A30%3A00"));
 		});
 	}
 

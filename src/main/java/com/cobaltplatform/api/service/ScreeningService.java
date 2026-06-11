@@ -114,6 +114,7 @@ import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -149,6 +150,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -2354,10 +2356,8 @@ public class ScreeningService {
 		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
 		Object appointmentBookingContext = screeningSession.getMetadata().get("appointmentBooking");
 
-		if ((screeningSessionDestinationId == ScreeningSessionDestinationId.PROVIDER_APPOINTMENT_BOOKING
-				|| screeningSessionDestinationId == ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION)
-				&& appointmentBookingContext instanceof Map)
-			context.putIfAbsent("appointmentBooking", appointmentBookingContext);
+		if (appointmentBookingContext instanceof Map)
+			applyAppointmentBookingDestinationContext(screeningSessionDestinationId, context, (Map<?, ?>) appointmentBookingContext);
 
 		ScreeningSessionDestination screeningSessionDestination = new ScreeningSessionDestination(screeningSessionDestinationId, context);
 
@@ -2423,6 +2423,81 @@ public class ScreeningService {
 		}
 
 		return Optional.of(new ScreeningSessionDestination(screeningSessionDestinationId, context));
+	}
+
+	protected void applyAppointmentBookingDestinationContext(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId,
+																													@Nonnull Map<String, Object> context,
+																													@Nonnull Map<?, ?> appointmentBookingContext) {
+		requireNonNull(screeningSessionDestinationId);
+		requireNonNull(context);
+		requireNonNull(appointmentBookingContext);
+
+		Map<String, Object> appointmentBooking = stringKeyedContextMap(appointmentBookingContext);
+
+		if (screeningSessionDestinationId == ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION
+				|| screeningSessionDestinationId == ScreeningSessionDestinationId.PROVIDER_APPOINTMENT_BOOKING) {
+			context.putAll(appointmentBooking);
+			return;
+		}
+
+		context.put("appointmentBooking", appointmentBooking);
+		context.put("appointmentBookingCompletionDestinationId", ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION.name());
+
+		if (screeningSessionDestinationId == ScreeningSessionDestinationId.INSTITUTION_REFERRAL) {
+			Object institutionReferralUrl = context.get("institutionReferralUrl");
+
+			if (institutionReferralUrl instanceof String && trimToNull((String) institutionReferralUrl) != null)
+				context.put("institutionReferralUrl", appendQueryParameters((String) institutionReferralUrl,
+						appointmentBookingDestinationQueryParameters(appointmentBooking)));
+		}
+	}
+
+	@Nonnull
+	protected Map<String, Object> stringKeyedContextMap(@Nonnull Map<?, ?> source) {
+		requireNonNull(source);
+
+		Map<String, Object> destination = new HashMap<>(source.size());
+
+		for (Map.Entry<?, ?> entry : source.entrySet()) {
+			if (entry.getKey() != null)
+				destination.put(entry.getKey().toString(), entry.getValue());
+		}
+
+		return destination;
+	}
+
+	@Nonnull
+	protected Map<String, String> appointmentBookingDestinationQueryParameters(@Nonnull Map<String, Object> appointmentBooking) {
+		requireNonNull(appointmentBooking);
+
+		Map<String, String> queryParameters = new LinkedHashMap<>(appointmentBooking.size() + 1);
+		queryParameters.put("appointmentBookingCompletionDestinationId", ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION.name());
+
+		for (Map.Entry<String, Object> entry : appointmentBooking.entrySet()) {
+			if (entry.getValue() != null)
+				queryParameters.put(entry.getKey(), entry.getValue().toString());
+		}
+
+		return queryParameters;
+	}
+
+	@Nonnull
+	protected String appendQueryParameters(@Nonnull String url,
+																				@Nonnull Map<String, String> queryParameters) {
+		requireNonNull(url);
+		requireNonNull(queryParameters);
+
+		if (queryParameters.isEmpty())
+			return url;
+
+		int fragmentIndex = url.indexOf('#');
+		String fragment = fragmentIndex >= 0 ? url.substring(fragmentIndex) : "";
+		String urlWithoutFragment = fragmentIndex >= 0 ? url.substring(0, fragmentIndex) : url;
+		String separator = urlWithoutFragment.contains("?")
+				? (urlWithoutFragment.endsWith("?") || urlWithoutFragment.endsWith("&") ? "" : "&")
+				: "?";
+
+		return format("%s%s%s%s", urlWithoutFragment, separator, WebUtility.urlEncode(queryParameters), fragment);
 	}
 
 	@Nonnull
