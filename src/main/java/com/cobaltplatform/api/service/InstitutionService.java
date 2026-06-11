@@ -509,6 +509,18 @@ public class InstitutionService {
 	}
 
 	@Nonnull
+	public Optional<InstitutionLocation> findLocationById(@Nullable UUID institutionLocationId) {
+		if (institutionLocationId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM institution_location
+				WHERE institution_location_id=?
+				""", InstitutionLocation.class, institutionLocationId);
+	}
+
+	@Nonnull
 	public List<InstitutionColorValue> findInstitutionColorValuesByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return Collections.emptyList();

@@ -19,14 +19,28 @@
 
 package com.cobaltplatform.api.web.resource;
 
+import com.cobaltplatform.api.IntegrationTestExecutor;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.model.api.response.ClinicApiResponse;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.pyranid.Database;
+import com.soklet.web.exception.AuthorizationException;
+import com.soklet.web.exception.NotFoundException;
+import com.soklet.web.response.ApiResponse;
 import org.junit.Test;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,6 +53,59 @@ import static org.junit.Assert.assertTrue;
  * @author Transmogrify, LLC.
  */
 public class ProviderResourceTests {
+	@Test
+	public void clinicReturnsClinicForCurrentInstitution() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			UUID clinicId = UUID.fromString("ab629384-400a-4688-8465-04636ec2eaa2");
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+				ApiResponse response = providerResource.clinic(clinicId);
+				ClinicApiResponse clinic = responseModelValue(response, "clinic");
+
+				assertEquals(200, response.status());
+				assertEquals(clinicId, clinic.getClinicId());
+				assertEquals(InstitutionId.COBALT, clinic.getInstitutionId());
+			});
+		});
+	}
+
+	@Test(expected = NotFoundException.class)
+	public void clinicRejectsMissingClinic() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					() -> providerResource.clinic(UUID.randomUUID()));
+		});
+	}
+
+	@Test(expected = AuthorizationException.class)
+	public void clinicRejectsClinicFromAnotherInstitution() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			UUID clinicId = UUID.randomUUID();
+
+			database.execute("""
+					INSERT INTO clinic (clinic_id, description, institution_id)
+					VALUES (?, ?, ?)
+					""", clinicId, "Cross Institution Clinic", InstitutionId.COBALT_IC);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					() -> providerResource.clinic(clinicId));
+		});
+	}
+
 	@Test
 	public void providerAvailabilityDateRangeDefaultsToTodayThroughNinetyDays() {
 		ZoneId timeZone = ZoneId.of("America/New_York");
@@ -115,5 +182,12 @@ public class ProviderResourceTests {
 	@Test(expected = IllegalArgumentException.class)
 	public void parseInstitutionLocationIdForProviderSearchRejectsInvalidValue() {
 		ProviderResource.parseInstitutionLocationIdForProviderSearch("invalid");
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T> T responseModelValue(ApiResponse response,
+																					String key) {
+		Map<String, Object> model = (Map<String, Object>) response.model().get();
+		return (T) model.get(key);
 	}
 }

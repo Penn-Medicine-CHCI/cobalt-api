@@ -982,6 +982,26 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	@GET("/clinics/{clinicId}")
+	@AuthenticationRequired
+	public ApiResponse clinic(@Nonnull @PathParameter UUID clinicId) {
+		requireNonNull(clinicId);
+
+		Account account = getCurrentContext().getAccount().get();
+		Clinic clinic = getClinicService().findClinicById(clinicId).orElse(null);
+
+		if (clinic == null)
+			throw new NotFoundException();
+
+		if (!Objects.equals(clinic.getInstitutionId(), account.getInstitutionId()))
+			throw new AuthorizationException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("clinic", getClinicApiResponseFactory().create(clinic));
+		}});
+	}
+
+	@Nonnull
 	@GET("/providers/autocomplete")
 	@AuthenticationRequired
 	public ApiResponse autocompleteProviders(@Nonnull @QueryParameter Optional<String> query) {

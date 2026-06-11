@@ -22,6 +22,7 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -32,6 +33,7 @@ import org.junit.Test;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -39,6 +41,27 @@ import java.util.stream.Collectors;
  */
 @ThreadSafe
 public class InstitutionServiceTests {
+	@Test
+	public void findLocationById() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			UUID institutionLocationId = database.queryForObject("""
+					SELECT institution_location_id
+					FROM institution_location
+					WHERE institution_id=?
+					AND name=?
+					""", UUID.class, InstitutionId.COBALT, "Cobalt General").get();
+
+			InstitutionLocation institutionLocation = institutionService.findLocationById(institutionLocationId).get();
+
+			Assert.assertEquals(institutionLocationId, institutionLocation.getInstitutionLocationId());
+			Assert.assertEquals(InstitutionId.COBALT, institutionLocation.getInstitutionId());
+			Assert.assertFalse(institutionService.findLocationById(UUID.randomUUID()).isPresent());
+			Assert.assertFalse(institutionService.findLocationById(null).isPresent());
+		});
+	}
+
 	@Test
 	public void careTypesForInstitution() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
