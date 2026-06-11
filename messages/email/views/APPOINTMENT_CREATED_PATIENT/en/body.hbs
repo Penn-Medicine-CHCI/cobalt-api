@@ -57,14 +57,18 @@
 								<br/><br/>
 							</p>
 						{{/if}}
-						<p><b>Here are a few tips to help you have a smooth session:</b></p>
-						<ul>
-							<li style="margin-bottom: 5px;">Find a quiet space with a comfortable chair</li>
-							<li style="margin-bottom: 5px;">Sit facing a window or have a light nearby</li>
-							<li style="margin-bottom: 5px;">Take 5 minutes to jot down your thoughts or any goals for your time together</li>
-							<li style="margin-bottom: 5px;">Close all other browser windows, turn your phone off, and make the video full screen</li>
-							<li style="margin-bottom: 5px;">Allow for a few minutes of troubleshooting and settling in</li>
-						</ul>
+						{{#if appointmentCreatedPatientEmailBodyHtml}}
+							{{{appointmentCreatedPatientEmailBodyHtml}}}
+						{{else}}
+							<p><b>Here are a few tips to help you have a smooth session:</b></p>
+							<ul>
+								<li style="margin-bottom: 5px;">Find a quiet space with a comfortable chair</li>
+								<li style="margin-bottom: 5px;">Sit facing a window or have a light nearby</li>
+								<li style="margin-bottom: 5px;">Take 5 minutes to jot down your thoughts or any goals for your time together</li>
+								<li style="margin-bottom: 5px;">Close all other browser windows, turn your phone off, and make the video full screen</li>
+								<li style="margin-bottom: 5px;">Allow for a few minutes of troubleshooting and settling in</li>
+							</ul>
+						{{/if}}
 					</td>
 				</tr>
 			</table>
