@@ -126,15 +126,92 @@ public class AppointmentServiceTests {
 
 			AppointmentBookingScreeningKey otherProviderScreeningKey =
 					new AppointmentBookingScreeningKey(UUID.randomUUID(), pair.getAppointmentTypeId(), screeningFlowId);
-			AppointmentBookingScreeningKey otherAppointmentTypeScreeningKey =
+			AppointmentBookingScreeningKey sameProviderOtherAppointmentTypeScreeningKey =
 					new AppointmentBookingScreeningKey(pair.getProviderId(), UUID.randomUUID(), screeningFlowId);
+			AppointmentBookingScreeningKey otherScreeningFlowKey =
+					new AppointmentBookingScreeningKey(pair.getProviderId(), pair.getAppointmentTypeId(), UUID.randomUUID());
 			Set<AppointmentBookingScreeningKey> completedScreeningKeys =
 					appointmentService.findCompletedAppointmentBookingScreeningKeys(account.getAccountId(), Set.of(
-							expectedScreeningKey, otherProviderScreeningKey, otherAppointmentTypeScreeningKey));
+							expectedScreeningKey, otherProviderScreeningKey, sameProviderOtherAppointmentTypeScreeningKey,
+							otherScreeningFlowKey));
 
 			assertTrue(completedScreeningKeys.contains(expectedScreeningKey));
 			assertFalse(completedScreeningKeys.contains(otherProviderScreeningKey));
-			assertFalse(completedScreeningKeys.contains(otherAppointmentTypeScreeningKey));
+			assertTrue(completedScreeningKeys.contains(sameProviderOtherAppointmentTypeScreeningKey));
+			assertFalse(completedScreeningKeys.contains(otherScreeningFlowKey));
+		});
+	}
+
+	@Test
+	public void appointmentBookingRequirementsCompletedScreeningSatisfiesSameProviderAndFlowAcrossAppointmentTypes() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+			ProviderAppointmentTypePair pair = findProviderAppointmentTypePairWithOtherAppointmentType(database);
+			ProviderAppointmentTypePair otherPair = pairForOtherAppointmentType(pair);
+			UUID screeningFlowId = institution.getFeatureScreeningFlowId();
+
+			database.execute("UPDATE appointment_type SET screening_flow_id=? WHERE appointment_type_id IN (?, ?)",
+					screeningFlowId, pair.getAppointmentTypeId(), otherPair.getAppointmentTypeId());
+
+			AppointmentBookingRequirements appointmentBookingRequirements =
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account);
+			UUID screeningSessionId = appointmentBookingRequirements.getScreeningSession().getScreeningSessionId();
+
+			database.execute("""
+					UPDATE screening_session
+					SET completed=TRUE,
+					completed_at=NOW()
+					WHERE screening_session_id=?
+					""", screeningSessionId);
+
+			AppointmentBookingRequirements otherAppointmentTypeRequirements =
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, otherPair), account);
+
+			assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+					otherAppointmentTypeRequirements.getAppointmentBookingRequirementsDestinationId());
+			assertEquals(true, otherAppointmentTypeRequirements.getScreeningRequired());
+			assertEquals(true, otherAppointmentTypeRequirements.getScreeningSatisfied());
+			assertNull(otherAppointmentTypeRequirements.getScreeningSession());
+		});
+	}
+
+	@Test
+	public void appointmentBookingRequirementsIncompleteScreeningResumeRemainsAppointmentTypeSpecific() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+			ProviderAppointmentTypePair pair = findProviderAppointmentTypePairWithOtherAppointmentType(database);
+			ProviderAppointmentTypePair otherPair = pairForOtherAppointmentType(pair);
+			UUID screeningFlowId = institution.getFeatureScreeningFlowId();
+
+			database.execute("UPDATE appointment_type SET screening_flow_id=? WHERE appointment_type_id IN (?, ?)",
+					screeningFlowId, pair.getAppointmentTypeId(), otherPair.getAppointmentTypeId());
+
+			AppointmentBookingRequirements appointmentBookingRequirements =
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account);
+			AppointmentBookingRequirements otherAppointmentTypeRequirements =
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, otherPair), account);
+			AppointmentBookingRequirements resumedOtherAppointmentTypeRequirements =
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, otherPair), account);
+
+			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+					otherAppointmentTypeRequirements.getAppointmentBookingRequirementsDestinationId());
+			assertNotNull(appointmentBookingRequirements.getScreeningSession());
+			assertNotNull(otherAppointmentTypeRequirements.getScreeningSession());
+			assertNotNull(resumedOtherAppointmentTypeRequirements.getScreeningSession());
+			assertFalse(appointmentBookingRequirements.getScreeningSession().getScreeningSessionId()
+					.equals(otherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId()));
+			assertEquals(otherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId(),
+					resumedOtherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId());
 		});
 	}
 
@@ -151,8 +228,33 @@ public class AppointmentServiceTests {
 				""", ProviderAppointmentTypePair.class, InstitutionId.COBALT).get();
 	}
 
+	protected ProviderAppointmentTypePair findProviderAppointmentTypePairWithOtherAppointmentType(Database database) {
+		return database.queryForObject("""
+				SELECT
+				  p.provider_id,
+				  MIN(at.appointment_type_id::TEXT)::UUID AS appointment_type_id,
+				  MAX(at.appointment_type_id::TEXT)::UUID AS other_appointment_type_id
+				FROM provider p, provider_appointment_type pat, v_appointment_type at
+				WHERE p.provider_id=pat.provider_id
+				AND pat.appointment_type_id=at.appointment_type_id
+				AND p.institution_id=?
+				AND p.active=TRUE
+				GROUP BY p.provider_id
+				HAVING COUNT(DISTINCT at.appointment_type_id) > 1
+				ORDER BY p.provider_id
+				LIMIT 1
+				""", ProviderAppointmentTypePair.class, InstitutionId.COBALT).get();
+	}
+
+	protected ProviderAppointmentTypePair pairForOtherAppointmentType(ProviderAppointmentTypePair pair) {
+		ProviderAppointmentTypePair otherPair = new ProviderAppointmentTypePair();
+		otherPair.setProviderId(pair.getProviderId());
+		otherPair.setAppointmentTypeId(pair.getOtherAppointmentTypeId());
+		return otherPair;
+	}
+
 	protected FindAppointmentBookingRequirementsRequest requestFor(Account account,
-																																 ProviderAppointmentTypePair pair) {
+																																	 ProviderAppointmentTypePair pair) {
 		FindAppointmentBookingRequirementsRequest request = new FindAppointmentBookingRequirementsRequest();
 		request.setAccountId(account.getAccountId());
 		request.setProviderId(pair.getProviderId());
@@ -167,6 +269,8 @@ public class AppointmentServiceTests {
 		private UUID providerId;
 		@Nullable
 		private UUID appointmentTypeId;
+		@Nullable
+		private UUID otherAppointmentTypeId;
 
 		@Nullable
 		public UUID getProviderId() {
@@ -184,6 +288,15 @@ public class AppointmentServiceTests {
 
 		public void setAppointmentTypeId(@Nullable UUID appointmentTypeId) {
 			this.appointmentTypeId = appointmentTypeId;
+		}
+
+		@Nullable
+		public UUID getOtherAppointmentTypeId() {
+			return this.otherAppointmentTypeId;
+		}
+
+		public void setOtherAppointmentTypeId(@Nullable UUID otherAppointmentTypeId) {
+			this.otherAppointmentTypeId = otherAppointmentTypeId;
 		}
 	}
 }

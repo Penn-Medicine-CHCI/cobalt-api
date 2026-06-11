@@ -23,13 +23,19 @@ import com.cobaltplatform.api.cache.Cache;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.model.service.ProviderSearchResult;
+import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.util.Formatter;
 import com.lokalized.Strings;
 import org.junit.Test;
@@ -41,6 +47,7 @@ import java.lang.reflect.Proxy;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +57,9 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -169,6 +179,172 @@ public class ProviderSearchResultApiResponseTests {
 		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, appointmentSelectionTypeId);
 	}
 
+	@Test
+	public void screeningRequirementReflectsUnsatisfiedRequiredFirstAvailableAppointment() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID screeningFlowId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId), List.of(appointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, screeningFlowId)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+		ProviderSearchScreeningRequirement screeningRequirement = response.getScreeningRequirement();
+
+		assertNotNull(screeningRequirement);
+		assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+				screeningRequirement.getAppointmentBookingRequirementsDestinationId());
+		assertEquals(screeningFlowId, screeningRequirement.getScreeningFlowId());
+		assertEquals(true, screeningRequirement.getScreeningRequired());
+		assertEquals(false, screeningRequirement.getScreeningSatisfied());
+	}
+
+	@Test
+	public void screeningRequirementReflectsSatisfiedRequiredFirstAvailableAppointment() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID screeningFlowId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId), List.of(appointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, screeningFlowId)),
+				Set.of(new AppointmentBookingScreeningKey(providerId, appointmentTypeId, screeningFlowId)));
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+		ProviderSearchScreeningRequirement screeningRequirement = response.getScreeningRequirement();
+
+		assertNotNull(screeningRequirement);
+		assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+				screeningRequirement.getAppointmentBookingRequirementsDestinationId());
+		assertEquals(screeningFlowId, screeningRequirement.getScreeningFlowId());
+		assertEquals(true, screeningRequirement.getScreeningRequired());
+		assertEquals(true, screeningRequirement.getScreeningSatisfied());
+	}
+
+	@Test
+	public void screeningRequirementReflectsNoRequiredScreeningForFirstAvailableAppointment() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId), List.of(appointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, null)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+		ProviderSearchScreeningRequirement screeningRequirement = response.getScreeningRequirement();
+
+		assertNotNull(screeningRequirement);
+		assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+				screeningRequirement.getAppointmentBookingRequirementsDestinationId());
+		assertNull(screeningRequirement.getScreeningFlowId());
+		assertEquals(false, screeningRequirement.getScreeningRequired());
+		assertEquals(true, screeningRequirement.getScreeningSatisfied());
+	}
+
+	@Test
+	public void screeningRequirementIsNullForAmbiguousFirstAvailableAppointmentWithDifferentFlows() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID otherAppointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId, otherAppointmentTypeId),
+				List.of(appointmentTypeId, otherAppointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(
+						appointmentTypeId, appointmentType(appointmentTypeId, UUID.randomUUID()),
+						otherAppointmentTypeId, appointmentType(otherAppointmentTypeId, UUID.randomUUID())),
+				Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertNull(response.getScreeningRequirement());
+	}
+
+	@Test
+	public void screeningRequirementIsNullForAmbiguousFirstAvailableAppointmentWithUnknownAppointmentType() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID unknownAppointmentTypeId = UUID.randomUUID();
+		UUID screeningFlowId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId, unknownAppointmentTypeId),
+				List.of(appointmentTypeId, unknownAppointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, screeningFlowId)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertNull(response.getScreeningRequirement());
+	}
+
+	@Test
+	public void screeningRequirementReflectsSharedFlowAmbiguousFirstAvailableAppointment() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID otherAppointmentTypeId = UUID.randomUUID();
+		UUID screeningFlowId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId, otherAppointmentTypeId),
+				List.of(appointmentTypeId, otherAppointmentTypeId));
+		Map<UUID, AppointmentType> appointmentTypesById = Map.of(
+				appointmentTypeId, appointmentType(appointmentTypeId, screeningFlowId),
+				otherAppointmentTypeId, appointmentType(otherAppointmentTypeId, screeningFlowId));
+		ProviderSearchResult unsatisfiedProviderSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				appointmentTypesById, Set.of());
+		ProviderSearchResult satisfiedProviderSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				appointmentTypesById, Set.of(new AppointmentBookingScreeningKey(providerId, otherAppointmentTypeId, screeningFlowId)));
+
+		ProviderSearchResultApiResponse unsatisfiedResponse = new ProviderSearchResultApiResponse(formatter(), strings(),
+				unsatisfiedProviderSearchResult);
+		ProviderSearchResultApiResponse satisfiedResponse = new ProviderSearchResultApiResponse(formatter(), strings(),
+				satisfiedProviderSearchResult);
+
+		assertNotNull(unsatisfiedResponse.getScreeningRequirement());
+		assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+				unsatisfiedResponse.getScreeningRequirement().getAppointmentBookingRequirementsDestinationId());
+		assertEquals(screeningFlowId, unsatisfiedResponse.getScreeningRequirement().getScreeningFlowId());
+		assertEquals(true, unsatisfiedResponse.getScreeningRequirement().getScreeningRequired());
+		assertEquals(false, unsatisfiedResponse.getScreeningRequirement().getScreeningSatisfied());
+
+		assertNotNull(satisfiedResponse.getScreeningRequirement());
+		assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+				satisfiedResponse.getScreeningRequirement().getAppointmentBookingRequirementsDestinationId());
+		assertEquals(true, satisfiedResponse.getScreeningRequirement().getScreeningSatisfied());
+	}
+
+	@Test
+	public void clinicFirstAvailableAppointmentExposesProviderIdAndScreeningRequirementUsesThatProvider() {
+		UUID providerId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID screeningFlowId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId), List.of(appointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forClinic(clinic(clinicId, AppointmentBookingLevelId.CLINIC),
+				List.of(providerFind), Map.of(providerId, provider), Map.of(appointmentTypeId, appointmentType(appointmentTypeId, screeningFlowId)),
+				Set.of(new AppointmentBookingScreeningKey(providerId, appointmentTypeId, screeningFlowId)));
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertNotNull(response.getFirstAvailableAppointment());
+		assertEquals(providerId, response.getFirstAvailableAppointment().getProviderId());
+		assertNotNull(response.getScreeningRequirement());
+		assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+				response.getScreeningRequirement().getAppointmentBookingRequirementsDestinationId());
+		assertEquals(true, response.getScreeningRequirement().getScreeningSatisfied());
+	}
+
+	@Test
+	public void screeningRequirementDoesNotExposeAppointmentTypeAccessors() {
+		assertFalse(Arrays.stream(ProviderSearchScreeningRequirement.class.getMethods())
+				.anyMatch(method -> method.getName().equals("getAppointmentTypeId")));
+		assertFalse(Arrays.stream(ProviderSearchScreeningRequirement.class.getMethods())
+				.anyMatch(method -> method.getName().equals("getAppointmentTypeName")));
+		assertFalse(Arrays.stream(ProviderSearchScreeningRequirement.class.getMethods())
+				.anyMatch(method -> method.getName().equals("getAppointmentDescription")));
+	}
+
 	@Nonnull
 	protected Provider provider(@Nonnull UUID providerId,
 															@Nullable VideoconferencePlatformId videoconferencePlatformId) {
@@ -199,6 +375,35 @@ public class ProviderSearchResultApiResponseTests {
 		providerFind.setProviderId(providerId);
 		providerFind.setAppointmentTypeIds(appointmentTypeIds);
 		return providerFind;
+	}
+
+	@Nonnull
+	protected ProviderFind providerFindWithAvailableAppointment(@Nonnull UUID providerId,
+																															@Nullable Set<UUID> appointmentTypeIds,
+																															@Nullable List<UUID> availableAppointmentTypeIds) {
+		ProviderFind providerFind = providerFind(providerId, appointmentTypeIds);
+		AvailabilityDate availabilityDate = new AvailabilityDate();
+		AvailabilityTime availabilityTime = new AvailabilityTime();
+
+		availabilityDate.setDate(LocalDate.of(2026, 1, 1));
+		availabilityTime.setTime(LocalTime.NOON);
+		availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
+		availabilityTime.setAppointmentTypeIds(availableAppointmentTypeIds);
+		availabilityDate.setTimes(List.of(availabilityTime));
+		providerFind.setDates(List.of(availabilityDate));
+
+		return providerFind;
+	}
+
+	@Nonnull
+	protected AppointmentType appointmentType(@Nonnull UUID appointmentTypeId,
+																						@Nullable UUID screeningFlowId) {
+		AppointmentType appointmentType = new AppointmentType();
+		appointmentType.setAppointmentTypeId(appointmentTypeId);
+		appointmentType.setName("Visit");
+		appointmentType.setScreeningFlowId(screeningFlowId);
+
+		return appointmentType;
 	}
 
 	@Nonnull

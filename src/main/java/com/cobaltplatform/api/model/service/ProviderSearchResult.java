@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -59,7 +60,7 @@ public class ProviderSearchResult {
 	@Nonnull
 	private final Map<UUID, AppointmentType> appointmentTypesById;
 	@Nonnull
-	private final List<ProviderSearchScreeningRequirement> screeningRequirements;
+	private final Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys;
 
 	public enum ProviderSearchResultTypeId {
 		PROVIDER,
@@ -70,22 +71,22 @@ public class ProviderSearchResult {
 	public static ProviderSearchResult forProvider(@Nonnull Provider provider,
 																									 @Nonnull ProviderFind providerFind,
 																									 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
-		return forProvider(provider, providerFind, appointmentTypesById, List.of());
+		return forProvider(provider, providerFind, appointmentTypesById, Set.of());
 	}
 
 	@Nonnull
 	public static ProviderSearchResult forProvider(@Nonnull Provider provider,
 																									 @Nonnull ProviderFind providerFind,
 																									 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																									 @Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements) {
+																									 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
 		requireNonNull(provider);
 		requireNonNull(providerFind);
 		requireNonNull(appointmentTypesById);
-		requireNonNull(screeningRequirements);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		return new ProviderSearchResult(ProviderSearchResultTypeId.PROVIDER, requireNonNull(provider.getProviderId()),
 				AppointmentBookingLevelId.PROVIDER, providerFind.getName(), provider, providerFind, null, List.of(providerFind), Map.of(provider.getProviderId(), provider),
-				appointmentTypesById, List.copyOf(screeningRequirements));
+				appointmentTypesById, Set.copyOf(completedAppointmentBookingScreeningKeys));
 	}
 
 	@Nonnull
@@ -93,7 +94,7 @@ public class ProviderSearchResult {
 																								 @Nonnull List<ProviderFind> providerFinds,
 																								 @Nonnull Map<UUID, Provider> providersById,
 																								 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
-		return forClinic(clinic, providerFinds, providersById, appointmentTypesById, List.of());
+		return forClinic(clinic, providerFinds, providersById, appointmentTypesById, Set.of());
 	}
 
 	@Nonnull
@@ -101,16 +102,16 @@ public class ProviderSearchResult {
 																								 @Nonnull List<ProviderFind> providerFinds,
 																								 @Nonnull Map<UUID, Provider> providersById,
 																								 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																								 @Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements) {
+																								 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
 		requireNonNull(clinic);
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(appointmentTypesById);
-		requireNonNull(screeningRequirements);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		return new ProviderSearchResult(ProviderSearchResultTypeId.CLINIC, requireNonNull(clinic.getClinicId()),
 				clinic.getAppointmentBookingLevelId(), clinic.getDescription(), null, null, clinic, List.copyOf(providerFinds), providersById, appointmentTypesById,
-				List.copyOf(screeningRequirements));
+				Set.copyOf(completedAppointmentBookingScreeningKeys));
 	}
 
 	protected ProviderSearchResult(@Nonnull ProviderSearchResultTypeId providerSearchResultTypeId,
@@ -119,17 +120,17 @@ public class ProviderSearchResult {
 																 @Nullable String name,
 																 @Nullable Provider provider,
 																 @Nullable ProviderFind providerFind,
-																	 @Nullable Clinic clinic,
-																	 @Nonnull List<ProviderFind> providerFinds,
-																	 @Nonnull Map<UUID, Provider> providersById,
-																	 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																	 @Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements) {
+																 @Nullable Clinic clinic,
+																 @Nonnull List<ProviderFind> providerFinds,
+																 @Nonnull Map<UUID, Provider> providersById,
+																 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
 		requireNonNull(providerSearchResultTypeId);
 		requireNonNull(providerSearchResultId);
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(appointmentTypesById);
-		requireNonNull(screeningRequirements);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		this.providerSearchResultTypeId = providerSearchResultTypeId;
 		this.providerSearchResultId = providerSearchResultId;
@@ -141,7 +142,7 @@ public class ProviderSearchResult {
 		this.providerFinds = providerFinds;
 		this.providersById = providersById;
 		this.appointmentTypesById = appointmentTypesById;
-		this.screeningRequirements = screeningRequirements;
+		this.completedAppointmentBookingScreeningKeys = completedAppointmentBookingScreeningKeys;
 	}
 
 	@Nonnull
@@ -195,7 +196,7 @@ public class ProviderSearchResult {
 	}
 
 	@Nonnull
-	public List<ProviderSearchScreeningRequirement> getScreeningRequirements() {
-		return this.screeningRequirements;
+	public Set<AppointmentBookingScreeningKey> getCompletedAppointmentBookingScreeningKeys() {
+		return this.completedAppointmentBookingScreeningKeys;
 	}
 }

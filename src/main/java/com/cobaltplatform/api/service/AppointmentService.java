@@ -778,8 +778,8 @@ public class AppointmentService {
 					accountId, providerId, appointmentTypeId, request.getAppointmentSelectionTypeId(), null, false, true, null,
 					appointmentBookingContext);
 
-		ScreeningSession completedScreeningSession = findMostRecentAppointmentBookingScreeningSession(accountId, providerId, appointmentTypeId,
-				screeningFlowId, true).orElse(null);
+		ScreeningSession completedScreeningSession = findMostRecentCompletedAppointmentBookingScreeningSession(accountId, providerId,
+				screeningFlowId).orElse(null);
 
 		if (completedScreeningSession != null)
 			return new AppointmentBookingRequirements(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
@@ -830,9 +830,6 @@ public class AppointmentService {
 		Set<String> providerIds = appointmentBookingScreeningKeys.stream()
 				.map(appointmentBookingScreeningKey -> appointmentBookingScreeningKey.getProviderId().toString())
 				.collect(Collectors.toSet());
-		Set<String> appointmentTypeIds = appointmentBookingScreeningKeys.stream()
-				.map(appointmentBookingScreeningKey -> appointmentBookingScreeningKey.getAppointmentTypeId().toString())
-				.collect(Collectors.toSet());
 		Set<UUID> screeningFlowIds = appointmentBookingScreeningKeys.stream()
 				.map(AppointmentBookingScreeningKey::getScreeningFlowId)
 				.collect(Collectors.toSet());
@@ -840,27 +837,64 @@ public class AppointmentService {
 		List<Object> parameters = new ArrayList<>();
 		parameters.add(accountId);
 		parameters.addAll(providerIds);
-		parameters.addAll(appointmentTypeIds);
 		parameters.addAll(screeningFlowIds);
 
-		return getDatabase().queryForList(format("""
-						SELECT DISTINCT
-						  ss.metadata->'appointmentBooking'->>'providerId' AS provider_id,
-						  ss.metadata->'appointmentBooking'->>'appointmentTypeId' AS appointment_type_id,
-						  sfv.screening_flow_id
-						FROM screening_session ss, screening_flow_version sfv
-						WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
-						AND ss.target_account_id=?
-						AND ss.completed=TRUE
-						AND ss.skipped=FALSE
-						AND ss.metadata->'appointmentBooking'->>'providerId' IN %s
-						AND ss.metadata->'appointmentBooking'->>'appointmentTypeId' IN %s
-						AND sfv.screening_flow_id IN %s
-						""", sqlInListPlaceholders(providerIds), sqlInListPlaceholders(appointmentTypeIds),
-				sqlInListPlaceholders(screeningFlowIds)), CompletedAppointmentBookingScreeningKey.class, parameters.toArray(new Object[]{})).stream()
-				.map(CompletedAppointmentBookingScreeningKey::toAppointmentBookingScreeningKey)
-				.filter(appointmentBookingScreeningKey -> appointmentBookingScreeningKeys.contains(appointmentBookingScreeningKey))
+		Map<UUID, Set<UUID>> completedScreeningFlowIdsByProviderId = new HashMap<>();
+
+		getDatabase().queryForList(format("""
+							SELECT DISTINCT
+							  ss.metadata->'appointmentBooking'->>'providerId' AS provider_id,
+							  sfv.screening_flow_id
+							FROM screening_session ss, screening_flow_version sfv
+							WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
+							AND ss.target_account_id=?
+							AND ss.completed=TRUE
+							AND ss.skipped=FALSE
+							AND ss.metadata->'appointmentBooking'->>'providerId' IN %s
+							AND sfv.screening_flow_id IN %s
+							""", sqlInListPlaceholders(providerIds), sqlInListPlaceholders(screeningFlowIds)),
+				CompletedAppointmentBookingScreeningKey.class, parameters.toArray(new Object[]{})).forEach(completedAppointmentBookingScreeningKey -> {
+			if (completedAppointmentBookingScreeningKey.getProviderId() == null || completedAppointmentBookingScreeningKey.getScreeningFlowId() == null)
+				return;
+
+			UUID providerId = UUID.fromString(completedAppointmentBookingScreeningKey.getProviderId());
+			Set<UUID> completedScreeningFlowIds = completedScreeningFlowIdsByProviderId.get(providerId);
+
+			if (completedScreeningFlowIds == null) {
+				completedScreeningFlowIds = new HashSet<>();
+				completedScreeningFlowIdsByProviderId.put(providerId, completedScreeningFlowIds);
+			}
+
+			completedScreeningFlowIds.add(completedAppointmentBookingScreeningKey.getScreeningFlowId());
+		});
+
+		return appointmentBookingScreeningKeys.stream()
+				.filter(appointmentBookingScreeningKey -> completedScreeningFlowIdsByProviderId
+						.getOrDefault(appointmentBookingScreeningKey.getProviderId(), Set.of())
+						.contains(appointmentBookingScreeningKey.getScreeningFlowId()))
 				.collect(Collectors.toSet());
+	}
+
+	@Nonnull
+	protected Optional<ScreeningSession> findMostRecentCompletedAppointmentBookingScreeningSession(@Nonnull UUID accountId,
+																																														@Nonnull UUID providerId,
+																																														@Nonnull UUID screeningFlowId) {
+		requireNonNull(accountId);
+		requireNonNull(providerId);
+		requireNonNull(screeningFlowId);
+
+		return getDatabase().queryForObject("""
+				SELECT ss.*
+				FROM screening_session ss, screening_flow_version sfv
+				WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
+				AND sfv.screening_flow_id=?
+				AND ss.target_account_id=?
+				AND ss.completed=TRUE
+				AND ss.skipped=FALSE
+				AND ss.metadata->'appointmentBooking'->>'providerId'=?
+				ORDER BY ss.last_updated DESC
+				LIMIT 1
+				""", ScreeningSession.class, screeningFlowId, accountId, providerId.toString());
 	}
 
 	@Nonnull
@@ -894,15 +928,7 @@ public class AppointmentService {
 		@Nullable
 		private String providerId;
 		@Nullable
-		private String appointmentTypeId;
-		@Nullable
 		private UUID screeningFlowId;
-
-		@Nonnull
-		public AppointmentBookingScreeningKey toAppointmentBookingScreeningKey() {
-			return new AppointmentBookingScreeningKey(UUID.fromString(requireNonNull(getProviderId())),
-					UUID.fromString(requireNonNull(getAppointmentTypeId())), requireNonNull(getScreeningFlowId()));
-		}
 
 		@Nullable
 		public String getProviderId() {
@@ -911,15 +937,6 @@ public class AppointmentService {
 
 		public void setProviderId(@Nullable String providerId) {
 			this.providerId = providerId;
-		}
-
-		@Nullable
-		public String getAppointmentTypeId() {
-			return this.appointmentTypeId;
-		}
-
-		public void setAppointmentTypeId(@Nullable String appointmentTypeId) {
-			this.appointmentTypeId = appointmentTypeId;
 		}
 
 		@Nullable

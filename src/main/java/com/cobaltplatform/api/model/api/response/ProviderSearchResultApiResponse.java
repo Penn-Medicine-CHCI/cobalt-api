@@ -32,6 +32,8 @@ import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderSearchResult;
 import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.util.Formatter;
@@ -101,8 +103,8 @@ public class ProviderSearchResultApiResponse {
 	private final FirstAvailableAppointmentApiResponse firstAvailableAppointment;
 	@Nonnull
 	private final Boolean hasMoreAppointments;
-	@Nonnull
-	private final List<ProviderSearchScreeningRequirement> screeningRequirements;
+	@Nullable
+	private final ProviderSearchScreeningRequirement screeningRequirement;
 
 	public enum ProviderSearchResultTypeId {
 		PROVIDER,
@@ -160,7 +162,8 @@ public class ProviderSearchResultApiResponse {
 			this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 			this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
 			this.hasMoreAppointments = availableAppointments.size() > 1;
-			this.screeningRequirements = providerSearchResult.getScreeningRequirements();
+			this.screeningRequirement = screeningRequirementFor(firstAvailableAppointment, appointmentTypesById,
+					providerSearchResult.getCompletedAppointmentBookingScreeningKeys());
 		} else {
 			Clinic clinic = requireNonNull(providerSearchResult.getClinic());
 			List<ProviderFind> providerFinds = providerSearchResult.getProviderFinds();
@@ -192,7 +195,8 @@ public class ProviderSearchResultApiResponse {
 					: descriptionFor(firstAvailableAppointment.getAppointmentType());
 			this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, locale);
 			this.hasMoreAppointments = availableAppointments.size() > 1;
-			this.screeningRequirements = providerSearchResult.getScreeningRequirements();
+			this.screeningRequirement = screeningRequirementFor(firstAvailableAppointment, appointmentTypesById,
+					providerSearchResult.getCompletedAppointmentBookingScreeningKeys());
 		}
 	}
 
@@ -229,7 +233,7 @@ public class ProviderSearchResultApiResponse {
 		this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
 		this.hasMoreAppointments = availableAppointments.size() > 1;
-		this.screeningRequirements = List.of();
+		this.screeningRequirement = null;
 	}
 
 	@AssistedInject
@@ -272,7 +276,7 @@ public class ProviderSearchResultApiResponse {
 				: descriptionFor(firstAvailableAppointment.getAppointmentType());
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, locale);
 		this.hasMoreAppointments = availableAppointments.size() > 1;
-		this.screeningRequirements = List.of();
+		this.screeningRequirement = null;
 	}
 
 	@Nonnull
@@ -519,6 +523,86 @@ public class ProviderSearchResultApiResponse {
 		return description == null ? trimToNull(appointmentType.getName()) : description;
 	}
 
+	@Nullable
+	protected static ProviderSearchScreeningRequirement screeningRequirementFor(@Nullable AvailableAppointment firstAvailableAppointment,
+																																							 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																																							 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
+		requireNonNull(appointmentTypesById);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
+
+		if (firstAvailableAppointment == null || firstAvailableAppointment.getProvider() == null
+				|| firstAvailableAppointment.getProvider().getProviderId() == null)
+			return null;
+
+		Provider provider = firstAvailableAppointment.getProvider();
+		Set<UUID> appointmentTypeIds = appointmentTypeIdsFor(firstAvailableAppointment);
+
+		if (appointmentTypeIds.size() == 0)
+			return null;
+
+		UUID screeningFlowId;
+
+		if (appointmentTypeIds.size() == 1) {
+			UUID appointmentTypeId = appointmentTypeIds.iterator().next();
+			AppointmentType appointmentType = appointmentTypesById.get(appointmentTypeId);
+
+			if (appointmentType == null || appointmentType.getAppointmentTypeId() == null)
+				return null;
+
+			screeningFlowId = appointmentType.getScreeningFlowId();
+		} else {
+			Set<UUID> screeningFlowIds = new HashSet<>();
+
+			for (UUID appointmentTypeId : appointmentTypeIds) {
+				AppointmentType appointmentType = appointmentTypesById.get(appointmentTypeId);
+
+				if (appointmentType == null || appointmentType.getAppointmentTypeId() == null
+						|| appointmentType.getScreeningFlowId() == null)
+					return null;
+
+				screeningFlowIds.add(appointmentType.getScreeningFlowId());
+			}
+
+			if (screeningFlowIds.size() != 1)
+				return null;
+
+			screeningFlowId = screeningFlowIds.iterator().next();
+		}
+
+		boolean screeningRequired = screeningFlowId != null;
+		boolean screeningSatisfied = !screeningRequired;
+
+		if (screeningRequired)
+			screeningSatisfied = completedAppointmentBookingScreeningKeys.stream()
+					.anyMatch(completedAppointmentBookingScreeningKey -> provider.getProviderId().equals(completedAppointmentBookingScreeningKey.getProviderId())
+							&& screeningFlowId.equals(completedAppointmentBookingScreeningKey.getScreeningFlowId()));
+
+		AppointmentBookingRequirementsDestinationId appointmentBookingRequirementsDestinationId =
+				screeningRequired && !screeningSatisfied
+						? AppointmentBookingRequirementsDestinationId.SCREENING_SESSION
+						: AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING;
+
+		return new ProviderSearchScreeningRequirement(appointmentBookingRequirementsDestinationId, screeningFlowId,
+				screeningRequired, screeningSatisfied);
+	}
+
+	@Nonnull
+	protected static Set<UUID> appointmentTypeIdsFor(@Nonnull AvailableAppointment availableAppointment) {
+		requireNonNull(availableAppointment);
+
+		Set<UUID> appointmentTypeIds = new HashSet<>();
+		List<UUID> availabilityAppointmentTypeIds = availableAppointment.getAvailabilityTime().getAppointmentTypeIds();
+
+		if (availabilityAppointmentTypeIds == null)
+			return appointmentTypeIds;
+
+		for (UUID appointmentTypeId : availabilityAppointmentTypeIds)
+			if (appointmentTypeId != null)
+				appointmentTypeIds.add(appointmentTypeId);
+
+		return appointmentTypeIds;
+	}
+
 	@Nonnull
 	public ProviderSearchResultTypeId getProviderSearchResultTypeId() {
 		return this.providerSearchResultTypeId;
@@ -609,9 +693,9 @@ public class ProviderSearchResultApiResponse {
 		return this.hasMoreAppointments;
 	}
 
-	@Nonnull
-	public List<ProviderSearchScreeningRequirement> getScreeningRequirements() {
-		return this.screeningRequirements;
+	@Nullable
+	public ProviderSearchScreeningRequirement getScreeningRequirement() {
+		return this.screeningRequirement;
 	}
 
 	@ThreadSafe
@@ -661,6 +745,8 @@ public class ProviderSearchResultApiResponse {
 
 	@ThreadSafe
 	public static class FirstAvailableAppointmentApiResponse {
+		@Nullable
+		private final UUID providerId;
 		@Nonnull
 		private final LocalDate date;
 		@Nonnull
@@ -693,7 +779,9 @@ public class ProviderSearchResultApiResponse {
 
 			AvailabilityTime availabilityTime = availableAppointment.getAvailabilityTime();
 			AppointmentType appointmentType = availableAppointment.getAppointmentType();
+			Provider provider = availableAppointment.getProvider();
 
+			this.providerId = provider == null ? null : provider.getProviderId();
 			this.date = availableAppointment.getDate();
 			this.time = availabilityTime.getTime();
 			this.dateTime = LocalDateTime.of(this.date, this.time);
@@ -715,6 +803,11 @@ public class ProviderSearchResultApiResponse {
 
 			// Turns "10:00 AM" into "10:00am", for example
 			return timeDescription.replace(" ", "").toLowerCase(locale);
+		}
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
 		}
 
 		@Nonnull

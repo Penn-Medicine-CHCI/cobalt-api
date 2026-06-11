@@ -257,7 +257,6 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/246-course-uni
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/247-account-timeline-report.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/248-ip-geolocation.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/249-institution-referrer-metadata.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/251-ip-geolocation-radius-double.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/252-page-group-table.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/253-account-alert.sql
@@ -269,4 +268,6 @@ if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/bootstrap.sql
 fi
 
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-provider-booking-screening.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-autism-provider-search-screening.sql

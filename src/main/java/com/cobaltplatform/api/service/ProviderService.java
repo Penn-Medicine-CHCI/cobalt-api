@@ -74,7 +74,6 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.model.service.ProviderSearchResult;
-import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.util.BusinessHoursCalculator;
 import com.cobaltplatform.api.util.BusinessHoursCalculator.BusinessHours;
 import com.cobaltplatform.api.util.ValidationException;
@@ -546,7 +545,7 @@ public class ProviderService {
 
 			if (provider != null)
 				providerSearchResults.add(ProviderSearchResult.forProvider(provider, providerFind, appointmentTypesById,
-						screeningRequirementsFor(providerFind, appointmentTypesById, completedAppointmentBookingScreeningKeys)));
+						completedAppointmentBookingScreeningKeys));
 		}
 
 		for (Entry<UUID, List<ProviderFind>> entry : providerFindsByClinicId.entrySet()) {
@@ -554,7 +553,7 @@ public class ProviderService {
 
 			if (clinic != null)
 				providerSearchResults.add(ProviderSearchResult.forClinic(clinic, entry.getValue(), providersById, appointmentTypesById,
-						screeningRequirementsFor(entry.getValue(), appointmentTypesById, completedAppointmentBookingScreeningKeys)));
+						completedAppointmentBookingScreeningKeys));
 		}
 
 		sortProviderSearchResults(providerSearchResults);
@@ -571,10 +570,10 @@ public class ProviderService {
 		Set<AppointmentBookingScreeningKey> appointmentBookingScreeningKeys = new HashSet<>();
 
 		for (ProviderFind providerFind : providerFinds) {
-			if (providerFind.getProviderId() == null || providerFind.getAppointmentTypeIds() == null)
+			if (providerFind.getProviderId() == null)
 				continue;
 
-			for (UUID appointmentTypeId : providerFind.getAppointmentTypeIds()) {
+			for (UUID appointmentTypeId : appointmentTypeIdsForAppointmentBookingScreeningKeys(providerFind)) {
 				if (appointmentTypeId == null)
 					continue;
 
@@ -592,67 +591,32 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	protected static List<ProviderSearchScreeningRequirement> screeningRequirementsFor(@Nonnull List<ProviderFind> providerFinds,
-																																										 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																																										 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
-		requireNonNull(providerFinds);
-		requireNonNull(appointmentTypesById);
-		requireNonNull(completedAppointmentBookingScreeningKeys);
-
-		List<ProviderSearchScreeningRequirement> screeningRequirements = new ArrayList<>();
-
-		for (ProviderFind providerFind : providerFinds)
-			screeningRequirements.addAll(screeningRequirementsFor(providerFind, appointmentTypesById, completedAppointmentBookingScreeningKeys));
-
-		return screeningRequirements;
-	}
-
-	@Nonnull
-	protected static List<ProviderSearchScreeningRequirement> screeningRequirementsFor(@Nonnull ProviderFind providerFind,
-																																										 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																																										 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
+	protected static Set<UUID> appointmentTypeIdsForAppointmentBookingScreeningKeys(@Nonnull ProviderFind providerFind) {
 		requireNonNull(providerFind);
-		requireNonNull(appointmentTypesById);
-		requireNonNull(completedAppointmentBookingScreeningKeys);
 
-		if (providerFind.getProviderId() == null || providerFind.getAppointmentTypeIds() == null)
-			return List.of();
+		Set<UUID> appointmentTypeIds = new HashSet<>();
 
-		List<AppointmentType> appointmentTypes = providerFind.getAppointmentTypeIds().stream()
-				.filter(Objects::nonNull)
-				.map(appointmentTypeId -> appointmentTypesById.get(appointmentTypeId))
-				.filter(Objects::nonNull)
-				.filter(appointmentType -> appointmentType.getAppointmentTypeId() != null)
-				.sorted(Comparator
-						.comparing(AppointmentType::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
-						.thenComparing(AppointmentType::getAppointmentTypeId, Comparator.nullsLast(UUID::compareTo)))
-				.collect(Collectors.toList());
-		List<ProviderSearchScreeningRequirement> screeningRequirements = new ArrayList<>(appointmentTypes.size());
+		if (providerFind.getAppointmentTypeIds() != null)
+			appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds().stream()
+					.filter(Objects::nonNull)
+					.collect(Collectors.toSet()));
 
-		for (AppointmentType appointmentType : appointmentTypes) {
-			UUID screeningFlowId = appointmentType.getScreeningFlowId();
-			boolean screeningRequired = screeningFlowId != null;
-			boolean screeningSatisfied = !screeningRequired;
+		if (providerFind.getDates() != null)
+			for (AvailabilityDate availabilityDate : providerFind.getDates()) {
+				if (availabilityDate.getTimes() == null)
+					continue;
 
-			if (screeningRequired)
-				screeningSatisfied = completedAppointmentBookingScreeningKeys.contains(new AppointmentBookingScreeningKey(
-						providerFind.getProviderId(), appointmentType.getAppointmentTypeId(), screeningFlowId));
+				for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+					if (availabilityTime.getAppointmentTypeIds() == null)
+						continue;
 
-			screeningRequirements.add(new ProviderSearchScreeningRequirement(providerFind.getProviderId(),
-					appointmentType.getAppointmentTypeId(), appointmentType.getName(), appointmentDescriptionFor(appointmentType),
-					screeningFlowId, screeningRequired, screeningSatisfied));
-		}
+					appointmentTypeIds.addAll(availabilityTime.getAppointmentTypeIds().stream()
+							.filter(Objects::nonNull)
+							.collect(Collectors.toSet()));
+				}
+			}
 
-		return screeningRequirements;
-	}
-
-	@Nullable
-	protected static String appointmentDescriptionFor(@Nonnull AppointmentType appointmentType) {
-		requireNonNull(appointmentType);
-
-		String description = trimToNull(appointmentType.getDescription());
-
-		return description == null ? trimToNull(appointmentType.getName()) : description;
+		return appointmentTypeIds;
 	}
 
 	protected static void sortProviderSearchResults(@Nonnull List<ProviderSearchResult> providerSearchResults) {

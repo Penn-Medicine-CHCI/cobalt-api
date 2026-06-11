@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.service;
 
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -32,13 +34,7 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class ProviderSearchScreeningRequirement {
 	@Nonnull
-	private final UUID providerId;
-	@Nonnull
-	private final UUID appointmentTypeId;
-	@Nullable
-	private final String appointmentTypeName;
-	@Nullable
-	private final String appointmentDescription;
+	private final AppointmentBookingRequirementsDestinationId appointmentBookingRequirementsDestinationId;
 	@Nullable
 	private final UUID screeningFlowId;
 	@Nonnull
@@ -46,45 +42,23 @@ public class ProviderSearchScreeningRequirement {
 	@Nonnull
 	private final Boolean screeningSatisfied;
 
-	public ProviderSearchScreeningRequirement(@Nonnull UUID providerId,
-																						@Nonnull UUID appointmentTypeId,
-																						@Nullable String appointmentTypeName,
-																						@Nullable String appointmentDescription,
+	public ProviderSearchScreeningRequirement(@Nonnull AppointmentBookingRequirementsDestinationId appointmentBookingRequirementsDestinationId,
 																						@Nullable UUID screeningFlowId,
 																						@Nonnull Boolean screeningRequired,
 																						@Nonnull Boolean screeningSatisfied) {
-		requireNonNull(providerId);
-		requireNonNull(appointmentTypeId);
+		requireNonNull(appointmentBookingRequirementsDestinationId);
 		requireNonNull(screeningRequired);
 		requireNonNull(screeningSatisfied);
 
-		this.providerId = providerId;
-		this.appointmentTypeId = appointmentTypeId;
-		this.appointmentTypeName = appointmentTypeName;
-		this.appointmentDescription = appointmentDescription;
+		this.appointmentBookingRequirementsDestinationId = appointmentBookingRequirementsDestinationId;
 		this.screeningFlowId = screeningFlowId;
 		this.screeningRequired = screeningRequired;
 		this.screeningSatisfied = screeningSatisfied;
 	}
 
 	@Nonnull
-	public UUID getProviderId() {
-		return this.providerId;
-	}
-
-	@Nonnull
-	public UUID getAppointmentTypeId() {
-		return this.appointmentTypeId;
-	}
-
-	@Nullable
-	public String getAppointmentTypeName() {
-		return this.appointmentTypeName;
-	}
-
-	@Nullable
-	public String getAppointmentDescription() {
-		return this.appointmentDescription;
+	public AppointmentBookingRequirementsDestinationId getAppointmentBookingRequirementsDestinationId() {
+		return this.appointmentBookingRequirementsDestinationId;
 	}
 
 	@Nullable

@@ -20,6 +20,8 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
+import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
@@ -27,17 +29,24 @@ import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.model.service.ProviderSearchResult;
 import com.cobaltplatform.api.model.service.ProviderSearchResult.ProviderSearchResultTypeId;
 import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
+import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +54,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -131,6 +140,82 @@ public class ProviderServiceTests {
 	}
 
 	@Test
+	public void providerSearchResultsUseAutismClinicFullscreenScreeningFixture() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Formatter formatter = app.getInjector().getInstance(Formatter.class);
+			Strings strings = app.getInjector().getInstance(Strings.class);
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			UUID clinicId = database.queryForObject("""
+					SELECT clinic_id
+					FROM clinic
+					WHERE institution_id=?
+					AND description='Penn Autism Clinic'
+					""", UUID.class, InstitutionId.COBALT).get();
+			UUID providerId = database.queryForObject("""
+					SELECT p.provider_id
+					FROM provider p, provider_clinic pc
+					WHERE p.provider_id=pc.provider_id
+					AND pc.clinic_id=?
+					AND p.name='John Skokowski'
+					""", UUID.class, clinicId).get();
+			UUID screeningFlowId = database.queryForObject("""
+					SELECT intake_screening_flow_id
+					FROM institution_referrer
+					WHERE from_institution_id=?
+					AND url_name='autism-clinic'
+					""", UUID.class, InstitutionId.COBALT).get();
+			String appointmentBookingLevelId = database.queryForObject("""
+					SELECT appointment_booking_level_id
+					FROM clinic
+					WHERE clinic_id=?
+					""", String.class, clinicId).get();
+			Boolean fullscreen = database.queryForObject("""
+					SELECT metadata->'screening'->>'fullscreen'='true'
+					FROM institution_referrer
+					WHERE from_institution_id=?
+					AND url_name='autism-clinic'
+					""", Boolean.class, InstitutionId.COBALT).orElse(false);
+			Long assignedAppointmentTypeCount = database.queryForObject("""
+					SELECT COUNT(*)
+					FROM appointment_type
+					WHERE scheduling_system_id='COBALT'
+					AND name IN ('Autism Clinic Intake Call', 'Autism Clinic Consult Call')
+					AND screening_flow_id=?
+					""", Long.class, screeningFlowId).get();
+			Long screeningSessionCountBefore = database.queryForObject("SELECT COUNT(*) FROM screening_session", Long.class).get();
+			ProviderFindRequest request = new ProviderFindRequest();
+			request.setInstitutionId(InstitutionId.COBALT);
+			request.setClinicIds(Set.of(clinicId));
+
+			List<ProviderSearchResult> providerSearchResults = providerService.findProviderSearchResults(request, account);
+			ProviderSearchResult clinicProviderSearchResult = providerSearchResults.stream()
+					.filter(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.CLINIC
+							&& providerSearchResult.getProviderSearchResultId().equals(clinicId))
+					.findFirst()
+					.get();
+			ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter, strings, clinicProviderSearchResult);
+			ProviderSearchScreeningRequirement screeningRequirement = response.getScreeningRequirement();
+			Long screeningSessionCountAfter = database.queryForObject("SELECT COUNT(*) FROM screening_session", Long.class).get();
+
+			assertEquals(AppointmentBookingLevelId.CLINIC.name(), appointmentBookingLevelId);
+			assertTrue(fullscreen);
+			assertEquals(2L, assignedAppointmentTypeCount.longValue());
+			assertNotNull(response.getFirstAvailableAppointment());
+			assertEquals(providerId, response.getFirstAvailableAppointment().getProviderId());
+			assertNotNull(screeningRequirement);
+			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+					screeningRequirement.getAppointmentBookingRequirementsDestinationId());
+			assertEquals(screeningFlowId, screeningRequirement.getScreeningFlowId());
+			assertEquals(true, screeningRequirement.getScreeningRequired());
+			assertEquals(false, screeningRequirement.getScreeningSatisfied());
+			assertEquals(screeningSessionCountBefore, screeningSessionCountAfter);
+		});
+	}
+
+	@Test
 	public void clinicBookedAtClinicLevel() {
 		Clinic clinic = new Clinic();
 
@@ -193,7 +278,7 @@ public class ProviderServiceTests {
 	}
 
 	@Test
-	public void screeningRequirementsReflectRequiredAndSatisfiedScreeningFlows() {
+	public void appointmentBookingScreeningKeysOnlyIncludeRequiredScreeningFlows() {
 		UUID providerId = UUID.randomUUID();
 		UUID noScreeningAppointmentTypeId = UUID.randomUUID();
 		UUID screeningAppointmentTypeId = UUID.randomUUID();
@@ -203,45 +288,36 @@ public class ProviderServiceTests {
 				noScreeningAppointmentTypeId, appointmentType(noScreeningAppointmentTypeId, "Consult", null, null),
 				screeningAppointmentTypeId, appointmentType(screeningAppointmentTypeId, "Therapy", "Therapy intake", screeningFlowId));
 
-		List<ProviderSearchScreeningRequirement> unsatisfiedRequirements =
-				ProviderService.screeningRequirementsFor(providerFind, appointmentTypesById, Set.of());
-		List<ProviderSearchScreeningRequirement> satisfiedRequirements =
-				ProviderService.screeningRequirementsFor(providerFind, appointmentTypesById,
-						Set.of(new AppointmentBookingScreeningKey(providerId, screeningAppointmentTypeId, screeningFlowId)));
+		Set<AppointmentBookingScreeningKey> appointmentBookingScreeningKeys =
+				ProviderService.appointmentBookingScreeningKeysFor(List.of(providerFind), appointmentTypesById);
 
-		ProviderSearchScreeningRequirement noScreeningRequirement = requirementFor(unsatisfiedRequirements, noScreeningAppointmentTypeId);
-		ProviderSearchScreeningRequirement unsatisfiedRequirement = requirementFor(unsatisfiedRequirements, screeningAppointmentTypeId);
-		ProviderSearchScreeningRequirement satisfiedRequirement = requirementFor(satisfiedRequirements, screeningAppointmentTypeId);
-
-		assertEquals(false, noScreeningRequirement.getScreeningRequired());
-		assertEquals(true, noScreeningRequirement.getScreeningSatisfied());
-		assertNull(noScreeningRequirement.getScreeningFlowId());
-		assertEquals(true, unsatisfiedRequirement.getScreeningRequired());
-		assertEquals(false, unsatisfiedRequirement.getScreeningSatisfied());
-		assertEquals(screeningFlowId, unsatisfiedRequirement.getScreeningFlowId());
-		assertEquals("Therapy", unsatisfiedRequirement.getAppointmentTypeName());
-		assertEquals("Therapy intake", unsatisfiedRequirement.getAppointmentDescription());
-		assertEquals(true, satisfiedRequirement.getScreeningSatisfied());
+		assertEquals(Set.of(new AppointmentBookingScreeningKey(providerId, screeningAppointmentTypeId, screeningFlowId)),
+				appointmentBookingScreeningKeys);
 	}
 
 	@Test
-	public void clinicScreeningRequirementsRemainProviderSpecific() {
-		UUID firstProviderId = UUID.randomUUID();
-		UUID secondProviderId = UUID.randomUUID();
+	public void appointmentBookingScreeningKeysIncludeAvailabilityTimeAppointmentTypeIds() {
+		UUID providerId = UUID.randomUUID();
 		UUID appointmentTypeId = UUID.randomUUID();
 		UUID screeningFlowId = UUID.randomUUID();
-		List<ProviderFind> providerFinds = List.of(
-				providerFind(firstProviderId, "First", Set.of(appointmentTypeId)),
-				providerFind(secondProviderId, "Second", Set.of(appointmentTypeId)));
+		ProviderFind providerFind = providerFind(providerId, "Provider", null);
+		AvailabilityDate availabilityDate = new AvailabilityDate();
+		AvailabilityTime availabilityTime = new AvailabilityTime();
+
+		availabilityDate.setDate(LocalDate.of(2026, 1, 1));
+		availabilityTime.setTime(LocalTime.NOON);
+		availabilityTime.setAppointmentTypeIds(List.of(appointmentTypeId));
+		availabilityDate.setTimes(List.of(availabilityTime));
+		providerFind.setDates(List.of(availabilityDate));
+
 		Map<UUID, AppointmentType> appointmentTypesById = Map.of(appointmentTypeId,
 				appointmentType(appointmentTypeId, "Visit", null, screeningFlowId));
 
-		List<ProviderSearchScreeningRequirement> requirements =
-				ProviderService.screeningRequirementsFor(providerFinds, appointmentTypesById,
-						Set.of(new AppointmentBookingScreeningKey(firstProviderId, appointmentTypeId, screeningFlowId)));
+		Set<AppointmentBookingScreeningKey> appointmentBookingScreeningKeys =
+				ProviderService.appointmentBookingScreeningKeysFor(List.of(providerFind), appointmentTypesById);
 
-		assertEquals(true, requirementFor(requirements, firstProviderId, appointmentTypeId).getScreeningSatisfied());
-		assertEquals(false, requirementFor(requirements, secondProviderId, appointmentTypeId).getScreeningSatisfied());
+		assertEquals(Set.of(new AppointmentBookingScreeningKey(providerId, appointmentTypeId, screeningFlowId)),
+				appointmentBookingScreeningKeys);
 	}
 
 	@Nonnull
@@ -285,26 +361,6 @@ public class ProviderServiceTests {
 		appointmentType.setScreeningFlowId(screeningFlowId);
 
 		return appointmentType;
-	}
-
-	@Nonnull
-	protected ProviderSearchScreeningRequirement requirementFor(@Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements,
-																														 @Nonnull UUID appointmentTypeId) {
-		return screeningRequirements.stream()
-				.filter(screeningRequirement -> screeningRequirement.getAppointmentTypeId().equals(appointmentTypeId))
-				.findFirst()
-				.get();
-	}
-
-	@Nonnull
-	protected ProviderSearchScreeningRequirement requirementFor(@Nonnull List<ProviderSearchScreeningRequirement> screeningRequirements,
-																														 @Nonnull UUID providerId,
-																														 @Nonnull UUID appointmentTypeId) {
-		return screeningRequirements.stream()
-				.filter(screeningRequirement -> screeningRequirement.getProviderId().equals(providerId)
-						&& screeningRequirement.getAppointmentTypeId().equals(appointmentTypeId))
-				.findFirst()
-				.get();
 	}
 
 	@Nonnull
