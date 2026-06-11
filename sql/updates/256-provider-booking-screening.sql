@@ -136,7 +136,8 @@ FROM (VALUES
 	('a865013e-d50c-46fc-b828-0e5ccdac41b6'::UUID, 'Dr. Behavioral Sleep provides psychiatry support for insomnia and sleep routines.', 'Behavioral sleep appointments for insomnia and circadian rhythm concerns.', '+12155551008', 'SWITCHBOARD'),
 	('eb19c43f-c452-407f-92c1-3602695bceb2'::UUID, 'Dr. Attention Deficit evaluates attention concerns and treatment planning needs.', 'Psychiatry visits for attention, focus, and executive functioning concerns.', '+12155551009', 'SWITCHBOARD'),
 	('b988f30d-11a6-4818-9c34-ac6f7c429ee1'::UUID, 'Dr. EAP Clinic offers short-term psychiatry support for workplace stress.', 'Brief EAP psychiatry appointments for acute stress and work-related concerns.', '+12155551010', 'SWITCHBOARD'),
-	('11e02870-30bc-4178-8614-16caf5fe8996'::UUID, 'Dr. No Intake is used to test direct booking without legacy intake requirements.', 'Direct booking psychiatry appointments without a clinic intake assessment.', '+12155551011', 'SWITCHBOARD')
+	('11e02870-30bc-4178-8614-16caf5fe8996'::UUID, 'Dr. No Intake is used to test direct booking without legacy intake requirements.', 'Direct booking psychiatry appointments without a clinic intake assessment.', '+12155551011', 'SWITCHBOARD'),
+	('9d692393-f613-4c6f-8d7c-9272af495f4a'::UUID, 'Dr. Adam Grayson is a military family clinic fixture for one-to-one support visits.', 'One-to-one support appointments for military family stress and transition needs.', '+12155551013', 'SWITCHBOARD')
 ) AS provider_fixture(provider_id, bio, description, phone_number, videoconference_platform_id)
 WHERE provider.provider_id=provider_fixture.provider_id;
 
@@ -180,6 +181,116 @@ FROM (VALUES
 ) AS clinic_fixture(clinic_id, description, treatment_description, phone_number, image_url, appointment_booking_level_id)
 WHERE clinic.clinic_id=clinic_fixture.clinic_id;
 
+WITH fixture_feature (
+	institution_feature_id,
+	feature_id,
+	nav_description,
+	description,
+	treatment_description,
+	display_order
+) AS (VALUES
+	('4ef4d2e5-2491-4e77-bf95-1fef36c10001'::UUID, 'THERAPY', 'Therapy provider-search fixture coverage.', 'Therapy fixture feature for provider search testing.', 'Therapy appointments', 1),
+	('4ef4d2e5-2491-4e77-bf95-1fef36c10002'::UUID, 'MEDICATION_PRESCRIBER', 'Medication provider-search fixture coverage.', 'Medication prescriber fixture feature for provider search testing.', 'Medication appointments', 2),
+	('4ef4d2e5-2491-4e77-bf95-1fef36c10003'::UUID, 'PSYCHIATRIST', 'Psychiatry provider-search fixture coverage.', 'Psychiatry fixture feature for provider search testing.', 'Psychiatry appointments', 3),
+	('4ef4d2e5-2491-4e77-bf95-1fef36c10004'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'Mental health provider-search fixture coverage.', 'Mental health provider fixture feature for provider search testing.', 'Mental health appointments', 4),
+	('4ef4d2e5-2491-4e77-bf95-1fef36c10005'::UUID, 'COACHING', 'Wellness coaching provider-search fixture coverage.', 'Wellness coaching fixture feature for provider search testing.', 'Wellness coaching appointments', 5),
+	('4ef4d2e5-2491-4e77-bf95-1fef36c10006'::UUID, 'SPIRITUAL_SUPPORT', 'Spiritual support provider-search fixture coverage.', 'Spiritual support fixture feature for provider search testing.', 'Spiritual support appointments', 6)
+)
+INSERT INTO institution_feature (
+	institution_feature_id,
+	institution_id,
+	feature_id,
+	nav_description,
+	description,
+	display_order,
+	nav_visible,
+	landing_page_visible,
+	treatment_description
+)
+SELECT
+	fixture_feature.institution_feature_id,
+	'COBALT',
+	fixture_feature.feature_id,
+	fixture_feature.nav_description,
+	fixture_feature.description,
+	fixture_feature.display_order,
+	TRUE,
+	TRUE,
+	fixture_feature.treatment_description
+FROM fixture_feature
+JOIN feature
+	ON feature.feature_id=fixture_feature.feature_id
+ON CONFLICT (institution_id, feature_id) DO UPDATE
+SET nav_description=EXCLUDED.nav_description,
+	description=EXCLUDED.description,
+	display_order=EXCLUDED.display_order,
+	nav_visible=EXCLUDED.nav_visible,
+	landing_page_visible=EXCLUDED.landing_page_visible,
+	treatment_description=EXCLUDED.treatment_description;
+
+INSERT INTO feature_support_role (
+	feature_support_role_id,
+	feature_id,
+	support_role_id
+)
+SELECT
+	feature_support_role_fixture.feature_support_role_id,
+	feature_support_role_fixture.feature_id,
+	feature_support_role_fixture.support_role_id
+FROM (VALUES
+	('67ab92eb-fb06-4d83-9103-5b97fdb10001'::UUID, 'MEDICATION_PRESCRIBER', 'PSYCHIATRIST'),
+	('67ab92eb-fb06-4d83-9103-5b97fdb10002'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'CARE_MANAGER'),
+	('67ab92eb-fb06-4d83-9103-5b97fdb10003'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'CHAPLAIN'),
+	('67ab92eb-fb06-4d83-9103-5b97fdb10004'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'CLINICIAN'),
+	('67ab92eb-fb06-4d83-9103-5b97fdb10005'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'COACH'),
+	('67ab92eb-fb06-4d83-9103-5b97fdb10006'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'PSYCHIATRIST')
+) AS feature_support_role_fixture(feature_support_role_id, feature_id, support_role_id)
+JOIN feature
+	ON feature.feature_id=feature_support_role_fixture.feature_id
+JOIN support_role
+	ON support_role.support_role_id=feature_support_role_fixture.support_role_id
+ON CONFLICT (feature_id, support_role_id) DO NOTHING;
+
+UPDATE institution_location
+SET short_name=location_fixture.short_name,
+	display_order=location_fixture.display_order
+FROM (VALUES
+	('Cobalt Health System', 'Health System', 1),
+	('Cobalt General', 'General', 2)
+) AS location_fixture(name, short_name, display_order)
+WHERE institution_location.institution_id='COBALT'
+AND institution_location.name=location_fixture.name;
+
+INSERT INTO institution_location (
+	institution_location_id,
+	institution_id,
+	name,
+	short_name,
+	display_order
+)
+SELECT
+	location_fixture.institution_location_id,
+	'COBALT',
+	location_fixture.name,
+	location_fixture.short_name,
+	location_fixture.display_order
+FROM (VALUES
+	('4f11d582-78e8-4559-a1b7-faa53e33f2f1'::UUID, 'Cobalt Downtown', 'Downtown', 3),
+	('565e7f20-8f63-4be1-86e6-8c63eedcb277'::UUID, 'Cobalt Virtual Care', 'Virtual Care', 4)
+) AS location_fixture(institution_location_id, name, short_name, display_order)
+WHERE NOT EXISTS (
+	SELECT 1
+	FROM institution_location
+	WHERE institution_id='COBALT'
+	AND name=location_fixture.name
+);
+
+UPDATE account
+SET institution_location_id=NULL,
+	prompted_for_institution_location=FALSE
+WHERE account_id='07b6f7c6-1d6d-4886-a6eb-1bcfd0139e53'::UUID
+AND institution_id='COBALT';
+
 INSERT INTO provider_institution_location (
 	provider_id,
 	institution_location_id
@@ -199,7 +310,18 @@ FROM (VALUES
 	('eb19c43f-c452-407f-92c1-3602695bceb2'::UUID, 'Cobalt Health System'),
 	('b988f30d-11a6-4818-9c34-ac6f7c429ee1'::UUID, 'Cobalt Health System'),
 	('11e02870-30bc-4178-8614-16caf5fe8996'::UUID, 'Cobalt General'),
-	('f56acf8f-3d10-431d-8f65-4c379658bfcc'::UUID, 'Cobalt Health System')
+	('f56acf8f-3d10-431d-8f65-4c379658bfcc'::UUID, 'Cobalt Health System'),
+	('f56acf8f-3d10-431d-8f65-4c379658bfcc'::UUID, 'Cobalt Virtual Care'),
+	('15f9711d-38e1-44a1-a933-f1522ddd2c81'::UUID, 'Cobalt Virtual Care'),
+	('360d46c4-2ee9-4031-aab6-aa6a16f398d7'::UUID, 'Cobalt Downtown'),
+	('dc7aeafd-0fc8-4c4d-b09a-09d4dc3079c1'::UUID, 'Cobalt Downtown'),
+	('2d6b7032-0145-4273-84f5-94e7238bc331'::UUID, 'Cobalt Downtown'),
+	('31633b9d-651b-402b-9314-7def6af811b6'::UUID, 'Cobalt Downtown'),
+	('9d692393-f613-4c6f-8d7c-9272af495f4a'::UUID, 'Cobalt Downtown'),
+	('9dcc6e07-821e-4b64-8975-aee5fcd5ca8b'::UUID, 'Cobalt Virtual Care'),
+	('ed461fc4-0436-4880-b340-b075d56a06f4'::UUID, 'Cobalt Virtual Care'),
+	('eb19c43f-c452-407f-92c1-3602695bceb2'::UUID, 'Cobalt Virtual Care'),
+	('11e02870-30bc-4178-8614-16caf5fe8996'::UUID, 'Cobalt Virtual Care')
 ) AS provider_location(provider_id, institution_location_name)
 JOIN provider
 	ON provider.provider_id=provider_location.provider_id
