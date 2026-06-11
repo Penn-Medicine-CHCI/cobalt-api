@@ -53,6 +53,8 @@ public class AppointmentType {
 	@Nullable
 	private String description;
 	@Nullable
+	private String appointmentCreatedPatientEmailBodyHtml;
+	@Nullable
 	private Long durationInMinutes;
 	@Nullable
 	private Integer hexColor;
@@ -152,6 +154,15 @@ public class AppointmentType {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getAppointmentCreatedPatientEmailBodyHtml() {
+		return appointmentCreatedPatientEmailBodyHtml;
+	}
+
+	public void setAppointmentCreatedPatientEmailBodyHtml(@Nullable String appointmentCreatedPatientEmailBodyHtml) {
+		this.appointmentCreatedPatientEmailBodyHtml = appointmentCreatedPatientEmailBodyHtml;
 	}
 
 	@Nullable
