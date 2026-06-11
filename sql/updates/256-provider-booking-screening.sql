@@ -736,7 +736,7 @@ output.context = {};
 if (input.screeningSession.completed) {
   const eligible = overallScore >= minimumEligibilityScore;
 
-  output.screeningSessionDestinationId = 'PROVIDER_APPOINTMENT_BOOKING';
+  output.screeningSessionDestinationId = 'APPOINTMENT_BOOKING_CONFIRMATION';
   output.context.result = eligible ? 'SUCCESS' : 'FAILURE';
 
   if (!eligible && ineligibleMessage) {

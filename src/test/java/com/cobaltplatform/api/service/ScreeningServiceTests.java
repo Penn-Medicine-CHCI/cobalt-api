@@ -50,7 +50,63 @@ import static org.junit.Assert.assertEquals;
 @ThreadSafe
 public class ScreeningServiceTests {
 	@Test
-	public void providerAppointmentBookingDestinationCarriesAppointmentBookingContext() {
+	public void appointmentBookingConfirmationDestinationCarriesAppointmentBookingContext() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionId institutionId = InstitutionId.COBALT;
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Institution institution = institutionService.findInstitutionById(institutionId).get();
+			ScreeningFlow screeningFlow = screeningService.findScreeningFlowById(institution.getFeatureScreeningFlowId()).get();
+			UUID providerId = UUID.randomUUID();
+			UUID appointmentTypeId = UUID.randomUUID();
+
+			database.execute("""
+					UPDATE screening_flow_version
+					SET destination_function=?
+					WHERE screening_flow_version_id=?
+					""", """
+					output.screeningSessionDestinationId = 'APPOINTMENT_BOOKING_CONFIRMATION';
+					output.context = { result: 'SUCCESS' };
+					""", screeningFlow.getActiveScreeningFlowVersionId());
+
+			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSourceId.ANONYMOUS);
+				setInstitutionId(institutionId);
+			}});
+
+			UUID screeningSessionId = screeningService.createScreeningSession(new CreateScreeningSessionRequest() {{
+				setScreeningFlowId(screeningFlow.getScreeningFlowId());
+				setTargetAccountId(accountId);
+				setCreatedByAccountId(accountId);
+				setMetadata(Map.of("appointmentBooking", Map.of(
+						"providerId", providerId.toString(),
+						"appointmentTypeId", appointmentTypeId.toString()
+				)));
+			}});
+
+			database.execute("""
+					UPDATE screening_session
+					SET completed=TRUE,
+					completed_at=NOW()
+					WHERE screening_session_id=?
+					""", screeningSessionId);
+
+			ScreeningSessionDestination screeningSessionDestination =
+					screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
+			Map<String, Object> appointmentBookingContext =
+					(Map<String, Object>) screeningSessionDestination.getContext().get("appointmentBooking");
+
+			assertEquals(ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION,
+					screeningSessionDestination.getScreeningSessionDestinationId());
+			assertEquals(providerId.toString(), appointmentBookingContext.get("providerId"));
+			assertEquals(appointmentTypeId.toString(), appointmentBookingContext.get("appointmentTypeId"));
+		});
+	}
+
+	@Test
+	public void legacyProviderAppointmentBookingDestinationCarriesAppointmentBookingContext() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionId institutionId = InstitutionId.COBALT;
 			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
