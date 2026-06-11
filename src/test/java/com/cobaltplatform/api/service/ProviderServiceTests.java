@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
@@ -55,6 +56,7 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -111,13 +113,22 @@ public class ProviderServiceTests {
 			UUID cobaltGeneralLocationId = institutionLocationId(database, "Cobalt General");
 			UUID cobaltHealthSystemLocationId = institutionLocationId(database, "Cobalt Health System");
 			UUID adultAutismServicesClinicId = UUID.fromString("ab629384-400a-4688-8465-04636ec2eaa2");
+			UUID markAllenProviderId = UUID.fromString("15f9711d-38e1-44a1-a933-f1522ddd2c81");
 			UUID rabbiGraysonProviderId = UUID.fromString("dc7aeafd-0fc8-4c4d-b09a-09d4dc3079c1");
 			UUID joeFritzProviderId = UUID.fromString("360d46c4-2ee9-4031-aab6-aa6a16f398d7");
+			UUID caseyWatsonProviderId = UUID.fromString("2d6b7032-0145-4273-84f5-94e7238bc331");
+			UUID khaledShaabanProviderId = UUID.fromString("ed461fc4-0436-4880-b340-b075d56a06f4");
+			UUID lizJonesProviderId = UUID.fromString("9dcc6e07-821e-4b64-8975-aee5fcd5ca8b");
 
 			database.execute("UPDATE clinic SET appointment_booking_level_id=? WHERE clinic_id=?",
 					AppointmentBookingLevelId.CLINIC, adultAutismServicesClinicId);
+			ensureProviderSupportRole(database, markAllenProviderId, "CLINICIAN");
+			ensureProviderCategorized(database, markAllenProviderId, "Cobalt General");
 			ensureProviderCategorized(database, rabbiGraysonProviderId, "Cobalt General");
 			ensureProviderCategorized(database, joeFritzProviderId, "Cobalt Health System");
+			ensureProviderCategorized(database, caseyWatsonProviderId, "Cobalt General");
+			ensureProviderCategorized(database, khaledShaabanProviderId, "Cobalt Health System");
+			ensureProviderCategorized(database, lizJonesProviderId, "Cobalt General");
 
 			List<ProviderSearchResult> cobaltGeneralSpiritualSupportResults =
 					providerService.findProviderSearchResults(FeatureId.SPIRITUAL_SUPPORT, cobaltGeneralLocationId, account);
@@ -134,8 +145,21 @@ public class ProviderServiceTests {
 			List<ProviderSearchResult> cobaltGeneralTherapyResults =
 					providerService.findProviderSearchResults(FeatureId.THERAPY, cobaltGeneralLocationId, account);
 
+			assertContainsProviderSearchResult(cobaltGeneralTherapyResults, ProviderSearchResultTypeId.PROVIDER, markAllenProviderId);
 			assertContainsProviderSearchResult(cobaltHealthSystemTherapyResults, ProviderSearchResultTypeId.PROVIDER, joeFritzProviderId);
+			assertDoesNotContainProviderSearchResult(cobaltHealthSystemTherapyResults, ProviderSearchResultTypeId.PROVIDER, markAllenProviderId);
 			assertDoesNotContainProviderSearchResult(cobaltGeneralTherapyResults, ProviderSearchResultTypeId.PROVIDER, joeFritzProviderId);
+
+			List<ProviderSearchResult> cobaltGeneralCoachingResults =
+					providerService.findProviderSearchResults(FeatureId.COACHING, cobaltGeneralLocationId, account);
+			List<ProviderSearchResult> cobaltHealthSystemCoachingResults =
+					providerService.findProviderSearchResults(FeatureId.COACHING, cobaltHealthSystemLocationId, account);
+
+			assertContainsProviderSearchResult(cobaltGeneralCoachingResults, ProviderSearchResultTypeId.PROVIDER, caseyWatsonProviderId);
+			assertContainsProviderSearchResult(cobaltGeneralCoachingResults, ProviderSearchResultTypeId.PROVIDER, lizJonesProviderId);
+			assertContainsProviderSearchResult(cobaltHealthSystemCoachingResults, ProviderSearchResultTypeId.PROVIDER, khaledShaabanProviderId);
+			assertDoesNotContainProviderSearchResult(cobaltHealthSystemCoachingResults, ProviderSearchResultTypeId.PROVIDER, caseyWatsonProviderId);
+			assertDoesNotContainProviderSearchResult(cobaltGeneralCoachingResults, ProviderSearchResultTypeId.PROVIDER, khaledShaabanProviderId);
 		});
 	}
 
@@ -205,6 +229,9 @@ public class ProviderServiceTests {
 			assertEquals(2L, assignedAppointmentTypeCount.longValue());
 			assertNotNull(response.getFirstAvailableAppointment());
 			assertEquals(providerId, response.getFirstAvailableAppointment().getProviderId());
+			assertNull(response.getFirstAvailableAppointment().getAppointmentTypeId());
+			assertEquals(2, response.getFirstAvailableAppointment().getAppointmentTypeIds().size());
+			assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED, response.getAppointmentSelectionTypeId());
 			assertNotNull(screeningRequirement);
 			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
 					screeningRequirement.getAppointmentBookingRequirementsDestinationId());
@@ -212,6 +239,41 @@ public class ProviderServiceTests {
 			assertEquals(true, screeningRequirement.getScreeningRequired());
 			assertEquals(false, screeningRequirement.getScreeningSatisfied());
 			assertEquals(screeningSessionCountBefore, screeningSessionCountAfter);
+		});
+	}
+
+	@Test
+	public void providerSearchResultsUsePhoneFallbackForUnresolvedAppointmentTypeAmbiguityFixture() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Formatter formatter = app.getInjector().getInstance(Formatter.class);
+			Strings strings = app.getInjector().getInstance(Strings.class);
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			UUID providerId = UUID.fromString("15f9711d-38e1-44a1-a933-f1522ddd2c81");
+			UUID logicalAvailabilityId = UUID.fromString("409b6b18-78b4-4a0b-bb03-6c77ff100001");
+			ProviderFindRequest request = new ProviderFindRequest();
+			request.setInstitutionId(InstitutionId.COBALT);
+			request.setProviderId(providerId);
+
+			ensurePhoneBookingProviderFixture(database, providerId);
+			ensureProviderLogicalAvailability(database, providerId, logicalAvailabilityId, account.getAccountId());
+
+			List<ProviderSearchResult> providerSearchResults = providerService.findProviderSearchResults(request, account);
+			ProviderSearchResult providerSearchResult = providerSearchResults.stream()
+					.filter(result -> result.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.PROVIDER
+							&& result.getProviderSearchResultId().equals(providerId))
+					.findFirst()
+					.get();
+			ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter, strings, providerSearchResult);
+
+			assertNotNull(response.getFirstAvailableAppointment());
+			assertNull(response.getFirstAvailableAppointment().getAppointmentTypeId());
+			assertEquals(2, response.getFirstAvailableAppointment().getAppointmentTypeIds().size());
+			assertNull(response.getScreeningRequirement());
+			assertNotNull(response.getPhoneNumber());
+			assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, response.getAppointmentSelectionTypeId());
 		});
 	}
 
@@ -406,6 +468,103 @@ public class ProviderServiceTests {
 					AND existing_provider_location.institution_location_id=institution_location.institution_location_id
 				)
 				""", providerId, InstitutionId.COBALT, institutionLocationName, providerId);
+	}
+
+	protected void ensureProviderSupportRole(@Nonnull Database database,
+																					 @Nonnull UUID providerId,
+																					 @Nonnull String supportRoleId) {
+		database.execute("""
+				INSERT INTO provider_support_role (
+					provider_id,
+					support_role_id
+				)
+				SELECT ?, ?
+				WHERE NOT EXISTS (
+					SELECT 1
+					FROM provider_support_role
+					WHERE provider_id=?
+					AND support_role_id=?
+				)
+				""", providerId, supportRoleId, providerId, supportRoleId);
+	}
+
+	protected void ensurePhoneBookingProviderFixture(@Nonnull Database database,
+																									@Nonnull UUID providerId) {
+		database.execute("""
+				UPDATE provider
+				SET phone_number=?,
+				    videoconference_platform_id='TELEPHONE',
+				    display_phone_number_only_for_booking=FALSE
+				WHERE provider_id=?
+				""", "+12155551001", providerId);
+	}
+
+	protected void ensureProviderLogicalAvailability(@Nonnull Database database,
+																									@Nonnull UUID providerId,
+																									@Nonnull UUID logicalAvailabilityId,
+																									@Nonnull UUID accountId) {
+		database.execute("""
+				INSERT INTO logical_availability (
+					logical_availability_id,
+					provider_id,
+					start_date_time,
+					end_date_time,
+					logical_availability_type_id,
+					recurrence_type_id,
+					recur_sunday,
+					recur_monday,
+					recur_tuesday,
+					recur_wednesday,
+					recur_thursday,
+					recur_friday,
+					recur_saturday,
+					created_by_account_id,
+					last_updated_by_account_id
+				) VALUES (
+					?,
+					?,
+					TIMESTAMP '2026-01-05 09:00:00',
+					TIMESTAMP '2099-12-31 17:00:00',
+					'OPEN',
+					'DAILY',
+					FALSE,
+					TRUE,
+					TRUE,
+					TRUE,
+					TRUE,
+					TRUE,
+					FALSE,
+					?,
+					?
+				)
+				ON CONFLICT (logical_availability_id) DO UPDATE
+				SET provider_id=EXCLUDED.provider_id,
+				    start_date_time=EXCLUDED.start_date_time,
+				    end_date_time=EXCLUDED.end_date_time,
+				    logical_availability_type_id=EXCLUDED.logical_availability_type_id,
+				    recurrence_type_id=EXCLUDED.recurrence_type_id,
+				    recur_sunday=EXCLUDED.recur_sunday,
+				    recur_monday=EXCLUDED.recur_monday,
+				    recur_tuesday=EXCLUDED.recur_tuesday,
+				    recur_wednesday=EXCLUDED.recur_wednesday,
+				    recur_thursday=EXCLUDED.recur_thursday,
+				    recur_friday=EXCLUDED.recur_friday,
+				    recur_saturday=EXCLUDED.recur_saturday,
+				    last_updated_by_account_id=EXCLUDED.last_updated_by_account_id
+				""", logicalAvailabilityId, providerId, accountId, accountId);
+		database.execute("""
+				INSERT INTO logical_availability_appointment_type (
+					logical_availability_id,
+					appointment_type_id
+				)
+				SELECT ?, provider_appointment_type.appointment_type_id
+				FROM provider_appointment_type
+				JOIN appointment_type
+					ON appointment_type.appointment_type_id=provider_appointment_type.appointment_type_id
+					AND COALESCE(appointment_type.deleted, FALSE)=FALSE
+				WHERE provider_appointment_type.provider_id=?
+				ON CONFLICT (logical_availability_id, appointment_type_id) DO NOTHING
+				""", logicalAvailabilityId, providerId);
 	}
 
 	protected void assertContainsProviderSearchResult(@Nonnull List<ProviderSearchResult> providerSearchResults,

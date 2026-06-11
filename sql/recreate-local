@@ -268,6 +268,8 @@ if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/bootstrap.sql
 fi
 
+# Post-bootstrap data patches. 250 depends on bootstrap fixture institutions/referrers,
+# and 257 depends on rows seeded by 250 plus schema added by 256.
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-provider-booking-screening.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-autism-provider-search-screening.sql
