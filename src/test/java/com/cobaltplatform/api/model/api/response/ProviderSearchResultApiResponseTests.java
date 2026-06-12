@@ -102,7 +102,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderAppointmentSelectionTypeId appointmentSelectionTypeId =
 				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
-						Map.of(providerId, provider), List.of(availableAppointment(provider, List.of(appointmentTypeId))));
+						Map.of(providerId, provider), List.of(availableAppointment(provider, List.of(appointmentTypeId))), Map.of());
 
 		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, appointmentSelectionTypeId);
 	}
@@ -113,21 +113,25 @@ public class ProviderSearchResultApiResponseTests {
 		UUID secondProviderId = UUID.randomUUID();
 		UUID appointmentTypeId = UUID.randomUUID();
 		UUID otherAppointmentTypeId = UUID.randomUUID();
+		UUID screeningFlowId = UUID.randomUUID();
 		Provider firstProvider = provider(firstProviderId, VideoconferencePlatformId.SWITCHBOARD);
 		Provider secondProvider = provider(secondProviderId, VideoconferencePlatformId.SWITCHBOARD);
 		List<ProviderFind> providerFinds = List.of(
 				providerFind(firstProviderId, Set.of(appointmentTypeId)),
 				providerFind(secondProviderId, Set.of(appointmentTypeId)));
 		Map<UUID, Provider> providersById = Map.of(firstProviderId, firstProvider, secondProviderId, secondProvider);
+		Map<UUID, AppointmentType> appointmentTypesById = Map.of(
+				appointmentTypeId, appointmentType(appointmentTypeId, screeningFlowId),
+				otherAppointmentTypeId, appointmentType(otherAppointmentTypeId, screeningFlowId));
 
 		ProviderAppointmentSelectionTypeId predeterminedSelectionTypeId =
 				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds, providersById, List.of(
 						availableAppointment(firstProvider, List.of(appointmentTypeId)),
-						availableAppointment(secondProvider, List.of(appointmentTypeId))));
+						availableAppointment(secondProvider, List.of(appointmentTypeId))), appointmentTypesById);
 		ProviderAppointmentSelectionTypeId undeterminedSelectionTypeId =
 				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds, providersById, List.of(
 						availableAppointment(firstProvider, List.of(appointmentTypeId)),
-						availableAppointment(secondProvider, List.of(otherAppointmentTypeId))));
+						availableAppointment(secondProvider, List.of(otherAppointmentTypeId))), appointmentTypesById);
 
 		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, predeterminedSelectionTypeId);
 		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED, undeterminedSelectionTypeId);
@@ -142,7 +146,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderAppointmentSelectionTypeId appointmentSelectionTypeId =
 				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
-						Map.of(providerId, provider), List.of(availableAppointment(provider, null)));
+						Map.of(providerId, provider), List.of(availableAppointment(provider, null)), Map.of());
 
 		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, appointmentSelectionTypeId);
 	}
@@ -156,7 +160,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderAppointmentSelectionTypeId appointmentSelectionTypeId =
 				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
-						Map.of(providerId, provider), List.of());
+						Map.of(providerId, provider), List.of(), Map.of());
 
 		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, appointmentSelectionTypeId);
 	}
@@ -174,7 +178,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderAppointmentSelectionTypeId appointmentSelectionTypeId =
 				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds,
-						Map.of(firstProviderId, firstProvider, secondProviderId, secondProvider), List.of());
+						Map.of(firstProviderId, firstProvider, secondProviderId, secondProvider), List.of(), Map.of());
 
 		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, appointmentSelectionTypeId);
 	}
@@ -258,6 +262,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
 
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, response.getAppointmentSelectionTypeId());
 		assertNull(response.getScreeningRequirement());
 	}
 
@@ -275,6 +280,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
 
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, response.getAppointmentSelectionTypeId());
 		assertNull(response.getScreeningRequirement());
 	}
 
@@ -300,6 +306,11 @@ public class ProviderSearchResultApiResponseTests {
 		ProviderSearchResultApiResponse satisfiedResponse = new ProviderSearchResultApiResponse(formatter(), strings(),
 				satisfiedProviderSearchResult);
 
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED, unsatisfiedResponse.getAppointmentSelectionTypeId());
+		assertNotNull(unsatisfiedResponse.getFirstAvailableAppointment());
+		assertNull(unsatisfiedResponse.getFirstAvailableAppointment().getAppointmentTypeId());
+		assertEquals(Set.of(appointmentTypeId, otherAppointmentTypeId),
+				Set.copyOf(unsatisfiedResponse.getFirstAvailableAppointment().getAppointmentTypeIds()));
 		assertNotNull(unsatisfiedResponse.getScreeningRequirement());
 		assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
 				unsatisfiedResponse.getScreeningRequirement().getAppointmentBookingRequirementsDestinationId());

@@ -20,16 +20,20 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
+import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderFind;
@@ -38,6 +42,8 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.model.service.ProviderSearchResult;
 import com.cobaltplatform.api.model.service.ProviderSearchResult.ProviderSearchResultTypeId;
 import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -48,10 +54,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -278,6 +286,112 @@ public class ProviderServiceTests {
 	}
 
 	@Test
+	public void providerSearchScreeningTypeFixturesCoverAllScreeningTypes() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Formatter formatter = app.getInjector().getInstance(Formatter.class);
+			Strings strings = app.getInjector().getInstance(Strings.class);
+			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSourceId.ANONYMOUS);
+				setInstitutionId(InstitutionId.COBALT);
+			}});
+			Account account = accountService.findAccountById(accountId).get();
+			List<String> screeningTypeIds = database.queryForList("""
+					SELECT screening_type_id
+					FROM screening_type
+					ORDER BY screening_type_id
+					""", String.class);
+			List<FixtureScreeningTypeCoverage> fixtureCoverages = database.queryForList("""
+					SELECT
+						sv.screening_type_id,
+						p.provider_id,
+						at.appointment_type_id,
+						sf.screening_flow_id
+					FROM screening_flow sf
+					JOIN screening_flow_version sfv
+						ON sfv.screening_flow_version_id=sf.active_screening_flow_version_id
+					JOIN screening s
+						ON s.screening_id=sfv.initial_screening_id
+					JOIN screening_version sv
+						ON sv.screening_version_id=s.active_screening_version_id
+					JOIN appointment_type at
+						ON at.screening_flow_id=sf.screening_flow_id
+						AND COALESCE(at.deleted, FALSE)=FALSE
+					JOIN provider_appointment_type pat
+						ON pat.appointment_type_id=at.appointment_type_id
+					JOIN provider p
+						ON p.provider_id=pat.provider_id
+						AND p.institution_id=?
+						AND p.active=TRUE
+					WHERE sf.name LIKE 'Provider Search Screening Type Fixture:%'
+					ORDER BY sv.screening_type_id
+					""", FixtureScreeningTypeCoverage.class, InstitutionId.COBALT);
+			Map<String, FixtureScreeningTypeCoverage> fixtureCoverageByScreeningTypeId = new HashMap<>();
+
+			for (FixtureScreeningTypeCoverage fixtureCoverage : fixtureCoverages)
+				fixtureCoverageByScreeningTypeId.put(fixtureCoverage.getScreeningTypeId(), fixtureCoverage);
+
+			assertEquals(Set.copyOf(screeningTypeIds), fixtureCoverageByScreeningTypeId.keySet());
+
+			List<ProviderSearchResult> providerSearchResults =
+					providerService.findProviderSearchResults(FeatureId.COACHING, null, account);
+			Map<UUID, ProviderSearchResult> providerSearchResultsByProviderId = providerSearchResults.stream()
+					.filter(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.PROVIDER)
+					.collect(Collectors.toMap(ProviderSearchResult::getProviderSearchResultId, providerSearchResult -> providerSearchResult));
+
+			for (String screeningTypeId : screeningTypeIds) {
+				FixtureScreeningTypeCoverage fixtureCoverage = fixtureCoverageByScreeningTypeId.get(screeningTypeId);
+				ProviderSearchResult providerSearchResult = providerSearchResultsByProviderId.get(fixtureCoverage.getProviderId());
+
+				assertNotNull(String.format("Expected provider search result for %s", screeningTypeId), providerSearchResult);
+
+				ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter, strings, providerSearchResult);
+				ProviderSearchScreeningRequirement screeningRequirement = response.getScreeningRequirement();
+
+				assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, response.getAppointmentSelectionTypeId());
+				assertNotNull(response.getFirstAvailableAppointment());
+				assertEquals(fixtureCoverage.getAppointmentTypeId(), response.getFirstAvailableAppointment().getAppointmentTypeId());
+				assertNotNull(String.format("Expected screening requirement for %s", screeningTypeId), screeningRequirement);
+				assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+						screeningRequirement.getAppointmentBookingRequirementsDestinationId());
+				assertEquals(fixtureCoverage.getScreeningFlowId(), screeningRequirement.getScreeningFlowId());
+				assertEquals(true, screeningRequirement.getScreeningRequired());
+				assertEquals(false, screeningRequirement.getScreeningSatisfied());
+
+				AppointmentBookingRequirements appointmentBookingRequirements =
+						appointmentService.findAppointmentBookingRequirements(requestFor(account, fixtureCoverage), account);
+
+				assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+						appointmentBookingRequirements.getAppointmentBookingRequirementsDestinationId());
+				assertEquals(fixtureCoverage.getScreeningFlowId(), appointmentBookingRequirements.getScreeningFlowId());
+				assertNotNull(appointmentBookingRequirements.getScreeningSession());
+
+				UUID screeningSessionId = appointmentBookingRequirements.getScreeningSession().getScreeningSessionId();
+
+				database.execute("""
+						UPDATE screening_session
+						SET completed=TRUE,
+						    completed_at=NOW()
+						WHERE screening_session_id=?
+						""", screeningSessionId);
+
+				ScreeningSessionDestination screeningSessionDestination =
+						screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
+
+				assertEquals(ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION,
+						screeningSessionDestination.getScreeningSessionDestinationId());
+				assertEquals("SUCCESS", screeningSessionDestination.getContext().get("result"));
+				assertEquals(fixtureCoverage.getProviderId().toString(), screeningSessionDestination.getContext().get("providerId"));
+				assertEquals(fixtureCoverage.getAppointmentTypeId().toString(), screeningSessionDestination.getContext().get("appointmentTypeId"));
+			}
+		});
+	}
+
+	@Test
 	public void clinicBookedAtClinicLevel() {
 		Clinic clinic = new Clinic();
 
@@ -380,6 +494,17 @@ public class ProviderServiceTests {
 
 		assertEquals(Set.of(new AppointmentBookingScreeningKey(providerId, appointmentTypeId, screeningFlowId)),
 				appointmentBookingScreeningKeys);
+	}
+
+	@Nonnull
+	protected FindAppointmentBookingRequirementsRequest requestFor(@Nonnull Account account,
+																																 @Nonnull FixtureScreeningTypeCoverage fixtureCoverage) {
+		FindAppointmentBookingRequirementsRequest request = new FindAppointmentBookingRequirementsRequest();
+		request.setAccountId(account.getAccountId());
+		request.setProviderId(fixtureCoverage.getProviderId());
+		request.setAppointmentTypeId(fixtureCoverage.getAppointmentTypeId());
+		request.setAppointmentSelectionTypeId(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED);
+		return request;
 	}
 
 	@Nonnull
@@ -581,5 +706,52 @@ public class ProviderServiceTests {
 		assertFalse(providerSearchResults.stream()
 				.anyMatch(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == providerSearchResultTypeId
 						&& providerSearchResult.getProviderSearchResultId().equals(providerSearchResultId)));
+	}
+
+	protected static class FixtureScreeningTypeCoverage {
+		@Nullable
+		private String screeningTypeId;
+		@Nullable
+		private UUID providerId;
+		@Nullable
+		private UUID appointmentTypeId;
+		@Nullable
+		private UUID screeningFlowId;
+
+		@Nullable
+		public String getScreeningTypeId() {
+			return this.screeningTypeId;
+		}
+
+		public void setScreeningTypeId(@Nullable String screeningTypeId) {
+			this.screeningTypeId = screeningTypeId;
+		}
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
+
+		@Nullable
+		public UUID getAppointmentTypeId() {
+			return this.appointmentTypeId;
+		}
+
+		public void setAppointmentTypeId(@Nullable UUID appointmentTypeId) {
+			this.appointmentTypeId = appointmentTypeId;
+		}
+
+		@Nullable
+		public UUID getScreeningFlowId() {
+			return this.screeningFlowId;
+		}
+
+		public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+			this.screeningFlowId = screeningFlowId;
+		}
 	}
 }
