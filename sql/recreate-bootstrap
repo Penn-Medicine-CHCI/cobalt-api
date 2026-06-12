@@ -269,9 +269,11 @@ if [ -f "initial/bootstrap.sql" ]; then
 fi
 
 # Post-bootstrap data patches. 250 depends on bootstrap fixture institutions/referrers,
-# 257 depends on rows seeded by 250 plus schema added by 256, and 258 updates
-# destination functions for appointment-type screening flows.
+# 257 depends on rows seeded by 250 plus schema added by 256, 258 updates
+# destination functions for appointment-type screening flows, and 259 updates
+# referrer result-screen booking paths.
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-provider-booking-screening.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/257-autism-provider-search-screening.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/258-appointment-booking-confirmation-destination.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/259-referrer-result-screen-booking-confirmation-path.sql
