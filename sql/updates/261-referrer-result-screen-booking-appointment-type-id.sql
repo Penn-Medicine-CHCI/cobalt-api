@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('259-referrer-result-screen-booking-confirmation-path', NULL, NULL);
+SELECT _v.register_patch('261-referrer-result-screen-booking-appointment-type-id', NULL, NULL);
 
 CREATE OR REPLACE FUNCTION pg_temp.url_encode(value TEXT)
 RETURNS TEXT

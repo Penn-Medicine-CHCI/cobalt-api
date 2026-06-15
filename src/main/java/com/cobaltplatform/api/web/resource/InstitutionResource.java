@@ -377,7 +377,7 @@ public class InstitutionResource {
 						.map(ifir -> getInstitutionFeatureInstitutionReferrerApiResponseFactory().create(ifir))
 						.collect(Collectors.toUnmodifiableList()),
 				"institutionReferrers", institutionReferrers.stream()
-						.map(institutionReferrer -> getInstitutionReferrerApiResponseFactory().create(institutionReferrer, null))
+						.map(institutionReferrer -> getInstitutionReferrerApiResponseFactory().create(institutionReferrer))
 						.collect(Collectors.toUnmodifiableList())
 		));
 	}
@@ -385,10 +385,8 @@ public class InstitutionResource {
 	@Nonnull
 	@AuthenticationRequired
 	@GET("/institution-referrers/{institutionReferrerIdentifier}")
-	public ApiResponse getInstitutionReferrerByIdentifier(@Nonnull @PathParameter String institutionReferrerIdentifier,
-																												@Nonnull @QueryParameter Optional<UUID> appointmentTypeId) {
+	public ApiResponse getInstitutionReferrerByIdentifier(@Nonnull @PathParameter String institutionReferrerIdentifier) {
 		requireNonNull(institutionReferrerIdentifier);
-		requireNonNull(appointmentTypeId);
 
 		// Use UUID if it looks like a UUID, assume urlName otherwise
 		InstitutionReferrer institutionReferrer = ValidationUtility.isValidUUID(institutionReferrerIdentifier)
@@ -399,7 +397,7 @@ public class InstitutionResource {
 			throw new NotFoundException();
 
 		return new ApiResponse(Map.of(
-				"institutionReferrer", getInstitutionReferrerApiResponseFactory().create(institutionReferrer, appointmentTypeId.orElse(null))
+				"institutionReferrer", getInstitutionReferrerApiResponseFactory().create(institutionReferrer)
 		));
 	}
 

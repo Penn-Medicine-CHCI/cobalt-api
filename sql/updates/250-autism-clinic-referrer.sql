@@ -589,6 +589,7 @@ BEGIN
         "pageDescription": "Schedule a 60 minute Penn Autism Clinic intake call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
+        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -604,6 +605,7 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
+        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -618,6 +620,7 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
+        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     }
@@ -630,15 +633,18 @@ $metadata$,
     v_clinic_id,
     v_provider_id,
     v_intake_appointment_type_id,
+    v_intake_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
     v_consult_appointment_type_id,
+    v_consult_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
+    v_consult_appointment_type_id,
     v_consult_appointment_type_id
   );
 
@@ -1323,6 +1329,7 @@ BEGIN
         "pageDescription": "Schedule a 60 minute Penn Autism Clinic intake call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
+        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -1338,6 +1345,7 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
+        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -1352,6 +1360,7 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
+        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     }
@@ -1365,15 +1374,18 @@ $metadata$,
     v_clinic_id,
     v_provider_id,
     v_intake_appointment_type_id,
+    v_intake_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
     v_consult_appointment_type_id,
+    v_consult_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
+    v_consult_appointment_type_id,
     v_consult_appointment_type_id
   );
 
