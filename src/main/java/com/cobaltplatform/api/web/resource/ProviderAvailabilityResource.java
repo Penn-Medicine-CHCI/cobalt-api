@@ -32,6 +32,9 @@ import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ClinicService;
@@ -56,6 +59,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -132,11 +136,13 @@ public class ProviderAvailabilityResource {
 	public ApiResponse providerAvailability(@Nonnull @PathParameter UUID providerId,
 																					@Nonnull @QueryParameter Optional<LocalDate> startDate,
 																					@Nonnull @QueryParameter Optional<LocalDate> endDate,
-																					@Nonnull @QueryParameter Optional<FeatureId> featureId) {
+																					@Nonnull @QueryParameter Optional<FeatureId> featureId,
+																					@Nonnull @QueryParameter Optional<UUID> appointmentTypeId) {
 		requireNonNull(providerId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 		requireNonNull(featureId);
+		requireNonNull(appointmentTypeId);
 
 		Account account = getCurrentContext().getAccount().get();
 		Provider provider = getProviderService().findProviderById(providerId).orElse(null);
@@ -148,9 +154,11 @@ public class ProviderAvailabilityResource {
 			throw new AuthorizationException();
 
 		AvailabilityDateRange dateRange = availabilityDateRangeFor(startDate, endDate, timeZoneFor(account));
+		Set<UUID> appointmentTypeIds = appointmentTypeId.map(Set::of).orElse(Collections.emptySet());
 		List<ProviderFind> providerFinds = Boolean.TRUE.equals(provider.getActive()) && providerMatchesFeature(provider, featureId)
-				? getProviderService().findProviders(providerFindRequest(providerId, null, dateRange), account)
+				? getProviderService().findProviders(providerFindRequest(providerId, null, dateRange, appointmentTypeIds), account)
 				: List.of();
+		filterProviderFindsByAppointmentTypeIds(providerFinds, appointmentTypeIds);
 		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -165,11 +173,13 @@ public class ProviderAvailabilityResource {
 	public ApiResponse clinicAvailability(@Nonnull @PathParameter UUID clinicId,
 																				@Nonnull @QueryParameter Optional<LocalDate> startDate,
 																				@Nonnull @QueryParameter Optional<LocalDate> endDate,
-																				@Nonnull @QueryParameter Optional<FeatureId> featureId) {
+																				@Nonnull @QueryParameter Optional<FeatureId> featureId,
+																				@Nonnull @QueryParameter Optional<UUID> appointmentTypeId) {
 		requireNonNull(clinicId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 		requireNonNull(featureId);
+		requireNonNull(appointmentTypeId);
 
 		Account account = getCurrentContext().getAccount().get();
 		Clinic clinic = getClinicService().findClinicById(clinicId).orElse(null);
@@ -181,7 +191,9 @@ public class ProviderAvailabilityResource {
 			throw new AuthorizationException();
 
 		AvailabilityDateRange dateRange = availabilityDateRangeFor(startDate, endDate, timeZoneFor(account));
-		List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequest(null, clinicId, dateRange), account);
+		Set<UUID> appointmentTypeIds = appointmentTypeId.map(Set::of).orElse(Collections.emptySet());
+		List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequest(null, clinicId, dateRange, appointmentTypeIds), account);
+		filterProviderFindsByAppointmentTypeIds(providerFinds, appointmentTypeIds);
 		Map<UUID, Provider> providersById = activeProvidersByIdFor(providerFinds, account, featureId);
 		List<ProviderFind> activeProviderFinds = providerFinds.stream()
 				.filter(providerFind -> providersById.containsKey(providerFind.getProviderId()))
@@ -197,19 +209,73 @@ public class ProviderAvailabilityResource {
 	@Nonnull
 	protected ProviderFindRequest providerFindRequest(@Nullable UUID providerId,
 																										@Nullable UUID clinicId,
-																										@Nonnull AvailabilityDateRange dateRange) {
+																										@Nonnull AvailabilityDateRange dateRange,
+																										@Nonnull Set<UUID> appointmentTypeIds) {
 		requireNonNull(dateRange);
+		requireNonNull(appointmentTypeIds);
 
 		ProviderFindRequest request = new ProviderFindRequest();
 		request.setInstitutionId(getCurrentContext().getAccount().get().getInstitutionId());
 		request.setProviderId(providerId);
 		request.setClinicIds(clinicId == null ? Collections.emptySet() : Set.of(clinicId));
+		request.setAppointmentTypeIds(appointmentTypeIds);
 		request.setAvailability(ProviderFindAvailability.ONLY_AVAILABLE);
 		request.setStartDate(dateRange.getStartDate());
 		request.setEndDate(dateRange.getEndDate());
 		request.setIncludePastAvailability(false);
 
 		return request;
+	}
+
+	protected static void filterProviderFindsByAppointmentTypeIds(@Nonnull List<ProviderFind> providerFinds,
+																																@Nonnull Set<UUID> appointmentTypeIds) {
+		requireNonNull(providerFinds);
+		requireNonNull(appointmentTypeIds);
+
+		if (appointmentTypeIds.size() == 0)
+			return;
+
+		for (ProviderFind providerFind : providerFinds) {
+			Set<UUID> providerAppointmentTypeIds = providerFind.getAppointmentTypeIds() == null
+					? Set.of()
+					: providerFind.getAppointmentTypeIds().stream()
+					.filter(appointmentTypeIds::contains)
+					.collect(Collectors.toSet());
+
+			providerFind.setAppointmentTypeIds(providerAppointmentTypeIds);
+
+			List<AvailabilityDate> availabilityDates = providerFind.getDates() == null ? List.of() : providerFind.getDates();
+			List<AvailabilityDate> filteredAvailabilityDates = new ArrayList<>(availabilityDates.size());
+
+			for (AvailabilityDate availabilityDate : availabilityDates) {
+				List<AvailabilityTime> availabilityTimes = availabilityDate.getTimes() == null ? List.of() : availabilityDate.getTimes();
+				List<AvailabilityTime> filteredAvailabilityTimes = new ArrayList<>(availabilityTimes.size());
+
+				for (AvailabilityTime availabilityTime : availabilityTimes) {
+					List<UUID> filteredAppointmentTypeIds = availabilityTime.getAppointmentTypeIds() == null
+							? List.of()
+							: availabilityTime.getAppointmentTypeIds().stream()
+							.filter(appointmentTypeIds::contains)
+							.collect(Collectors.toList());
+
+					if (filteredAppointmentTypeIds.size() == 0)
+						continue;
+
+					availabilityTime.setAppointmentTypeIds(filteredAppointmentTypeIds);
+					filteredAvailabilityTimes.add(availabilityTime);
+				}
+
+				if (filteredAvailabilityTimes.size() == 0)
+					continue;
+
+				availabilityDate.setTimes(filteredAvailabilityTimes);
+				availabilityDate.setFullyBooked(filteredAvailabilityTimes.stream()
+						.allMatch(availabilityTime -> availabilityTime.getStatus() == AvailabilityStatus.BOOKED));
+				filteredAvailabilityDates.add(availabilityDate);
+			}
+
+			providerFind.setDates(filteredAvailabilityDates);
+		}
 	}
 
 	@Nonnull
