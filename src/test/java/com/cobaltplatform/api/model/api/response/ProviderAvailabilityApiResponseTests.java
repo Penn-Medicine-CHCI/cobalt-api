@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -88,12 +89,49 @@ public class ProviderAvailabilityApiResponseTests {
 		assertEquals(LocalTime.of(9, 0), phoneAvailability.getAvailability().get(0).getTimes().get(0).getTime());
 		assertEquals(List.of(firstAppointmentTypeId, secondAppointmentTypeId),
 				phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
+		assertNull(phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
 
 		assertEquals(ProviderAppointmentModalityId.VIRTUAL, virtualAvailability.getAppointmentModalityId());
 		assertEquals(1, virtualAvailability.getAvailability().get(0).getTimes().size());
 		assertEquals(LocalTime.of(9, 0), virtualAvailability.getAvailability().get(0).getTimes().get(0).getTime());
 		assertEquals(List.of(firstAppointmentTypeId, secondAppointmentTypeId),
 				virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
+		assertNull(virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+	}
+
+	@Test
+	public void providerAvailabilityExposesAppointmentDescriptionForUnambiguousSlots() {
+		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+		UUID describedAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+		UUID blankDescriptionAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000012");
+		UUID nullDescriptionAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000013");
+		LocalDate date = LocalDate.of(2026, 1, 1);
+		Provider provider = provider(providerId, "Test Provider", VideoconferencePlatformId.SWITCHBOARD, null);
+		AppointmentType describedAppointmentType = appointmentType(describedAppointmentTypeId, "Alpha Visit", "Alpha appointment description");
+		AppointmentType blankDescriptionAppointmentType = appointmentType(blankDescriptionAppointmentTypeId, "Beta Visit", " ");
+		AppointmentType nullDescriptionAppointmentType = appointmentType(nullDescriptionAppointmentTypeId, "Gamma Visit", null);
+		ProviderFind providerFind = providerFind(providerId, "Test Provider", availabilityDate(date, List.of(
+				availabilityTime(LocalTime.of(9, 0), AvailabilityStatus.AVAILABLE, List.of(describedAppointmentTypeId)),
+				availabilityTime(LocalTime.of(10, 0), AvailabilityStatus.AVAILABLE, List.of(blankDescriptionAppointmentTypeId)),
+				availabilityTime(LocalTime.of(11, 0), AvailabilityStatus.AVAILABLE, List.of(nullDescriptionAppointmentTypeId))
+		)));
+
+		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), provider,
+				List.of(providerFind), Map.of(
+				describedAppointmentTypeId, describedAppointmentType,
+				blankDescriptionAppointmentTypeId, blankDescriptionAppointmentType,
+				nullDescriptionAppointmentTypeId, nullDescriptionAppointmentType
+		), date, date.plusDays(90));
+
+		AppointmentModalityAvailabilityApiResponse virtualAvailability = response.getAppointmentModalities().get(0);
+
+		assertEquals(ProviderAppointmentModalityId.VIRTUAL, virtualAvailability.getAppointmentModalityId());
+		assertEquals("Alpha appointment description",
+				virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+		assertEquals("Beta Visit",
+				virtualAvailability.getAvailability().get(0).getTimes().get(1).getAppointmentDescription());
+		assertEquals("Gamma Visit",
+				virtualAvailability.getAvailability().get(0).getTimes().get(2).getAppointmentDescription());
 	}
 
 	@Test
@@ -127,6 +165,8 @@ public class ProviderAvailabilityApiResponseTests {
 		assertEquals(ProviderAppointmentModalityId.VIRTUAL, response.getAppointmentModalities().get(1).getAppointmentModalityId());
 		assertEquals(secondProviderId, response.getAppointmentModalities().get(0).getAvailability().get(0).getTimes().get(0).getProviderId());
 		assertEquals(firstProviderId, response.getAppointmentModalities().get(1).getAvailability().get(0).getTimes().get(0).getProviderId());
+		assertEquals("Alpha Visit", response.getAppointmentModalities().get(0).getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+		assertEquals("Alpha Visit", response.getAppointmentModalities().get(1).getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
 	}
 
 	@Nonnull
@@ -168,10 +208,17 @@ public class ProviderAvailabilityApiResponseTests {
 	@Nonnull
 	protected AppointmentType appointmentType(@Nonnull UUID appointmentTypeId,
 																						@Nonnull String name) {
+		return appointmentType(appointmentTypeId, name, name);
+	}
+
+	@Nonnull
+	protected AppointmentType appointmentType(@Nonnull UUID appointmentTypeId,
+																						@Nonnull String name,
+																						String description) {
 		AppointmentType appointmentType = new AppointmentType();
 		appointmentType.setAppointmentTypeId(appointmentTypeId);
 		appointmentType.setName(name);
-		appointmentType.setDescription(name);
+		appointmentType.setDescription(description);
 		appointmentType.setDurationInMinutes(60L);
 		appointmentType.setSchedulingSystemId(SchedulingSystemId.COBALT);
 		appointmentType.setVisitTypeId(VisitTypeId.INITIAL);

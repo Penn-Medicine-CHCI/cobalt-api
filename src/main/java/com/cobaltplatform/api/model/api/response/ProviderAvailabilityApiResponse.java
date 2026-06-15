@@ -211,7 +211,8 @@ public class ProviderAvailabilityApiResponse {
 							|| knownAppointmentTypeIds.size() == 0)
 						continue;
 
-					TimeApiResponse time = new TimeApiResponse(providerId, providerName, date, availabilityTime, knownAppointmentTypeIds, locale);
+					TimeApiResponse time = new TimeApiResponse(providerId, providerName, date, availabilityTime,
+							knownAppointmentTypeIds, appointmentTypesById, locale);
 
 					for (ProviderAppointmentModalityId providerAppointmentModalityId : providerAppointmentModalityIds) {
 						SortedMap<LocalDate, List<TimeApiResponse>> timesByDate =
@@ -262,6 +263,29 @@ public class ProviderAvailabilityApiResponse {
 				.distinct()
 				.sorted()
 				.collect(Collectors.toList());
+	}
+
+	@Nullable
+	protected static String appointmentDescriptionFor(@Nonnull List<UUID> appointmentTypeIds,
+																										@Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(appointmentTypeIds);
+		requireNonNull(appointmentTypesById);
+
+		if (appointmentTypeIds.size() != 1)
+			return null;
+
+		AppointmentType appointmentType = appointmentTypesById.get(appointmentTypeIds.get(0));
+
+		return appointmentType == null ? null : descriptionFor(appointmentType);
+	}
+
+	@Nullable
+	protected static String descriptionFor(@Nonnull AppointmentType appointmentType) {
+		requireNonNull(appointmentType);
+
+		String description = trimToNull(appointmentType.getDescription());
+
+		return description == null ? trimToNull(appointmentType.getName()) : description;
 	}
 
 	@Nonnull
@@ -526,6 +550,8 @@ public class ProviderAvailabilityApiResponse {
 		@Nonnull
 		private final List<UUID> appointmentTypeIds;
 		@Nullable
+		private final String appointmentDescription;
+		@Nullable
 		private final UUID epicDepartmentId;
 		@Nullable
 		private final String epicAppointmentFhirId;
@@ -535,12 +561,14 @@ public class ProviderAvailabilityApiResponse {
 													 @Nonnull LocalDate date,
 													 @Nonnull AvailabilityTime availabilityTime,
 													 @Nonnull List<UUID> appointmentTypeIds,
+													 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
 													 @Nonnull Locale locale) {
 			requireNonNull(providerId);
 			requireNonNull(date);
 			requireNonNull(availabilityTime);
 			requireNonNull(availabilityTime.getTime());
 			requireNonNull(appointmentTypeIds);
+			requireNonNull(appointmentTypesById);
 			requireNonNull(locale);
 
 			this.providerId = providerId;
@@ -551,6 +579,7 @@ public class ProviderAvailabilityApiResponse {
 					.format(this.time), locale);
 			this.dateTime = LocalDateTime.of(date, this.time);
 			this.appointmentTypeIds = appointmentTypeIds;
+			this.appointmentDescription = appointmentDescriptionFor(appointmentTypeIds, appointmentTypesById);
 			this.epicDepartmentId = availabilityTime.getEpicDepartmentId();
 			this.epicAppointmentFhirId = availabilityTime.getEpicAppointmentFhirId();
 		}
@@ -592,6 +621,11 @@ public class ProviderAvailabilityApiResponse {
 		@Nonnull
 		public List<UUID> getAppointmentTypeIds() {
 			return appointmentTypeIds;
+		}
+
+		@Nullable
+		public String getAppointmentDescription() {
+			return appointmentDescription;
 		}
 
 		@Nullable
