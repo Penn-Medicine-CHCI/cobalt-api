@@ -89,14 +89,14 @@ public class ProviderAvailabilityApiResponseTests {
 		assertEquals(LocalTime.of(9, 0), phoneAvailability.getAvailability().get(0).getTimes().get(0).getTime());
 		assertEquals(List.of(firstAppointmentTypeId, secondAppointmentTypeId),
 				phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
-		assertNull(phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+		assertNull(phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());
 
 		assertEquals(ProviderAppointmentModalityId.VIRTUAL, virtualAvailability.getAppointmentModalityId());
 		assertEquals(1, virtualAvailability.getAvailability().get(0).getTimes().size());
 		assertEquals(LocalTime.of(9, 0), virtualAvailability.getAvailability().get(0).getTimes().get(0).getTime());
 		assertEquals(List.of(firstAppointmentTypeId, secondAppointmentTypeId),
 				virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
-		assertNull(virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+		assertNull(virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());
 	}
 
 	@Test
@@ -127,11 +127,11 @@ public class ProviderAvailabilityApiResponseTests {
 
 		assertEquals(ProviderAppointmentModalityId.VIRTUAL, virtualAvailability.getAppointmentModalityId());
 		assertEquals("Alpha appointment description",
-				virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+				virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());
 		assertEquals("Beta Visit",
-				virtualAvailability.getAvailability().get(0).getTimes().get(1).getAppointmentDescription());
+				virtualAvailability.getAvailability().get(0).getTimes().get(1).getAppointmentTypeDescription());
 		assertEquals("Gamma Visit",
-				virtualAvailability.getAvailability().get(0).getTimes().get(2).getAppointmentDescription());
+				virtualAvailability.getAvailability().get(0).getTimes().get(2).getAppointmentTypeDescription());
 	}
 
 	@Test
@@ -165,8 +165,8 @@ public class ProviderAvailabilityApiResponseTests {
 		assertEquals(ProviderAppointmentModalityId.VIRTUAL, response.getAppointmentModalities().get(1).getAppointmentModalityId());
 		assertEquals(secondProviderId, response.getAppointmentModalities().get(0).getAvailability().get(0).getTimes().get(0).getProviderId());
 		assertEquals(firstProviderId, response.getAppointmentModalities().get(1).getAvailability().get(0).getTimes().get(0).getProviderId());
-		assertEquals("Alpha Visit", response.getAppointmentModalities().get(0).getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
-		assertEquals("Alpha Visit", response.getAppointmentModalities().get(1).getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+		assertEquals("Alpha Visit", response.getAppointmentModalities().get(0).getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());
+		assertEquals("Alpha Visit", response.getAppointmentModalities().get(1).getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());
 	}
 
 	@Nonnull

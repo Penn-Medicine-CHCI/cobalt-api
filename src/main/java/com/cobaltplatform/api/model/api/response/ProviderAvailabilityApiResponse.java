@@ -266,8 +266,8 @@ public class ProviderAvailabilityApiResponse {
 	}
 
 	@Nullable
-	protected static String appointmentDescriptionFor(@Nonnull List<UUID> appointmentTypeIds,
-																										@Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+	protected static String appointmentTypeDescriptionFor(@Nonnull List<UUID> appointmentTypeIds,
+																													@Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
 		requireNonNull(appointmentTypeIds);
 		requireNonNull(appointmentTypesById);
 
@@ -550,7 +550,7 @@ public class ProviderAvailabilityApiResponse {
 		@Nonnull
 		private final List<UUID> appointmentTypeIds;
 		@Nullable
-		private final String appointmentDescription;
+		private final String appointmentTypeDescription;
 		@Nullable
 		private final UUID epicDepartmentId;
 		@Nullable
@@ -579,7 +579,7 @@ public class ProviderAvailabilityApiResponse {
 					.format(this.time), locale);
 			this.dateTime = LocalDateTime.of(date, this.time);
 			this.appointmentTypeIds = appointmentTypeIds;
-			this.appointmentDescription = appointmentDescriptionFor(appointmentTypeIds, appointmentTypesById);
+			this.appointmentTypeDescription = appointmentTypeDescriptionFor(appointmentTypeIds, appointmentTypesById);
 			this.epicDepartmentId = availabilityTime.getEpicDepartmentId();
 			this.epicAppointmentFhirId = availabilityTime.getEpicAppointmentFhirId();
 		}
@@ -624,8 +624,8 @@ public class ProviderAvailabilityApiResponse {
 		}
 
 		@Nullable
-		public String getAppointmentDescription() {
-			return appointmentDescription;
+		public String getAppointmentTypeDescription() {
+			return appointmentTypeDescription;
 		}
 
 		@Nullable

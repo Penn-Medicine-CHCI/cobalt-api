@@ -78,7 +78,7 @@ public class ProviderAvailabilityResourceTests {
 
 		assertEquals(ProviderAppointmentModalityId.VIRTUAL, virtualAvailability.getAppointmentModalityId());
 		assertEquals(List.of(secondAppointmentTypeId), virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
-		assertEquals("Beta appointment description", virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentDescription());
+		assertEquals("Beta appointment description", virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());
 	}
 
 	@Nonnull
