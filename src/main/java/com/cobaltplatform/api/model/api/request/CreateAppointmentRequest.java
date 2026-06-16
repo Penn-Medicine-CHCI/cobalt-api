@@ -49,6 +49,10 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private UUID intakeAssessmentId;
 	@Nullable
+	private String firstName;
+	@Nullable
+	private String lastName;
+	@Nullable
 	private String emailAddress; // only required for anon accounts currently
 	@Nullable
 	private String phoneNumber;
@@ -127,6 +131,24 @@ public class CreateAppointmentRequest {
 
 	public void setIntakeAssessmentId(@Nullable UUID intakeAssessmentId) {
 		this.intakeAssessmentId = intakeAssessmentId;
+	}
+
+	@Nullable
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(@Nullable String firstName) {
+		this.firstName = firstName;
+	}
+
+	@Nullable
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(@Nullable String lastName) {
+		this.lastName = lastName;
 	}
 
 	@Nullable

@@ -1066,6 +1066,14 @@ public class AppointmentService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		Appointment existingAppointment = appointment.get();
+
+		if (trimToNull(request.getFirstName()) == null)
+			request.setFirstName(existingAppointment.getFirstName());
+
+		if (trimToNull(request.getLastName()) == null)
+			request.setLastName(existingAppointment.getLastName());
+
 		UUID newAppointmentId = createAppointment(request);
 
 		CancelAppointmentRequest cancelRequest = new CancelAppointmentRequest();
@@ -1375,8 +1383,13 @@ public class AppointmentService {
 			videoconferenceUrl = provider.getVideoconferenceUrl();
 		}
 
-		String firstName = account.getFirstName();
-		String lastName = account.getLastName();
+		String firstName = trimToNull(request.getFirstName());
+		String lastName = trimToNull(request.getLastName());
+
+		if (firstName == null)
+			firstName = trimToNull(account.getFirstName());
+		if (lastName == null)
+			lastName = trimToNull(account.getLastName());
 
 		if (firstName == null)
 			firstName = getStrings().get("Anonymous");
@@ -1553,13 +1566,13 @@ public class AppointmentService {
 		if (intakeAssessment.isPresent())
 			intakeAccountSessionId = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment.get()).get().getAccountSessionId();
 
-		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, " +
+		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, first_name, last_name, " +
 						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
 						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, " +
 						"microsoft_teams_meeting_id, epic_appointment_fhir_id, epic_appointment_fhir_identifier_system, epic_appointment_fhir_identifier_value, epic_appointment_fhir_stu3_response) " +
-						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
-				accountId, createdByAccountId, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
+						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
+				accountId, createdByAccountId, firstName, lastName, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
 				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(),
 				intakeAccountSessionId, patientOrderId, microsoftTeamsMeeting == null ? null : microsoftTeamsMeeting.getMicrosoftTeamsMeetingId(),

@@ -20,20 +20,42 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
+import com.cobaltplatform.api.integration.acuity.AcuitySchedulingClient;
+import com.cobaltplatform.api.integration.acuity.MockAcuitySchedulingClient;
+import com.cobaltplatform.api.integration.acuity.model.AcuityAppointment;
+import com.cobaltplatform.api.integration.acuity.model.AcuityAppointmentType;
+import com.cobaltplatform.api.integration.acuity.model.request.AcuityAppointmentCreateRequest;
+import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
+import com.cobaltplatform.api.model.api.response.AppointmentApiResponse;
+import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
+import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.db.SourceSystem.SourceSystemId;
+import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
+import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.google.inject.AbstractModule;
 import com.pyranid.Database;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -215,6 +237,222 @@ public class AppointmentServiceTests {
 		});
 	}
 
+	@Test
+	public void createAppointmentUsesSubmittedNamesForAcuityRequest() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			CreateAppointmentRequest request = requestForAcuityAppointment(testData);
+			request.setFirstName(" Submitted ");
+			request.setLastName(" Person ");
+
+			UUID appointmentId = appointmentService.createAppointment(request);
+
+			assertNotNull(appointmentId);
+			assertNotNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			assertEquals("Submitted", acuitySchedulingClient.getLastCreateAppointmentRequest().getFirstName());
+			assertEquals("Person", acuitySchedulingClient.getLastCreateAppointmentRequest().getLastName());
+
+			Appointment appointment = appointmentService.findAppointmentById(appointmentId).get();
+			assertEquals("Submitted", appointment.getFirstName());
+			assertEquals("Person", appointment.getLastName());
+
+			AppointmentApiResponse appointmentApiResponse = app.getInjector().getInstance(AppointmentApiResponseFactory.class).create(appointment);
+			assertEquals("Submitted", appointmentApiResponse.getFirstName());
+			assertEquals("Person", appointmentApiResponse.getLastName());
+
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			assertEquals("Account", account.getFirstName());
+			assertEquals("Fallback", account.getLastName());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentFallsBackToAccountNamesForAcuityRequest() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+
+			UUID appointmentId = appointmentService.createAppointment(requestForAcuityAppointment(testData));
+
+			assertNotNull(appointmentId);
+			assertNotNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			assertEquals("Account", acuitySchedulingClient.getLastCreateAppointmentRequest().getFirstName());
+			assertEquals("Fallback", acuitySchedulingClient.getLastCreateAppointmentRequest().getLastName());
+
+			Appointment appointment = appointmentService.findAppointmentById(appointmentId).get();
+			assertEquals("Account", appointment.getFirstName());
+			assertEquals("Fallback", appointment.getLastName());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void rescheduleAppointmentCarriesForwardStoredNamesWhenNamesAreOmitted() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			CreateAppointmentRequest createRequest = requestForAcuityAppointment(testData);
+			createRequest.setFirstName("Original");
+			createRequest.setLastName("Snapshot");
+			UUID originalAppointmentId = appointmentService.createAppointment(createRequest);
+
+			UpdateAppointmentRequest updateRequest = new UpdateAppointmentRequest();
+			updateRequest.setAppointmentId(originalAppointmentId);
+			updateRequest.setAccountId(testData.getAccountId());
+			updateRequest.setCreatedByAcountId(testData.getAccountId());
+			updateRequest.setProviderId(testData.getProviderId());
+			updateRequest.setAppointmentTypeId(testData.getAppointmentTypeId());
+			updateRequest.setDate(LocalDate.now().plusDays(31));
+			updateRequest.setTime(LocalTime.of(11, 0));
+
+			UUID rescheduledAppointmentId = appointmentService.rescheduleAppointment(updateRequest);
+
+			Appointment rescheduledAppointment = appointmentService.findAppointmentById(rescheduledAppointmentId).get();
+			assertEquals("Original", rescheduledAppointment.getFirstName());
+			assertEquals("Snapshot", rescheduledAppointment.getLastName());
+			assertNotNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			assertEquals("Original", acuitySchedulingClient.getLastCreateAppointmentRequest().getFirstName());
+			assertEquals("Snapshot", acuitySchedulingClient.getLastCreateAppointmentRequest().getLastName());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void rescheduleAppointmentUsesSubmittedNamesWhenProvided() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			CreateAppointmentRequest createRequest = requestForAcuityAppointment(testData);
+			createRequest.setFirstName("Original");
+			createRequest.setLastName("Snapshot");
+			UUID originalAppointmentId = appointmentService.createAppointment(createRequest);
+
+			UpdateAppointmentRequest updateRequest = new UpdateAppointmentRequest();
+			updateRequest.setAppointmentId(originalAppointmentId);
+			updateRequest.setAccountId(testData.getAccountId());
+			updateRequest.setCreatedByAcountId(testData.getAccountId());
+			updateRequest.setProviderId(testData.getProviderId());
+			updateRequest.setAppointmentTypeId(testData.getAppointmentTypeId());
+			updateRequest.setFirstName(" Rescheduled ");
+			updateRequest.setLastName(" Patient ");
+			updateRequest.setDate(LocalDate.now().plusDays(31));
+			updateRequest.setTime(LocalTime.of(11, 0));
+
+			UUID rescheduledAppointmentId = appointmentService.rescheduleAppointment(updateRequest);
+
+			Appointment rescheduledAppointment = appointmentService.findAppointmentById(rescheduledAppointmentId).get();
+			assertEquals("Rescheduled", rescheduledAppointment.getFirstName());
+			assertEquals("Patient", rescheduledAppointment.getLastName());
+			assertNotNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			assertEquals("Rescheduled", acuitySchedulingClient.getLastCreateAppointmentRequest().getFirstName());
+			assertEquals("Patient", acuitySchedulingClient.getLastCreateAppointmentRequest().getLastName());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Nonnull
+	protected AcuityAppointmentTestData createAcuityAppointmentTestData(@Nonnull AccountService accountService,
+																																		 @Nonnull Database database,
+																																		 @Nonnull RecordingAcuitySchedulingClient acuitySchedulingClient) {
+		String uniqueSuffix = UUID.randomUUID().toString();
+		String accountEmailAddress = String.format("patient-%s@cobaltinnovations.org", uniqueSuffix);
+		UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+			setRoleId(RoleId.PATIENT);
+			setInstitutionId(InstitutionId.COBALT);
+			setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
+			setSourceSystemId(SourceSystemId.COBALT);
+			setEmailAddress(accountEmailAddress);
+			setPhoneNumber("+12155551212");
+			setFirstName("Account");
+			setLastName("Fallback");
+			setDisplayName("Account Fallback");
+			setPassword("Test1234!");
+		}});
+
+		database.execute("""
+				INSERT INTO account_email_verification (account_id, code, email_address, verified)
+				VALUES (?, ?, ?, ?)
+				""", accountId, "123456", accountEmailAddress, true);
+
+		UUID providerId = UUID.randomUUID();
+
+		database.execute("""
+				INSERT INTO provider (
+				  provider_id, institution_id, name, email_address, locale, time_zone, acuity_calendar_id,
+				  scheduling_system_id, videoconference_platform_id, videoconference_url
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""", providerId, InstitutionId.COBALT, "Acuity Test Provider",
+				String.format("provider-%s@cobaltinnovations.org", uniqueSuffix), "en-US", "America/New_York",
+				123456L, SchedulingSystemId.ACUITY, VideoconferencePlatformId.EXTERNAL, "https://example.com/meeting");
+
+		UUID appointmentTypeId = UUID.randomUUID();
+		Long acuityAppointmentTypeId = Math.abs(UUID.randomUUID().getMostSignificantBits() % 1_000_000_000L) + 1_000_000_000L;
+
+		database.execute("""
+				INSERT INTO appointment_type (
+				  appointment_type_id, acuity_appointment_type_id, visit_type_id, name, duration_in_minutes,
+				  scheduling_system_id
+				)
+				VALUES (?, ?, ?, ?, ?, ?)
+				""", appointmentTypeId, acuityAppointmentTypeId, VisitTypeId.INITIAL, "Initial Consult", 60L,
+				SchedulingSystemId.ACUITY);
+
+		AcuityAppointmentType acuityAppointmentType = new AcuityAppointmentType();
+		acuityAppointmentType.setId(acuityAppointmentTypeId);
+		acuityAppointmentType.setName("Initial Consult");
+		acuityAppointmentType.setDuration(60.0);
+		acuitySchedulingClient.setAppointmentType(acuityAppointmentType);
+
+		return new AcuityAppointmentTestData(accountId, providerId, appointmentTypeId);
+	}
+
+	@Nonnull
+	protected CreateAppointmentRequest requestForAcuityAppointment(@Nonnull AcuityAppointmentTestData testData) {
+		CreateAppointmentRequest request = new CreateAppointmentRequest();
+		request.setAccountId(testData.getAccountId());
+		request.setCreatedByAcountId(testData.getAccountId());
+		request.setProviderId(testData.getProviderId());
+		request.setAppointmentTypeId(testData.getAppointmentTypeId());
+		request.setDate(LocalDate.now().plusDays(30));
+		request.setTime(LocalTime.of(10, 0));
+		return request;
+	}
+
 	protected ProviderAppointmentTypePair findProviderAppointmentTypePair(Database database) {
 		return database.queryForObject("""
 				SELECT p.provider_id, at.appointment_type_id
@@ -297,6 +535,76 @@ public class AppointmentServiceTests {
 
 		public void setOtherAppointmentTypeId(@Nullable UUID otherAppointmentTypeId) {
 			this.otherAppointmentTypeId = otherAppointmentTypeId;
+		}
+	}
+
+	@ThreadSafe
+	public static class AcuityAppointmentTestData {
+		@Nonnull
+		private final UUID accountId;
+		@Nonnull
+		private final UUID providerId;
+		@Nonnull
+		private final UUID appointmentTypeId;
+
+		public AcuityAppointmentTestData(@Nonnull UUID accountId,
+																		 @Nonnull UUID providerId,
+																		 @Nonnull UUID appointmentTypeId) {
+			this.accountId = accountId;
+			this.providerId = providerId;
+			this.appointmentTypeId = appointmentTypeId;
+		}
+
+		@Nonnull
+		public UUID getAccountId() {
+			return this.accountId;
+		}
+
+		@Nonnull
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		@Nonnull
+		public UUID getAppointmentTypeId() {
+			return this.appointmentTypeId;
+		}
+	}
+
+	@ThreadSafe
+	public static class RecordingAcuitySchedulingClient extends MockAcuitySchedulingClient {
+		@Nullable
+		private AcuityAppointmentType appointmentType;
+		@Nullable
+		private AcuityAppointmentCreateRequest lastCreateAppointmentRequest;
+		private Long nextAppointmentId = 1_000_000L;
+
+		@Nonnull
+		@Override
+		public Optional<AcuityAppointmentType> findAppointmentTypeById(@Nullable Long appointmentTypeId) {
+			if (appointmentType == null || !appointmentType.getId().equals(appointmentTypeId))
+				return Optional.empty();
+
+			return Optional.of(appointmentType);
+		}
+
+		@Nonnull
+		@Override
+		public AcuityAppointment createAppointment(@Nonnull AcuityAppointmentCreateRequest request) {
+			this.lastCreateAppointmentRequest = request;
+
+			AcuityAppointment acuityAppointment = new AcuityAppointment();
+			acuityAppointment.setId(nextAppointmentId++);
+			return acuityAppointment;
+		}
+
+		public void setAppointmentType(@Nullable AcuityAppointmentType appointmentType) {
+			this.appointmentType = appointmentType;
+		}
+
+		@Nullable
+		public AcuityAppointmentCreateRequest getLastCreateAppointmentRequest() {
+			return this.lastCreateAppointmentRequest;
 		}
 	}
 }

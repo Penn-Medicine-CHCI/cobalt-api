@@ -54,6 +54,7 @@ import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
@@ -95,6 +96,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -415,6 +417,7 @@ public class AppointmentResource {
 		getAuditLogService().audit(auditLog);
 
 		CreateAppointmentRequest request = getRequestBodyParser().parse(requestBody, CreateAppointmentRequest.class);
+		validateAppointmentCreateNameFields(request);
 		request.setCreatedByAcountId(account.getAccountId());
 
 		// Some users can book on behalf of other users
@@ -452,6 +455,26 @@ public class AppointmentResource {
 			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
 			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
+	}
+
+	protected void validateAppointmentCreateNameFields(@Nonnull CreateAppointmentRequest request) {
+		requireNonNull(request);
+
+		String firstName = trimToNull(request.getFirstName());
+		String lastName = trimToNull(request.getLastName());
+		ValidationException validationException = new ValidationException();
+
+		if (firstName == null)
+			validationException.add(new FieldError("firstName", getStrings().get("First name is required.")));
+
+		if (lastName == null)
+			validationException.add(new FieldError("lastName", getStrings().get("Last name is required.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		request.setFirstName(firstName);
+		request.setLastName(lastName);
 	}
 
 	@Nonnull
