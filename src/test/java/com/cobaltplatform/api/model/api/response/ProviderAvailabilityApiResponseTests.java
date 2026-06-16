@@ -131,7 +131,26 @@ public class ProviderAvailabilityApiResponseTests {
 		assertEquals("Beta Visit",
 				virtualAvailability.getAvailability().get(0).getTimes().get(1).getAppointmentTypeDescription());
 		assertEquals("Gamma Visit",
-				virtualAvailability.getAvailability().get(0).getTimes().get(2).getAppointmentTypeDescription());
+					virtualAvailability.getAvailability().get(0).getTimes().get(2).getAppointmentTypeDescription());
+	}
+
+	@Test
+	public void providerAvailabilityDoesNotExposeVirtualSlotsForUnsupportedVideoconferencePlatform() {
+		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+		UUID appointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+		LocalDate date = LocalDate.of(2026, 1, 1);
+		Provider provider = provider(providerId, "Test Provider", VideoconferencePlatformId.BLUEJEANS, "215-555-1000");
+		AppointmentType appointmentType = appointmentType(appointmentTypeId, "Alpha Visit");
+		ProviderFind providerFind = providerFind(providerId, "Test Provider", availabilityDate(date, List.of(
+				availabilityTime(LocalTime.of(9, 0), AvailabilityStatus.AVAILABLE, List.of(appointmentTypeId))
+		)));
+
+		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), provider,
+				List.of(providerFind), Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90));
+
+		assertEquals(1, response.getAppointmentModalities().size());
+		assertEquals(ProviderAppointmentModalityId.PHONE, response.getAppointmentModalities().get(0).getAppointmentModalityId());
+		assertEquals(LocalTime.of(9, 0), response.getAppointmentModalities().get(0).getAvailability().get(0).getTimes().get(0).getTime());
 	}
 
 	@Test

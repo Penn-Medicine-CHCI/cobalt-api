@@ -279,3 +279,4 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-autism-pro
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/258-appointment-booking-confirmation-destination.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/259-referrer-result-screen-booking-confirmation-path.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/261-referrer-result-screen-booking-appointment-type-id.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/263-appointment-email.sql

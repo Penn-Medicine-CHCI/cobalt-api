@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.cache.Cache;
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
@@ -90,6 +91,22 @@ public class ProviderSearchResultApiResponseTests {
 				List.of(providerFind), Map.of(providerId, provider), Map.of());
 
 		assertEquals(AppointmentBookingLevelId.CLINIC, response.getAppointmentBookingLevelId());
+	}
+
+	@Test
+	public void responseDoesNotExposeVirtualModalityForUnsupportedVideoconferencePlatform() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.BLUEJEANS);
+		provider.setPhoneNumber("+12155551000");
+		ProviderFind providerFind = providerFindWithAvailableAppointment(providerId, Set.of(appointmentTypeId), List.of(appointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, null)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertEquals(1, response.getSupportedAppointmentModalities().size());
+		assertEquals(ProviderAppointmentModalityId.PHONE, response.getSupportedAppointmentModalities().get(0).getAppointmentModalityId());
 	}
 
 	@Test

@@ -56,6 +56,8 @@ public class Appointment implements Comparable<Appointment> {
 	@Nullable
 	private String lastName;
 	@Nullable
+	private String emailAddress;
+	@Nullable
 	private UUID appointmentTypeId;
 	@Nullable
 	private UUID appointmentReasonId;
@@ -192,6 +194,15 @@ public class Appointment implements Comparable<Appointment> {
 
 	public void setLastName(@Nullable String lastName) {
 		this.lastName = lastName;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
 	}
 
 	@Nullable

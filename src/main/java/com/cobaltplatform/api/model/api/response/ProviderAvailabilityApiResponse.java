@@ -25,7 +25,6 @@ import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
-import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
@@ -44,7 +43,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -224,7 +222,7 @@ public class ProviderAvailabilityApiResponse {
 			}
 		}
 
-		return List.of(ProviderAppointmentModalityId.PHONE, ProviderAppointmentModalityId.VIRTUAL, ProviderAppointmentModalityId.IN_PERSON).stream()
+		return ProviderAppointmentModalitySupport.providerAppointmentModalityIdDisplayOrder().stream()
 				.filter(timesByDateByAppointmentModalityId::containsKey)
 				.map(providerAppointmentModalityId -> new AppointmentModalityAvailabilityApiResponse(providerAppointmentModalityId,
 						timesByDateByAppointmentModalityId.get(providerAppointmentModalityId)))
@@ -292,20 +290,7 @@ public class ProviderAvailabilityApiResponse {
 	protected static Set<ProviderAppointmentModalityId> providerAppointmentModalityIdsFor(@Nonnull Provider provider) {
 		requireNonNull(provider);
 
-		EnumSet<ProviderAppointmentModalityId> providerAppointmentModalityIds = EnumSet.noneOf(ProviderAppointmentModalityId.class);
-		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
-
-		if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE
-				|| (trimToNull(provider.getPhoneNumber()) != null && !Boolean.TRUE.equals(provider.getDisplayPhoneNumberOnlyForBooking())))
-			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.PHONE);
-
-		if (videoconferencePlatformId != null && videoconferencePlatformId != VideoconferencePlatformId.TELEPHONE)
-			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.VIRTUAL);
-
-		if (providerAppointmentModalityIds.size() == 0)
-			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.IN_PERSON);
-
-		return providerAppointmentModalityIds;
+		return ProviderAppointmentModalitySupport.providerAppointmentModalityIdsFor(provider);
 	}
 
 	@Nonnull

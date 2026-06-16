@@ -27,10 +27,12 @@ import com.cobaltplatform.api.integration.acuity.model.AcuityAppointmentType;
 import com.cobaltplatform.api.integration.acuity.model.request.AcuityAppointmentCreateRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
@@ -46,6 +48,7 @@ import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.util.ValidationException;
+import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.inject.AbstractModule;
 import com.pyranid.Database;
@@ -240,6 +243,39 @@ public class AppointmentServiceTests {
 	}
 
 	@Test
+	public void createAppointmentAllowsCompletedRequiredScreeningWithoutAppointmentBookingMetadata() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+			AppointmentBookingScreeningKey expectedScreeningKey =
+					new AppointmentBookingScreeningKey(testData.getProviderId(), testData.getAppointmentTypeId(), screeningFlowId);
+
+			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
+			createCompletedScreeningSession(screeningService, database, account, screeningFlowId);
+
+			assertTrue(appointmentService.findCompletedAppointmentBookingScreeningKeys(account.getAccountId(),
+					Set.of(expectedScreeningKey)).contains(expectedScreeningKey));
+
+			UUID appointmentId = appointmentService.createAppointment(requestForAcuityAppointment(testData));
+
+			assertNotNull(appointmentId);
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
 	public void createAppointmentAllowsCompletedProviderSearchScreeningForSameProviderAndFlow() {
 		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
 
@@ -389,26 +425,32 @@ public class AppointmentServiceTests {
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account originalAccount = accountService.findAccountById(testData.getAccountId()).get();
 			CreateAppointmentRequest request = requestForAcuityAppointment(testData);
 			request.setFirstName(" Submitted ");
 			request.setLastName(" Person ");
+			request.setEmailAddress("booking-email@cobaltinnovations.org");
 
 			UUID appointmentId = appointmentService.createAppointment(request);
 
 			assertNotNull(appointmentId);
 			assertNotNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			assertEquals("booking-email@cobaltinnovations.org", acuitySchedulingClient.getLastCreateAppointmentRequest().getEmail());
 			assertEquals("Submitted", acuitySchedulingClient.getLastCreateAppointmentRequest().getFirstName());
 			assertEquals("Person", acuitySchedulingClient.getLastCreateAppointmentRequest().getLastName());
 
 			Appointment appointment = appointmentService.findAppointmentById(appointmentId).get();
 			assertEquals("Submitted", appointment.getFirstName());
 			assertEquals("Person", appointment.getLastName());
+			assertEquals("booking-email@cobaltinnovations.org", appointment.getEmailAddress());
 
 			AppointmentApiResponse appointmentApiResponse = app.getInjector().getInstance(AppointmentApiResponseFactory.class).create(appointment);
 			assertEquals("Submitted", appointmentApiResponse.getFirstName());
 			assertEquals("Person", appointmentApiResponse.getLastName());
+			assertEquals("booking-email@cobaltinnovations.org", appointmentApiResponse.getEmailAddress());
 
 			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			assertEquals(originalAccount.getEmailAddress(), account.getEmailAddress());
 			assertEquals("Account", account.getFirstName());
 			assertEquals("Fallback", account.getLastName());
 		}, new AbstractModule() {
@@ -439,6 +481,111 @@ public class AppointmentServiceTests {
 			Appointment appointment = appointmentService.findAppointmentById(appointmentId).get();
 			assertEquals("Account", appointment.getFirstName());
 			assertEquals("Fallback", appointment.getLastName());
+			assertEquals(accountService.findAccountById(testData.getAccountId()).get().getEmailAddress(), appointment.getEmailAddress());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentRejectsInvalidSubmittedEmailAddress() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account originalAccount = accountService.findAccountById(testData.getAccountId()).get();
+			CreateAppointmentRequest request = requestForAcuityAppointment(testData);
+			request.setEmailAddress("invalid-email-address");
+
+			try {
+				appointmentService.createAppointment(request);
+				fail("Expected appointment creation to reject an invalid email address.");
+			} catch (ValidationException e) {
+				assertTrue(e.getFieldErrors().contains(new FieldError("emailAddress", "Email address is invalid.")));
+			}
+
+			assertNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			assertFalse(appointmentService.findAppointmentsByAccountId(testData.getAccountId()).stream()
+					.anyMatch(appointment -> testData.getProviderId().equals(appointment.getProviderId())));
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			assertEquals(originalAccount.getEmailAddress(), account.getEmailAddress());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentAllowsPhoneBookingForProviderWithUnsupportedVideoconferencePlatform() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+
+			database.execute("""
+					UPDATE provider
+					SET videoconference_platform_id=?,
+					    phone_number=?
+					WHERE provider_id=?
+					""", VideoconferencePlatformId.BLUEJEANS, "+12155551000", testData.getProviderId());
+
+			CreateAppointmentRequest request = requestForAcuityAppointment(testData);
+			request.setAppointmentModalityId(ProviderAppointmentModalityId.PHONE);
+
+			UUID appointmentId = appointmentService.createAppointment(request);
+
+			assertNotNull(appointmentId);
+			assertNotNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			Appointment appointment = appointmentService.findAppointmentById(appointmentId).get();
+			assertEquals(VideoconferencePlatformId.TELEPHONE, appointment.getVideoconferencePlatformId());
+			assertEquals("+12155551000", appointment.getPhoneNumber());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentRejectsVirtualBookingForProviderWithUnsupportedVideoconferencePlatform() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+
+			database.execute("""
+					UPDATE provider
+					SET videoconference_platform_id=?,
+					    phone_number=?
+					WHERE provider_id=?
+					""", VideoconferencePlatformId.BLUEJEANS, "+12155551000", testData.getProviderId());
+
+			CreateAppointmentRequest request = requestForAcuityAppointment(testData);
+			request.setAppointmentModalityId(ProviderAppointmentModalityId.VIRTUAL);
+
+			try {
+				appointmentService.createAppointment(request);
+				fail("Expected appointment creation to reject unsupported virtual booking.");
+			} catch (ValidationException e) {
+				assertTrue(e.getGlobalErrors().contains("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
+			}
+
+			assertNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
 		}, new AbstractModule() {
 			@Override
 			protected void configure() {
@@ -459,6 +606,7 @@ public class AppointmentServiceTests {
 			CreateAppointmentRequest createRequest = requestForAcuityAppointment(testData);
 			createRequest.setFirstName("Original");
 			createRequest.setLastName("Snapshot");
+			createRequest.setEmailAddress("reschedule-carry-forward@cobaltinnovations.org");
 			UUID originalAppointmentId = appointmentService.createAppointment(createRequest);
 
 			UpdateAppointmentRequest updateRequest = new UpdateAppointmentRequest();
@@ -475,7 +623,9 @@ public class AppointmentServiceTests {
 			Appointment rescheduledAppointment = appointmentService.findAppointmentById(rescheduledAppointmentId).get();
 			assertEquals("Original", rescheduledAppointment.getFirstName());
 			assertEquals("Snapshot", rescheduledAppointment.getLastName());
+			assertEquals("reschedule-carry-forward@cobaltinnovations.org", rescheduledAppointment.getEmailAddress());
 			assertNotNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
+			assertEquals("reschedule-carry-forward@cobaltinnovations.org", acuitySchedulingClient.getLastCreateAppointmentRequest().getEmail());
 			assertEquals("Original", acuitySchedulingClient.getLastCreateAppointmentRequest().getFirstName());
 			assertEquals("Snapshot", acuitySchedulingClient.getLastCreateAppointmentRequest().getLastName());
 		}, new AbstractModule() {
@@ -536,14 +686,14 @@ public class AppointmentServiceTests {
 		UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
 			setRoleId(RoleId.PATIENT);
 			setInstitutionId(InstitutionId.COBALT);
-			setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
+			setAccountSourceId(AccountSourceId.COBALT_SSO);
 			setSourceSystemId(SourceSystemId.COBALT);
+			setSsoId(String.format("appointment-test-%s", uniqueSuffix));
 			setEmailAddress(accountEmailAddress);
 			setPhoneNumber("+12155551212");
 			setFirstName("Account");
 			setLastName("Fallback");
 			setDisplayName("Account Fallback");
-			setPassword("Test1234!");
 		}});
 
 		database.execute("""
@@ -553,15 +703,16 @@ public class AppointmentServiceTests {
 
 		UUID providerId = UUID.randomUUID();
 
-		database.execute("""
-				INSERT INTO provider (
-				  provider_id, institution_id, name, email_address, locale, time_zone, acuity_calendar_id,
-				  scheduling_system_id, videoconference_platform_id, videoconference_url
-				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				""", providerId, InstitutionId.COBALT, "Acuity Test Provider",
-				String.format("provider-%s@cobaltinnovations.org", uniqueSuffix), "en-US", "America/New_York",
-				123456L, SchedulingSystemId.ACUITY, VideoconferencePlatformId.EXTERNAL, "https://example.com/meeting");
+			database.execute("""
+					INSERT INTO provider (
+					  provider_id, institution_id, name, url_name, email_address, locale, time_zone, acuity_calendar_id,
+					  scheduling_system_id, videoconference_platform_id, videoconference_url
+					)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					""", providerId, InstitutionId.COBALT, "Acuity Test Provider",
+					String.format("acuity-test-provider-%s", uniqueSuffix),
+					String.format("provider-%s@cobaltinnovations.org", uniqueSuffix), "en-US", "America/New_York",
+					123456L, SchedulingSystemId.ACUITY, VideoconferencePlatformId.EXTERNAL, "https://example.com/meeting");
 
 		UUID appointmentTypeId = UUID.randomUUID();
 		Long acuityAppointmentTypeId = Math.abs(UUID.randomUUID().getMostSignificantBits() % 1_000_000_000L) + 1_000_000_000L;
@@ -631,15 +782,16 @@ public class AppointmentServiceTests {
 		String uniqueSuffix = UUID.randomUUID().toString();
 		UUID providerId = UUID.randomUUID();
 
-		database.execute("""
-				INSERT INTO provider (
-				  provider_id, institution_id, name, email_address, locale, time_zone, acuity_calendar_id,
-				  scheduling_system_id, videoconference_platform_id, videoconference_url
-				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				""", providerId, InstitutionId.COBALT, providerName,
-				String.format("provider-%s@cobaltinnovations.org", uniqueSuffix), "en-US", "America/New_York",
-				123457L, SchedulingSystemId.ACUITY, VideoconferencePlatformId.EXTERNAL, "https://example.com/other-meeting");
+			database.execute("""
+					INSERT INTO provider (
+					  provider_id, institution_id, name, url_name, email_address, locale, time_zone, acuity_calendar_id,
+					  scheduling_system_id, videoconference_platform_id, videoconference_url
+					)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					""", providerId, InstitutionId.COBALT, providerName,
+					String.format("other-acuity-test-provider-%s", uniqueSuffix),
+					String.format("provider-%s@cobaltinnovations.org", uniqueSuffix), "en-US", "America/New_York",
+					123457L, SchedulingSystemId.ACUITY, VideoconferencePlatformId.EXTERNAL, "https://example.com/other-meeting");
 
 		UUID appointmentTypeId = createAdditionalAcuityAppointmentType(database, acuitySchedulingClient, providerId,
 				appointmentTypeName, 60L, 1);
@@ -655,6 +807,21 @@ public class AppointmentServiceTests {
 	}
 
 	@Nonnull
+	protected UUID createCompletedScreeningSession(@Nonnull ScreeningService screeningService,
+																								 @Nonnull Database database,
+																								 @Nonnull Account account,
+																								 @Nonnull UUID screeningFlowId) {
+		CreateScreeningSessionRequest request = new CreateScreeningSessionRequest();
+		request.setScreeningFlowId(screeningFlowId);
+		request.setTargetAccountId(account.getAccountId());
+		request.setCreatedByAccountId(account.getAccountId());
+
+		UUID screeningSessionId = screeningService.createScreeningSession(request);
+		completeScreeningSession(database, screeningSessionId);
+		return screeningSessionId;
+	}
+
+	@Nonnull
 	protected UUID createCompletedAppointmentBookingScreeningSession(@Nonnull AppointmentService appointmentService,
 																																	 @Nonnull Database database,
 																																	 @Nonnull Account account,
@@ -667,15 +834,18 @@ public class AppointmentServiceTests {
 		assertNotNull(appointmentBookingRequirements.getScreeningSession());
 
 		UUID screeningSessionId = appointmentBookingRequirements.getScreeningSession().getScreeningSessionId();
+		completeScreeningSession(database, screeningSessionId);
+		return screeningSessionId;
+	}
 
+	protected void completeScreeningSession(@Nonnull Database database,
+																					@Nonnull UUID screeningSessionId) {
 		database.execute("""
 				UPDATE screening_session
 				SET completed=TRUE,
 				    completed_at=NOW()
 				WHERE screening_session_id=?
 				""", screeningSessionId);
-
-		return screeningSessionId;
 	}
 
 	@Nonnull

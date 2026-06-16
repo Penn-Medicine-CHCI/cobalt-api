@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -126,19 +127,18 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 		requireNonNull(provider);
 		requireNonNull(strings);
 
-		List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities = new ArrayList<>(2);
-		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
+		List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities =
+				new ArrayList<>(ProviderAppointmentModalitySupport.providerAppointmentModalityIdDisplayOrder().size());
+		Set<ProviderAppointmentModalityId> providerAppointmentModalityIds =
+				ProviderAppointmentModalitySupport.providerAppointmentModalityIdsFor(provider);
 
-		if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE
-				|| (trimToNull(provider.getPhoneNumber()) != null && !Boolean.TRUE.equals(provider.getDisplayPhoneNumberOnlyForBooking())))
-			supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(ProviderAppointmentModalityId.PHONE, strings.get("Phone")));
-
-		if (videoconferencePlatformId != null && videoconferencePlatformId != VideoconferencePlatformId.TELEPHONE)
-			supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(ProviderAppointmentModalityId.VIRTUAL, strings.get("Virtual")));
-
-		if (supportedAppointmentModalities.size() == 0)
-			// TODO: Identify an explicit provider or appointment-type source for IN_PERSON instead of inferring it from missing remote modalities.
-			supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(ProviderAppointmentModalityId.IN_PERSON, strings.get("In Person")));
+		for (ProviderAppointmentModalityId providerAppointmentModalityId : ProviderAppointmentModalitySupport.providerAppointmentModalityIdDisplayOrder())
+			if (providerAppointmentModalityIds.contains(providerAppointmentModalityId))
+				supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(providerAppointmentModalityId, switch (providerAppointmentModalityId) {
+					case PHONE -> strings.get("Phone");
+					case VIRTUAL -> strings.get("Virtual");
+					case IN_PERSON -> strings.get("In Person");
+				}));
 
 		return supportedAppointmentModalities;
 	}

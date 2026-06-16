@@ -72,11 +72,12 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
-import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAcuityAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentTypeRequest;
+import com.cobaltplatform.api.model.api.response.ProviderAppointmentModalitySupport;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
 import com.cobaltplatform.api.model.db.AccountSessionAnswer;
@@ -164,6 +165,7 @@ import java.util.stream.Stream;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlInListPlaceholders;
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static com.cobaltplatform.api.util.ValidationUtility.isValidHexColor;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -840,22 +842,31 @@ public class AppointmentService {
 		parameters.addAll(screeningFlowIds);
 
 		Map<UUID, Set<UUID>> completedScreeningFlowIdsByProviderId = new HashMap<>();
+		Set<UUID> providerAgnosticCompletedScreeningFlowIds = new HashSet<>();
 
 		getDatabase().queryForList(format("""
 							SELECT DISTINCT
-							  ss.metadata->'appointmentBooking'->>'providerId' AS provider_id,
+							  NULLIF(ss.metadata->'appointmentBooking'->>'providerId', '') AS provider_id,
 							  sfv.screening_flow_id
 							FROM screening_session ss, screening_flow_version sfv
 							WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
 							AND ss.target_account_id=?
 							AND ss.completed=TRUE
 							AND ss.skipped=FALSE
-							AND ss.metadata->'appointmentBooking'->>'providerId' IN %s
+							AND (
+							  NULLIF(ss.metadata->'appointmentBooking'->>'providerId', '') IS NULL
+							  OR ss.metadata->'appointmentBooking'->>'providerId' IN %s
+							)
 							AND sfv.screening_flow_id IN %s
 							""", sqlInListPlaceholders(providerIds), sqlInListPlaceholders(screeningFlowIds)),
 				CompletedAppointmentBookingScreeningKey.class, parameters.toArray(new Object[]{})).forEach(completedAppointmentBookingScreeningKey -> {
-			if (completedAppointmentBookingScreeningKey.getProviderId() == null || completedAppointmentBookingScreeningKey.getScreeningFlowId() == null)
+			if (completedAppointmentBookingScreeningKey.getScreeningFlowId() == null)
 				return;
+
+			if (completedAppointmentBookingScreeningKey.getProviderId() == null) {
+				providerAgnosticCompletedScreeningFlowIds.add(completedAppointmentBookingScreeningKey.getScreeningFlowId());
+				return;
+			}
 
 			UUID providerId = UUID.fromString(completedAppointmentBookingScreeningKey.getProviderId());
 			Set<UUID> completedScreeningFlowIds = completedScreeningFlowIdsByProviderId.get(providerId);
@@ -871,7 +882,8 @@ public class AppointmentService {
 		return appointmentBookingScreeningKeys.stream()
 				.filter(appointmentBookingScreeningKey -> completedScreeningFlowIdsByProviderId
 						.getOrDefault(appointmentBookingScreeningKey.getProviderId(), Set.of())
-						.contains(appointmentBookingScreeningKey.getScreeningFlowId()))
+						.contains(appointmentBookingScreeningKey.getScreeningFlowId())
+						|| providerAgnosticCompletedScreeningFlowIds.contains(appointmentBookingScreeningKey.getScreeningFlowId()))
 				.collect(Collectors.toSet());
 	}
 
@@ -891,10 +903,10 @@ public class AppointmentService {
 				AND ss.target_account_id=?
 				AND ss.completed=TRUE
 				AND ss.skipped=FALSE
-				AND ss.metadata->'appointmentBooking'->>'providerId'=?
+				AND COALESCE(NULLIF(ss.metadata->'appointmentBooking'->>'providerId', ''), ?)=?
 				ORDER BY ss.last_updated DESC
 				LIMIT 1
-				""", ScreeningSession.class, screeningFlowId, accountId, providerId.toString());
+				""", ScreeningSession.class, screeningFlowId, accountId, providerId.toString(), providerId.toString());
 	}
 
 	@Nonnull
@@ -1074,6 +1086,9 @@ public class AppointmentService {
 		if (trimToNull(request.getLastName()) == null)
 			request.setLastName(existingAppointment.getLastName());
 
+		if (trimToNull(request.getEmailAddress()) == null)
+			request.setEmailAddress(existingAppointment.getEmailAddress());
+
 		UUID newAppointmentId = createAppointment(request);
 
 		CancelAppointmentRequest cancelRequest = new CancelAppointmentRequest();
@@ -1105,6 +1120,7 @@ public class AppointmentService {
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
 		String epicAppointmentFhirId = trimToNull(request.getEpicAppointmentFhirId());
+		ProviderAppointmentModalityId appointmentModalityId = request.getAppointmentModalityId();
 		String epicAppointmentFhirIdentifierSystem = null;
 		String epicAppointmentFhirIdentifierValue = null;
 		String epicAppointmentFhirStu3ResponseJson = null;
@@ -1142,15 +1158,8 @@ public class AppointmentService {
 		if (time == null)
 			validationException.add(new FieldError("time", getStrings().get("Time is required.")));
 
-		// If account has no email address and none was passed in, force user to provide one (unless they are IC users...then it's optional)
-		if (emailAddress == null && account != null && account.getEmailAddress() == null && !institution.getIntegratedCareEnabled()) {
-			validationException.add(new FieldError("emailAddress", getStrings().get("An email address is required to book an appointment.")));
-
-			Map<String, Object> metadata = new HashMap<>();
-			metadata.put("accountEmailAddressRequired", true);
-
-			validationException.setMetadata(metadata);
-		}
+		if (emailAddress != null && !isValidEmailAddress(emailAddress))
+			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 
 		if (providerId == null)
 			validationException.add(getStrings().get("Provider ID is required."));
@@ -1189,6 +1198,20 @@ public class AppointmentService {
 		Provider provider = getProviderService().findProviderById(providerId).get();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
+		Set<ProviderAppointmentModalityId> supportedAppointmentModalityIds =
+				ProviderAppointmentModalitySupport.providerAppointmentModalityIdsFor(provider);
+
+		if (appointmentModalityId == null)
+			appointmentModalityId = ProviderAppointmentModalitySupport.defaultProviderAppointmentModalityIdFor(provider);
+
+		if (appointmentModalityId == null || !supportedAppointmentModalityIds.contains(appointmentModalityId)) {
+			if (appointmentModalityId == ProviderAppointmentModalityId.VIRTUAL
+					|| provider.getVideoconferencePlatformId() == VideoconferencePlatformId.BLUEJEANS)
+				throw new ValidationException(getStrings().get("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
+
+			throw new ValidationException(new FieldError("appointmentModalityId", getStrings().get("Appointment modality ID is invalid.")));
+		}
+
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR && epicAppointmentFhirId == null)
 			throw new ValidationException(new FieldError("epicAppointmentFhirId", getStrings().get("Epic FHIR Appointment ID is required.")));
 
@@ -1200,23 +1223,11 @@ public class AppointmentService {
 			epicVisitTypeIdTypeForFailure = trimToNull(appointmentType.getEpicVisitTypeIdType());
 		}
 
+		if (emailAddress == null)
+			emailAddress = account.getEmailAddress();
+
 		// Update account data for non-IC institutions
 		if (!institution.getIntegratedCareEnabled()) {
-			// If email address was provided for non-IC scenarios, update the account's email on file
-			if (emailAddress != null) {
-				String pinnedEmailAddress = emailAddress;
-				getAccountService().updateAccountEmailAddress(new UpdateAccountEmailAddressRequest() {{
-					setAccountId(accountId);
-					setEmailAddress(pinnedEmailAddress);
-				}});
-			} else {
-				emailAddress = account.getEmailAddress();
-			}
-
-			// Only care about validated email addresses for non-IC accounts
-			if (!getAccountService().isEmailAddressVerifiedForAccountId(emailAddress, accountId))
-				throw new ValidationException(getStrings().get("Sorry, you must validate your email address before booking an appointment."));
-
 			// If phone number was provided and account has no phone number, permit updating the account's phone number on file
 			if (phoneNumber != null && account.getPhoneNumber() == null) {
 				String pinnedPhoneNumber = phoneNumber;
@@ -1338,49 +1349,59 @@ public class AppointmentService {
 		Long bluejeansMeetingId = null;
 		String bluejeansParticipantPasscode = null;
 		String appointmentPhoneNumber = null;
-		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
+		VideoconferencePlatformId videoconferencePlatformId = null;
 
-		if (videoconferencePlatformId == VideoconferencePlatformId.BLUEJEANS) {
-			throw new ValidationException(getStrings().get("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
-		} else if (videoconferencePlatformId == VideoconferencePlatformId.MICROSOFT_TEAMS) {
-			// Prepare Teams meeting request
-			OnlineMeetingCreateRequest onlineMeetingCreateRequest = new OnlineMeetingCreateRequest();
-			onlineMeetingCreateRequest.setUserId(institution.getMicrosoftTeamsUserId());
-			onlineMeetingCreateRequest.setSubject(getStrings().get("1:1 Appointment with {{providerName}}", Map.of(
-					"providerName", provider.getName()
-			)));
-			onlineMeetingCreateRequest.setStartDateTime(meetingStartTime.atZone(timeZone));
-			onlineMeetingCreateRequest.setEndDateTime(meetingEndTime.atZone(timeZone));
+		if (appointmentModalityId == ProviderAppointmentModalityId.VIRTUAL) {
+			videoconferencePlatformId = provider.getVideoconferencePlatformId();
 
-			try {
-				// Create the Teams meeting
-				CreateMicrosoftTeamsMeetingRequest createMicrosoftTeamsMeetingRequest = new CreateMicrosoftTeamsMeetingRequest();
-				createMicrosoftTeamsMeetingRequest.setInstitutionId(institution.getInstitutionId());
-				createMicrosoftTeamsMeetingRequest.setCreatedByAccountId(accountId);
-				createMicrosoftTeamsMeetingRequest.setOnlineMeetingCreateRequest(onlineMeetingCreateRequest);
+			if (videoconferencePlatformId == VideoconferencePlatformId.BLUEJEANS) {
+				throw new ValidationException(getStrings().get("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
+			} else if (videoconferencePlatformId == VideoconferencePlatformId.MICROSOFT_TEAMS) {
+				// Prepare Teams meeting request
+				OnlineMeetingCreateRequest onlineMeetingCreateRequest = new OnlineMeetingCreateRequest();
+				onlineMeetingCreateRequest.setUserId(institution.getMicrosoftTeamsUserId());
+				onlineMeetingCreateRequest.setSubject(getStrings().get("1:1 Appointment with {{providerName}}", Map.of(
+						"providerName", provider.getName()
+				)));
+				onlineMeetingCreateRequest.setStartDateTime(meetingStartTime.atZone(timeZone));
+				onlineMeetingCreateRequest.setEndDateTime(meetingEndTime.atZone(timeZone));
 
-				UUID microsoftTeamsMeetingId = getSystemService().createMicrosoftTeamsMeeting(createMicrosoftTeamsMeetingRequest);
+				try {
+					// Create the Teams meeting
+					CreateMicrosoftTeamsMeetingRequest createMicrosoftTeamsMeetingRequest = new CreateMicrosoftTeamsMeetingRequest();
+					createMicrosoftTeamsMeetingRequest.setInstitutionId(institution.getInstitutionId());
+					createMicrosoftTeamsMeetingRequest.setCreatedByAccountId(accountId);
+					createMicrosoftTeamsMeetingRequest.setOnlineMeetingCreateRequest(onlineMeetingCreateRequest);
 
-				// Use the "join" URL as the videoconference URL
-				microsoftTeamsMeeting = getSystemService().findMicrosoftTeamsMeetingById(microsoftTeamsMeetingId).get();
-				videoconferenceUrl = microsoftTeamsMeeting.getJoinUrl();
-			} catch (ValidationException e) {
-				// We want to know if there is a problem creating Teams meetings.
-				// In theory this above code should not fail unless there is a systemic issue, e.g. Teams is down, or creds revoked
-				getErrorReporter().report(e);
+					UUID microsoftTeamsMeetingId = getSystemService().createMicrosoftTeamsMeeting(createMicrosoftTeamsMeetingRequest);
 
-				// Let the user-friendly exception bubble out
-				throw e;
+					// Use the "join" URL as the videoconference URL
+					microsoftTeamsMeeting = getSystemService().findMicrosoftTeamsMeetingById(microsoftTeamsMeetingId).get();
+					videoconferenceUrl = microsoftTeamsMeeting.getJoinUrl();
+				} catch (ValidationException e) {
+					// We want to know if there is a problem creating Teams meetings.
+					// In theory this above code should not fail unless there is a systemic issue, e.g. Teams is down, or creds revoked
+					getErrorReporter().report(e);
+
+					// Let the user-friendly exception bubble out
+					throw e;
+				}
+			} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
+				videoconferenceUrl = provider.getVideoconferenceUrl();
 			}
-		} else if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE) {
-			// Hack: phone number is encoded as the URL in the provider sheet.
-			// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`
-			appointmentPhoneNumber = provider.getVideoconferenceUrl();
+		} else if (appointmentModalityId == ProviderAppointmentModalityId.PHONE) {
+			videoconferencePlatformId = VideoconferencePlatformId.TELEPHONE;
+			appointmentPhoneNumber = trimToNull(provider.getPhoneNumber());
+
+			if (appointmentPhoneNumber == null)
+				// Legacy telephone providers stored their phone number in the video URL field.
+				appointmentPhoneNumber = trimToNull(provider.getVideoconferenceUrl());
+
 			// TODO: this defaults to "patient" experience type but is also used by staff.
 			// Doesn't matter atm, and this concept of TELEPHONE should be removed/reworked, but just noting here for posterity...
 			videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), appointmentId);
-		} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
-			videoconferenceUrl = provider.getVideoconferenceUrl();
+		} else if (appointmentModalityId == ProviderAppointmentModalityId.IN_PERSON) {
+			videoconferencePlatformId = provider.getVideoconferencePlatformId();
 		}
 
 		String firstName = trimToNull(request.getFirstName());
@@ -1566,13 +1587,13 @@ public class AppointmentService {
 		if (intakeAssessment.isPresent())
 			intakeAccountSessionId = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment.get()).get().getAccountSessionId();
 
-		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, first_name, last_name, " +
+		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, first_name, last_name, email_address, " +
 						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
 						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, " +
 						"microsoft_teams_meeting_id, epic_appointment_fhir_id, epic_appointment_fhir_identifier_system, epic_appointment_fhir_identifier_value, epic_appointment_fhir_stu3_response) " +
-						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
-				accountId, createdByAccountId, firstName, lastName, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
+						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
+				accountId, createdByAccountId, firstName, lastName, emailAddress, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
 				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(),
 				intakeAccountSessionId, patientOrderId, microsoftTeamsMeeting == null ? null : microsoftTeamsMeeting.getMicrosoftTeamsMeetingId(),
@@ -1833,6 +1854,11 @@ public class AppointmentService {
 		if (!institution.getAppointmentFeedbackSurveyEnabled() || institution.getAppointmentFeedbackSurveyUrl() == null)
 			return false;
 
+		String appointmentEmailAddress = firstNonNull(appointment.getEmailAddress(), account.getEmailAddress());
+
+		if (appointmentEmailAddress == null)
+			return false;
+
 		LocalDateTime scheduledAt = appointment.getStartTime().plusMinutes(institution.getAppointmentFeedbackSurveyDelayInMinutes());
 
 		UUID appointmentScheduledMessageId = UUID.randomUUID();
@@ -1843,7 +1869,7 @@ public class AppointmentService {
 		messageContext.put("appointmentFeedbackSurveyDurationDescription", institution.getAppointmentFeedbackSurveyDurationDescription());
 
 		EmailMessage emailMessage = new EmailMessage.Builder(messageId, institution.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_FEEDBACK_SURVEY_PATIENT, account.getLocale())
-				.toAddresses(List.of(account.getEmailAddress()))
+				.toAddresses(List.of(appointmentEmailAddress))
 				.fromAddress(institution.getDefaultFromEmailAddress())
 				.messageContext(messageContext)
 				.build();
@@ -2339,6 +2365,7 @@ public class AppointmentService {
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
 		String accountName = getAccountService().determineDisplayName(account);
+		String appointmentEmailAddress = firstNonNull(appointment.getEmailAddress(), account.getEmailAddress());
 		String providerName = provider.getName();
 		String providerEmailAddress = provider.getEmailAddress();
 		String videoconferenceUrl = appointment.getVideoconferenceUrl();
@@ -2351,7 +2378,7 @@ public class AppointmentService {
 			providerNameAndCredentials = format("%s, %s", provider.getName(), provider.getLicense());
 
 		// Patient email
-		if (account.getEmailAddress() != null) {
+		if (appointmentEmailAddress != null) {
 			Map<String, Object> cobaltPatientEmailMessageContext = new HashMap<>();
 			cobaltPatientEmailMessageContext.put("appointmentId", appointmentId);
 			cobaltPatientEmailMessageContext.put("providerName", provider.getName());
@@ -2369,7 +2396,7 @@ public class AppointmentService {
 			cobaltPatientEmailMessageContext.put("showMicrosoftTeamsAnonymousDirections", appointment.getVideoconferencePlatformId() == VideoconferencePlatformId.MICROSOFT_TEAMS);
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(account.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
-					.toAddresses(Collections.singletonList(account.getEmailAddress()))
+					.toAddresses(Collections.singletonList(appointmentEmailAddress))
 					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST)))
@@ -2382,7 +2409,7 @@ public class AppointmentService {
 			LocalTime reminderMessageTimeOfDay = institution.getAppointmentReservationDefaultReminderTimeOfDay();
 
 			EmailMessage patientReminderEmailMessage = new EmailMessage.Builder(account.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_REMINDER_PATIENT, account.getLocale())
-					.toAddresses(Collections.singletonList(account.getEmailAddress()))
+					.toAddresses(Collections.singletonList(appointmentEmailAddress))
 					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
 					.build();
@@ -2410,7 +2437,7 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
 		cobaltProviderEmailMessageContext.put("providerName", providerName);
 		cobaltProviderEmailMessageContext.put("accountName", accountName);
-		cobaltProviderEmailMessageContext.put("accountEmailAddress", account.getEmailAddress());
+		cobaltProviderEmailMessageContext.put("accountEmailAddress", appointmentEmailAddress);
 		cobaltProviderEmailMessageContext.put("videoconferenceUrl", videoconferenceUrl);
 		cobaltProviderEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrlForStaff, appointmentId));
 		cobaltProviderEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrlForStaff, appointmentId));
@@ -2451,6 +2478,7 @@ public class AppointmentService {
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
 		String accountName = getAccountService().determineDisplayName(account);
+		String appointmentEmailAddress = firstNonNull(appointment.getEmailAddress(), account.getEmailAddress());
 		String providerName = provider.getName();
 
 		String providerNameAndCredentials = provider.getName();
@@ -2459,7 +2487,7 @@ public class AppointmentService {
 			providerNameAndCredentials = format("%s, %s", provider.getName(), provider.getLicense());
 
 		// Patient email
-		if (account.getEmailAddress() != null) {
+		if (appointmentEmailAddress != null) {
 			Map<String, Object> cobaltPatientEmailMessageContext = new HashMap<>();
 			cobaltPatientEmailMessageContext.put("appointmentId", appointmentId);
 			cobaltPatientEmailMessageContext.put("providerName", provider.getName());
@@ -2471,7 +2499,7 @@ public class AppointmentService {
 			cobaltPatientEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CANCELED_PATIENT, account.getLocale())
-					.toAddresses(Collections.singletonList(account.getEmailAddress()))
+					.toAddresses(Collections.singletonList(appointmentEmailAddress))
 					.replyToAddress(provider.getEmailAddress())
 					.messageContext(cobaltPatientEmailMessageContext)
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL)))
@@ -2488,7 +2516,7 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
 		cobaltProviderEmailMessageContext.put("providerName", providerName);
 		cobaltProviderEmailMessageContext.put("accountName", accountName);
-		cobaltProviderEmailMessageContext.put("accountEmailAddress", account.getEmailAddress());
+		cobaltProviderEmailMessageContext.put("accountEmailAddress", appointmentEmailAddress);
 
 		EmailMessage providerEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CANCELED_PROVIDER, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
@@ -2906,7 +2934,8 @@ public class AppointmentService {
 		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
 
 		InviteOrganizer inviteOrganizer = InviteOrganizer.forEmailAddress(provider.getEmailAddress());
-		InviteAttendee inviteAttendee = InviteAttendee.forEmailAddress(patient.getEmailAddress());
+		InviteAttendee inviteAttendee = InviteAttendee.forEmailAddress(firstNonNull(appointment.getEmailAddress(),
+				patient.getEmailAddress(), getConfiguration().getDefaultEmailToAddress(patient.getInstitutionId())));
 
 		return getiCalInviteGenerator().generateInvite(appointment.getAppointmentId().toString(), title,
 				extendedDescription, appointment.getStartTime(), appointment.getEndTime(),

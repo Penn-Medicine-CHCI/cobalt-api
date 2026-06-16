@@ -1497,6 +1497,7 @@ CREATE TABLE appointment (
 	account_id uuid NOT NULL,
 	first_name text NULL,
 	last_name text NULL,
+	email_address text NULL,
 	acuity_appointment_id int8 NULL,
 	acuity_appointment_type_id int8 NULL,
 	acuity_class_id int8 NULL,

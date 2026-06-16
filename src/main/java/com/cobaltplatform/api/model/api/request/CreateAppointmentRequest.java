@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
@@ -49,11 +51,13 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private UUID intakeAssessmentId;
 	@Nullable
+	private ProviderAppointmentModalityId appointmentModalityId;
+	@Nullable
 	private String firstName;
 	@Nullable
 	private String lastName;
 	@Nullable
-	private String emailAddress; // only required for anon accounts currently
+	private String emailAddress; // optional appointment-specific contact email; does not update the account
 	@Nullable
 	private String phoneNumber;
 	@Nullable
@@ -131,6 +135,15 @@ public class CreateAppointmentRequest {
 
 	public void setIntakeAssessmentId(@Nullable UUID intakeAssessmentId) {
 		this.intakeAssessmentId = intakeAssessmentId;
+	}
+
+	@Nullable
+	public ProviderAppointmentModalityId getAppointmentModalityId() {
+		return appointmentModalityId;
+	}
+
+	public void setAppointmentModalityId(@Nullable ProviderAppointmentModalityId appointmentModalityId) {
+		this.appointmentModalityId = appointmentModalityId;
 	}
 
 	@Nullable

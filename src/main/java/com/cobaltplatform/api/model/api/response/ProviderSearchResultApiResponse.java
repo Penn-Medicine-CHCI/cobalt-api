@@ -50,7 +50,6 @@ import java.time.LocalTime;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -298,7 +297,7 @@ public class ProviderSearchResultApiResponse {
 		requireNonNull(providersById);
 		requireNonNull(strings);
 
-		EnumSet<ProviderAppointmentModalityId> providerAppointmentModalityIds = EnumSet.noneOf(ProviderAppointmentModalityId.class);
+		Set<ProviderAppointmentModalityId> providerAppointmentModalityIds = new HashSet<>();
 
 		for (ProviderFind providerFind : providerFinds) {
 			Provider provider = providersById.get(providerFind.getProviderId());
@@ -318,7 +317,7 @@ public class ProviderSearchResultApiResponse {
 
 		List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities = new ArrayList<>(providerAppointmentModalityIds.size());
 
-		for (ProviderAppointmentModalityId providerAppointmentModalityId : List.of(ProviderAppointmentModalityId.PHONE, ProviderAppointmentModalityId.VIRTUAL, ProviderAppointmentModalityId.IN_PERSON))
+		for (ProviderAppointmentModalityId providerAppointmentModalityId : ProviderAppointmentModalitySupport.providerAppointmentModalityIdDisplayOrder())
 			if (providerAppointmentModalityIds.contains(providerAppointmentModalityId))
 				supportedAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(providerAppointmentModalityId, providerAppointmentModalityDescriptionFor(providerAppointmentModalityId, strings)));
 
@@ -342,21 +341,7 @@ public class ProviderSearchResultApiResponse {
 	protected Set<ProviderAppointmentModalityId> providerAppointmentModalityIdsFor(@Nonnull Provider provider) {
 		requireNonNull(provider);
 
-		EnumSet<ProviderAppointmentModalityId> providerAppointmentModalityIds = EnumSet.noneOf(ProviderAppointmentModalityId.class);
-		VideoconferencePlatformId videoconferencePlatformId = provider.getVideoconferencePlatformId();
-
-		if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE
-				|| (trimToNull(provider.getPhoneNumber()) != null && !Boolean.TRUE.equals(provider.getDisplayPhoneNumberOnlyForBooking())))
-			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.PHONE);
-
-		if (videoconferencePlatformId != null && videoconferencePlatformId != VideoconferencePlatformId.TELEPHONE)
-			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.VIRTUAL);
-
-		if (providerAppointmentModalityIds.size() == 0)
-			// TODO: Identify an explicit provider or appointment-type source for IN_PERSON instead of inferring it from missing remote modalities.
-			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.IN_PERSON);
-
-		return providerAppointmentModalityIds;
+		return ProviderAppointmentModalitySupport.providerAppointmentModalityIdsFor(provider);
 	}
 
 	@Nonnull
