@@ -1176,8 +1176,8 @@ public class AppointmentService {
 
 		if (providerId != null && appointmentType != null && appointmentType.getScreeningFlowId() != null) {
 			ScreeningSession completedAppointmentBookingScreeningSession =
-					findMostRecentAppointmentBookingScreeningSession(accountId, providerId, appointmentTypeId,
-							appointmentType.getScreeningFlowId(), true).orElse(null);
+					findMostRecentCompletedAppointmentBookingScreeningSession(accountId, providerId,
+							appointmentType.getScreeningFlowId()).orElse(null);
 
 			if (completedAppointmentBookingScreeningSession == null)
 				validationException.add(getStrings().get("You did not complete the necessary screening questions to book this appointment."));

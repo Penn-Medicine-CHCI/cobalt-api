@@ -45,6 +45,7 @@ import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.inject.AbstractModule;
 import com.pyranid.Database;
@@ -64,6 +65,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author Transmogrify, LLC.
@@ -234,6 +236,147 @@ public class AppointmentServiceTests {
 					.equals(otherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId()));
 			assertEquals(otherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId(),
 					resumedOtherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId());
+		});
+	}
+
+	@Test
+	public void createAppointmentAllowsCompletedProviderSearchScreeningForSameProviderAndFlow() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+
+			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
+			createCompletedAppointmentBookingScreeningSession(appointmentService, database, account, pairFor(testData));
+
+			UUID appointmentId = appointmentService.createAppointment(requestForAcuityAppointment(testData));
+
+			assertNotNull(appointmentId);
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentAllowsCompletedProviderSearchScreeningForSameProviderAndFlowAcrossAppointmentTypes() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+			UUID otherAppointmentTypeId = createAdditionalAcuityAppointmentType(database, acuitySchedulingClient,
+					testData.getProviderId(), "Follow-up Consult", 45L, 2);
+			AcuityAppointmentTestData otherAppointmentTypeTestData =
+					new AcuityAppointmentTestData(testData.getAccountId(), testData.getProviderId(), otherAppointmentTypeId);
+
+			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
+			setAppointmentTypeScreeningFlow(database, otherAppointmentTypeId, screeningFlowId);
+			createCompletedAppointmentBookingScreeningSession(appointmentService, database, account, pairFor(testData));
+
+			UUID appointmentId = appointmentService.createAppointment(requestForAcuityAppointment(otherAppointmentTypeTestData));
+
+			assertNotNull(appointmentId);
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentRejectsMissingProviderSearchScreening() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+
+			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
+
+			assertCreateAppointmentRejectsMissingScreening(appointmentService, requestForAcuityAppointment(testData));
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentRejectsCompletedProviderSearchScreeningForOtherProvider() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+			AcuityAppointmentTestData otherProviderTestData = createAdditionalAcuityProviderAppointmentTestData(database,
+					acuitySchedulingClient, testData.getAccountId(), "Other Acuity Test Provider", "Other Initial Consult");
+
+			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
+			setAppointmentTypeScreeningFlow(database, otherProviderTestData.getAppointmentTypeId(), screeningFlowId);
+			createCompletedAppointmentBookingScreeningSession(appointmentService, database, account, pairFor(otherProviderTestData));
+
+			assertCreateAppointmentRejectsMissingScreening(appointmentService, requestForAcuityAppointment(testData));
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentRejectsCompletedProviderSearchScreeningForOtherFlow() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+			UUID otherScreeningFlowId = findOtherScreeningFlowId(database, screeningFlowId);
+			UUID otherAppointmentTypeId = createAdditionalAcuityAppointmentType(database, acuitySchedulingClient,
+					testData.getProviderId(), "Other Flow Consult", 45L, 2);
+			AcuityAppointmentTestData otherFlowTestData =
+					new AcuityAppointmentTestData(testData.getAccountId(), testData.getProviderId(), otherAppointmentTypeId);
+
+			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
+			setAppointmentTypeScreeningFlow(database, otherAppointmentTypeId, otherScreeningFlowId);
+			createCompletedAppointmentBookingScreeningSession(appointmentService, database, account, pairFor(otherFlowTestData));
+
+			assertCreateAppointmentRejectsMissingScreening(appointmentService, requestForAcuityAppointment(testData));
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
 		});
 	}
 
@@ -432,6 +575,11 @@ public class AppointmentServiceTests {
 				""", appointmentTypeId, acuityAppointmentTypeId, VisitTypeId.INITIAL, "Initial Consult", 60L,
 				SchedulingSystemId.ACUITY);
 
+		database.execute("""
+				INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order)
+				VALUES (?, ?, ?)
+				""", providerId, appointmentTypeId, 1);
+
 		AcuityAppointmentType acuityAppointmentType = new AcuityAppointmentType();
 		acuityAppointmentType.setId(acuityAppointmentTypeId);
 		acuityAppointmentType.setName("Initial Consult");
@@ -439,6 +587,118 @@ public class AppointmentServiceTests {
 		acuitySchedulingClient.setAppointmentType(acuityAppointmentType);
 
 		return new AcuityAppointmentTestData(accountId, providerId, appointmentTypeId);
+	}
+
+	@Nonnull
+	protected UUID createAdditionalAcuityAppointmentType(@Nonnull Database database,
+																											@Nonnull RecordingAcuitySchedulingClient acuitySchedulingClient,
+																											@Nonnull UUID providerId,
+																											@Nonnull String appointmentTypeName,
+																											@Nonnull Long durationInMinutes,
+																											int displayOrder) {
+		UUID appointmentTypeId = UUID.randomUUID();
+		Long acuityAppointmentTypeId = Math.abs(UUID.randomUUID().getMostSignificantBits() % 1_000_000_000L) + 1_000_000_000L;
+
+		database.execute("""
+				INSERT INTO appointment_type (
+				  appointment_type_id, acuity_appointment_type_id, visit_type_id, name, duration_in_minutes,
+				  scheduling_system_id
+				)
+				VALUES (?, ?, ?, ?, ?, ?)
+				""", appointmentTypeId, acuityAppointmentTypeId, VisitTypeId.INITIAL, appointmentTypeName, durationInMinutes,
+				SchedulingSystemId.ACUITY);
+
+		database.execute("""
+				INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order)
+				VALUES (?, ?, ?)
+				""", providerId, appointmentTypeId, displayOrder);
+
+		AcuityAppointmentType acuityAppointmentType = new AcuityAppointmentType();
+		acuityAppointmentType.setId(acuityAppointmentTypeId);
+		acuityAppointmentType.setName(appointmentTypeName);
+		acuityAppointmentType.setDuration(durationInMinutes.doubleValue());
+		acuitySchedulingClient.setAppointmentType(acuityAppointmentType);
+
+		return appointmentTypeId;
+	}
+
+	@Nonnull
+	protected AcuityAppointmentTestData createAdditionalAcuityProviderAppointmentTestData(@Nonnull Database database,
+																																											 @Nonnull RecordingAcuitySchedulingClient acuitySchedulingClient,
+																																											 @Nonnull UUID accountId,
+																																											 @Nonnull String providerName,
+																																											 @Nonnull String appointmentTypeName) {
+		String uniqueSuffix = UUID.randomUUID().toString();
+		UUID providerId = UUID.randomUUID();
+
+		database.execute("""
+				INSERT INTO provider (
+				  provider_id, institution_id, name, email_address, locale, time_zone, acuity_calendar_id,
+				  scheduling_system_id, videoconference_platform_id, videoconference_url
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""", providerId, InstitutionId.COBALT, providerName,
+				String.format("provider-%s@cobaltinnovations.org", uniqueSuffix), "en-US", "America/New_York",
+				123457L, SchedulingSystemId.ACUITY, VideoconferencePlatformId.EXTERNAL, "https://example.com/other-meeting");
+
+		UUID appointmentTypeId = createAdditionalAcuityAppointmentType(database, acuitySchedulingClient, providerId,
+				appointmentTypeName, 60L, 1);
+
+		return new AcuityAppointmentTestData(accountId, providerId, appointmentTypeId);
+	}
+
+	protected void setAppointmentTypeScreeningFlow(@Nonnull Database database,
+																								 @Nonnull UUID appointmentTypeId,
+																								 @Nonnull UUID screeningFlowId) {
+		database.execute("UPDATE appointment_type SET screening_flow_id=? WHERE appointment_type_id=?",
+				screeningFlowId, appointmentTypeId);
+	}
+
+	@Nonnull
+	protected UUID createCompletedAppointmentBookingScreeningSession(@Nonnull AppointmentService appointmentService,
+																																	 @Nonnull Database database,
+																																	 @Nonnull Account account,
+																																	 @Nonnull ProviderAppointmentTypePair pair) {
+		AppointmentBookingRequirements appointmentBookingRequirements =
+				appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account);
+
+		assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+				appointmentBookingRequirements.getAppointmentBookingRequirementsDestinationId());
+		assertNotNull(appointmentBookingRequirements.getScreeningSession());
+
+		UUID screeningSessionId = appointmentBookingRequirements.getScreeningSession().getScreeningSessionId();
+
+		database.execute("""
+				UPDATE screening_session
+				SET completed=TRUE,
+				    completed_at=NOW()
+				WHERE screening_session_id=?
+				""", screeningSessionId);
+
+		return screeningSessionId;
+	}
+
+	@Nonnull
+	protected UUID findOtherScreeningFlowId(@Nonnull Database database,
+																					@Nonnull UUID screeningFlowId) {
+		return database.queryForObject("""
+				SELECT screening_flow_id
+				FROM screening_flow
+				WHERE screening_flow_id<>?
+				AND active_screening_flow_version_id IS NOT NULL
+				ORDER BY screening_flow_id
+				LIMIT 1
+				""", UUID.class, screeningFlowId).get();
+	}
+
+	protected void assertCreateAppointmentRejectsMissingScreening(@Nonnull AppointmentService appointmentService,
+																																@Nonnull CreateAppointmentRequest request) {
+		try {
+			appointmentService.createAppointment(request);
+			fail("Expected appointment creation to fail because required screening was not completed.");
+		} catch (ValidationException e) {
+			assertTrue(e.getGlobalErrors().contains("You did not complete the necessary screening questions to book this appointment."));
+		}
 	}
 
 	@Nonnull
@@ -489,6 +749,13 @@ public class AppointmentServiceTests {
 		otherPair.setProviderId(pair.getProviderId());
 		otherPair.setAppointmentTypeId(pair.getOtherAppointmentTypeId());
 		return otherPair;
+	}
+
+	protected ProviderAppointmentTypePair pairFor(AcuityAppointmentTestData testData) {
+		ProviderAppointmentTypePair pair = new ProviderAppointmentTypePair();
+		pair.setProviderId(testData.getProviderId());
+		pair.setAppointmentTypeId(testData.getAppointmentTypeId());
+		return pair;
 	}
 
 	protected FindAppointmentBookingRequirementsRequest requestFor(Account account,
