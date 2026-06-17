@@ -268,16 +268,9 @@ if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/bootstrap.sql
 fi
 
-# Post-bootstrap data patches. 250 depends on bootstrap fixture institutions/referrers,
-# 257 depends on rows seeded by 250 plus schema added by 256, 258 updates
-# destination functions for appointment-type screening flows, 259 updates
-# referrer result-screen booking paths, 260 adds provider-search
-# screening-type coverage fixtures, and 261 adds singular appointment type IDs
-# to referrer result-screen booking metadata.
+# Post-bootstrap patches. 250 depends on bootstrap fixture institutions/referrers,
+# 256 applies the consolidated provider-booking functional migration, and the
+# local-only fixture script adds QA/developer seed data for recreated local DBs.
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-provider-booking-screening.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/257-autism-provider-search-screening.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/258-appointment-booking-confirmation-destination.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/259-referrer-result-screen-booking-confirmation-path.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/260-provider-search-screening-type-fixtures.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/261-referrer-result-screen-booking-appointment-type-id.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-local-only-provider-booking-test-data.sql

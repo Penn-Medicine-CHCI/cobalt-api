@@ -656,6 +656,7 @@ CREATE TABLE appointment_type (
 	epic_visit_type_id text NULL,
 	epic_visit_type_id_type text NULL,
 	visit_type_id varchar NOT NULL,
+	screening_flow_id uuid NULL,
 	CONSTRAINT appointment_type_pkey PRIMARY KEY (appointment_type_id),
 	CONSTRAINT appointment_type_visit_type_id_fkey FOREIGN KEY (visit_type_id) REFERENCES visit_type(visit_type_id),
 	CONSTRAINT scheduling_system_fk FOREIGN KEY (scheduling_system_id) REFERENCES scheduling_system(scheduling_system_id)

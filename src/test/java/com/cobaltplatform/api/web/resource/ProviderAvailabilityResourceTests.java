@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
+import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.ProviderFind;
@@ -51,6 +52,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Transmogrify, LLC.
@@ -74,6 +76,56 @@ public class ProviderAvailabilityResourceTests {
 	@Test(expected = ValidationException.class)
 	public void parseFeatureIdForAvailabilityRejectsInvalidValue() {
 		ProviderAvailabilityResource.parseFeatureIdForAvailability(Optional.of("invalid"));
+	}
+
+	@Test
+	public void availabilityDateRangeDefaultsToTodayThroughNinetyDays() {
+		ZoneId timeZone = ZoneId.of("America/New_York");
+		LocalDate dateBeforeResolution = LocalDate.now(timeZone);
+
+		ProviderAvailabilityResource.AvailabilityDateRange dateRange =
+				ProviderAvailabilityResource.availabilityDateRangeFor(Optional.empty(), Optional.empty(), timeZone);
+
+		LocalDate dateAfterResolution = LocalDate.now(timeZone);
+
+		assertTrue(dateRange.getStartDate().equals(dateBeforeResolution)
+				|| dateRange.getStartDate().equals(dateAfterResolution));
+		assertEquals(dateRange.getStartDate().plusDays(90), dateRange.getEndDate());
+	}
+
+	@Test
+	public void availabilityDateRangeDefaultsEndDateFromSuppliedStartDate() {
+		LocalDate startDate = LocalDate.of(2026, 1, 1);
+
+		ProviderAvailabilityResource.AvailabilityDateRange dateRange =
+				ProviderAvailabilityResource.availabilityDateRangeFor(Optional.of(startDate), Optional.empty(), ZoneId.of("America/New_York"));
+
+		assertEquals(startDate, dateRange.getStartDate());
+		assertEquals(startDate.plusDays(90), dateRange.getEndDate());
+	}
+
+	@Test(expected = ValidationException.class)
+	public void availabilityDateRangeRejectsInvalidRange() {
+		ProviderAvailabilityResource.availabilityDateRangeFor(Optional.of(LocalDate.of(2026, 1, 2)),
+				Optional.of(LocalDate.of(2026, 1, 1)), ZoneId.of("America/New_York"));
+	}
+
+	@Test
+	public void providerSupportRolesMatchFeature() {
+		assertTrue(ProviderAvailabilityResource.providerSupportRolesMatchFeature(List.of(SupportRoleId.CLINICIAN),
+				List.of(SupportRoleId.COACH, SupportRoleId.CLINICIAN)));
+	}
+
+	@Test
+	public void providerSupportRolesMatchFeatureRejectsNoOverlap() {
+		assertFalse(ProviderAvailabilityResource.providerSupportRolesMatchFeature(List.of(SupportRoleId.CLINICIAN),
+				List.of(SupportRoleId.COACH)));
+	}
+
+	@Test
+	public void providerSupportRolesMatchFeatureRejectsFeatureWithoutSupportRoles() {
+		assertFalse(ProviderAvailabilityResource.providerSupportRolesMatchFeature(List.of(),
+				List.of(SupportRoleId.CLINICIAN)));
 	}
 
 	@Test

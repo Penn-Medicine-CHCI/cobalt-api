@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -34,19 +33,9 @@ import static org.junit.Assert.assertTrue;
  */
 public class ReferrerMetadataSqlTests {
 	@Test
-	public void autismReferrerMetadataSeedsSingularAppointmentTypeIdForResultScreenBookings() throws IOException {
-		String sql = readSql("sql/updates/250-autism-clinic-referrer.sql");
-
-		assertEquals(6, countOccurrences(sql, "\"appointmentTypeId\": \"%s\""));
-		assertEquals(6, countOccurrences(sql, "\"appointmentTypeIds\": [\"%s\"]"));
-	}
-
-	@Test
 	public void resultScreenBookingPathMigrationsWriteAppointmentTypeIdAndPath() throws IOException {
 		assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(
-				readSql("sql/updates/259-referrer-result-screen-booking-confirmation-path.sql"));
-		assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(
-				readSql("sql/updates/261-referrer-result-screen-booking-appointment-type-id.sql"));
+				readSql("sql/updates/256-provider-booking-screening.sql"));
 	}
 
 	protected void assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(String sql) {
@@ -60,16 +49,4 @@ public class ReferrerMetadataSqlTests {
 		return Files.readString(Path.of(filename), StandardCharsets.UTF_8);
 	}
 
-	protected int countOccurrences(String value,
-																 String substring) {
-		int count = 0;
-		int index = 0;
-
-		while ((index = value.indexOf(substring, index)) >= 0) {
-			++count;
-			index += substring.length();
-		}
-
-		return count;
-	}
 }

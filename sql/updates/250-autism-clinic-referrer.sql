@@ -54,7 +54,6 @@ DECLARE
 
   v_clinic_description CONSTANT TEXT := 'Penn Autism Clinic';
   v_clinic_treatment_description CONSTANT TEXT := 'Penn Autism Clinic intake and consult calls with a patient care manager.';
-  v_clinic_phone_number CONSTANT TEXT := '+12155552012';
   v_placeholder_clinic_id CONSTANT UUID := '170a29e6-ae8d-41f5-a4d1-25305c2dd997';
   v_clinic_id UUID;
 
@@ -68,8 +67,6 @@ DECLARE
       gathers the information needed for clinical review, and helps determine the most appropriate next step for care.
     </p>
   $provider_description$;
-  v_provider_bio CONSTANT TEXT := 'John Skokowski coordinates autism clinic intake and consult calls for fixture testing.';
-  v_provider_phone_number CONSTANT TEXT := '+12155551012';
   v_placeholder_provider_id CONSTANT UUID := 'f56acf8f-3d10-431d-8f65-4c379658bfcc';
   v_provider_id UUID;
 
@@ -218,24 +215,16 @@ BEGIN
       clinic_id,
       description,
       treatment_description,
-      phone_number,
       institution_id,
       show_intake_assessment_prompt
     ) VALUES (
       v_clinic_id,
       v_clinic_description,
       v_clinic_treatment_description,
-      v_clinic_phone_number,
       v_from_institution_id,
       FALSE
     );
   END IF;
-
-  UPDATE clinic
-  SET description = v_clinic_description,
-      treatment_description = v_clinic_treatment_description,
-      phone_number = v_clinic_phone_number
-  WHERE clinic_id = v_clinic_id;
 
   SELECT at.appointment_type_id
   INTO v_intake_appointment_type_id
@@ -324,8 +313,6 @@ BEGIN
       scheduling_system_id,
       system_affinity_id,
       url_name,
-      bio,
-      phone_number,
       description
     ) VALUES (
       v_provider_id,
@@ -342,17 +329,9 @@ BEGIN
       'COBALT',
       'COBALT',
       v_provider_url_name,
-      v_provider_bio,
-      v_provider_phone_number,
       v_provider_description
     );
   END IF;
-
-  UPDATE provider
-  SET bio = v_provider_bio,
-      phone_number = v_provider_phone_number,
-      description = v_provider_description
-  WHERE provider_id = v_provider_id;
 
   INSERT INTO provider_clinic (
     provider_clinic_id,
@@ -589,7 +568,6 @@ BEGIN
         "pageDescription": "Schedule a 60 minute Penn Autism Clinic intake call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
-        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -605,7 +583,6 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
-        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -620,7 +597,6 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
-        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     }
@@ -633,18 +609,15 @@ $metadata$,
     v_clinic_id,
     v_provider_id,
     v_intake_appointment_type_id,
-    v_intake_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
     v_consult_appointment_type_id,
-    v_consult_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
-    v_consult_appointment_type_id,
     v_consult_appointment_type_id
   );
 
@@ -1329,7 +1302,6 @@ BEGIN
         "pageDescription": "Schedule a 60 minute Penn Autism Clinic intake call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
-        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -1345,7 +1317,6 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
-        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     },
@@ -1360,7 +1331,6 @@ BEGIN
         "pageDescription": "Schedule a 30 minute Penn Autism Clinic consult call with John Skokowski.",
         "clinicIds": ["%s"],
         "providerId": "%s",
-        "appointmentTypeId": "%s",
         "appointmentTypeIds": ["%s"]
       }
     }
@@ -1374,18 +1344,15 @@ $metadata$,
     v_clinic_id,
     v_provider_id,
     v_intake_appointment_type_id,
-    v_intake_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
     v_consult_appointment_type_id,
-    v_consult_appointment_type_id,
     v_booking_feature_id,
     v_booking_page_title,
     v_clinic_id,
     v_provider_id,
-    v_consult_appointment_type_id,
     v_consult_appointment_type_id
   );
 
