@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.cache.Cache;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ProviderAvailabilityApiResponse.AppointmentModalityAvailabilityApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
@@ -33,16 +34,23 @@ import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.util.Formatter;
+import com.lokalized.Strings;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
+import java.lang.reflect.Proxy;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -67,7 +75,7 @@ public class ProviderAvailabilityApiResponseTests {
 				availabilityTime(LocalTime.of(11, 0), AvailabilityStatus.AVAILABLE, List.of(unknownAppointmentTypeId))
 		)));
 
-		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), provider,
+		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), provider,
 				List.of(providerFind), Map.of(
 				firstAppointmentTypeId, firstAppointmentType,
 				secondAppointmentTypeId, secondAppointmentType
@@ -116,7 +124,7 @@ public class ProviderAvailabilityApiResponseTests {
 				availabilityTime(LocalTime.of(11, 0), AvailabilityStatus.AVAILABLE, List.of(nullDescriptionAppointmentTypeId))
 		)));
 
-		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), provider,
+		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), provider,
 				List.of(providerFind), Map.of(
 				describedAppointmentTypeId, describedAppointmentType,
 				blankDescriptionAppointmentTypeId, blankDescriptionAppointmentType,
@@ -145,7 +153,7 @@ public class ProviderAvailabilityApiResponseTests {
 				availabilityTime(LocalTime.of(9, 0), AvailabilityStatus.AVAILABLE, List.of(appointmentTypeId))
 		)));
 
-		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), provider,
+		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), provider,
 				List.of(providerFind), Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90));
 
 		assertEquals(1, response.getAppointmentModalities().size());
@@ -173,7 +181,7 @@ public class ProviderAvailabilityApiResponseTests {
 				)))
 		);
 
-		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), clinic,
+		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), clinic,
 				providerFinds, Map.of(firstProviderId, firstProvider, secondProviderId, secondProvider),
 				Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90));
 
@@ -273,5 +281,83 @@ public class ProviderAvailabilityApiResponseTests {
 		availabilityTime.setStatus(status);
 		availabilityTime.setAppointmentTypeIds(appointmentTypeIds);
 		return availabilityTime;
+	}
+
+	@Nonnull
+	protected Formatter formatter() {
+		Cache cache = cache();
+
+		return new Formatter(cache,
+				currentContextProvider(),
+				() -> cache,
+				strings());
+	}
+
+	@Nonnull
+	protected Strings strings() {
+		return (Strings) Proxy.newProxyInstance(Strings.class.getClassLoader(), new Class[]{Strings.class},
+				(proxy, method, args) -> {
+					if (method.getName().equals("get") && args != null && args.length > 0)
+						return args[0];
+
+					if (method.getName().equals("toString"))
+						return "TestStrings";
+
+					return null;
+				});
+	}
+
+	@Nonnull
+	protected Cache cache() {
+		return new Cache() {
+			@Nonnull
+			@Override
+			public <T> Optional<T> get(@Nonnull String key,
+																 @Nonnull Class<T> type) {
+				return Optional.empty();
+			}
+
+			@Nonnull
+			@Override
+			public <T> Optional<List<T>> getList(@Nonnull String key,
+																					 @Nonnull Class<T> type) {
+				return Optional.empty();
+			}
+
+			@Nonnull
+			@Override
+			public <T> T get(@Nonnull String key,
+											 @Nonnull Supplier<T> supplier,
+											 @Nonnull Class<T> type) {
+				return supplier.get();
+			}
+
+			@Nonnull
+			@Override
+			public <T> List<T> getList(@Nonnull String key,
+																 @Nonnull Supplier<List<T>> supplier,
+																 @Nonnull Class<T> type) {
+				return supplier.get();
+			}
+
+			@Override
+			public void put(@Nonnull String key,
+											@Nonnull Object value) {
+			}
+
+			@Override
+			public void invalidate(@Nonnull String key) {
+			}
+
+			@Override
+			public void invalidateAll() {
+			}
+
+			@Nonnull
+			@Override
+			public Set<String> getKeys() {
+				return Collections.emptySet();
+			}
+		};
 	}
 }
