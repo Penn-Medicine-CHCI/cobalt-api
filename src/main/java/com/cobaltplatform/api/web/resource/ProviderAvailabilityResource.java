@@ -136,7 +136,7 @@ public class ProviderAvailabilityResource {
 	public ApiResponse providerAvailability(@Nonnull @PathParameter UUID providerId,
 																					@Nonnull @QueryParameter Optional<LocalDate> startDate,
 																					@Nonnull @QueryParameter Optional<LocalDate> endDate,
-																					@Nonnull @QueryParameter Optional<FeatureId> featureId,
+																					@Nonnull @QueryParameter Optional<String> featureId,
 																					@Nonnull @QueryParameter Optional<UUID> appointmentTypeId) {
 		requireNonNull(providerId);
 		requireNonNull(startDate);
@@ -144,6 +144,7 @@ public class ProviderAvailabilityResource {
 		requireNonNull(featureId);
 		requireNonNull(appointmentTypeId);
 
+		Optional<FeatureId> parsedFeatureId = parseFeatureIdForAvailability(featureId);
 		Account account = getCurrentContext().getAccount().get();
 		Provider provider = getProviderService().findProviderById(providerId).orElse(null);
 
@@ -155,7 +156,7 @@ public class ProviderAvailabilityResource {
 
 		AvailabilityDateRange dateRange = availabilityDateRangeFor(startDate, endDate, timeZoneFor(account));
 		Set<UUID> appointmentTypeIds = appointmentTypeId.map(Set::of).orElse(Collections.emptySet());
-		List<ProviderFind> providerFinds = Boolean.TRUE.equals(provider.getActive()) && providerMatchesFeature(provider, featureId)
+		List<ProviderFind> providerFinds = Boolean.TRUE.equals(provider.getActive()) && providerMatchesFeature(provider, parsedFeatureId)
 				? getProviderService().findProviders(providerFindRequest(providerId, null, dateRange, appointmentTypeIds), account)
 				: List.of();
 		filterProviderFindsByAppointmentTypeIds(providerFinds, appointmentTypeIds);
@@ -173,7 +174,7 @@ public class ProviderAvailabilityResource {
 	public ApiResponse clinicAvailability(@Nonnull @PathParameter UUID clinicId,
 																				@Nonnull @QueryParameter Optional<LocalDate> startDate,
 																				@Nonnull @QueryParameter Optional<LocalDate> endDate,
-																				@Nonnull @QueryParameter Optional<FeatureId> featureId,
+																				@Nonnull @QueryParameter Optional<String> featureId,
 																				@Nonnull @QueryParameter Optional<UUID> appointmentTypeId) {
 		requireNonNull(clinicId);
 		requireNonNull(startDate);
@@ -181,6 +182,7 @@ public class ProviderAvailabilityResource {
 		requireNonNull(featureId);
 		requireNonNull(appointmentTypeId);
 
+		Optional<FeatureId> parsedFeatureId = parseFeatureIdForAvailability(featureId);
 		Account account = getCurrentContext().getAccount().get();
 		Clinic clinic = getClinicService().findClinicById(clinicId).orElse(null);
 
@@ -194,7 +196,7 @@ public class ProviderAvailabilityResource {
 		Set<UUID> appointmentTypeIds = appointmentTypeId.map(Set::of).orElse(Collections.emptySet());
 		List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequest(null, clinicId, dateRange, appointmentTypeIds), account);
 		filterProviderFindsByAppointmentTypeIds(providerFinds, appointmentTypeIds);
-		Map<UUID, Provider> providersById = activeProvidersByIdFor(providerFinds, account, featureId);
+		Map<UUID, Provider> providersById = activeProvidersByIdFor(providerFinds, account, parsedFeatureId);
 		List<ProviderFind> activeProviderFinds = providerFinds.stream()
 				.filter(providerFind -> providersById.containsKey(providerFind.getProviderId()))
 				.collect(Collectors.toList());
@@ -275,6 +277,25 @@ public class ProviderAvailabilityResource {
 			}
 
 			providerFind.setDates(filteredAvailabilityDates);
+		}
+	}
+
+	@Nonnull
+	protected static Optional<FeatureId> parseFeatureIdForAvailability(@Nonnull Optional<String> featureId) {
+		requireNonNull(featureId);
+
+		String featureIdAsString = featureId
+				.map(String::trim)
+				.filter(value -> value.length() > 0)
+				.orElse(null);
+
+		if (featureIdAsString == null)
+			return Optional.empty();
+
+		try {
+			return Optional.of(FeatureId.valueOf(featureIdAsString));
+		} catch (IllegalArgumentException e) {
+			throw new ValidationException(new ValidationException.FieldError("featureId", "Feature ID is invalid."));
 		}
 	}
 

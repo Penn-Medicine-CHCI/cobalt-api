@@ -25,6 +25,7 @@ import com.cobaltplatform.api.model.api.response.ProviderAvailabilityApiResponse
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
@@ -34,6 +35,7 @@ import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.util.ValidationException;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -43,15 +45,37 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 /**
  * @author Transmogrify, LLC.
  */
 public class ProviderAvailabilityResourceTests {
+	@Test
+	public void parseFeatureIdForAvailabilityTreatsMissingAndBlankAsAbsent() {
+		assertFalse(ProviderAvailabilityResource.parseFeatureIdForAvailability(Optional.empty()).isPresent());
+		assertFalse(ProviderAvailabilityResource.parseFeatureIdForAvailability(Optional.of("")).isPresent());
+		assertFalse(ProviderAvailabilityResource.parseFeatureIdForAvailability(Optional.of("   ")).isPresent());
+	}
+
+	@Test
+	public void parseFeatureIdForAvailabilityParsesValidValue() {
+		assertEquals(Optional.of(FeatureId.THERAPY),
+				ProviderAvailabilityResource.parseFeatureIdForAvailability(Optional.of("THERAPY")));
+		assertEquals(Optional.of(FeatureId.THERAPY),
+				ProviderAvailabilityResource.parseFeatureIdForAvailability(Optional.of(" THERAPY ")));
+	}
+
+	@Test(expected = ValidationException.class)
+	public void parseFeatureIdForAvailabilityRejectsInvalidValue() {
+		ProviderAvailabilityResource.parseFeatureIdForAvailability(Optional.of("invalid"));
+	}
+
 	@Test
 	public void appointmentTypeFilterResolvesClinicSlotAppointmentDescription() {
 		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
