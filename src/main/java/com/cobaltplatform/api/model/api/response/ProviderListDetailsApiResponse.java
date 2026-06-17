@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -94,6 +95,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 
 	@AssistedInject
 	public ProviderListDetailsApiResponse(@Nonnull ProviderService providerService,
+																				 @Nonnull ClinicService clinicService,
 																				 @Nonnull Formatter formatter,
 																				 @Nonnull Strings strings,
 																				 @Nonnull JsonMapper jsonMapper,
@@ -103,7 +105,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 																				 @Assisted @Nonnull Provider provider,
 																				 @Assisted @Nonnull ProviderFind providerFind,
 																				 @Assisted @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
-		super(providerService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider);
+		super(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider);
 
 		requireNonNull(formatter);
 		requireNonNull(provider);

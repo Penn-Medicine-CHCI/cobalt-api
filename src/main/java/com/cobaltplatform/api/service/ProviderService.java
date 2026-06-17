@@ -311,6 +311,21 @@ public class ProviderService {
 	}
 
 	@Nonnull
+	public List<Provider> findProvidersByClinicId(@Nullable UUID clinicId) {
+		if (clinicId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT DISTINCT p.*
+				FROM provider p, provider_clinic pc
+				WHERE p.provider_id=pc.provider_id
+				AND pc.clinic_id=?
+				AND p.active=TRUE
+				ORDER BY p.name
+				""", Provider.class, clinicId);
+	}
+
+	@Nonnull
 	public List<Provider> findProvidersForAutocomplete(@Nullable String query,
 																										 @Nullable InstitutionId institutionId) {
 		if (institutionId == null)

@@ -21,12 +21,15 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityApiResponse;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
+import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentFunding;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.service.AvailabilityTime;
+import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -76,6 +79,10 @@ public class ProviderApiResponse {
 	private final String license;
 	@Nullable
 	private final String specialty;
+	@Nullable
+	private final String description;
+	@Nullable
+	private final String treatmentDescription;
 	@Nonnull
 	private final String imageUrl;
 	@Nonnull
@@ -104,9 +111,13 @@ public class ProviderApiResponse {
 	@Nullable
 	private final String phoneNumber;
 	@Nullable
+	private final String phoneNumberDescription;
+	@Nullable
 	private final String formattedPhoneNumber;
 	@Nullable
-	private Boolean displayPhoneNumberOnlyForBooking;
+	private final Boolean displayPhoneNumberOnlyForBooking;
+	@Nonnull
+	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 
 	public enum ProviderApiResponseSupplement {
 		EVERYTHING,
@@ -129,6 +140,7 @@ public class ProviderApiResponse {
 
 	@AssistedInject
 	public ProviderApiResponse(@Nonnull ProviderService providerService,
+														 @Nonnull ClinicService clinicService,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
 														 @Nonnull JsonMapper jsonMapper,
@@ -137,11 +149,12 @@ public class ProviderApiResponse {
 														 @Nonnull Configuration configuration,
 														 @Assisted @Nonnull Provider provider,
 														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
-		this(providerService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider, null, supplements);
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider, null, supplements);
 	}
 
 	@AssistedInject
 	public ProviderApiResponse(@Nonnull ProviderService providerService,
+														 @Nonnull ClinicService clinicService,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
 														 @Nonnull JsonMapper jsonMapper,
@@ -152,6 +165,7 @@ public class ProviderApiResponse {
 														 @Assisted @Nullable List<AvailabilityTime> availabilityTimes,
 														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
 		requireNonNull(providerService);
+		requireNonNull(clinicService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(jsonMapper);
@@ -161,6 +175,7 @@ public class ProviderApiResponse {
 		requireNonNull(configuration);
 
 		List<ProviderApiResponseSupplement> supplementsList = Arrays.asList(supplements);
+		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
 
 		this.providerId = provider.getProviderId();
 		this.institutionId = provider.getInstitutionId();
@@ -172,6 +187,8 @@ public class ProviderApiResponse {
 		this.specialty = provider.getSpecialty();
 		this.license = provider.getLicense();
 		this.entity = provider.getEntity();
+		this.description = provider.getDescription();
+		this.treatmentDescription = includeEverything ? treatmentDescriptionFor(clinicService.findClinicsByProviderId(provider.getProviderId())) : null;
 		this.imageUrl = provider.getImageUrl();
 		this.isDefaultImageUrl = provider.getImageUrl() == null;
 		this.timeZone = provider.getTimeZone();
@@ -180,7 +197,9 @@ public class ProviderApiResponse {
 		this.bioUrl = trimToNull(provider.getBioUrl());
 		this.phoneNumber = provider.getPhoneNumber();
 		this.displayPhoneNumberOnlyForBooking = provider.getDisplayPhoneNumberOnlyForBooking();
-		this.formattedPhoneNumber = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
+		this.phoneNumberDescription = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
+		this.formattedPhoneNumber = this.phoneNumberDescription;
+		this.supportedAppointmentModalities = ProviderAppointmentModalitySupport.providerAppointmentModalityApiResponsesFor(provider, strings);
 
 		String bio = trimToNull(provider.getBio());
 
@@ -196,8 +215,6 @@ public class ProviderApiResponse {
 		}
 
 		this.bio = bio;
-
-		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
 
 		if (availabilityTimes == null)
 			this.availabilityTimes = null;
@@ -238,6 +255,21 @@ public class ProviderApiResponse {
 		} else {
 			this.paymentFundingDescriptions = null;
 		}
+	}
+
+	@Nullable
+	protected String treatmentDescriptionFor(@Nonnull List<Clinic> clinics) {
+		requireNonNull(clinics);
+
+		List<String> treatmentDescriptions = clinics.stream()
+				.map(Clinic::getTreatmentDescription)
+				.map(treatmentDescription -> trimToNull(treatmentDescription))
+				.filter(treatmentDescription -> treatmentDescription != null)
+				.collect(Collectors.toList());
+
+		return treatmentDescriptions.size() == 0
+				? null
+				: format("* %s", treatmentDescriptions.stream().collect(Collectors.joining(", ")));
 	}
 
 	@Nonnull
@@ -288,6 +320,16 @@ public class ProviderApiResponse {
 	@Nullable
 	public String getSpecialty() {
 		return specialty;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	@Nullable
+	public String getTreatmentDescription() {
+		return this.treatmentDescription;
 	}
 
 	@Nullable
@@ -349,5 +391,30 @@ public class ProviderApiResponse {
 	@Nullable
 	public String getBio() {
 		return bio;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return this.phoneNumber;
+	}
+
+	@Nullable
+	public String getPhoneNumberDescription() {
+		return this.phoneNumberDescription;
+	}
+
+	@Nullable
+	public String getFormattedPhoneNumber() {
+		return this.formattedPhoneNumber;
+	}
+
+	@Nullable
+	public Boolean getDisplayPhoneNumberOnlyForBooking() {
+		return this.displayPhoneNumberOnlyForBooking;
+	}
+
+	@Nonnull
+	public List<ProviderAppointmentModalityApiResponse> getSupportedAppointmentModalities() {
+		return this.supportedAppointmentModalities;
 	}
 }

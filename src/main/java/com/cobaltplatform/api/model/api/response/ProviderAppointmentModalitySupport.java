@@ -20,12 +20,15 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityApiResponse;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
+import com.lokalized.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -44,6 +47,44 @@ public final class ProviderAppointmentModalitySupport {
 	@Nonnull
 	public static List<ProviderAppointmentModalityId> providerAppointmentModalityIdDisplayOrder() {
 		return List.of(ProviderAppointmentModalityId.PHONE, ProviderAppointmentModalityId.VIRTUAL, ProviderAppointmentModalityId.IN_PERSON);
+	}
+
+	@Nonnull
+	public static List<ProviderAppointmentModalityApiResponse> providerAppointmentModalityApiResponsesFor(@Nonnull Provider provider,
+																																																			 @Nonnull Strings strings) {
+		requireNonNull(provider);
+		requireNonNull(strings);
+
+		return providerAppointmentModalityApiResponsesFor(providerAppointmentModalityIdsFor(provider), strings);
+	}
+
+	@Nonnull
+	public static List<ProviderAppointmentModalityApiResponse> providerAppointmentModalityApiResponsesFor(@Nonnull Set<ProviderAppointmentModalityId> providerAppointmentModalityIds,
+																																																			 @Nonnull Strings strings) {
+		requireNonNull(providerAppointmentModalityIds);
+		requireNonNull(strings);
+
+		List<ProviderAppointmentModalityApiResponse> providerAppointmentModalities = new ArrayList<>(providerAppointmentModalityIds.size());
+
+		for (ProviderAppointmentModalityId providerAppointmentModalityId : providerAppointmentModalityIdDisplayOrder())
+			if (providerAppointmentModalityIds.contains(providerAppointmentModalityId))
+				providerAppointmentModalities.add(new ProviderAppointmentModalityApiResponse(providerAppointmentModalityId,
+						providerAppointmentModalityDescriptionFor(providerAppointmentModalityId, strings)));
+
+		return providerAppointmentModalities;
+	}
+
+	@Nonnull
+	public static String providerAppointmentModalityDescriptionFor(@Nonnull ProviderAppointmentModalityId providerAppointmentModalityId,
+																																 @Nonnull Strings strings) {
+		requireNonNull(providerAppointmentModalityId);
+		requireNonNull(strings);
+
+		return switch (providerAppointmentModalityId) {
+			case PHONE -> strings.get("Phone");
+			case VIRTUAL -> strings.get("Virtual");
+			case IN_PERSON -> strings.get("In Person");
+		};
 	}
 
 	@Nonnull
