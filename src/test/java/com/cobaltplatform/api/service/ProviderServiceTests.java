@@ -86,7 +86,7 @@ public class ProviderServiceTests {
 
 			List<ProviderSearchResult> providerSearchResults = providerService.findProviderSearchResults(FeatureId.SPIRITUAL_SUPPORT, null, account);
 
-			assertTrue("Expected spiritual-support provider result to remain visible",
+			assertFalse("Expected spiritual-support provider result to be represented by its clinic result",
 					providerSearchResults.stream()
 							.anyMatch(providerSearchResult -> providerSearchResult.getProviderSearchResultTypeId() == ProviderSearchResultTypeId.PROVIDER
 									&& providerSearchResult.getProviderSearchResultId().equals(providerId)));
@@ -143,7 +143,7 @@ public class ProviderServiceTests {
 			List<ProviderSearchResult> cobaltHealthSystemSpiritualSupportResults =
 					providerService.findProviderSearchResults(FeatureId.SPIRITUAL_SUPPORT, cobaltHealthSystemLocationId, account);
 
-			assertContainsProviderSearchResult(cobaltGeneralSpiritualSupportResults, ProviderSearchResultTypeId.PROVIDER, rabbiGraysonProviderId);
+			assertDoesNotContainProviderSearchResult(cobaltGeneralSpiritualSupportResults, ProviderSearchResultTypeId.PROVIDER, rabbiGraysonProviderId);
 			assertContainsProviderSearchResult(cobaltGeneralSpiritualSupportResults, ProviderSearchResultTypeId.CLINIC, adultAutismServicesClinicId);
 			assertDoesNotContainProviderSearchResult(cobaltHealthSystemSpiritualSupportResults, ProviderSearchResultTypeId.PROVIDER, rabbiGraysonProviderId);
 			assertDoesNotContainProviderSearchResult(cobaltHealthSystemSpiritualSupportResults, ProviderSearchResultTypeId.CLINIC, adultAutismServicesClinicId);
@@ -179,7 +179,11 @@ public class ProviderServiceTests {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			Formatter formatter = app.getInjector().getInstance(Formatter.class);
 			Strings strings = app.getInjector().getInstance(Strings.class);
-			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSourceId.ANONYMOUS);
+				setInstitutionId(InstitutionId.COBALT);
+			}});
+			Account account = accountService.findAccountById(accountId).get();
 			UUID clinicId = database.queryForObject("""
 					SELECT clinic_id
 					FROM clinic
@@ -432,6 +436,35 @@ public class ProviderServiceTests {
 	}
 
 	@Test
+	public void providerSearchResultsSuppressProvidersRepresentedByClinicLevelResults() {
+		UUID representedProviderId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+		UUID standaloneProviderId = UUID.fromString("00000000-0000-0000-0000-000000000012");
+		UUID providerLevelClinicProviderId = UUID.fromString("00000000-0000-0000-0000-000000000013");
+		UUID clinicLevelClinicId = UUID.fromString("00000000-0000-0000-0000-000000000021");
+		UUID providerLevelClinicId = UUID.fromString("00000000-0000-0000-0000-000000000022");
+
+		List<ProviderSearchResult> providerSearchResults = ProviderService.providerSearchResultsFor(
+				List.of(
+						providerFind(representedProviderId, "Represented Provider"),
+						providerFind(standaloneProviderId, "Standalone Provider"),
+						providerFind(providerLevelClinicProviderId, "Provider-Level Clinic Provider")),
+				Map.of(
+						representedProviderId, provider(representedProviderId, "Represented Provider"),
+						standaloneProviderId, provider(standaloneProviderId, "Standalone Provider"),
+						providerLevelClinicProviderId, provider(providerLevelClinicProviderId, "Provider-Level Clinic Provider")),
+				Map.of(
+						representedProviderId, List.of(clinic(clinicLevelClinicId, "Aggregate Clinic", AppointmentBookingLevelId.CLINIC)),
+						providerLevelClinicProviderId, List.of(clinic(providerLevelClinicId, "Provider-Level Clinic", AppointmentBookingLevelId.PROVIDER))),
+				Map.of());
+
+		assertDoesNotContainProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.PROVIDER, representedProviderId);
+		assertContainsProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.CLINIC, clinicLevelClinicId);
+		assertContainsProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.PROVIDER, standaloneProviderId);
+		assertContainsProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.PROVIDER, providerLevelClinicProviderId);
+		assertDoesNotContainProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.CLINIC, providerLevelClinicId);
+	}
+
+	@Test
 	public void providerSearchResultsSortByNameTypeAndId() {
 		UUID alphaProviderId = UUID.fromString("00000000-0000-0000-0000-000000000002");
 		UUID alphaClinicId = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -445,12 +478,11 @@ public class ProviderServiceTests {
 				Map.of(alphaProviderId, List.of(clinic(alphaClinicId, "Alpha", AppointmentBookingLevelId.CLINIC))),
 				Map.of());
 
-		assertEquals(alphaProviderId, providerSearchResults.get(0).getProviderSearchResultId());
-		assertEquals(AppointmentBookingLevelId.PROVIDER, providerSearchResults.get(0).getAppointmentBookingLevelId());
-		assertEquals(alphaClinicId, providerSearchResults.get(1).getProviderSearchResultId());
-		assertEquals(AppointmentBookingLevelId.CLINIC, providerSearchResults.get(1).getAppointmentBookingLevelId());
-		assertEquals(betaProviderId, providerSearchResults.get(2).getProviderSearchResultId());
-		assertEquals(AppointmentBookingLevelId.PROVIDER, providerSearchResults.get(2).getAppointmentBookingLevelId());
+		assertEquals(2, providerSearchResults.size());
+		assertEquals(alphaClinicId, providerSearchResults.get(0).getProviderSearchResultId());
+		assertEquals(AppointmentBookingLevelId.CLINIC, providerSearchResults.get(0).getAppointmentBookingLevelId());
+		assertEquals(betaProviderId, providerSearchResults.get(1).getProviderSearchResultId());
+		assertEquals(AppointmentBookingLevelId.PROVIDER, providerSearchResults.get(1).getAppointmentBookingLevelId());
 	}
 
 	@Test

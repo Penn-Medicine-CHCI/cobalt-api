@@ -514,6 +514,7 @@ public class ProviderService {
 
 		Map<UUID, Clinic> clinicsById = new HashMap<>();
 		Map<UUID, List<ProviderFind>> providerFindsByClinicId = new HashMap<>();
+		Set<UUID> providerIdsRepresentedByClinicResult = new HashSet<>();
 
 		for (ProviderFind providerFind : providerFinds) {
 			List<Clinic> providerClinics = clinicsByProviderId.get(providerFind.getProviderId());
@@ -535,12 +536,18 @@ public class ProviderService {
 				}
 
 				clinicProviderFinds.add(providerFind);
+
+				if (providerFind.getProviderId() != null)
+					providerIdsRepresentedByClinicResult.add(providerFind.getProviderId());
 			}
 		}
 
 		List<ProviderSearchResult> providerSearchResults = new ArrayList<>();
 
 		for (ProviderFind providerFind : providerFinds) {
+			if (providerIdsRepresentedByClinicResult.contains(providerFind.getProviderId()))
+				continue;
+
 			Provider provider = providersById.get(providerFind.getProviderId());
 
 			if (provider != null)

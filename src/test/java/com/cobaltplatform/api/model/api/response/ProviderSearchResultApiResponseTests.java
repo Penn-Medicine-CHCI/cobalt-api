@@ -50,13 +50,14 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -107,6 +108,74 @@ public class ProviderSearchResultApiResponseTests {
 
 		assertEquals(1, response.getSupportedAppointmentModalities().size());
 		assertEquals(ProviderAppointmentModalityId.PHONE, response.getSupportedAppointmentModalities().get(0).getAppointmentModalityId());
+	}
+
+	@Test
+	public void providerSupportedAppointmentModalitiesIgnoreMissingAvailability() {
+		UUID providerId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		provider.setPhoneNumber("+12155551000");
+		ProviderFind providerFind = providerFind(providerId, Set.of(UUID.randomUUID()));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind, Map.of(), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertSupportedAppointmentModalities(response, List.of(
+				ProviderAppointmentModalityId.PHONE,
+				ProviderAppointmentModalityId.VIRTUAL));
+	}
+
+	@Test
+	public void providerSupportedAppointmentModalitiesIgnoreBookedAndUnknownSlotAvailability() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID unknownAppointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		provider.setPhoneNumber("+12155551000");
+		ProviderFind providerFind = providerFind(providerId, Set.of(appointmentTypeId));
+		AvailabilityDate availabilityDate = new AvailabilityDate();
+		AvailabilityTime bookedAvailabilityTime = new AvailabilityTime();
+		AvailabilityTime unknownAppointmentTypeAvailabilityTime = new AvailabilityTime();
+
+		availabilityDate.setDate(LocalDate.of(2026, 1, 1));
+		bookedAvailabilityTime.setTime(LocalTime.NOON);
+		bookedAvailabilityTime.setStatus(AvailabilityStatus.BOOKED);
+		bookedAvailabilityTime.setAppointmentTypeIds(List.of(appointmentTypeId));
+		unknownAppointmentTypeAvailabilityTime.setTime(LocalTime.of(13, 0));
+		unknownAppointmentTypeAvailabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
+		unknownAppointmentTypeAvailabilityTime.setAppointmentTypeIds(List.of(unknownAppointmentTypeId));
+		availabilityDate.setTimes(List.of(bookedAvailabilityTime, unknownAppointmentTypeAvailabilityTime));
+		providerFind.setDates(List.of(availabilityDate));
+
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, null)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertSupportedAppointmentModalities(response, List.of(
+				ProviderAppointmentModalityId.PHONE,
+				ProviderAppointmentModalityId.VIRTUAL));
+	}
+
+	@Test
+	public void clinicSupportedAppointmentModalitiesUnionStaticProviderSupportWithoutAvailability() {
+		UUID phoneProviderId = UUID.randomUUID();
+		UUID virtualProviderId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		Provider phoneProvider = provider(phoneProviderId, VideoconferencePlatformId.TELEPHONE);
+		Provider virtualProvider = provider(virtualProviderId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind phoneProviderFind = providerFind(phoneProviderId, Set.of(UUID.randomUUID()));
+		ProviderFind virtualProviderFind = providerFind(virtualProviderId, Set.of(UUID.randomUUID()));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forClinic(clinic(clinicId, AppointmentBookingLevelId.CLINIC),
+				List.of(phoneProviderFind, virtualProviderFind),
+				Map.of(phoneProviderId, phoneProvider, virtualProviderId, virtualProvider),
+				Map.of(), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertSupportedAppointmentModalities(response, List.of(
+				ProviderAppointmentModalityId.PHONE,
+				ProviderAppointmentModalityId.VIRTUAL));
 	}
 
 	@Test
@@ -440,6 +509,17 @@ public class ProviderSearchResultApiResponseTests {
 				.anyMatch(method -> method.getName().equals("getAppointmentTypeName")));
 		assertFalse(Arrays.stream(ProviderSearchScreeningRequirement.class.getMethods())
 				.anyMatch(method -> method.getName().equals("getAppointmentDescription")));
+	}
+
+	protected void assertSupportedAppointmentModalities(@Nonnull ProviderSearchResultApiResponse response,
+																											@Nonnull List<ProviderAppointmentModalityId> expectedAppointmentModalityIds) {
+		requireNonNull(response);
+		requireNonNull(expectedAppointmentModalityIds);
+
+		assertEquals(expectedAppointmentModalityIds.size(), response.getSupportedAppointmentModalities().size());
+
+		for (int i = 0; i < expectedAppointmentModalityIds.size(); ++i)
+			assertEquals(expectedAppointmentModalityIds.get(i), response.getSupportedAppointmentModalities().get(i).getAppointmentModalityId());
 	}
 
 	@Nonnull
