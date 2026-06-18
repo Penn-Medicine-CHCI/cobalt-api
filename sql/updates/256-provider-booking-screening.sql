@@ -5,6 +5,10 @@ SELECT _v.register_patch('256-provider-booking-screening', NULL, NULL);
 -- default behavior until an institution explicitly opts in.
 ALTER TABLE institution ADD COLUMN IF NOT EXISTS booking_v2_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
+UPDATE institution
+SET booking_v2_enabled=TRUE
+WHERE institution_id='COBALT';
+
 -- Add the explicit lookup used by provider search to distinguish provider-level
 -- booking rows from clinic aggregate booking rows.
 CREATE TABLE IF NOT EXISTS appointment_booking_level (
@@ -66,6 +70,24 @@ BEGIN
 END $$;
 
 ALTER TABLE clinic DROP COLUMN IF EXISTS bookable_as_provider;
+
+ALTER TABLE clinic ADD COLUMN IF NOT EXISTS website_url TEXT;
+ALTER TABLE clinic ADD COLUMN IF NOT EXISTS details_html TEXT;
+ALTER TABLE provider ADD COLUMN IF NOT EXISTS details_html TEXT;
+
+ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS address_id UUID NULL REFERENCES address;
+ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS phone_number TEXT;
+ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS website_url TEXT;
+ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS email_address TEXT;
+
+CREATE INDEX IF NOT EXISTS institution_location_institution_id_display_order_idx
+ON institution_location(institution_id, display_order, name, institution_location_id);
+
+CREATE INDEX IF NOT EXISTS provider_institution_location_provider_id_idx
+ON provider_institution_location(provider_id, institution_location_id);
+
+CREATE INDEX IF NOT EXISTS provider_institution_location_institution_location_id_idx
+ON provider_institution_location(institution_location_id, provider_id);
 
 -- Add the screening-flow pointer to appointment types. Values created earlier
 -- on this feature branch are intentionally discarded and rebuilt below from the

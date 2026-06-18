@@ -39,20 +39,21 @@ public class ReferrerMetadataSqlTests {
 	}
 
 	@Test
-	public void providerClinicDetailsHtmlMigrationWritesPennAutismSemanticContent() throws IOException {
-		String sql = readSql("sql/updates/258-provider-clinic-details-html.sql");
+	public void providerClinicDetailsHtmlSchemaAndFixtureContentAreSeparated() throws IOException {
+		String functionalSql = readSql("sql/updates/256-provider-booking-screening.sql");
+		String fixtureSql = readSql("sql/updates/256-local-only-provider-booking-test-data.sql");
 
-		assertTrue(sql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS details_html TEXT"));
-		assertTrue(sql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS details_html TEXT"));
-		assertTrue(sql.contains("<section class=\"mb-8\">"));
-		assertTrue(sql.contains("<h2 class=\"mb-4\">About</h2>"));
-		assertTrue(sql.contains("<h2 class=\"mb-4\">Accepted Insurances</h2>"));
-		assertTrue(sql.contains("<div class=\"table-responsive\">"));
-		assertTrue(sql.contains("<table class=\"table table-bordered align-middle mb-0\">"));
-		assertTrue(sql.contains("<th scope=\"col\">Health Insurance</th>"));
-		assertTrue(sql.contains("Aetna Choice Point-of-Service (POS) II"));
-		assertTrue(sql.contains("Quest Behavioral Health"));
-		assertTrue(sql.contains("LOWER(TRIM(description)) = LOWER(TRIM('Penn Autism Clinic'))"));
+		assertTrue(functionalSql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS details_html TEXT"));
+		assertTrue(functionalSql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS details_html TEXT"));
+		assertTrue(fixtureSql.contains("<section class=\"mb-8\">"));
+		assertTrue(fixtureSql.contains("<h2 class=\"mb-4\">About</h2>"));
+		assertTrue(fixtureSql.contains("<h2 class=\"mb-4\">Accepted Insurances</h2>"));
+		assertTrue(fixtureSql.contains("<div class=\"table-responsive\">"));
+		assertTrue(fixtureSql.contains("<table class=\"table table-bordered align-middle mb-0\">"));
+		assertTrue(fixtureSql.contains("<th scope=\"col\">Health Insurance</th>"));
+		assertTrue(fixtureSql.contains("Aetna Choice Point-of-Service (POS) II"));
+		assertTrue(fixtureSql.contains("Quest Behavioral Health"));
+		assertTrue(fixtureSql.contains("LOWER(TRIM(description))=LOWER(TRIM('Penn Autism Clinic'))"));
 	}
 
 	protected void assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(String sql) {
