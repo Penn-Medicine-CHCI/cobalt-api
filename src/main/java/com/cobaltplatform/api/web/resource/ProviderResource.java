@@ -56,16 +56,15 @@ import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
-import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Filter;
 import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
-import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
@@ -984,16 +983,16 @@ public class ProviderResource {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 
-		Map<UUID, List<ProviderLocation>> providerLocationsByProviderId =
-				getProviderService().findProviderLocationsByProviderIds(providerIds);
-		Set<UUID> addressIds = providerLocationsByProviderId.values().stream()
+		Map<UUID, List<InstitutionLocation>> institutionLocationsByProviderId =
+				getProviderService().findInstitutionLocationsByProviderIds(providerIds);
+		Set<UUID> addressIds = institutionLocationsByProviderId.values().stream()
 				.flatMap(Collection::stream)
-				.map(ProviderLocation::getAddressId)
+				.map(InstitutionLocation::getAddressId)
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 		Map<UUID, Address> addressesByAddressId = getProviderService().findAddressesByIds(addressIds);
 
-		return new ProviderApiResponseBatchContext(providerLocationsByProviderId, addressesByAddressId, true, true);
+		return new ProviderApiResponseBatchContext(institutionLocationsByProviderId, addressesByAddressId, true, true);
 	}
 
 	@Nonnull
@@ -1008,16 +1007,16 @@ public class ProviderResource {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 
-		Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId =
-				getClinicService().findClinicLocationsByClinicIds(clinicIds);
-		Set<UUID> addressIds = clinicLocationsByClinicId.values().stream()
+		Map<UUID, List<InstitutionLocation>> institutionLocationsByClinicId =
+				getClinicService().findInstitutionLocationsByClinicIds(clinicIds);
+		Set<UUID> addressIds = institutionLocationsByClinicId.values().stream()
 				.flatMap(Collection::stream)
-				.map(ClinicLocation::getAddressId)
+				.map(InstitutionLocation::getAddressId)
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
-		Map<UUID, Address> addressesByAddressId = getClinicService().findAddressesByIds(addressIds);
+		Map<UUID, Address> addressesByAddressId = getProviderService().findAddressesByIds(addressIds);
 
-		return new ClinicApiResponseBatchContext(clinicLocationsByClinicId, addressesByAddressId, true, true);
+		return new ClinicApiResponseBatchContext(institutionLocationsByClinicId, addressesByAddressId, true, true);
 	}
 
 	@Nonnull

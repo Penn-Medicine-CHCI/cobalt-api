@@ -20,10 +20,9 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
-import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Clinic;
-import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -38,6 +37,7 @@ import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -137,62 +137,79 @@ public class ClinicService {
 	}
 
 	@Nonnull
-	public List<ClinicLocation> findClinicLocationsByClinicId(@Nullable UUID clinicId) {
+	public List<InstitutionLocation> findInstitutionLocationsByClinicId(@Nullable UUID clinicId) {
 		if (clinicId == null)
 			return Collections.emptyList();
 
-		return getDatabase().queryForList("""
-				SELECT *
-				FROM clinic_location
-				WHERE clinic_id=?
-				ORDER BY display_order, name, clinic_location_id
-				""", ClinicLocation.class, clinicId);
+		List<InstitutionLocation> institutionLocations = getDatabase().queryForList("""
+				SELECT il.*
+				FROM provider_clinic pc, provider p, provider_institution_location pil, institution_location il
+				WHERE pc.clinic_id=?
+				AND p.provider_id=pc.provider_id
+				AND p.active=TRUE
+				AND pil.provider_id=p.provider_id
+				AND il.institution_location_id=pil.institution_location_id
+				ORDER BY il.display_order, il.name, il.institution_location_id
+				""", InstitutionLocation.class, clinicId);
+
+		return deduplicatedInstitutionLocations(institutionLocations);
 	}
 
 	@Nonnull
-	public Map<UUID, List<ClinicLocation>> findClinicLocationsByClinicIds(@Nullable Set<UUID> clinicIds) {
+	public Map<UUID, List<InstitutionLocation>> findInstitutionLocationsByClinicIds(@Nullable Set<UUID> clinicIds) {
 		if (clinicIds == null || clinicIds.isEmpty())
 			return Collections.emptyMap();
 
-		List<ClinicLocation> clinicLocations = getDatabase().queryForList("""
-				SELECT *
-				FROM clinic_location
-				WHERE clinic_id = ANY (CAST(? AS UUID[]))
-				ORDER BY clinic_id, display_order, name, clinic_location_id
-				""", ClinicLocation.class, (Object) clinicIds.toArray(new UUID[0]));
+		List<InstitutionLocationWithClinicId> institutionLocations = getDatabase().queryForList("""
+				SELECT il.*, pc.clinic_id
+				FROM provider_clinic pc, provider p, provider_institution_location pil, institution_location il
+				WHERE pc.clinic_id = ANY (CAST(? AS UUID[]))
+				AND p.provider_id=pc.provider_id
+				AND p.active=TRUE
+				AND pil.provider_id=p.provider_id
+				AND il.institution_location_id=pil.institution_location_id
+				ORDER BY pc.clinic_id, il.display_order, il.name, il.institution_location_id
+				""", InstitutionLocationWithClinicId.class, (Object) clinicIds.toArray(new UUID[0]));
 
-		Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId = new HashMap<>();
+		Map<UUID, List<InstitutionLocation>> institutionLocationsByClinicId = new HashMap<>();
+		Map<UUID, Set<UUID>> institutionLocationIdsByClinicId = new HashMap<>();
 
-		for (ClinicLocation clinicLocation : clinicLocations) {
-			if (clinicLocation.getClinicId() == null)
+		for (InstitutionLocationWithClinicId institutionLocation : institutionLocations) {
+			if (institutionLocation.getClinicId() == null || institutionLocation.getInstitutionLocationId() == null)
 				continue;
 
-			List<ClinicLocation> clinicLocationsForClinic =
-					clinicLocationsByClinicId.computeIfAbsent(clinicLocation.getClinicId(), ignored -> new ArrayList<>());
-			clinicLocationsForClinic.add(clinicLocation);
+			Set<UUID> institutionLocationIdsForClinic =
+					institutionLocationIdsByClinicId.computeIfAbsent(institutionLocation.getClinicId(), ignored -> new HashSet<>());
+
+			if (!institutionLocationIdsForClinic.add(institutionLocation.getInstitutionLocationId()))
+				continue;
+
+			List<InstitutionLocation> institutionLocationsForClinic =
+					institutionLocationsByClinicId.computeIfAbsent(institutionLocation.getClinicId(), ignored -> new ArrayList<>());
+			institutionLocationsForClinic.add(institutionLocation);
 		}
 
-		return clinicLocationsByClinicId;
+		return institutionLocationsByClinicId;
 	}
 
 	@Nonnull
-	public Map<UUID, Address> findAddressesByIds(@Nullable Set<UUID> addressIds) {
-		if (addressIds == null || addressIds.isEmpty())
-			return Collections.emptyMap();
+	protected List<InstitutionLocation> deduplicatedInstitutionLocations(@Nonnull List<InstitutionLocation> institutionLocations) {
+		requireNonNull(institutionLocations);
 
-		List<Address> addresses = getDatabase().queryForList("""
-				SELECT *
-				FROM address
-				WHERE address_id = ANY (CAST(? AS UUID[]))
-				""", Address.class, (Object) addressIds.toArray(new UUID[0]));
+		List<InstitutionLocation> deduplicatedInstitutionLocations = new ArrayList<>(institutionLocations.size());
+		Set<UUID> institutionLocationIds = new HashSet<>();
 
-		Map<UUID, Address> addressesByAddressId = new HashMap<>(addresses.size());
+		for (InstitutionLocation institutionLocation : institutionLocations) {
+			if (institutionLocation.getInstitutionLocationId() == null)
+				continue;
 
-		for (Address address : addresses)
-			if (address.getAddressId() != null)
-				addressesByAddressId.put(address.getAddressId(), address);
+			if (!institutionLocationIds.add(institutionLocation.getInstitutionLocationId()))
+				continue;
 
-		return addressesByAddressId;
+			deduplicatedInstitutionLocations.add(institutionLocation);
+		}
+
+		return deduplicatedInstitutionLocations;
 	}
 
 	@Nonnull
@@ -241,6 +258,20 @@ public class ClinicService {
 
 		public void setProviderId(@Nullable UUID providerId) {
 			this.providerId = providerId;
+		}
+	}
+
+	protected static class InstitutionLocationWithClinicId extends InstitutionLocation {
+		@Nullable
+		private UUID clinicId;
+
+		@Nullable
+		public UUID getClinicId() {
+			return this.clinicId;
+		}
+
+		public void setClinicId(@Nullable UUID clinicId) {
+			this.clinicId = clinicId;
 		}
 	}
 }

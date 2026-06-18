@@ -19,8 +19,11 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
+import com.cobaltplatform.api.service.AddressService;
+import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
@@ -45,6 +48,16 @@ public class InstitutionLocationApiResponse {
 	private final String name;
 	@Nullable
 	private final String shortName;
+	@Nullable
+	private final Address address;
+	@Nullable
+	private final String phoneNumber;
+	@Nullable
+	private final String formattedPhoneNumber;
+	@Nullable
+	private final String websiteUrl;
+	@Nullable
+	private final String emailAddress;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -54,13 +67,27 @@ public class InstitutionLocationApiResponse {
 	}
 
 	@AssistedInject
-	public InstitutionLocationApiResponse(@Assisted @Nonnull InstitutionLocation institutionLocation) {
+	public InstitutionLocationApiResponse(@Nonnull AddressService addressService,
+																				@Nonnull Formatter formatter,
+																				@Assisted @Nonnull InstitutionLocation institutionLocation) {
+		this(institutionLocation, requireNonNull(addressService).findAddressById(requireNonNull(institutionLocation).getAddressId()).orElse(null), formatter);
+	}
+
+	public InstitutionLocationApiResponse(@Nonnull InstitutionLocation institutionLocation,
+																				@Nullable Address address,
+																				@Nonnull Formatter formatter) {
 		requireNonNull(institutionLocation);
+		requireNonNull(formatter);
 
 		this.institutionLocationId = institutionLocation.getInstitutionLocationId();
 		this.institutionId = institutionLocation.getInstitutionId();
 		this.name = institutionLocation.getName();
 		this.shortName = institutionLocation.getShortName();
+		this.address = address;
+		this.phoneNumber = institutionLocation.getPhoneNumber();
+		this.formattedPhoneNumber = formatter.formatPhoneNumber(institutionLocation.getPhoneNumber());
+		this.websiteUrl = institutionLocation.getWebsiteUrl();
+		this.emailAddress = institutionLocation.getEmailAddress();
 	}
 
 	@Nonnull
@@ -81,5 +108,30 @@ public class InstitutionLocationApiResponse {
 	@Nonnull
 	public Optional<String> getShortName() {
 		return Optional.ofNullable(this.shortName);
+	}
+
+	@Nullable
+	public Address getAddress() {
+		return this.address;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return this.phoneNumber;
+	}
+
+	@Nullable
+	public String getFormattedPhoneNumber() {
+		return this.formattedPhoneNumber;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return this.websiteUrl;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
 	}
 }

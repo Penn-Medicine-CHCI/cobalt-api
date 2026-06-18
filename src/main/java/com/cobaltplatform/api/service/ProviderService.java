@@ -49,6 +49,7 @@ import com.cobaltplatform.api.model.db.Holiday;
 import com.cobaltplatform.api.model.db.Holiday.HolidayId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionType;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
@@ -58,7 +59,6 @@ import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
-import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
@@ -328,42 +328,51 @@ public class ProviderService {
 	}
 
 	@Nonnull
-	public List<ProviderLocation> findProviderLocationsByProviderId(@Nullable UUID providerId) {
+	public List<InstitutionLocation> findInstitutionLocationsByProviderId(@Nullable UUID providerId) {
 		if (providerId == null)
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-				SELECT *
-				FROM provider_location
-				WHERE provider_id=?
-				ORDER BY display_order, name, provider_location_id
-				""", ProviderLocation.class, providerId);
+				SELECT DISTINCT il.*
+				FROM provider_institution_location pil, institution_location il
+				WHERE pil.provider_id=?
+				AND il.institution_location_id=pil.institution_location_id
+				ORDER BY il.display_order, il.name, il.institution_location_id
+				""", InstitutionLocation.class, providerId);
 	}
 
 	@Nonnull
-	public Map<UUID, List<ProviderLocation>> findProviderLocationsByProviderIds(@Nullable Set<UUID> providerIds) {
+	public Map<UUID, List<InstitutionLocation>> findInstitutionLocationsByProviderIds(@Nullable Set<UUID> providerIds) {
 		if (providerIds == null || providerIds.isEmpty())
 			return Collections.emptyMap();
 
-		List<ProviderLocation> providerLocations = getDatabase().queryForList("""
-				SELECT *
-				FROM provider_location
-				WHERE provider_id = ANY (CAST(? AS UUID[]))
-				ORDER BY provider_id, display_order, name, provider_location_id
-				""", ProviderLocation.class, (Object) providerIds.toArray(new UUID[0]));
+		List<InstitutionLocationWithProviderId> institutionLocations = getDatabase().queryForList("""
+				SELECT il.*, pil.provider_id
+				FROM provider_institution_location pil, institution_location il
+				WHERE pil.provider_id = ANY (CAST(? AS UUID[]))
+				AND il.institution_location_id=pil.institution_location_id
+				ORDER BY pil.provider_id, il.display_order, il.name, il.institution_location_id
+				""", InstitutionLocationWithProviderId.class, (Object) providerIds.toArray(new UUID[0]));
 
-		Map<UUID, List<ProviderLocation>> providerLocationsByProviderId = new HashMap<>();
+		Map<UUID, List<InstitutionLocation>> institutionLocationsByProviderId = new HashMap<>();
+		Map<UUID, Set<UUID>> institutionLocationIdsByProviderId = new HashMap<>();
 
-		for (ProviderLocation providerLocation : providerLocations) {
-			if (providerLocation.getProviderId() == null)
+		for (InstitutionLocationWithProviderId institutionLocation : institutionLocations) {
+			if (institutionLocation.getProviderId() == null || institutionLocation.getInstitutionLocationId() == null)
 				continue;
 
-			List<ProviderLocation> providerLocationsForProvider =
-					providerLocationsByProviderId.computeIfAbsent(providerLocation.getProviderId(), ignored -> new ArrayList<>());
-			providerLocationsForProvider.add(providerLocation);
+			Set<UUID> institutionLocationIdsForProvider =
+					institutionLocationIdsByProviderId.computeIfAbsent(institutionLocation.getProviderId(), ignored -> new HashSet<>());
+
+			if (!institutionLocationIdsForProvider.add(institutionLocation.getInstitutionLocationId()))
+				continue;
+
+			List<InstitutionLocation> institutionLocationsForProvider =
+					institutionLocationsByProviderId.computeIfAbsent(institutionLocation.getProviderId(), ignored -> new ArrayList<>());
+			institutionLocationsForProvider.add(institutionLocation);
 		}
 
-		return providerLocationsByProviderId;
+		return institutionLocationsByProviderId;
 	}
 
 	@Nonnull
@@ -3217,5 +3226,19 @@ public class ProviderService {
 	@Nonnull
 	protected Logger getLogger() {
 		return logger;
+	}
+
+	protected static class InstitutionLocationWithProviderId extends InstitutionLocation {
+		@Nullable
+		private UUID providerId;
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
 	}
 }
