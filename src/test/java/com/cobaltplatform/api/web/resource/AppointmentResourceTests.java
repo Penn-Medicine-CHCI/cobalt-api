@@ -27,6 +27,9 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.pyranid.Database;
+import com.soklet.web.exception.NotFoundException;
 import org.junit.Test;
 
 import java.time.ZoneId;
@@ -40,6 +43,45 @@ import static org.junit.Assert.fail;
  * @author Transmogrify, LLC.
  */
 public class AppointmentResourceTests {
+	@Test(expected = NotFoundException.class)
+	public void appointmentBookingRequirementsReturnsNotFoundWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentResource appointmentResource = app.getInjector().getInstance(AppointmentResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, false);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					() -> appointmentResource.appointmentBookingRequirements("{}"));
+		});
+	}
+
+	@Test
+	public void createAppointmentDoesNotRequireFirstNameAndLastNameWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentResource appointmentResource = app.getInjector().getInstance(AppointmentResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, false);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+				try {
+					appointmentResource.createAppointment("{}");
+					fail("Expected appointment creation to fail validation.");
+				} catch (ValidationException e) {
+					assertTrue(e.getFieldErrors().stream().noneMatch(fieldError ->
+							"firstName".equals(fieldError.getField()) || "lastName".equals(fieldError.getField())));
+				}
+			});
+		});
+	}
+
 	@Test
 	public void createAppointmentRejectsMissingFirstNameAndLastName() {
 		assertCreateAppointmentNameValidation("{}", new FieldError("firstName", "First name is required."),
@@ -64,7 +106,10 @@ public class AppointmentResourceTests {
 			AppointmentResource appointmentResource = app.getInjector().getInstance(AppointmentResource.class);
 			Account account = app.getInjector().getInstance(AccountService.class)
 					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, true);
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
 				try {
@@ -78,5 +123,10 @@ public class AppointmentResourceTests {
 				}
 			});
 		});
+	}
+
+	protected static void setBookingV2Enabled(Database database,
+																					 boolean enabled) {
+		database.execute("UPDATE institution SET booking_v2_enabled=? WHERE institution_id=?", enabled, InstitutionId.COBALT);
 	}
 }

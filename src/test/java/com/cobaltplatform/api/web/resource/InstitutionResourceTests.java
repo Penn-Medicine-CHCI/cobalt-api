@@ -20,8 +20,12 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.soklet.web.exception.AuthorizationException;
@@ -29,6 +33,8 @@ import com.soklet.web.exception.NotFoundException;
 import com.soklet.web.response.ApiResponse;
 import org.junit.Test;
 
+import java.time.ZoneId;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -50,6 +56,8 @@ public class InstitutionResourceTests {
 					AND name=?
 					""", UUID.class, InstitutionId.COBALT, "Cobalt General").get();
 
+			setBookingV2Enabled(database, true);
+
 			ApiResponse response = institutionResource.getLocation(institutionLocationId);
 			InstitutionLocationApiResponse location = responseModelValue(response, "location");
 
@@ -63,6 +71,9 @@ public class InstitutionResourceTests {
 	public void getLocationRejectsMissingLocation() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionResource institutionResource = app.getInjector().getInstance(InstitutionResource.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+
+			setBookingV2Enabled(database, true);
 
 			institutionResource.getLocation(UUID.randomUUID());
 		});
@@ -75,6 +86,8 @@ public class InstitutionResourceTests {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			UUID institutionLocationId = UUID.randomUUID();
 
+			setBookingV2Enabled(database, true);
+
 			database.execute("""
 					INSERT INTO institution_location (institution_location_id, institution_id, name, display_order)
 					VALUES (?, ?, ?, ?)
@@ -84,10 +97,43 @@ public class InstitutionResourceTests {
 		});
 	}
 
+	@Test(expected = NotFoundException.class)
+	public void getLocationReturnsNotFoundWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionResource institutionResource = app.getInjector().getInstance(InstitutionResource.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+
+			setBookingV2Enabled(database, false);
+
+			institutionResource.getLocation(UUID.randomUUID());
+		});
+	}
+
+	@Test(expected = NotFoundException.class)
+	public void getInstitutionCareTypesReturnsNotFoundWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionResource institutionResource = app.getInjector().getInstance(InstitutionResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, false);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					institutionResource::getInstitutionCareTypes);
+		});
+	}
+
 	@SuppressWarnings("unchecked")
 	private static <T> T responseModelValue(ApiResponse response,
 																					String key) {
 		Map<String, Object> model = (Map<String, Object>) response.model().get();
 		return (T) model.get(key);
+	}
+
+	private static void setBookingV2Enabled(Database database,
+																					boolean enabled) {
+		database.execute("UPDATE institution SET booking_v2_enabled=? WHERE institution_id=?", enabled, InstitutionId.COBALT);
 	}
 }

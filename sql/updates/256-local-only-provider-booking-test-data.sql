@@ -1,6 +1,10 @@
 BEGIN;
 SELECT _v.register_patch('256-local-only-provider-booking-test-data', NULL, NULL);
 
+UPDATE institution
+SET booking_v2_enabled=TRUE
+WHERE institution_id='COBALT';
+
 -- Local-only provider booking seed data for QA and developer databases.
 -- This script depends on bootstrap fixture rows and is intentionally run only by
 -- sql/recreate-local and sql/recreate-bootstrap after initial/bootstrap.sql.

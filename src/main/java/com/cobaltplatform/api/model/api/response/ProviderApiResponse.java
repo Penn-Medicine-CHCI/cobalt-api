@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.service.AvailabilityTime;
 import com.cobaltplatform.api.service.ClinicService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -116,7 +117,7 @@ public class ProviderApiResponse {
 	private final String formattedPhoneNumber;
 	@Nullable
 	private final Boolean displayPhoneNumberOnlyForBooking;
-	@Nonnull
+	@Nullable
 	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 
 	public enum ProviderApiResponseSupplement {
@@ -146,10 +147,11 @@ public class ProviderApiResponse {
 														 @Nonnull JsonMapper jsonMapper,
 														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
 														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
 														 @Nonnull Configuration configuration,
 														 @Assisted @Nonnull Provider provider,
 														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
-		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider, null, supplements);
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, institutionService, configuration, provider, null, supplements);
 	}
 
 	@AssistedInject
@@ -160,6 +162,7 @@ public class ProviderApiResponse {
 														 @Nonnull JsonMapper jsonMapper,
 														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
 														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
 														 @Nonnull Configuration configuration,
 														 @Assisted @Nonnull Provider provider,
 														 @Assisted @Nullable List<AvailabilityTime> availabilityTimes,
@@ -171,11 +174,13 @@ public class ProviderApiResponse {
 		requireNonNull(jsonMapper);
 		requireNonNull(availabilityTimeApiResponseFactory);
 		requireNonNull(supportRoleApiResponseFactory);
+		requireNonNull(institutionService);
 		requireNonNull(provider);
 		requireNonNull(configuration);
 
 		List<ProviderApiResponseSupplement> supplementsList = Arrays.asList(supplements);
 		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
+		boolean bookingV2Enabled = institutionService.isBookingV2Enabled(provider.getInstitutionId());
 
 		this.providerId = provider.getProviderId();
 		this.institutionId = provider.getInstitutionId();
@@ -187,8 +192,8 @@ public class ProviderApiResponse {
 		this.specialty = provider.getSpecialty();
 		this.license = provider.getLicense();
 		this.entity = provider.getEntity();
-		this.description = provider.getDescription();
-		this.treatmentDescription = includeEverything ? treatmentDescriptionFor(clinicService.findClinicsByProviderId(provider.getProviderId())) : null;
+		this.description = bookingV2Enabled ? provider.getDescription() : null;
+		this.treatmentDescription = bookingV2Enabled && includeEverything ? treatmentDescriptionFor(clinicService.findClinicsByProviderId(provider.getProviderId())) : null;
 		this.imageUrl = provider.getImageUrl();
 		this.isDefaultImageUrl = provider.getImageUrl() == null;
 		this.timeZone = provider.getTimeZone();
@@ -197,9 +202,9 @@ public class ProviderApiResponse {
 		this.bioUrl = trimToNull(provider.getBioUrl());
 		this.phoneNumber = provider.getPhoneNumber();
 		this.displayPhoneNumberOnlyForBooking = provider.getDisplayPhoneNumberOnlyForBooking();
-		this.phoneNumberDescription = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
-		this.formattedPhoneNumber = this.phoneNumberDescription;
-		this.supportedAppointmentModalities = ProviderAppointmentModalitySupport.providerAppointmentModalityApiResponsesFor(provider, strings);
+		this.phoneNumberDescription = bookingV2Enabled ? formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale()) : null;
+		this.formattedPhoneNumber = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
+		this.supportedAppointmentModalities = bookingV2Enabled ? ProviderAppointmentModalitySupport.providerAppointmentModalityApiResponsesFor(provider, strings) : null;
 
 		String bio = trimToNull(provider.getBio());
 
@@ -413,7 +418,7 @@ public class ProviderApiResponse {
 		return this.displayPhoneNumberOnlyForBooking;
 	}
 
-	@Nonnull
+	@Nullable
 	public List<ProviderAppointmentModalityApiResponse> getSupportedAppointmentModalities() {
 		return this.supportedAppointmentModalities;
 	}

@@ -39,6 +39,7 @@ import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.FeatureService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.ValidationException;
 import com.lokalized.Strings;
@@ -91,6 +92,8 @@ public class ProviderAvailabilityResource {
 	@Nonnull
 	private final FeatureService featureService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
 	private final ProviderAvailabilityApiResponseFactory providerAvailabilityApiResponseFactory;
@@ -106,6 +109,7 @@ public class ProviderAvailabilityResource {
 																			@Nonnull ClinicService clinicService,
 																			@Nonnull AppointmentService appointmentService,
 																			@Nonnull FeatureService featureService,
+																			@Nonnull InstitutionService institutionService,
 																			@Nonnull AuthorizationService authorizationService,
 																			@Nonnull ProviderAvailabilityApiResponseFactory providerAvailabilityApiResponseFactory,
 																			@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
@@ -114,6 +118,7 @@ public class ProviderAvailabilityResource {
 		requireNonNull(clinicService);
 		requireNonNull(appointmentService);
 		requireNonNull(featureService);
+		requireNonNull(institutionService);
 		requireNonNull(authorizationService);
 		requireNonNull(providerAvailabilityApiResponseFactory);
 		requireNonNull(currentContextProvider);
@@ -123,6 +128,7 @@ public class ProviderAvailabilityResource {
 		this.clinicService = clinicService;
 		this.appointmentService = appointmentService;
 		this.featureService = featureService;
+		this.institutionService = institutionService;
 		this.authorizationService = authorizationService;
 		this.providerAvailabilityApiResponseFactory = providerAvailabilityApiResponseFactory;
 		this.currentContextProvider = currentContextProvider;
@@ -144,8 +150,12 @@ public class ProviderAvailabilityResource {
 		requireNonNull(featureId);
 		requireNonNull(appointmentTypeId);
 
-		Optional<FeatureId> parsedFeatureId = parseFeatureIdForAvailability(featureId);
 		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
+		Optional<FeatureId> parsedFeatureId = parseFeatureIdForAvailability(featureId);
 		Provider provider = getProviderService().findProviderById(providerId).orElse(null);
 
 		if (provider == null)
@@ -182,8 +192,12 @@ public class ProviderAvailabilityResource {
 		requireNonNull(featureId);
 		requireNonNull(appointmentTypeId);
 
-		Optional<FeatureId> parsedFeatureId = parseFeatureIdForAvailability(featureId);
 		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
+		Optional<FeatureId> parsedFeatureId = parseFeatureIdForAvailability(featureId);
 		Clinic clinic = getClinicService().findClinicById(clinicId).orElse(null);
 
 		if (clinic == null)
@@ -398,6 +412,11 @@ public class ProviderAvailabilityResource {
 	@Nonnull
 	protected FeatureService getFeatureService() {
 		return featureService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
 	@Nonnull

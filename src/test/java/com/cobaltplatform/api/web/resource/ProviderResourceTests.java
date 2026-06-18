@@ -62,8 +62,11 @@ public class ProviderResourceTests {
 			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
 			Account account = app.getInjector().getInstance(AccountService.class)
 					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
 			UUID clinicId = UUID.fromString("ab629384-400a-4688-8465-04636ec2eaa2");
+
+			setBookingV2Enabled(database, true);
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
 				ApiResponse response = providerResource.clinic(clinicId);
@@ -144,6 +147,8 @@ public class ProviderResourceTests {
 			UUID phoneProviderId = UUID.randomUUID();
 			UUID virtualProviderId = UUID.randomUUID();
 
+			setBookingV2Enabled(database, true);
+
 			database.execute("""
 					INSERT INTO clinic (
 					  clinic_id, description, treatment_description, institution_id, appointment_booking_level_id,
@@ -207,7 +212,10 @@ public class ProviderResourceTests {
 			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
 			Account account = app.getInjector().getInstance(AccountService.class)
 					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, true);
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
 					() -> providerResource.clinic(UUID.randomUUID()));
@@ -224,6 +232,8 @@ public class ProviderResourceTests {
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
 			UUID clinicId = UUID.randomUUID();
 
+			setBookingV2Enabled(database, true);
+
 			database.execute("""
 					INSERT INTO clinic (clinic_id, description, institution_id)
 					VALUES (?, ?, ?)
@@ -231,6 +241,72 @@ public class ProviderResourceTests {
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
 					() -> providerResource.clinic(clinicId));
+		});
+	}
+
+	@Test(expected = NotFoundException.class)
+	public void clinicReturnsNotFoundWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, false);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					() -> providerResource.clinic(UUID.randomUUID()));
+		});
+	}
+
+	@Test(expected = NotFoundException.class)
+	public void searchProvidersReturnsNotFoundWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, false);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					() -> providerResource.searchProviders(Optional.of(FeatureId.THERAPY), Optional.of("na")));
+		});
+	}
+
+	@Test(expected = NotFoundException.class)
+	public void providerAvailabilityReturnsNotFoundWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderAvailabilityResource providerAvailabilityResource = app.getInjector().getInstance(ProviderAvailabilityResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, false);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					() -> providerAvailabilityResource.providerAvailability(UUID.randomUUID(), Optional.empty(), Optional.empty(),
+							Optional.of("invalid-feature-id"), Optional.empty()));
+		});
+	}
+
+	@Test(expected = NotFoundException.class)
+	public void clinicAvailabilityReturnsNotFoundWhenBookingV2Disabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderAvailabilityResource providerAvailabilityResource = app.getInjector().getInstance(ProviderAvailabilityResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+
+			setBookingV2Enabled(database, false);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
+					() -> providerAvailabilityResource.clinicAvailability(UUID.randomUUID(), Optional.empty(), Optional.empty(),
+							Optional.of("invalid-feature-id"), Optional.empty()));
 		});
 	}
 
@@ -317,5 +393,10 @@ public class ProviderResourceTests {
 																					String key) {
 		Map<String, Object> model = (Map<String, Object>) response.model().get();
 		return (T) model.get(key);
+	}
+
+	private static void setBookingV2Enabled(Database database,
+																					boolean enabled) {
+		database.execute("UPDATE institution SET booking_v2_enabled=? WHERE institution_id=?", enabled, InstitutionId.COBALT);
 	}
 }

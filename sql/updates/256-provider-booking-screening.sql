@@ -1,6 +1,10 @@
 BEGIN;
 SELECT _v.register_patch('256-provider-booking-screening', NULL, NULL);
 
+-- Booking v2 is default-off so existing booking/referral flows remain the
+-- default behavior until an institution explicitly opts in.
+ALTER TABLE institution ADD COLUMN IF NOT EXISTS booking_v2_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- Add the explicit lookup used by provider search to distinguish provider-level
 -- booking rows from clinic aggregate booking rows.
 CREATE TABLE IF NOT EXISTS appointment_booking_level (

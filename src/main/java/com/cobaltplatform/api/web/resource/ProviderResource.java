@@ -324,6 +324,11 @@ public class ProviderResource {
 		requireNonNull(featureId);
 		requireNonNull(institutionLocationId);
 
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
 		String institutionLocationIdAsString = normalizeInstitutionLocationIdForProviderSearch(institutionLocationId);
 
 		if (providerSearchArgumentsAbsent(featureId, institutionLocationIdAsString))
@@ -343,7 +348,6 @@ public class ProviderResource {
 			throw new ValidationException(new ValidationException.FieldError("institutionLocationId", getStrings().get("Institution Location ID is invalid.")));
 		}
 
-		Account account = getCurrentContext().getAccount().get();
 		List<ProviderSearchResultApiResponse> providerSearchResults = getProviderService().findProviderSearchResults(featureId.get(), parsedInstitutionLocationId, account).stream()
 				.map(providerSearchResult -> getProviderSearchResultApiResponseFactory().create(providerSearchResult))
 				.collect(Collectors.toList());
@@ -404,6 +408,7 @@ public class ProviderResource {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+		boolean bookingV2Enabled = getInstitutionService().isBookingV2Enabled(institution.getInstitutionId());
 		final int DEFAULT_NUMBER_OF_DAYS_TO_SEARCH = 90;
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
@@ -665,7 +670,8 @@ public class ProviderResource {
 					appointmentTypeJson.put("name", appointmentType.getName());
 					appointmentTypeJson.put("description", appointmentType.getDescription());
 					appointmentTypeJson.put("durationInMinutes", appointmentType.getDurationInMinutes());
-					appointmentTypeJson.put("screeningFlowId", appointmentType.getScreeningFlowId());
+					if (bookingV2Enabled)
+						appointmentTypeJson.put("screeningFlowId", appointmentType.getScreeningFlowId());
 					appointmentTypeJson.put("durationInMinutesDescription", getStrings().get("{{duration}} minutes", new HashMap<String, Object>() {{
 						put("duration", appointmentType.getDurationInMinutes());
 					}}));
@@ -988,6 +994,10 @@ public class ProviderResource {
 		requireNonNull(clinicId);
 
 		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
 		Clinic clinic = getClinicService().findClinicById(clinicId).orElse(null);
 
 		if (clinic == null)

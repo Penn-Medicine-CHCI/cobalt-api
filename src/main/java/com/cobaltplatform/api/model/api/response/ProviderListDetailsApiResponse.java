@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.service.ClinicService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -61,7 +62,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 	@Nullable
 	private final String description;
-	@Nonnull
+	@Nullable
 	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 	@Nullable
 	private final ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
@@ -95,31 +96,34 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 
 	@AssistedInject
 	public ProviderListDetailsApiResponse(@Nonnull ProviderService providerService,
-																				 @Nonnull ClinicService clinicService,
-																				 @Nonnull Formatter formatter,
-																				 @Nonnull Strings strings,
-																				 @Nonnull JsonMapper jsonMapper,
-																				 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
-																				 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
-																				 @Nonnull Configuration configuration,
-																				 @Assisted @Nonnull Provider provider,
-																				 @Assisted @Nonnull ProviderFind providerFind,
-																				 @Assisted @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
-		super(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider);
+																					 @Nonnull ClinicService clinicService,
+																					 @Nonnull Formatter formatter,
+																					 @Nonnull Strings strings,
+																					 @Nonnull JsonMapper jsonMapper,
+																					 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
+																					 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+																					 @Nonnull InstitutionService institutionService,
+																					 @Nonnull Configuration configuration,
+																					 @Assisted @Nonnull Provider provider,
+																					 @Assisted @Nonnull ProviderFind providerFind,
+																					 @Assisted @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		super(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, institutionService, configuration, provider);
 
 		requireNonNull(formatter);
+		requireNonNull(institutionService);
 		requireNonNull(provider);
 		requireNonNull(providerFind);
 		requireNonNull(appointmentTypesById);
 
+		boolean bookingV2Enabled = institutionService.isBookingV2Enabled(provider.getInstitutionId());
 		List<AvailableAppointment> availableAppointments = availableAppointmentsFor(providerFind, appointmentTypesById);
 		AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
 
 		this.description = providerFind.getDescription();
-		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(provider, strings);
+		this.supportedAppointmentModalities = bookingV2Enabled ? supportedAppointmentModalitiesFor(provider, strings) : null;
 		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(provider, providerFind);
 		this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
-		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
+		this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale(), bookingV2Enabled);
 		this.hasMoreAppointments = availableAppointments.size() > 1;
 	}
 
@@ -235,7 +239,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 		return description;
 	}
 
-	@Nonnull
+	@Nullable
 	public List<ProviderAppointmentModalityApiResponse> getSupportedAppointmentModalities() {
 		return supportedAppointmentModalities;
 	}
@@ -350,10 +354,12 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 
 		public FirstAvailableAppointmentApiResponse(@Nonnull AvailableAppointment availableAppointment,
 																								@Nonnull Formatter formatter,
-																								@Nonnull Locale locale) {
+																								@Nonnull Locale locale,
+																								@Nonnull Boolean includeScreeningFlowId) {
 			requireNonNull(availableAppointment);
 			requireNonNull(formatter);
 			requireNonNull(locale);
+			requireNonNull(includeScreeningFlowId);
 
 			AvailabilityTime availabilityTime = availableAppointment.getAvailabilityTime();
 			AppointmentType appointmentType = availableAppointment.getAppointmentType();
@@ -366,7 +372,7 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 			this.appointmentTypeIds = availabilityTime.getAppointmentTypeIds();
 			this.appointmentDescription = appointmentType == null ? null : descriptionFor(appointmentType);
 			this.assessmentId = appointmentType == null ? null : appointmentType.getAssessmentId();
-			this.screeningFlowId = appointmentType == null ? null : appointmentType.getScreeningFlowId();
+			this.screeningFlowId = includeScreeningFlowId && appointmentType != null ? appointmentType.getScreeningFlowId() : null;
 			this.epicDepartmentId = availabilityTime.getEpicDepartmentId();
 			this.epicAppointmentFhirId = availabilityTime.getEpicAppointmentFhirId();
 		}

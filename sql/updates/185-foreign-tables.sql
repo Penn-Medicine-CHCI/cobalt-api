@@ -134,6 +134,7 @@ CREATE FOREIGN TABLE remote_institution (
 	group_session_reservation_default_reminder_minutes_offset int4 DEFAULT 60 NOT NULL,
 	feature_screening_flow_id uuid NULL,
 	features_enabled bool DEFAULT false NOT NULL,
+	booking_v2_enabled bool DEFAULT false NOT NULL,
 	mychart_name varchar DEFAULT 'MyChart'::character varying NOT NULL,
 	integrated_care_sent_resources_followup_day_offset int4 DEFAULT 5 NULL,
 	integrated_care_sent_resources_followup_week_offset int4 DEFAULT 4 NULL,

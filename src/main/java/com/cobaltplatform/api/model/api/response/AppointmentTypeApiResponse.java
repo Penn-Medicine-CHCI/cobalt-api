@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.Question;
@@ -27,6 +28,7 @@ import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.service.AssessmentService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -99,19 +101,25 @@ public class AppointmentTypeApiResponse {
 
 	@AssistedInject
 	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
-																		@Nonnull Formatter formatter,
-																		@Nonnull Strings strings,
-																		@Assisted @Nonnull AppointmentType appointmentType) {
-		this(assessmentService, formatter, strings, appointmentType, Collections.emptySet());
+																			@Nonnull InstitutionService institutionService,
+																			@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+																			@Nonnull Formatter formatter,
+																			@Nonnull Strings strings,
+																			@Assisted @Nonnull AppointmentType appointmentType) {
+		this(assessmentService, institutionService, currentContextProvider, formatter, strings, appointmentType, Collections.emptySet());
 	}
 
 	@AssistedInject
 	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
-																		@Nonnull Formatter formatter,
-																		@Nonnull Strings strings,
-																		@Assisted @Nonnull AppointmentType appointmentType,
-																		@Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
+																			@Nonnull InstitutionService institutionService,
+																			@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+																			@Nonnull Formatter formatter,
+																			@Nonnull Strings strings,
+																			@Assisted @Nonnull AppointmentType appointmentType,
+																			@Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
 		requireNonNull(assessmentService);
+		requireNonNull(institutionService);
+		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(appointmentType);
@@ -130,7 +138,9 @@ public class AppointmentTypeApiResponse {
 			put("duration", appointmentType.getDurationInMinutes());
 		}});
 		this.hexColor = formatter.formatHexColor(appointmentType.getHexColor());
-		this.screeningFlowId = appointmentType.getScreeningFlowId();
+		this.screeningFlowId = institutionService.isBookingV2Enabled(currentContextProvider.get().getInstitutionId())
+				? appointmentType.getScreeningFlowId()
+				: null;
 		this.assessmentId = appointmentType.getAssessmentId();
 
 		if (appointmentType.getAssessmentId() != null && (supplements.contains(AppointmentTypeApiResponseSupplement.ASSESSMENT) || supplements.contains(AppointmentTypeApiResponseSupplement.EVERYTHING))) {

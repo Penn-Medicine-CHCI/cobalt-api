@@ -144,6 +144,18 @@ public class InstitutionService {
 	}
 
 	@Nonnull
+	public Boolean isBookingV2Enabled(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return false;
+
+		return getDatabase().queryForObject("""
+				SELECT booking_v2_enabled
+				FROM institution
+				WHERE institution_id=?
+				""", Boolean.class, institutionId).orElse(false);
+	}
+
+	@Nonnull
 	public Boolean isIntegratedCareForSelfReferralsOnly(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return false;

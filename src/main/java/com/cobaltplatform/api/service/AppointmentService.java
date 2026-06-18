@@ -72,6 +72,7 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningQuestionRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
+import com.cobaltplatform.api.model.api.request.UpdateAccountEmailAddressRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAccountPhoneNumberRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAcuityAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
@@ -1079,14 +1080,17 @@ public class AppointmentService {
 			throw validationException;
 
 		Appointment existingAppointment = appointment.get();
+		Account existingAppointmentAccount = getAccountService().findAccountById(existingAppointment.getAccountId()).orElse(null);
+		boolean bookingV2Enabled = existingAppointmentAccount != null
+				&& getInstitutionService().isBookingV2Enabled(existingAppointmentAccount.getInstitutionId());
 
-		if (trimToNull(request.getFirstName()) == null)
+		if (bookingV2Enabled && trimToNull(request.getFirstName()) == null)
 			request.setFirstName(existingAppointment.getFirstName());
 
-		if (trimToNull(request.getLastName()) == null)
+		if (bookingV2Enabled && trimToNull(request.getLastName()) == null)
 			request.setLastName(existingAppointment.getLastName());
 
-		if (trimToNull(request.getEmailAddress()) == null)
+		if (bookingV2Enabled && trimToNull(request.getEmailAddress()) == null)
 			request.setEmailAddress(existingAppointment.getEmailAddress());
 
 		UUID newAppointmentId = createAppointment(request);
@@ -1133,6 +1137,7 @@ public class AppointmentService {
 		AppointmentType appointmentType = null;
 		MicrosoftTeamsMeeting microsoftTeamsMeeting = null;
 		UUID appointmentId = UUID.randomUUID();
+		boolean bookingV2Enabled = false;
 
 		try {
 			ValidationException validationException = new ValidationException();
@@ -1151,6 +1156,7 @@ public class AppointmentService {
 				throw validationException;
 
 			institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+			bookingV2Enabled = getInstitutionService().isBookingV2Enabled(institution.getInstitutionId());
 
 		if (date == null)
 			validationException.add(new FieldError("date", getStrings().get("Date is required.")));
@@ -1158,8 +1164,18 @@ public class AppointmentService {
 		if (time == null)
 			validationException.add(new FieldError("time", getStrings().get("Time is required.")));
 
-		if (emailAddress != null && !isValidEmailAddress(emailAddress))
+		if (bookingV2Enabled && emailAddress != null && !isValidEmailAddress(emailAddress))
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
+
+		// If account has no email address and none was passed in, force user to provide one (unless they are IC users...then it's optional)
+		if (!bookingV2Enabled && emailAddress == null && account != null && account.getEmailAddress() == null && !institution.getIntegratedCareEnabled()) {
+			validationException.add(new FieldError("emailAddress", getStrings().get("An email address is required to book an appointment.")));
+
+			Map<String, Object> metadata = new HashMap<>();
+			metadata.put("accountEmailAddressRequired", true);
+
+			validationException.setMetadata(metadata);
+		}
 
 		if (providerId == null)
 			validationException.add(getStrings().get("Provider ID is required."));
@@ -1183,7 +1199,7 @@ public class AppointmentService {
 				validationException.add(getStrings().get("You did not answer the necessary intake questions to book with this provider."));
 		}
 
-		if (providerId != null && appointmentType != null && appointmentType.getScreeningFlowId() != null) {
+		if (bookingV2Enabled && providerId != null && appointmentType != null && appointmentType.getScreeningFlowId() != null) {
 			ScreeningSession completedAppointmentBookingScreeningSession =
 					findMostRecentCompletedAppointmentBookingScreeningSession(accountId, providerId,
 							appointmentType.getScreeningFlowId()).orElse(null);
@@ -1198,18 +1214,20 @@ public class AppointmentService {
 		Provider provider = getProviderService().findProviderById(providerId).get();
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
-		Set<ProviderAppointmentModalityId> supportedAppointmentModalityIds =
-				ProviderAppointmentModalitySupport.providerAppointmentModalityIdsFor(provider);
+		if (bookingV2Enabled) {
+			Set<ProviderAppointmentModalityId> supportedAppointmentModalityIds =
+					ProviderAppointmentModalitySupport.providerAppointmentModalityIdsFor(provider);
 
-		if (appointmentModalityId == null)
-			appointmentModalityId = ProviderAppointmentModalitySupport.defaultProviderAppointmentModalityIdFor(provider);
+			if (appointmentModalityId == null)
+				appointmentModalityId = ProviderAppointmentModalitySupport.defaultProviderAppointmentModalityIdFor(provider);
 
-		if (appointmentModalityId == null || !supportedAppointmentModalityIds.contains(appointmentModalityId)) {
-			if (appointmentModalityId == ProviderAppointmentModalityId.VIRTUAL
-					|| provider.getVideoconferencePlatformId() == VideoconferencePlatformId.BLUEJEANS)
-				throw new ValidationException(getStrings().get("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
+			if (appointmentModalityId == null || !supportedAppointmentModalityIds.contains(appointmentModalityId)) {
+				if (appointmentModalityId == ProviderAppointmentModalityId.VIRTUAL
+						|| provider.getVideoconferencePlatformId() == VideoconferencePlatformId.BLUEJEANS)
+					throw new ValidationException(getStrings().get("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
 
-			throw new ValidationException(new FieldError("appointmentModalityId", getStrings().get("Appointment modality ID is invalid.")));
+				throw new ValidationException(new FieldError("appointmentModalityId", getStrings().get("Appointment modality ID is invalid.")));
+			}
 		}
 
 		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC_FHIR && epicAppointmentFhirId == null)
@@ -1223,11 +1241,28 @@ public class AppointmentService {
 			epicVisitTypeIdTypeForFailure = trimToNull(appointmentType.getEpicVisitTypeIdType());
 		}
 
-		if (emailAddress == null)
+		if (bookingV2Enabled && emailAddress == null)
 			emailAddress = account.getEmailAddress();
 
 		// Update account data for non-IC institutions
 		if (!institution.getIntegratedCareEnabled()) {
+			if (!bookingV2Enabled) {
+				// If email address was provided for non-IC scenarios, update the account's email on file.
+				if (emailAddress != null) {
+					String pinnedEmailAddress = emailAddress;
+					getAccountService().updateAccountEmailAddress(new UpdateAccountEmailAddressRequest() {{
+						setAccountId(accountId);
+						setEmailAddress(pinnedEmailAddress);
+					}});
+				} else {
+					emailAddress = account.getEmailAddress();
+				}
+
+				// Only care about validated email addresses for non-IC accounts.
+				if (!getAccountService().isEmailAddressVerifiedForAccountId(emailAddress, accountId))
+					throw new ValidationException(getStrings().get("Sorry, you must validate your email address before booking an appointment."));
+			}
+
 			// If phone number was provided and account has no phone number, permit updating the account's phone number on file
 			if (phoneNumber != null && account.getPhoneNumber() == null) {
 				String pinnedPhoneNumber = phoneNumber;
@@ -1351,7 +1386,60 @@ public class AppointmentService {
 		String appointmentPhoneNumber = null;
 		VideoconferencePlatformId videoconferencePlatformId = null;
 
-		if (appointmentModalityId == ProviderAppointmentModalityId.VIRTUAL) {
+		if (bookingV2Enabled) {
+			if (appointmentModalityId == ProviderAppointmentModalityId.VIRTUAL) {
+				videoconferencePlatformId = provider.getVideoconferencePlatformId();
+
+				if (videoconferencePlatformId == VideoconferencePlatformId.BLUEJEANS) {
+					throw new ValidationException(getStrings().get("Sorry, this provider's videoconference platform is no longer supported. Please choose a different provider."));
+				} else if (videoconferencePlatformId == VideoconferencePlatformId.MICROSOFT_TEAMS) {
+					// Prepare Teams meeting request
+					OnlineMeetingCreateRequest onlineMeetingCreateRequest = new OnlineMeetingCreateRequest();
+					onlineMeetingCreateRequest.setUserId(institution.getMicrosoftTeamsUserId());
+					onlineMeetingCreateRequest.setSubject(getStrings().get("1:1 Appointment with {{providerName}}", Map.of(
+							"providerName", provider.getName()
+					)));
+					onlineMeetingCreateRequest.setStartDateTime(meetingStartTime.atZone(timeZone));
+					onlineMeetingCreateRequest.setEndDateTime(meetingEndTime.atZone(timeZone));
+
+					try {
+						// Create the Teams meeting
+						CreateMicrosoftTeamsMeetingRequest createMicrosoftTeamsMeetingRequest = new CreateMicrosoftTeamsMeetingRequest();
+						createMicrosoftTeamsMeetingRequest.setInstitutionId(institution.getInstitutionId());
+						createMicrosoftTeamsMeetingRequest.setCreatedByAccountId(accountId);
+						createMicrosoftTeamsMeetingRequest.setOnlineMeetingCreateRequest(onlineMeetingCreateRequest);
+
+						UUID microsoftTeamsMeetingId = getSystemService().createMicrosoftTeamsMeeting(createMicrosoftTeamsMeetingRequest);
+
+						// Use the "join" URL as the videoconference URL
+						microsoftTeamsMeeting = getSystemService().findMicrosoftTeamsMeetingById(microsoftTeamsMeetingId).get();
+						videoconferenceUrl = microsoftTeamsMeeting.getJoinUrl();
+					} catch (ValidationException e) {
+						// We want to know if there is a problem creating Teams meetings.
+						// In theory this above code should not fail unless there is a systemic issue, e.g. Teams is down, or creds revoked
+						getErrorReporter().report(e);
+
+						// Let the user-friendly exception bubble out
+						throw e;
+					}
+				} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
+					videoconferenceUrl = provider.getVideoconferenceUrl();
+				}
+			} else if (appointmentModalityId == ProviderAppointmentModalityId.PHONE) {
+				videoconferencePlatformId = VideoconferencePlatformId.TELEPHONE;
+				appointmentPhoneNumber = trimToNull(provider.getPhoneNumber());
+
+				if (appointmentPhoneNumber == null)
+					// Legacy telephone providers stored their phone number in the video URL field.
+					appointmentPhoneNumber = trimToNull(provider.getVideoconferenceUrl());
+
+				// TODO: this defaults to "patient" experience type but is also used by staff.
+				// Doesn't matter atm, and this concept of TELEPHONE should be removed/reworked, but just noting here for posterity...
+				videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), appointmentId);
+			} else if (appointmentModalityId == ProviderAppointmentModalityId.IN_PERSON) {
+				videoconferencePlatformId = provider.getVideoconferencePlatformId();
+			}
+		} else {
 			videoconferencePlatformId = provider.getVideoconferencePlatformId();
 
 			if (videoconferencePlatformId == VideoconferencePlatformId.BLUEJEANS) {
@@ -1386,26 +1474,20 @@ public class AppointmentService {
 					// Let the user-friendly exception bubble out
 					throw e;
 				}
+			} else if (videoconferencePlatformId == VideoconferencePlatformId.TELEPHONE) {
+				// Hack: phone number is encoded as the URL in the provider sheet.
+				// The real URL is the webapp - we have a `GET /appointments/{appointmentId}`
+				appointmentPhoneNumber = provider.getVideoconferenceUrl();
+				// TODO: this defaults to "patient" experience type but is also used by staff.
+				// Doesn't matter atm, and this concept of TELEPHONE should be removed/reworked, but just noting here for posterity...
+				videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), appointmentId);
 			} else if (videoconferencePlatformId == VideoconferencePlatformId.EXTERNAL) {
 				videoconferenceUrl = provider.getVideoconferenceUrl();
 			}
-		} else if (appointmentModalityId == ProviderAppointmentModalityId.PHONE) {
-			videoconferencePlatformId = VideoconferencePlatformId.TELEPHONE;
-			appointmentPhoneNumber = trimToNull(provider.getPhoneNumber());
-
-			if (appointmentPhoneNumber == null)
-				// Legacy telephone providers stored their phone number in the video URL field.
-				appointmentPhoneNumber = trimToNull(provider.getVideoconferenceUrl());
-
-			// TODO: this defaults to "patient" experience type but is also used by staff.
-			// Doesn't matter atm, and this concept of TELEPHONE should be removed/reworked, but just noting here for posterity...
-			videoconferenceUrl = format("%s/appointments/%s", getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(provider.getInstitutionId(), UserExperienceTypeId.PATIENT).get(), appointmentId);
-		} else if (appointmentModalityId == ProviderAppointmentModalityId.IN_PERSON) {
-			videoconferencePlatformId = provider.getVideoconferencePlatformId();
 		}
 
-		String firstName = trimToNull(request.getFirstName());
-		String lastName = trimToNull(request.getLastName());
+		String firstName = bookingV2Enabled ? trimToNull(request.getFirstName()) : null;
+		String lastName = bookingV2Enabled ? trimToNull(request.getLastName()) : null;
 
 		if (firstName == null)
 			firstName = trimToNull(account.getFirstName());
@@ -1587,13 +1669,17 @@ public class AppointmentService {
 		if (intakeAssessment.isPresent())
 			intakeAccountSessionId = getSessionService().findCurrentAccountSessionForAssessment(account, intakeAssessment.get()).get().getAccountSessionId();
 
+		String appointmentFirstName = bookingV2Enabled ? firstName : null;
+		String appointmentLastName = bookingV2Enabled ? lastName : null;
+		String appointmentEmailAddress = bookingV2Enabled ? emailAddress : null;
+
 		getDatabase().execute("INSERT INTO appointment (appointment_id, provider_id, account_id, created_by_account_id, first_name, last_name, email_address, " +
 						"appointment_type_id, acuity_appointment_id, bluejeans_meeting_id, bluejeans_participant_passcode, title, start_time, end_time, " +
 						"duration_in_minutes, time_zone, videoconference_url, epic_contact_id, epic_contact_id_type, videoconference_platform_id, " +
 						"phone_number, appointment_reason_id, comment, intake_assessment_id, scheduling_system_id, intake_account_session_id, patient_order_id, " +
 						"microsoft_teams_meeting_id, epic_appointment_fhir_id, epic_appointment_fhir_identifier_system, epic_appointment_fhir_identifier_value, epic_appointment_fhir_stu3_response) " +
 						"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CAST (? AS JSONB))", appointmentId, providerId,
-				accountId, createdByAccountId, firstName, lastName, emailAddress, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
+				accountId, createdByAccountId, appointmentFirstName, appointmentLastName, appointmentEmailAddress, appointmentTypeId, acuityAppointmentId, bluejeansMeetingId, bluejeansParticipantPasscode,
 				title, meetingStartTime, meetingEndTime, durationInMinutes, timeZone, videoconferenceUrl, epicContactId,
 				epicContactIdType, videoconferencePlatformId, appointmentPhoneNumber, appointmentReasonId, comment, intakeAssessmentId, appointmentType.getSchedulingSystemId(),
 				intakeAccountSessionId, patientOrderId, microsoftTeamsMeeting == null ? null : microsoftTeamsMeeting.getMicrosoftTeamsMeetingId(),
@@ -1968,6 +2054,9 @@ public class AppointmentService {
 				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
 		}
 
+		if (provider != null && !getInstitutionService().isBookingV2Enabled(provider.getInstitutionId()))
+			screeningFlowId = null;
+
 		validateAppointmentTypeScreeningFlowId(screeningFlowId, provider, validationException);
 
 		if (name == null)
@@ -2123,6 +2212,9 @@ public class AppointmentService {
 			if (provider == null)
 				validationException.add(new FieldError("providerId", getStrings().get("Provider ID is invalid.")));
 		}
+
+		if (provider != null && !getInstitutionService().isBookingV2Enabled(provider.getInstitutionId()))
+			screeningFlowId = null;
 
 		validateAppointmentTypeScreeningFlowId(screeningFlowId, provider, validationException);
 

@@ -370,6 +370,7 @@ CREATE TABLE institution (
 	sso_enabled bool NOT NULL DEFAULT false,
 	anonymous_enabled bool NOT NULL DEFAULT true,
 	email_enabled bool NOT NULL DEFAULT false,
+	booking_v2_enabled bool NOT NULL DEFAULT false,
 	CONSTRAINT institution_pkey PRIMARY KEY (institution_id)
 );
 CREATE UNIQUE INDEX idx_institution_subdomain ON cobalt.institution USING btree (subdomain);

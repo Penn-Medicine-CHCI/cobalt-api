@@ -49,6 +49,7 @@ import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
@@ -134,6 +135,8 @@ public class AppointmentResource {
 	@Nonnull
 	private final ProviderService providerService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final SystemService systemService;
 	@Nonnull
 	private final JsonMapper jsonMapper;
@@ -152,6 +155,7 @@ public class AppointmentResource {
 														 @Nonnull ActivityTrackingService activityTrackingService,
 														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull ProviderService providerService,
+														 @Nonnull InstitutionService institutionService,
 														 @Nonnull SystemService systemService,
 														 @Nonnull JsonMapper jsonMapper) {
 		requireNonNull(appointmentService);
@@ -167,6 +171,7 @@ public class AppointmentResource {
 		requireNonNull(activityTrackingService);
 		requireNonNull(authorizationService);
 		requireNonNull(providerService);
+		requireNonNull(institutionService);
 		requireNonNull(systemService);
 		requireNonNull(jsonMapper);
 
@@ -184,6 +189,7 @@ public class AppointmentResource {
 		this.activityTrackingService = activityTrackingService;
 		this.authorizationService = authorizationService;
 		this.providerService = providerService;
+		this.institutionService = institutionService;
 		this.systemService = systemService;
 		this.jsonMapper = jsonMapper;
 	}
@@ -379,6 +385,10 @@ public class AppointmentResource {
 		requireNonNull(requestBody);
 
 		Account currentAccount = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(currentAccount.getInstitutionId()))
+			throw new NotFoundException();
+
 		FindAppointmentBookingRequirementsRequest request = getRequestBodyParser().parse(requestBody, FindAppointmentBookingRequirementsRequest.class);
 
 		if (request.getAccountId() == null)
@@ -417,7 +427,10 @@ public class AppointmentResource {
 		getAuditLogService().audit(auditLog);
 
 		CreateAppointmentRequest request = getRequestBodyParser().parse(requestBody, CreateAppointmentRequest.class);
-		validateAppointmentCreateNameFields(request);
+
+		if (getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			validateAppointmentCreateNameFields(request);
+
 		request.setCreatedByAcountId(account.getAccountId());
 
 		// Some users can book on behalf of other users
@@ -687,6 +700,11 @@ public class AppointmentResource {
 	@Nonnull
 	protected ProviderService getProviderService() {
 		return providerService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
 	@Nonnull

@@ -329,6 +329,9 @@ public class InstitutionResource {
 	public ApiResponse getLocation(@Nonnull @PathParameter UUID institutionLocationId) {
 		requireNonNull(institutionLocationId);
 
+		if (!getInstitutionService().isBookingV2Enabled(getCurrentContext().getInstitutionId()))
+			throw new NotFoundException();
+
 		InstitutionLocation institutionLocation = getInstitutionService().findLocationById(institutionLocationId).orElse(null);
 
 		if (institutionLocation == null)
@@ -347,6 +350,10 @@ public class InstitutionResource {
 	@AuthenticationRequired
 	public ApiResponse getInstitutionCareTypes() {
 		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
 		List<FeatureForInstitution> careTypes = getInstitutionService().findCareTypesByInstitutionId(account.getInstitutionId());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
