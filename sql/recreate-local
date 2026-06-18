@@ -274,4 +274,5 @@ fi
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-provider-booking-screening.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-provider-clinic-location-contact.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/258-provider-clinic-details-html.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-local-only-provider-booking-test-data.sql
