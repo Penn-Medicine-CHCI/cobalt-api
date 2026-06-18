@@ -33,6 +33,7 @@ import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.Appo
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
@@ -1066,7 +1067,7 @@ public class ProviderResource {
 		ClinicApiResponseBatchContext batchContext = clinicApiResponseBatchContextFor(List.of(clinic));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("clinic", getClinicApiResponseFactory().create(clinic, batchContext));
+			put("clinic", getClinicApiResponseFactory().create(clinic, batchContext, ClinicApiResponseSupplement.DETAILS_HTML));
 		}});
 	}
 
@@ -1342,7 +1343,8 @@ public class ProviderResource {
 		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(List.of(provider));
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("provider", getProviderApiResponseFactory().create(provider, batchContext, ProviderApiResponseSupplement.EVERYTHING));
+			put("provider", getProviderApiResponseFactory().create(provider, batchContext, ProviderApiResponseSupplement.EVERYTHING,
+					ProviderApiResponseSupplement.DETAILS_HTML));
 		}});
 	}
 

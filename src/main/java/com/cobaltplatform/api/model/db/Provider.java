@@ -99,6 +99,8 @@ public class Provider {
 	@Nullable
 	private String description;
 	@Nullable
+	private String detailsHtml;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -398,5 +400,14 @@ public class Provider {
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getDetailsHtml() {
+		return this.detailsHtml;
+	}
+
+	public void setDetailsHtml(@Nullable String detailsHtml) {
+		this.detailsHtml = detailsHtml;
 	}
 }

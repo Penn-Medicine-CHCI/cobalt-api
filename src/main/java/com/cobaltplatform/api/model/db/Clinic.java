@@ -44,6 +44,8 @@ public class Clinic {
 	@Nullable
 	private String treatmentDescription;
 	@Nullable
+	private String detailsHtml;
+	@Nullable
 	private Boolean showIntakeAssessmentPrompt;
 	@Nullable
 	private AppointmentBookingLevelId appointmentBookingLevelId;
@@ -103,6 +105,15 @@ public class Clinic {
 
 	public void setTreatmentDescription(@Nullable String treatmentDescription) {
 		this.treatmentDescription = treatmentDescription;
+	}
+
+	@Nullable
+	public String getDetailsHtml() {
+		return this.detailsHtml;
+	}
+
+	public void setDetailsHtml(@Nullable String detailsHtml) {
+		this.detailsHtml = detailsHtml;
 	}
 
 	@Nullable

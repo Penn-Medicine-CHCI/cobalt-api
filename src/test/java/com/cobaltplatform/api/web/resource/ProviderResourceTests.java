@@ -32,6 +32,8 @@ import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.util.JsonMapper;
+import com.cobaltplatform.api.util.JsonMapper.MappingNullability;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
@@ -94,6 +96,7 @@ public class ProviderResourceTests {
 			UUID providerAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
 			String providerUrlName = "detail-provider-" + providerId;
+			String providerDetailsHtml = "<section><h2>Provider Details</h2><p>Provider detail copy.</p></section>";
 
 			database.execute("""
 					INSERT INTO clinic (
@@ -104,12 +107,12 @@ public class ProviderResourceTests {
 					INSERT INTO provider (
 					  provider_id, institution_id, name, title, email_address, url_name, image_url, locale, time_zone,
 					  scheduling_system_id, videoconference_platform_id, description, bio_url, bio, phone_number,
-					  display_phone_number_only_for_booking
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					  display_phone_number_only_for_booking, details_html
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", providerId, InstitutionId.COBALT, "Detail Provider", "LCSW",
 					"detail-provider-" + providerId + "@example.com", providerUrlName, "https://example.com/provider.png",
 					"en-US", "America/New_York", "ACUITY", "SWITCHBOARD", "Provider description",
-					"https://example.com/provider-bio", "Line one\nLine two", "+12155551212", false);
+					"https://example.com/provider-bio", "Line one\nLine two", "+12155551212", false, providerDetailsHtml);
 			database.execute("""
 					INSERT INTO provider_clinic (
 					  provider_clinic_id, provider_id, clinic_id, primary_clinic
@@ -143,6 +146,7 @@ public class ProviderResourceTests {
 				assertEquals(providerId, provider.getProviderId());
 				assertEquals("Provider description", provider.getDescription());
 				assertEquals("* Provider treatment", provider.getTreatmentDescription());
+				assertEquals(providerDetailsHtml, provider.getDetailsHtml());
 				assertEquals("https://example.com/provider-bio", provider.getBioUrl());
 				assertEquals("https://example.com/provider-bio", provider.getWebsiteUrl());
 				assertEquals("Line one<br/>Line two", provider.getBio());
@@ -184,16 +188,18 @@ public class ProviderResourceTests {
 			UUID virtualProviderId = UUID.randomUUID();
 			UUID clinicAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
+			String clinicDetailsHtml = "<section><h2>Clinic Details</h2><p>Clinic detail copy.</p></section>";
 
 			setBookingV2Enabled(database, true);
 
 			database.execute("""
 					INSERT INTO clinic (
 					  clinic_id, description, treatment_description, institution_id, appointment_booking_level_id,
-					  phone_number, image_url, locale, website_url
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					  phone_number, image_url, locale, website_url, details_html
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", clinicId, "Detail Clinic", "Clinic treatment", InstitutionId.COBALT, AppointmentBookingLevelId.CLINIC,
-					"+12155551313", "https://example.com/clinic.png", "en-US", "https://example.com/detail-clinic");
+					"+12155551313", "https://example.com/clinic.png", "en-US", "https://example.com/detail-clinic",
+					clinicDetailsHtml);
 			database.execute("""
 					INSERT INTO provider (
 					  provider_id, institution_id, name, email_address, url_name, locale, time_zone,
@@ -254,6 +260,7 @@ public class ProviderResourceTests {
 				assertEquals("Detail Clinic", clinic.getName());
 				assertEquals("Detail Clinic", clinic.getDescription());
 				assertEquals("Clinic treatment", clinic.getTreatmentDescription());
+				assertEquals(clinicDetailsHtml, clinic.getDetailsHtml());
 				assertEquals(AppointmentBookingLevelId.CLINIC, clinic.getAppointmentBookingLevelId());
 				assertEquals("+12155551313", clinic.getPhoneNumber());
 				assertEquals("(215) 555-1313", clinic.getPhoneNumberDescription());
@@ -277,6 +284,40 @@ public class ProviderResourceTests {
 						clinic.getSupportedAppointmentModalities().get(0).getAppointmentModalityId());
 				assertEquals(ProviderAppointmentModalityId.VIRTUAL,
 						clinic.getSupportedAppointmentModalities().get(1).getAppointmentModalityId());
+			});
+		});
+	}
+
+	@Test
+	public void providersListOmitsDetailsHtml() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			UUID providerId = UUID.randomUUID();
+
+			database.execute("""
+					INSERT INTO provider (
+					  provider_id, institution_id, name, email_address, url_name, locale, time_zone,
+					  scheduling_system_id, videoconference_platform_id, details_html
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					""", providerId, InstitutionId.COBALT, "List Details Provider",
+					"list-details-provider-" + providerId + "@example.com", "list-details-provider-" + providerId,
+					"en-US", "America/New_York", "ACUITY", "TELEPHONE",
+					"<section><h2>Hidden List Details</h2></section>");
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+				ApiResponse response = providerResource.providers();
+				List<ProviderApiResponse> providers = responseModelValue(response, "providers");
+				ProviderApiResponse provider = providers.stream()
+						.filter(providerResponse -> providerId.equals(providerResponse.getProviderId()))
+						.findFirst()
+						.get();
+				Map<String, Object> serializedProvider = jsonMapperExcludingNulls().toMap(provider);
+
+				assertFalse(serializedProvider.containsKey("detailsHtml"));
 			});
 		});
 	}
@@ -346,6 +387,7 @@ public class ProviderResourceTests {
 				assertEquals(clinicId, clinic.getClinicId());
 				assertEquals("https://example.com/autocomplete-clinic", clinic.getWebsiteUrl());
 				assertEquals(1, clinic.getLocations().size());
+				assertFalse(jsonMapperExcludingNulls().toMap(clinic).containsKey("detailsHtml"));
 
 				InstitutionLocationApiResponse location = clinic.getLocations().get(0);
 				assertEquals(institutionLocationId, location.getInstitutionLocationId());
@@ -601,5 +643,11 @@ public class ProviderResourceTests {
 	private static void setBookingV2Enabled(Database database,
 																					boolean enabled) {
 		database.execute("UPDATE institution SET booking_v2_enabled=? WHERE institution_id=?", enabled, InstitutionId.COBALT);
+	}
+
+	private static JsonMapper jsonMapperExcludingNulls() {
+		return new JsonMapper.Builder()
+				.mappingNullability(MappingNullability.EXCLUDE_NULLS)
+				.build();
 	}
 }

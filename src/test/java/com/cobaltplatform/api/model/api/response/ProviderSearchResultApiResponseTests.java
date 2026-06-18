@@ -141,6 +141,7 @@ public class ProviderSearchResultApiResponseTests {
 				.build()
 				.toMap(response);
 
+		assertFalse(serializedResponse.containsKey("detailsHtml"));
 		assertFalse(serializedResponse.containsKey("websiteUrl"));
 		assertFalse(serializedResponse.containsKey("locations"));
 	}

@@ -88,6 +88,8 @@ public class ProviderApiResponse {
 	private final String description;
 	@Nullable
 	private final String treatmentDescription;
+	@Nullable
+	private final String detailsHtml;
 	@Nonnull
 	private final String imageUrl;
 	@Nonnull
@@ -182,7 +184,8 @@ public class ProviderApiResponse {
 	public enum ProviderApiResponseSupplement {
 		EVERYTHING,
 		SUPPORT_ROLES,
-		PAYMENT_FUNDING
+		PAYMENT_FUNDING,
+		DETAILS_HTML
 	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -296,6 +299,7 @@ public class ProviderApiResponse {
 		this.entity = provider.getEntity();
 		this.description = bookingV2Enabled ? provider.getDescription() : null;
 		this.treatmentDescription = bookingV2Enabled && includeEverything ? treatmentDescriptionFor(clinicService.findClinicsByProviderId(provider.getProviderId())) : null;
+		this.detailsHtml = supplementsList.contains(ProviderApiResponseSupplement.DETAILS_HTML) ? provider.getDetailsHtml() : null;
 		this.imageUrl = provider.getImageUrl();
 		this.isDefaultImageUrl = provider.getImageUrl() == null;
 		this.timeZone = provider.getTimeZone();
@@ -476,6 +480,11 @@ public class ProviderApiResponse {
 	@Nullable
 	public String getTreatmentDescription() {
 		return this.treatmentDescription;
+	}
+
+	@Nullable
+	public String getDetailsHtml() {
+		return this.detailsHtml;
 	}
 
 	@Nullable

@@ -38,6 +38,23 @@ public class ReferrerMetadataSqlTests {
 				readSql("sql/updates/256-provider-booking-screening.sql"));
 	}
 
+	@Test
+	public void providerClinicDetailsHtmlMigrationWritesPennAutismSemanticContent() throws IOException {
+		String sql = readSql("sql/updates/258-provider-clinic-details-html.sql");
+
+		assertTrue(sql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS details_html TEXT"));
+		assertTrue(sql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS details_html TEXT"));
+		assertTrue(sql.contains("<section class=\"mb-8\">"));
+		assertTrue(sql.contains("<h2 class=\"mb-4\">About</h2>"));
+		assertTrue(sql.contains("<h2 class=\"mb-4\">Accepted Insurances</h2>"));
+		assertTrue(sql.contains("<div class=\"table-responsive\">"));
+		assertTrue(sql.contains("<table class=\"table table-bordered align-middle mb-0\">"));
+		assertTrue(sql.contains("<th scope=\"col\">Health Insurance</th>"));
+		assertTrue(sql.contains("Aetna Choice Point-of-Service (POS) II"));
+		assertTrue(sql.contains("Quest Behavioral Health"));
+		assertTrue(sql.contains("LOWER(TRIM(description)) = LOWER(TRIM('Penn Autism Clinic'))"));
+	}
+
 	protected void assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(String sql) {
 		assertTrue(sql.contains("'{booking,path}'"));
 		assertTrue(sql.contains("appointmentTypeId=%s&institutionLocationId=%s&featureId=%s"));

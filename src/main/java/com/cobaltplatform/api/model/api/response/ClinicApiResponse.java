@@ -38,6 +38,7 @@ import com.cobaltplatform.api.util.Formatter;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -66,6 +67,8 @@ public class ClinicApiResponse {
 	@Nullable
 	private final String treatmentDescription;
 	@Nullable
+	private final String detailsHtml;
+	@Nullable
 	private final Boolean showIntakeAssessmentPrompt;
 	@Nullable
 	private final AppointmentBookingLevelId appointmentBookingLevelId;
@@ -83,6 +86,10 @@ public class ClinicApiResponse {
 	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 	@Nonnull
 	private final List<InstitutionLocationApiResponse> locations;
+
+	public enum ClinicApiResponseSupplement {
+		DETAILS_HTML
+	}
 
 	public static class ClinicApiResponseBatchContext {
 		@Nonnull
@@ -139,21 +146,13 @@ public class ClinicApiResponse {
 	@ThreadSafe
 	public interface ClinicApiResponseFactory {
 		@Nonnull
-		ClinicApiResponse create(@Nonnull Clinic clinic);
+		ClinicApiResponse create(@Nonnull Clinic clinic,
+															@Nullable ClinicApiResponseSupplement... supplements);
 
 		@Nonnull
 		ClinicApiResponse create(@Nonnull Clinic clinic,
-															@Nonnull ClinicApiResponseBatchContext batchContext);
-	}
-
-	@AssistedInject
-	public ClinicApiResponse(@Nonnull ProviderService providerService,
-													 @Nonnull ClinicService clinicService,
-													 @Nonnull Formatter formatter,
-													 @Nonnull Strings strings,
-													 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
-													 @Assisted @Nonnull Clinic clinic) {
-		this(providerService, clinicService, formatter, strings, currentContextProvider, clinic, ClinicApiResponseBatchContext.empty());
+															@Nonnull ClinicApiResponseBatchContext batchContext,
+															@Nullable ClinicApiResponseSupplement... supplements);
 	}
 
 	@AssistedInject
@@ -163,7 +162,19 @@ public class ClinicApiResponse {
 													 @Nonnull Strings strings,
 													 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 													 @Assisted @Nonnull Clinic clinic,
-													 @Assisted @Nonnull ClinicApiResponseBatchContext batchContext) {
+													 @Assisted @Nullable ClinicApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, currentContextProvider, clinic, ClinicApiResponseBatchContext.empty(), supplements);
+	}
+
+	@AssistedInject
+	public ClinicApiResponse(@Nonnull ProviderService providerService,
+													 @Nonnull ClinicService clinicService,
+													 @Nonnull Formatter formatter,
+													 @Nonnull Strings strings,
+													 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+													 @Assisted @Nonnull Clinic clinic,
+													 @Assisted @Nonnull ClinicApiResponseBatchContext batchContext,
+													 @Assisted @Nullable ClinicApiResponseSupplement... supplements) {
 		requireNonNull(providerService);
 		requireNonNull(clinicService);
 		requireNonNull(formatter);
@@ -172,12 +183,15 @@ public class ClinicApiResponse {
 		requireNonNull(clinic);
 		requireNonNull(batchContext);
 
+		List<ClinicApiResponseSupplement> supplementsList = Arrays.asList(supplements);
+
 		this.clinicId = clinic.getClinicId();
 		this.institutionId = clinic.getInstitutionId();
 		this.intakeAssessmentId = clinic.getIntakeAssessmentId();
 		this.name = clinic.getDescription();
 		this.description = clinic.getDescription();
 		this.treatmentDescription = clinic.getTreatmentDescription();
+		this.detailsHtml = supplementsList.contains(ClinicApiResponseSupplement.DETAILS_HTML) ? clinic.getDetailsHtml() : null;
 		this.showIntakeAssessmentPrompt = clinic.getShowIntakeAssessmentPrompt();
 		this.appointmentBookingLevelId = clinic.getAppointmentBookingLevelId();
 		this.phoneNumber = clinic.getPhoneNumber();
@@ -270,6 +284,11 @@ public class ClinicApiResponse {
 	@Nullable
 	public String getTreatmentDescription() {
 		return treatmentDescription;
+	}
+
+	@Nullable
+	public String getDetailsHtml() {
+		return this.detailsHtml;
 	}
 
 	@Nullable
