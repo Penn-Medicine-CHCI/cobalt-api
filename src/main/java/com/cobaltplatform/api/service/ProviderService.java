@@ -571,11 +571,22 @@ public class ProviderService {
 				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
 		Map<UUID, List<Clinic>> clinicsByProviderId = getClinicService().findClinicsByProviderIds(providerIds);
 		Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
-				getAppointmentService().findCompletedAppointmentBookingScreeningKeys(account.getAccountId(),
-						appointmentBookingScreeningKeysFor(providerFinds, appointmentTypesById));
+				findCompletedAppointmentBookingScreeningKeys(account, providerFinds, appointmentTypesById);
 
 		return providerSearchResultsFor(providerFinds, providersById, clinicsByProviderId, appointmentTypesById,
 				completedAppointmentBookingScreeningKeys);
+	}
+
+	@Nonnull
+	public Set<AppointmentBookingScreeningKey> findCompletedAppointmentBookingScreeningKeys(@Nonnull Account account,
+																																													@Nonnull List<ProviderFind> providerFinds,
+																																													@Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(account);
+		requireNonNull(providerFinds);
+		requireNonNull(appointmentTypesById);
+
+		return getAppointmentService().findCompletedAppointmentBookingScreeningKeys(account.getAccountId(),
+				appointmentBookingScreeningKeysFor(providerFinds, appointmentTypesById));
 	}
 
 	@Nonnull

@@ -31,6 +31,7 @@ import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
@@ -171,10 +172,12 @@ public class ProviderAvailabilityResource {
 				: List.of();
 		filterProviderFindsByAppointmentTypeIds(providerFinds, appointmentTypeIds);
 		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
+		Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
+				getProviderService().findCompletedAppointmentBookingScreeningKeys(account, providerFinds, appointmentTypesById);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providerAvailability", getProviderAvailabilityApiResponseFactory().create(provider, providerFinds,
-					appointmentTypesById, dateRange.getStartDate(), dateRange.getEndDate()));
+					appointmentTypesById, dateRange.getStartDate(), dateRange.getEndDate(), completedAppointmentBookingScreeningKeys));
 		}});
 	}
 
@@ -215,10 +218,12 @@ public class ProviderAvailabilityResource {
 				.filter(providerFind -> providersById.containsKey(providerFind.getProviderId()))
 				.collect(Collectors.toList());
 		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
+		Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
+				getProviderService().findCompletedAppointmentBookingScreeningKeys(account, activeProviderFinds, appointmentTypesById);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("clinicAvailability", getProviderAvailabilityApiResponseFactory().create(clinic, activeProviderFinds,
-					providersById, appointmentTypesById, dateRange.getStartDate(), dateRange.getEndDate()));
+					providersById, appointmentTypesById, dateRange.getStartDate(), dateRange.getEndDate(), completedAppointmentBookingScreeningKeys));
 		}});
 	}
 

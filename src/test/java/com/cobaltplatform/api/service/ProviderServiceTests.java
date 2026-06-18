@@ -482,6 +482,26 @@ public class ProviderServiceTests {
 				appointmentBookingScreeningKeys);
 	}
 
+	@Test
+	public void appointmentBookingScreeningKeysReflectFilteredAppointmentTypeIds() {
+		UUID providerId = UUID.randomUUID();
+		UUID filteredOutAppointmentTypeId = UUID.randomUUID();
+		UUID filteredInAppointmentTypeId = UUID.randomUUID();
+		UUID filteredOutScreeningFlowId = UUID.randomUUID();
+		UUID filteredInScreeningFlowId = UUID.randomUUID();
+		ProviderFind providerFind = providerFindWithAvailability(providerId, "Provider", Set.of(filteredInAppointmentTypeId),
+				AvailabilityStatus.AVAILABLE, List.of(filteredInAppointmentTypeId));
+		Map<UUID, AppointmentType> appointmentTypesById = Map.of(
+				filteredOutAppointmentTypeId, appointmentType(filteredOutAppointmentTypeId, "Filtered Out", null, filteredOutScreeningFlowId),
+				filteredInAppointmentTypeId, appointmentType(filteredInAppointmentTypeId, "Filtered In", null, filteredInScreeningFlowId));
+
+		Set<AppointmentBookingScreeningKey> appointmentBookingScreeningKeys =
+				ProviderService.appointmentBookingScreeningKeysFor(List.of(providerFind), appointmentTypesById);
+
+		assertEquals(Set.of(new AppointmentBookingScreeningKey(providerId, filteredInAppointmentTypeId, filteredInScreeningFlowId)),
+				appointmentBookingScreeningKeys);
+	}
+
 	@Nonnull
 	protected Provider provider(@Nonnull UUID providerId,
 															@Nonnull String name) {

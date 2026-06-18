@@ -28,10 +28,12 @@ import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -84,6 +86,8 @@ public class ProviderAvailabilityApiResponse {
 	private final List<AppointmentModalityAvailabilityApiResponse> appointmentModalities;
 	@Nullable
 	private final FirstAvailableAppointmentApiResponse firstAvailableAppointment;
+	@Nullable
+	private final ProviderSearchScreeningRequirement screeningRequirement;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -93,7 +97,8 @@ public class ProviderAvailabilityApiResponse {
 																					 @Nonnull List<ProviderFind> providerFinds,
 																					 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
 																					 @Assisted("startDate") @Nonnull LocalDate startDate,
-																					 @Assisted("endDate") @Nonnull LocalDate endDate);
+																					 @Assisted("endDate") @Nonnull LocalDate endDate,
+																					 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys);
 
 		@Nonnull
 		ProviderAvailabilityApiResponse create(@Nonnull Clinic clinic,
@@ -101,7 +106,8 @@ public class ProviderAvailabilityApiResponse {
 																					 @Assisted("providersById") @Nonnull Map<UUID, Provider> providersById,
 																					 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
 																					 @Assisted("startDate") @Nonnull LocalDate startDate,
-																					 @Assisted("endDate") @Nonnull LocalDate endDate);
+																					 @Assisted("endDate") @Nonnull LocalDate endDate,
+																					 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys);
 	}
 
 	@AssistedInject
@@ -111,7 +117,8 @@ public class ProviderAvailabilityApiResponse {
 																				 @Assisted @Nonnull List<ProviderFind> providerFinds,
 																				 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
 																				 @Assisted("startDate") @Nonnull LocalDate startDate,
-																				 @Assisted("endDate") @Nonnull LocalDate endDate) {
+																				 @Assisted("endDate") @Nonnull LocalDate endDate,
+																				 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(provider);
@@ -119,6 +126,7 @@ public class ProviderAvailabilityApiResponse {
 		requireNonNull(appointmentTypesById);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		Map<UUID, Provider> providersById = Map.of(provider.getProviderId(), provider);
 		Locale locale = currentContextProvider.get().getLocale();
@@ -136,6 +144,8 @@ public class ProviderAvailabilityApiResponse {
 		this.appointmentModalities = appointmentModalityAvailabilitiesFor(providerFinds, providersById, appointmentTypesById, locale);
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null
 				: new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, localeFor(provider, locale));
+		this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
+				appointmentTypesById, completedAppointmentBookingScreeningKeys);
 	}
 
 	@AssistedInject
@@ -146,7 +156,8 @@ public class ProviderAvailabilityApiResponse {
 																				 @Assisted("providersById") @Nonnull Map<UUID, Provider> providersById,
 																				 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
 																				 @Assisted("startDate") @Nonnull LocalDate startDate,
-																				 @Assisted("endDate") @Nonnull LocalDate endDate) {
+																				 @Assisted("endDate") @Nonnull LocalDate endDate,
+																				 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
 		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(clinic);
@@ -155,6 +166,7 @@ public class ProviderAvailabilityApiResponse {
 		requireNonNull(appointmentTypesById);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		Locale locale = currentContextProvider.get().getLocale();
 		List<AvailableAppointment> availableAppointments = ProviderSearchResultApiResponse.availableAppointmentsFor(providerFinds,
@@ -172,6 +184,8 @@ public class ProviderAvailabilityApiResponse {
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null
 				: new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter,
 				localeFor(firstAvailableAppointment.getProvider(), localeFor(clinic, Locale.US)));
+		this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
+				appointmentTypesById, completedAppointmentBookingScreeningKeys);
 	}
 
 	@Nonnull
@@ -384,6 +398,11 @@ public class ProviderAvailabilityApiResponse {
 	@Nullable
 	public FirstAvailableAppointmentApiResponse getFirstAvailableAppointment() {
 		return firstAvailableAppointment;
+	}
+
+	@Nullable
+	public ProviderSearchScreeningRequirement getScreeningRequirement() {
+		return screeningRequirement;
 	}
 
 	@ThreadSafe

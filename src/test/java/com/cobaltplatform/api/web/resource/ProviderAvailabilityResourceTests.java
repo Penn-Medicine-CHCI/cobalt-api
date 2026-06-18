@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
@@ -145,11 +146,15 @@ public class ProviderAvailabilityResourceTests {
 		UUID clinicId = UUID.fromString("00000000-0000-0000-0000-000000000002");
 		UUID firstAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000011");
 		UUID secondAppointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000012");
+		UUID firstScreeningFlowId = UUID.fromString("00000000-0000-0000-0000-000000000021");
+		UUID secondScreeningFlowId = UUID.fromString("00000000-0000-0000-0000-000000000022");
 		LocalDate date = LocalDate.of(2026, 1, 1);
 		Provider provider = provider(providerId, "Test Provider", VideoconferencePlatformId.SWITCHBOARD);
 		Clinic clinic = clinic(clinicId, "Test Clinic");
-		AppointmentType firstAppointmentType = appointmentType(firstAppointmentTypeId, "Alpha Visit", "Alpha appointment description");
-		AppointmentType secondAppointmentType = appointmentType(secondAppointmentTypeId, "Beta Visit", "Beta appointment description");
+		AppointmentType firstAppointmentType = appointmentType(firstAppointmentTypeId, "Alpha Visit", "Alpha appointment description",
+				null, firstScreeningFlowId);
+		AppointmentType secondAppointmentType = appointmentType(secondAppointmentTypeId, "Beta Visit", "Beta appointment description",
+				null, secondScreeningFlowId);
 		ProviderFind providerFind = providerFind(providerId, "Test Provider", availabilityDate(date, List.of(
 				availabilityTime(LocalTime.of(9, 0), AvailabilityStatus.AVAILABLE, List.of(firstAppointmentTypeId, secondAppointmentTypeId))
 		)));
@@ -160,12 +165,15 @@ public class ProviderAvailabilityResourceTests {
 				providerFinds, Map.of(providerId, provider), Map.of(
 				firstAppointmentTypeId, firstAppointmentType,
 				secondAppointmentTypeId, secondAppointmentType
-		), date, date.plusDays(90));
+		), date, date.plusDays(90), Set.of(new AppointmentBookingScreeningKey(providerId, secondAppointmentTypeId, secondScreeningFlowId)));
 		AppointmentModalityAvailabilityApiResponse virtualAvailability = response.getAppointmentModalities().get(0);
 
 		assertEquals(ProviderAppointmentModalityId.VIRTUAL, virtualAvailability.getAppointmentModalityId());
 		assertEquals(List.of(secondAppointmentTypeId), virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
 		assertEquals("Beta appointment description", virtualAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());
+		assertNotNull(response.getScreeningRequirement());
+		assertEquals(secondScreeningFlowId, response.getScreeningRequirement().getScreeningFlowId());
+		assertEquals(true, response.getScreeningRequirement().getScreeningSatisfied());
 	}
 
 	@Test
@@ -186,7 +194,7 @@ public class ProviderAvailabilityResourceTests {
 		)));
 
 		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), provider,
-				List.of(providerFind), Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90));
+				List.of(providerFind), Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90), Set.of());
 		FirstAvailableAppointmentApiResponse firstAvailableAppointment = response.getFirstAvailableAppointment();
 
 		assertNotNull(firstAvailableAppointment);
@@ -225,7 +233,7 @@ public class ProviderAvailabilityResourceTests {
 		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), clinic,
 				List.of(laterProviderFind, earlierProviderFind),
 				Map.of(laterProviderId, laterProvider, earlierProviderId, earlierProvider),
-				Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90));
+				Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90), Set.of());
 
 		assertNotNull(response.getFirstAvailableAppointment());
 		assertEquals(earlierProviderId, response.getFirstAvailableAppointment().getProviderId());
@@ -247,7 +255,7 @@ public class ProviderAvailabilityResourceTests {
 
 		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), provider,
 				List.of(providerFind), Map.of(firstAppointmentTypeId, firstAppointmentType, secondAppointmentTypeId, secondAppointmentType),
-				date, date.plusDays(90));
+				date, date.plusDays(90), Set.of());
 
 		assertNotNull(response.getFirstAvailableAppointment());
 		assertNull(response.getFirstAvailableAppointment().getAppointmentTypeId());
@@ -267,7 +275,7 @@ public class ProviderAvailabilityResourceTests {
 		)));
 
 		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), provider,
-				List.of(providerFind), Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90));
+				List.of(providerFind), Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90), Set.of());
 
 		assertNull(response.getFirstAvailableAppointment());
 	}
