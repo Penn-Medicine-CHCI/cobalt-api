@@ -38,6 +38,8 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.model.service.ProviderSearchResult;
 import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.util.Formatter;
+import com.cobaltplatform.api.util.JsonMapper;
+import com.cobaltplatform.api.util.JsonMapper.MappingNullability;
 import com.lokalized.Strings;
 import org.junit.Test;
 
@@ -123,6 +125,24 @@ public class ProviderSearchResultApiResponseTests {
 		assertSupportedAppointmentModalities(response, List.of(
 				ProviderAppointmentModalityId.PHONE,
 				ProviderAppointmentModalityId.VIRTUAL));
+	}
+
+	@Test
+	public void providerSearchResultDoesNotExposeDirectProviderWebsiteOrLocations() {
+		UUID providerId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		provider.setBioUrl("https://example.com/provider-bio");
+		ProviderFind providerFind = providerFind(providerId, Set.of(UUID.randomUUID()));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind, Map.of(), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+		Map<String, Object> serializedResponse = new JsonMapper.Builder()
+				.mappingNullability(MappingNullability.EXCLUDE_NULLS)
+				.build()
+				.toMap(response);
+
+		assertFalse(serializedResponse.containsKey("websiteUrl"));
+		assertFalse(serializedResponse.containsKey("locations"));
 	}
 
 	@Test

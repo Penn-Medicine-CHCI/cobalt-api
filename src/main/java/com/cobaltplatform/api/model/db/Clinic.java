@@ -50,6 +50,8 @@ public class Clinic {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	private String websiteUrl;
+	@Nullable
 	private String phoneNumber;
 	@Nullable
 	private Locale locale;
@@ -128,6 +130,15 @@ public class Clinic {
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return this.websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
 	}
 
 	@Nullable

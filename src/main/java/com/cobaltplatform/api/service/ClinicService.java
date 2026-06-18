@@ -20,7 +20,9 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -132,6 +134,65 @@ public class ClinicService {
 		}
 
 		return clinicsByProviderId;
+	}
+
+	@Nonnull
+	public List<ClinicLocation> findClinicLocationsByClinicId(@Nullable UUID clinicId) {
+		if (clinicId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM clinic_location
+				WHERE clinic_id=?
+				ORDER BY display_order, name, clinic_location_id
+				""", ClinicLocation.class, clinicId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<ClinicLocation>> findClinicLocationsByClinicIds(@Nullable Set<UUID> clinicIds) {
+		if (clinicIds == null || clinicIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<ClinicLocation> clinicLocations = getDatabase().queryForList("""
+				SELECT *
+				FROM clinic_location
+				WHERE clinic_id = ANY (CAST(? AS UUID[]))
+				ORDER BY clinic_id, display_order, name, clinic_location_id
+				""", ClinicLocation.class, (Object) clinicIds.toArray(new UUID[0]));
+
+		Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId = new HashMap<>();
+
+		for (ClinicLocation clinicLocation : clinicLocations) {
+			if (clinicLocation.getClinicId() == null)
+				continue;
+
+			List<ClinicLocation> clinicLocationsForClinic =
+					clinicLocationsByClinicId.computeIfAbsent(clinicLocation.getClinicId(), ignored -> new ArrayList<>());
+			clinicLocationsForClinic.add(clinicLocation);
+		}
+
+		return clinicLocationsByClinicId;
+	}
+
+	@Nonnull
+	public Map<UUID, Address> findAddressesByIds(@Nullable Set<UUID> addressIds) {
+		if (addressIds == null || addressIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<Address> addresses = getDatabase().queryForList("""
+				SELECT *
+				FROM address
+				WHERE address_id = ANY (CAST(? AS UUID[]))
+				""", Address.class, (Object) addressIds.toArray(new UUID[0]));
+
+		Map<UUID, Address> addressesByAddressId = new HashMap<>(addresses.size());
+
+		for (Address address : addresses)
+			if (address.getAddressId() != null)
+				addressesByAddressId.put(address.getAddressId(), address);
+
+		return addressesByAddressId;
 	}
 
 	@Nonnull

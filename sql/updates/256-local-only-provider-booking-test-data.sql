@@ -830,4 +830,306 @@ $destination$,
 END $$;
 
 
+-- Populate direct provider/clinic website and location response fixture data
+-- with distinct values. These rows are local-only and deterministic so QA and
+-- developer DB recreates can assert response parity without hand setup.
+WITH fixture_provider AS (
+	SELECT
+		provider.provider_id,
+		provider.name,
+		COALESCE(NULLIF(provider.url_name, ''), provider.provider_id::TEXT) AS url_name
+	FROM provider
+	WHERE provider.institution_id='COBALT'
+	AND (
+		provider.provider_id IN (
+			'15f9711d-38e1-44a1-a933-f1522ddd2c81'::UUID,
+			'31633b9d-651b-402b-9314-7def6af811b6'::UUID,
+			'360d46c4-2ee9-4031-aab6-aa6a16f398d7'::UUID,
+			'dc7aeafd-0fc8-4c4d-b09a-09d4dc3079c1'::UUID,
+			'2d6b7032-0145-4273-84f5-94e7238bc331'::UUID,
+			'ed461fc4-0436-4880-b340-b075d56a06f4'::UUID,
+			'9dcc6e07-821e-4b64-8975-aee5fcd5ca8b'::UUID,
+			'a865013e-d50c-46fc-b828-0e5ccdac41b6'::UUID,
+			'eb19c43f-c452-407f-92c1-3602695bceb2'::UUID,
+			'b988f30d-11a6-4818-9c34-ac6f7c429ee1'::UUID,
+			'11e02870-30bc-4178-8614-16caf5fe8996'::UUID,
+			'9d692393-f613-4c6f-8d7c-9272af495f4a'::UUID
+		)
+		OR provider.name='John Skokowski'
+		OR provider.email_address LIKE 'provider-search-screening-%@example.com'
+	)
+)
+UPDATE provider
+SET bio_url=FORMAT('https://fixtures.cobalt.care/providers/%s', fixture_provider.url_name)
+FROM fixture_provider
+WHERE provider.provider_id=fixture_provider.provider_id;
+
+WITH fixture_clinic AS (
+	SELECT
+		clinic.clinic_id,
+		clinic.description
+	FROM clinic
+	WHERE clinic.institution_id='COBALT'
+	AND (
+		clinic.clinic_id IN (
+			'd789dbdb-6756-4293-836d-91b7329fb49c'::UUID,
+			'b6c5e9a3-6018-473d-86d4-2861a328e537'::UUID,
+			'7872559f-b5f6-449f-892d-3f312cd691ff'::UUID,
+			'ab629384-400a-4688-8465-04636ec2eaa2'::UUID,
+			'03283875-eb33-42ff-8d14-2acb4a67b300'::UUID,
+			'3eeb5b48-4c9c-4601-a091-09af03abe3ef'::UUID,
+			'25fd7117-3013-4462-b7b4-63a9bf808f10'::UUID,
+			'b1f16a29-66ed-484f-a4ed-110fd8bdded5'::UUID,
+			'8a385c20-dec8-4535-8c6d-684f0e70bfc0'::UUID,
+			'adab724f-2de7-4824-a56f-50fe8554f730'::UUID,
+			'af1bb3fc-f5ab-49e2-8276-9727b58e9a93'::UUID
+		)
+		OR clinic.description IN ('Penn Autism Clinic', 'Fixture Screening Type Coverage Clinic')
+	)
+)
+UPDATE clinic
+SET website_url=FORMAT('https://fixtures.cobalt.care/clinics/%s', fixture_clinic.clinic_id)
+FROM fixture_clinic
+WHERE clinic.clinic_id=fixture_clinic.clinic_id;
+
+WITH fixture_provider AS (
+	SELECT
+		provider.provider_id,
+		provider.name,
+		COALESCE(NULLIF(provider.url_name, ''), provider.provider_id::TEXT) AS url_name,
+		ROW_NUMBER() OVER (ORDER BY provider.name, provider.provider_id) AS fixture_order
+	FROM provider
+	WHERE provider.institution_id='COBALT'
+	AND (
+		provider.provider_id IN (
+			'15f9711d-38e1-44a1-a933-f1522ddd2c81'::UUID,
+			'31633b9d-651b-402b-9314-7def6af811b6'::UUID,
+			'360d46c4-2ee9-4031-aab6-aa6a16f398d7'::UUID,
+			'dc7aeafd-0fc8-4c4d-b09a-09d4dc3079c1'::UUID,
+			'2d6b7032-0145-4273-84f5-94e7238bc331'::UUID,
+			'ed461fc4-0436-4880-b340-b075d56a06f4'::UUID,
+			'9dcc6e07-821e-4b64-8975-aee5fcd5ca8b'::UUID,
+			'a865013e-d50c-46fc-b828-0e5ccdac41b6'::UUID,
+			'eb19c43f-c452-407f-92c1-3602695bceb2'::UUID,
+			'b988f30d-11a6-4818-9c34-ac6f7c429ee1'::UUID,
+			'11e02870-30bc-4178-8614-16caf5fe8996'::UUID,
+			'9d692393-f613-4c6f-8d7c-9272af495f4a'::UUID
+		)
+		OR provider.name='John Skokowski'
+		OR provider.email_address LIKE 'provider-search-screening-%@example.com'
+	)
+),
+fixture_provider_location AS (
+	SELECT
+		UUID_GENERATE_V5('c65b62f1-b132-4d1b-ad43-26eae272a8b7'::UUID, FORMAT('provider-location-address:%s', provider_id)) AS address_id,
+		FORMAT('%s Provider Location', name) AS postal_name,
+		FORMAT('%s Provider Plaza', 1000 + fixture_order) AS street_address_1,
+		'Philadelphia' AS locality,
+		'PA' AS region,
+		FORMAT('191%s', LPAD(((fixture_order - 1) % 100)::TEXT, 2, '0')) AS postal_code,
+		FORMAT('%s Provider Plaza, Philadelphia, PA %s', 1000 + fixture_order, FORMAT('191%s', LPAD(((fixture_order - 1) % 100)::TEXT, 2, '0'))) AS formatted_address
+	FROM fixture_provider
+)
+INSERT INTO address (
+	address_id,
+	postal_name,
+	street_address_1,
+	locality,
+	region,
+	postal_code,
+	country_code,
+	formatted_address
+)
+SELECT
+	address_id,
+	postal_name,
+	street_address_1,
+	locality,
+	region,
+	postal_code,
+	'US',
+	formatted_address
+FROM fixture_provider_location
+ON CONFLICT (address_id) DO UPDATE
+SET postal_name=EXCLUDED.postal_name,
+	street_address_1=EXCLUDED.street_address_1,
+	locality=EXCLUDED.locality,
+	region=EXCLUDED.region,
+	postal_code=EXCLUDED.postal_code,
+	country_code=EXCLUDED.country_code,
+	formatted_address=EXCLUDED.formatted_address;
+
+WITH fixture_provider AS (
+	SELECT
+		provider.provider_id,
+		provider.name,
+		COALESCE(NULLIF(provider.url_name, ''), provider.provider_id::TEXT) AS url_name,
+		ROW_NUMBER() OVER (ORDER BY provider.name, provider.provider_id) AS fixture_order
+	FROM provider
+	WHERE provider.institution_id='COBALT'
+	AND (
+		provider.provider_id IN (
+			'15f9711d-38e1-44a1-a933-f1522ddd2c81'::UUID,
+			'31633b9d-651b-402b-9314-7def6af811b6'::UUID,
+			'360d46c4-2ee9-4031-aab6-aa6a16f398d7'::UUID,
+			'dc7aeafd-0fc8-4c4d-b09a-09d4dc3079c1'::UUID,
+			'2d6b7032-0145-4273-84f5-94e7238bc331'::UUID,
+			'ed461fc4-0436-4880-b340-b075d56a06f4'::UUID,
+			'9dcc6e07-821e-4b64-8975-aee5fcd5ca8b'::UUID,
+			'a865013e-d50c-46fc-b828-0e5ccdac41b6'::UUID,
+			'eb19c43f-c452-407f-92c1-3602695bceb2'::UUID,
+			'b988f30d-11a6-4818-9c34-ac6f7c429ee1'::UUID,
+			'11e02870-30bc-4178-8614-16caf5fe8996'::UUID,
+			'9d692393-f613-4c6f-8d7c-9272af495f4a'::UUID
+		)
+		OR provider.name='John Skokowski'
+		OR provider.email_address LIKE 'provider-search-screening-%@example.com'
+	)
+)
+INSERT INTO provider_location (
+	provider_location_id,
+	provider_id,
+	address_id,
+	name,
+	phone_number,
+	website_url,
+	email_address,
+	display_order
+)
+SELECT
+	UUID_GENERATE_V5('c65b62f1-b132-4d1b-ad43-26eae272a8b7'::UUID, FORMAT('provider-location:%s', provider_id)),
+	provider_id,
+	UUID_GENERATE_V5('c65b62f1-b132-4d1b-ad43-26eae272a8b7'::UUID, FORMAT('provider-location-address:%s', provider_id)),
+	FORMAT('%s Office', name),
+	FORMAT('+12155554%s', LPAD(fixture_order::TEXT, 3, '0')),
+	FORMAT('https://fixtures.cobalt.care/provider-locations/%s', url_name),
+	FORMAT('provider-location-%s@example.com', LOWER(REGEXP_REPLACE(url_name, '[^a-zA-Z0-9]+', '-', 'g'))),
+	fixture_order
+FROM fixture_provider
+ON CONFLICT (provider_location_id) DO UPDATE
+SET provider_id=EXCLUDED.provider_id,
+	address_id=EXCLUDED.address_id,
+	name=EXCLUDED.name,
+	phone_number=EXCLUDED.phone_number,
+	website_url=EXCLUDED.website_url,
+	email_address=EXCLUDED.email_address,
+	display_order=EXCLUDED.display_order;
+
+WITH fixture_clinic AS (
+	SELECT
+		clinic.clinic_id,
+		clinic.description,
+		ROW_NUMBER() OVER (ORDER BY clinic.description, clinic.clinic_id) AS fixture_order
+	FROM clinic
+	WHERE clinic.institution_id='COBALT'
+	AND (
+		clinic.clinic_id IN (
+			'd789dbdb-6756-4293-836d-91b7329fb49c'::UUID,
+			'b6c5e9a3-6018-473d-86d4-2861a328e537'::UUID,
+			'7872559f-b5f6-449f-892d-3f312cd691ff'::UUID,
+			'ab629384-400a-4688-8465-04636ec2eaa2'::UUID,
+			'03283875-eb33-42ff-8d14-2acb4a67b300'::UUID,
+			'3eeb5b48-4c9c-4601-a091-09af03abe3ef'::UUID,
+			'25fd7117-3013-4462-b7b4-63a9bf808f10'::UUID,
+			'b1f16a29-66ed-484f-a4ed-110fd8bdded5'::UUID,
+			'8a385c20-dec8-4535-8c6d-684f0e70bfc0'::UUID,
+			'adab724f-2de7-4824-a56f-50fe8554f730'::UUID,
+			'af1bb3fc-f5ab-49e2-8276-9727b58e9a93'::UUID
+		)
+		OR clinic.description IN ('Penn Autism Clinic', 'Fixture Screening Type Coverage Clinic')
+	)
+),
+fixture_clinic_location AS (
+	SELECT
+		UUID_GENERATE_V5('c65b62f1-b132-4d1b-ad43-26eae272a8b7'::UUID, FORMAT('clinic-location-address:%s', clinic_id)) AS address_id,
+		FORMAT('%s Clinic Location', description) AS postal_name,
+		FORMAT('%s Clinic Way', 2000 + fixture_order) AS street_address_1,
+		'Philadelphia' AS locality,
+		'PA' AS region,
+		FORMAT('192%s', LPAD(((fixture_order - 1) % 100)::TEXT, 2, '0')) AS postal_code,
+		FORMAT('%s Clinic Way, Philadelphia, PA %s', 2000 + fixture_order, FORMAT('192%s', LPAD(((fixture_order - 1) % 100)::TEXT, 2, '0'))) AS formatted_address
+	FROM fixture_clinic
+)
+INSERT INTO address (
+	address_id,
+	postal_name,
+	street_address_1,
+	locality,
+	region,
+	postal_code,
+	country_code,
+	formatted_address
+)
+SELECT
+	address_id,
+	postal_name,
+	street_address_1,
+	locality,
+	region,
+	postal_code,
+	'US',
+	formatted_address
+FROM fixture_clinic_location
+ON CONFLICT (address_id) DO UPDATE
+SET postal_name=EXCLUDED.postal_name,
+	street_address_1=EXCLUDED.street_address_1,
+	locality=EXCLUDED.locality,
+	region=EXCLUDED.region,
+	postal_code=EXCLUDED.postal_code,
+	country_code=EXCLUDED.country_code,
+	formatted_address=EXCLUDED.formatted_address;
+
+WITH fixture_clinic AS (
+	SELECT
+		clinic.clinic_id,
+		clinic.description,
+		ROW_NUMBER() OVER (ORDER BY clinic.description, clinic.clinic_id) AS fixture_order
+	FROM clinic
+	WHERE clinic.institution_id='COBALT'
+	AND (
+		clinic.clinic_id IN (
+			'd789dbdb-6756-4293-836d-91b7329fb49c'::UUID,
+			'b6c5e9a3-6018-473d-86d4-2861a328e537'::UUID,
+			'7872559f-b5f6-449f-892d-3f312cd691ff'::UUID,
+			'ab629384-400a-4688-8465-04636ec2eaa2'::UUID,
+			'03283875-eb33-42ff-8d14-2acb4a67b300'::UUID,
+			'3eeb5b48-4c9c-4601-a091-09af03abe3ef'::UUID,
+			'25fd7117-3013-4462-b7b4-63a9bf808f10'::UUID,
+			'b1f16a29-66ed-484f-a4ed-110fd8bdded5'::UUID,
+			'8a385c20-dec8-4535-8c6d-684f0e70bfc0'::UUID,
+			'adab724f-2de7-4824-a56f-50fe8554f730'::UUID,
+			'af1bb3fc-f5ab-49e2-8276-9727b58e9a93'::UUID
+		)
+		OR clinic.description IN ('Penn Autism Clinic', 'Fixture Screening Type Coverage Clinic')
+	)
+)
+INSERT INTO clinic_location (
+	clinic_location_id,
+	clinic_id,
+	address_id,
+	name,
+	phone_number,
+	website_url,
+	email_address,
+	display_order
+)
+SELECT
+	UUID_GENERATE_V5('c65b62f1-b132-4d1b-ad43-26eae272a8b7'::UUID, FORMAT('clinic-location:%s', clinic_id)),
+	clinic_id,
+	UUID_GENERATE_V5('c65b62f1-b132-4d1b-ad43-26eae272a8b7'::UUID, FORMAT('clinic-location-address:%s', clinic_id)),
+	FORMAT('%s Front Desk', description),
+	FORMAT('+12155555%s', LPAD(fixture_order::TEXT, 3, '0')),
+	FORMAT('https://fixtures.cobalt.care/clinic-locations/%s', clinic_id),
+	FORMAT('clinic-location-%s@example.com', clinic_id),
+	fixture_order
+FROM fixture_clinic
+ON CONFLICT (clinic_location_id) DO UPDATE
+SET clinic_id=EXCLUDED.clinic_id,
+	address_id=EXCLUDED.address_id,
+	name=EXCLUDED.name,
+	phone_number=EXCLUDED.phone_number,
+	website_url=EXCLUDED.website_url,
+	email_address=EXCLUDED.email_address,
+	display_order=EXCLUDED.display_order;
+
 COMMIT;

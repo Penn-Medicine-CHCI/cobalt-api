@@ -32,6 +32,7 @@ import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBooki
 import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
@@ -57,6 +58,7 @@ import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
+import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
@@ -323,6 +325,65 @@ public class ProviderService {
 				AND p.active=TRUE
 				ORDER BY p.name
 				""", Provider.class, clinicId);
+	}
+
+	@Nonnull
+	public List<ProviderLocation> findProviderLocationsByProviderId(@Nullable UUID providerId) {
+		if (providerId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM provider_location
+				WHERE provider_id=?
+				ORDER BY display_order, name, provider_location_id
+				""", ProviderLocation.class, providerId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<ProviderLocation>> findProviderLocationsByProviderIds(@Nullable Set<UUID> providerIds) {
+		if (providerIds == null || providerIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<ProviderLocation> providerLocations = getDatabase().queryForList("""
+				SELECT *
+				FROM provider_location
+				WHERE provider_id = ANY (CAST(? AS UUID[]))
+				ORDER BY provider_id, display_order, name, provider_location_id
+				""", ProviderLocation.class, (Object) providerIds.toArray(new UUID[0]));
+
+		Map<UUID, List<ProviderLocation>> providerLocationsByProviderId = new HashMap<>();
+
+		for (ProviderLocation providerLocation : providerLocations) {
+			if (providerLocation.getProviderId() == null)
+				continue;
+
+			List<ProviderLocation> providerLocationsForProvider =
+					providerLocationsByProviderId.computeIfAbsent(providerLocation.getProviderId(), ignored -> new ArrayList<>());
+			providerLocationsForProvider.add(providerLocation);
+		}
+
+		return providerLocationsByProviderId;
+	}
+
+	@Nonnull
+	public Map<UUID, Address> findAddressesByIds(@Nullable Set<UUID> addressIds) {
+		if (addressIds == null || addressIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<Address> addresses = getDatabase().queryForList("""
+				SELECT *
+				FROM address
+				WHERE address_id = ANY (CAST(? AS UUID[]))
+				""", Address.class, (Object) addressIds.toArray(new UUID[0]));
+
+		Map<UUID, Address> addressesByAddressId = new HashMap<>(addresses.size());
+
+		for (Address address : addresses)
+			if (address.getAddressId() != null)
+				addressesByAddressId.put(address.getAddressId(), address);
+
+		return addressesByAddressId;
 	}
 
 	@Nonnull

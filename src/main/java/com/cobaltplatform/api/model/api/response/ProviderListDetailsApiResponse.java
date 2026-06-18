@@ -107,7 +107,8 @@ public class ProviderListDetailsApiResponse extends ProviderApiResponse {
 																					 @Assisted @Nonnull Provider provider,
 																					 @Assisted @Nonnull ProviderFind providerFind,
 																					 @Assisted @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
-		super(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, institutionService, configuration, provider);
+		super(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, null, ProviderApiResponse.ProviderApiResponseBatchContext.empty(), false);
 
 		requireNonNull(formatter);
 		requireNonNull(institutionService);

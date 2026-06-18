@@ -31,11 +31,13 @@ import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.Appointm
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.AppointmentTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
@@ -48,11 +50,13 @@ import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Filter;
@@ -61,6 +65,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
@@ -716,6 +721,10 @@ public class ProviderResource {
 
 		// Same for provider
 		Provider provider = request.getProviderId() == null ? null : getProviderService().findProviderById(request.getProviderId()).orElse(null);
+		ProviderApiResponseBatchContext providerApiResponseBatchContext = provider == null
+				? ProviderApiResponseBatchContext.empty()
+				: providerApiResponseBatchContextFor(List.of(provider));
+		ClinicApiResponseBatchContext clinicApiResponseBatchContext = clinicApiResponseBatchContextFor(clinics);
 
 		// If appointments are specified and requestor has permission, pull them too
 		List<Appointment> appointments = new ArrayList<>();
@@ -878,11 +887,11 @@ public class ProviderResource {
 			put("epicDepartments", epicDepartmentsJson);
 
 			if (provider != null)
-				put("provider", getProviderApiResponseFactory().create(provider, ProviderApiResponseSupplement.PAYMENT_FUNDING));
+				put("provider", getProviderApiResponseFactory().create(provider, providerApiResponseBatchContext, ProviderApiResponseSupplement.PAYMENT_FUNDING));
 
 			if (clinics.size() > 0)
 				put("clinics", clinics.stream()
-						.map(clinic -> getClinicApiResponseFactory().create(clinic))
+						.map(clinic -> getClinicApiResponseFactory().create(clinic, clinicApiResponseBatchContext))
 						.collect(Collectors.toList()));
 
 			if (specialties.size() > 0) {
@@ -964,6 +973,54 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	protected ProviderApiResponseBatchContext providerApiResponseBatchContextFor(@Nonnull List<Provider> providers) {
+		requireNonNull(providers);
+
+		if (providers.isEmpty())
+			return ProviderApiResponseBatchContext.empty();
+
+		Set<UUID> providerIds = providers.stream()
+				.map(Provider::getProviderId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		Map<UUID, List<ProviderLocation>> providerLocationsByProviderId =
+				getProviderService().findProviderLocationsByProviderIds(providerIds);
+		Set<UUID> addressIds = providerLocationsByProviderId.values().stream()
+				.flatMap(Collection::stream)
+				.map(ProviderLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, Address> addressesByAddressId = getProviderService().findAddressesByIds(addressIds);
+
+		return new ProviderApiResponseBatchContext(providerLocationsByProviderId, addressesByAddressId, true, true);
+	}
+
+	@Nonnull
+	protected ClinicApiResponseBatchContext clinicApiResponseBatchContextFor(@Nonnull List<Clinic> clinics) {
+		requireNonNull(clinics);
+
+		if (clinics.isEmpty())
+			return ClinicApiResponseBatchContext.empty();
+
+		Set<UUID> clinicIds = clinics.stream()
+				.map(Clinic::getClinicId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId =
+				getClinicService().findClinicLocationsByClinicIds(clinicIds);
+		Set<UUID> addressIds = clinicLocationsByClinicId.values().stream()
+				.flatMap(Collection::stream)
+				.map(ClinicLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, Address> addressesByAddressId = getClinicService().findAddressesByIds(addressIds);
+
+		return new ClinicApiResponseBatchContext(clinicLocationsByClinicId, addressesByAddressId, true, true);
+	}
+
+	@Nonnull
 	protected String normalizeTimeFormat(@Nonnull String timeDescription,
 																			 @Nonnull Locale locale) {
 		requireNonNull(timeDescription);
@@ -979,10 +1036,11 @@ public class ProviderResource {
 	public ApiResponse providers() {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findProvidersByInstitutionId(account.getInstitutionId());
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(providers);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, batchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -1006,8 +1064,10 @@ public class ProviderResource {
 		if (!Objects.equals(clinic.getInstitutionId(), account.getInstitutionId()))
 			throw new AuthorizationException();
 
+		ClinicApiResponseBatchContext batchContext = clinicApiResponseBatchContextFor(List.of(clinic));
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("clinic", getClinicApiResponseFactory().create(clinic));
+			put("clinic", getClinicApiResponseFactory().create(clinic, batchContext));
 		}});
 	}
 
@@ -1020,13 +1080,15 @@ public class ProviderResource {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findProvidersForAutocomplete(query.orElse(null), account.getInstitutionId());
 		List<Clinic> clinics = getClinicService().findClinicsForAutocomplete(query.orElse(null), account.getInstitutionId());
+		ProviderApiResponseBatchContext providerBatchContext = providerApiResponseBatchContextFor(providers);
+		ClinicApiResponseBatchContext clinicBatchContext = clinicApiResponseBatchContextFor(clinics);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, providerBatchContext))
 					.collect(Collectors.toList()));
 			put("clinics", clinics.stream()
-					.map((clinic) -> getClinicApiResponseFactory().create(clinic))
+					.map((clinic) -> getClinicApiResponseFactory().create(clinic, clinicBatchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -1037,10 +1099,11 @@ public class ProviderResource {
 	public ApiResponse recentProviders() {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findRecentProvidersByAccountId(account.getAccountId());
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(providers);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, batchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -1051,10 +1114,11 @@ public class ProviderResource {
 	public ApiResponse lcswProviders() {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findLcswProvidersByInstitutionId(account.getInstitutionId());
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(providers);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, batchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -1276,8 +1340,10 @@ public class ProviderResource {
 		if (!getAuthorizationService().canViewProvider(provider, account))
 			throw new AuthorizationException();
 
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(List.of(provider));
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("provider", getProviderApiResponseFactory().create(provider, ProviderApiResponseSupplement.EVERYTHING));
+			put("provider", getProviderApiResponseFactory().create(provider, batchContext, ProviderApiResponseSupplement.EVERYTHING));
 		}});
 	}
 
