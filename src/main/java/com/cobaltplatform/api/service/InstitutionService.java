@@ -391,7 +391,11 @@ public class InstitutionService {
 				         COALESCE(institution_feature.name_override, f.name)
 				""", FeatureForInstitution.class, institutionId, NavigationHeaderId.CONNECT_WITH_SUPPORT);
 
-		careTypes.forEach(careType -> careType.setSupportRoleIds(getFeatureService().findSupportRoleByFeatureId(careType.getFeatureId())));
+		careTypes.forEach(careType -> {
+			List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(careType.getFeatureId());
+			careType.setSupportRoleIds(supportRoleIds);
+			applyProviderSearchUrlNameForBookingV2(careType, supportRoleIds);
+		});
 
 		return careTypes;
 	}
@@ -484,7 +488,9 @@ public class InstitutionService {
 				"AND ss.screening_session_id = ? " +
 				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeatureForInstitution.class, screeningSessionId, institution.getInstitutionId());
 
-		features.stream().map(feature -> {
+		boolean bookingV2Enabled = Boolean.TRUE.equals(institution.getBookingV2Enabled());
+
+		features.forEach(feature -> {
 			List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());
 			feature.setSupportRoleIds(supportRoleIds);
 			if (!account.getPromptedForInstitutionLocation() && getFeatureService().featureSupportsLocation(feature.getFeatureId()))
@@ -492,19 +498,51 @@ public class InstitutionService {
 			else
 				feature.setLocationPromptRequired(false);
 
+			if (bookingV2Enabled && supportRoleIds.size() > 0) {
+				applyProviderSearchUrlNameForBookingV2(feature, supportRoleIds);
+				return;
+			}
+
 			// Special case for recommended content - only some institutions support content screening/reqs,
 			// so only include the query param for those institutions.
 			// If no query param, user is sent to regular content landing page
-			if (feature.getFeatureId().equals(FeatureId.SELF_HELP_RESOURCES)
+			if (!bookingV2Enabled
+					&& feature.getFeatureId().equals(FeatureId.SELF_HELP_RESOURCES)
 					&& feature.getRecommended()
 					&& institution.getRecommendedContentEnabled()) {
 				feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
 			}
-
-			return true;
-		}).collect(Collectors.toList());
+		});
 
 		return features;
+	}
+
+	protected void applyProviderSearchUrlNameForBookingV2(@Nonnull FeatureForInstitution feature,
+																												@Nonnull List<SupportRoleId> supportRoleIds) {
+		requireNonNull(feature);
+		requireNonNull(supportRoleIds);
+
+		if (feature.getFeatureId() == null || supportRoleIds.size() == 0)
+			return;
+
+		String providerSearchUrlName = providerSearchUrlNameFor(feature.getFeatureId());
+		feature.setUrlName(providerSearchUrlName);
+
+		if (isLegacyCareUrlName(feature.getRecommendationBookingUrlOverride()))
+			feature.setRecommendationBookingUrlOverride(providerSearchUrlName);
+	}
+
+	@Nonnull
+	protected static String providerSearchUrlNameFor(@Nonnull FeatureId featureId) {
+		requireNonNull(featureId);
+		return format("/providers?featureId=%s", featureId);
+	}
+
+	protected static boolean isLegacyCareUrlName(@Nullable String urlName) {
+		String normalizedUrlName = trimToNull(urlName);
+		return normalizedUrlName != null
+				&& (normalizedUrlName.startsWith("/connect-with-support/")
+				|| normalizedUrlName.startsWith("/connect-with-care/"));
 	}
 
 	@Nonnull
