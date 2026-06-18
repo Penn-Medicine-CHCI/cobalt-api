@@ -119,6 +119,21 @@ public class AnalyticsXrayService {
 		this.logger = LoggerFactory.getLogger(getClass());
 	}
 
+	@ThreadSafe
+	public static class AnalyticsXrayFilter {
+		@Nullable
+		private final Boolean behaviorBridgeProvider;
+
+		public AnalyticsXrayFilter(@Nullable Boolean behaviorBridgeProvider) {
+			this.behaviorBridgeProvider = behaviorBridgeProvider;
+		}
+
+		@Nullable
+		public Boolean getBehaviorBridgeProvider() {
+			return this.behaviorBridgeProvider;
+		}
+	}
+
 	@Nonnull
 	public List<AnalyticsReportGroup> findAnalyticsReportGroupsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
@@ -148,13 +163,16 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsMultiChartWidget createAccountVisitsWidget(@Nonnull InstitutionId institutionId,
 																														 @Nonnull LocalDate startDate,
-																														 @Nonnull LocalDate endDate) {
+																														 @Nonnull LocalDate endDate,
+																														 @Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		List<AccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
 				WITH params AS (
@@ -182,6 +200,7 @@ public class AnalyticsXrayService {
 				  AND ane.account_id=a.account_id
 				  AND a.role_id=?
 				  AND a.test_account=FALSE
+				  AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 				  GROUP BY 1
 				)
 				SELECT d.day, COALESCE(dd.distinct_accounts, 0) AS distinct_accounts
@@ -191,7 +210,8 @@ public class AnalyticsXrayService {
 				) d
 				LEFT JOIN daily dd USING (day)
 				ORDER BY d.day
-				""", AccountVisitsRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT);
+				""", AccountVisitsRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT,
+				behaviorBridgeProvider, behaviorBridgeProvider);
 
 		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
 
@@ -275,12 +295,15 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsMultiChartWidget createAccountsCreatedWidget(@Nonnull InstitutionId institutionId,
 																															 @Nonnull LocalDate startDate,
-																															 @Nonnull LocalDate endDate) {
+																															 @Nonnull LocalDate endDate,
+																															 @Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		List<AccountsCreatedRow> rows = getReadReplicaDatabase().queryForList("""
 				WITH params AS (
@@ -307,6 +330,7 @@ public class AnalyticsXrayService {
 				  WHERE a.role_id=?
 				  AND a.test_account=FALSE
 				  AND a.institution_id=?
+				  AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 				  GROUP BY 1
 				)
 				SELECT d.day, COALESCE(agg.accounts_created, 0) AS accounts_created
@@ -316,7 +340,8 @@ public class AnalyticsXrayService {
 				) d
 				LEFT JOIN agg USING (day)
 				ORDER BY d.day
-				""", AccountsCreatedRow.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId);
+				""", AccountsCreatedRow.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId,
+				behaviorBridgeProvider, behaviorBridgeProvider);
 
 		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
 
@@ -398,12 +423,15 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsCounterWidget createAccountRepeatVisitsWidget(@Nonnull InstitutionId institutionId,
 																																@Nonnull LocalDate startDate,
-																																@Nonnull LocalDate endDate) {
+																																@Nonnull LocalDate endDate,
+																																@Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		Long accountsWithMoreThanOneSession = getReadReplicaDatabase().queryForObject("""
 				WITH params AS (
@@ -432,11 +460,13 @@ public class AnalyticsXrayService {
 				          AND a.role_id=?
 				          AND a.test_account=FALSE
 				          AND a.institution_id=?
+				          AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 				        )
 				  GROUP BY ane.account_id
 				  HAVING COUNT(DISTINCT ane.session_id) > 1
 				) t
-				""", Long.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId).get();
+				""", Long.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId,
+				behaviorBridgeProvider, behaviorBridgeProvider).get();
 
 		AnalyticsCounterWidget counterWidget = new AnalyticsCounterWidget();
 		counterWidget.setWidgetTotal(accountsWithMoreThanOneSession);
@@ -451,14 +481,17 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsTableWidget createAccountReferrersWidget(@Nonnull InstitutionId institutionId,
 																													 @Nonnull LocalDate startDate,
-																													 @Nonnull LocalDate endDate) {
+																													 @Nonnull LocalDate endDate,
+																													 @Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
 		String webappBaseUrl = getInstitutionService().findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT).get();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		List<AccountReferrersRow> rows = getReadReplicaDatabase().queryForList("""
 						WITH params AS (
@@ -487,10 +520,12 @@ public class AnalyticsXrayService {
 							AND a.test_account=FALSE
 							AND ane.analytics_native_event_type_id=?
 							AND ane.data->>'referringUrl' NOT LIKE CONCAT(?,'%')
+							AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 						GROUP BY referring_url
 						ORDER BY event_count DESC, referring_url
 						""", AccountReferrersRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT,
-				AnalyticsNativeEventTypeId.SESSION_STARTED, webappBaseUrl);
+				AnalyticsNativeEventTypeId.SESSION_STARTED, webappBaseUrl,
+				behaviorBridgeProvider, behaviorBridgeProvider);
 
 		Long widgetTotal = rows.stream()
 				.map(AccountReferrersRow::getEventCount)
@@ -560,13 +595,16 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsMultiChartWidget createAccountOnboardingResultsWidget(@Nonnull InstitutionId institutionId,
 																																				@Nonnull LocalDate startDate,
-																																				@Nonnull LocalDate endDate) {
+																																				@Nonnull LocalDate endDate,
+																																				@Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		List<AccountOnboardingResultsRow> rows = getReadReplicaDatabase().queryForList("""
 				WITH params AS (
@@ -610,6 +648,7 @@ public class AnalyticsXrayService {
 				   AND a.institution_id = x.institution_id
 				   AND a.role_id = ?
 				   AND a.test_account=FALSE
+				   AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 				  WHERE ss.created >= (SELECT start_utc FROM inst LIMIT 1)
 				    AND ss.created <  (SELECT end_utc   FROM inst LIMIT 1)
 				  ORDER BY ss.target_account_id, ss.created DESC
@@ -658,7 +697,8 @@ public class AnalyticsXrayService {
 				LEFT JOIN started  s USING (day)
 				LEFT JOIN finished f USING (day)
 				ORDER BY d.day
-				""", AccountOnboardingResultsRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT);
+				""", AccountOnboardingResultsRow.class, startDate, endDate, timeZone, institutionId, RoleId.PATIENT,
+				behaviorBridgeProvider, behaviorBridgeProvider);
 
 		List<InstitutionColorValue> chartColorValues = findChartColorValuesByInstitutionId(institutionId);
 
@@ -784,12 +824,15 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsCounterWidget createCourseAggregateCompletionsWidget(@Nonnull InstitutionId institutionId,
 																																			 @Nonnull LocalDate startDate,
-																																			 @Nonnull LocalDate endDate) {
+																																			 @Nonnull LocalDate endDate,
+																																			 @Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		Long courseAggregateCompletions = getReadReplicaDatabase().queryForObject("""
 				WITH params AS (
@@ -819,10 +862,12 @@ public class AnalyticsXrayService {
 				              AND a.role_id      = ?
 				              AND a.test_account = FALSE
 				              AND a.institution_id = ?
+				              AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 				      )
 				    GROUP BY cs.account_id
 				) t		    
-				""", Long.class, startDate, endDate, timeZone, CourseSessionStatusId.COMPLETED, RoleId.PATIENT, institutionId).get();
+				""", Long.class, startDate, endDate, timeZone, CourseSessionStatusId.COMPLETED, RoleId.PATIENT, institutionId,
+				behaviorBridgeProvider, behaviorBridgeProvider).get();
 
 		AnalyticsCounterWidget counterWidget = new AnalyticsCounterWidget();
 		counterWidget.setWidgetTotal(courseAggregateCompletions);
@@ -837,12 +882,15 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsCounterWidget createCourseAggregateVisitsWidget(@Nonnull InstitutionId institutionId,
 																																	@Nonnull LocalDate startDate,
-																																	@Nonnull LocalDate endDate) {
+																																	@Nonnull LocalDate endDate,
+																																	@Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		Long courseAggregateVisits = getReadReplicaDatabase().queryForObject("""
 				WITH params AS (
@@ -871,11 +919,13 @@ public class AnalyticsXrayService {
 											 AND a.role_id        = ?
 											 AND a.test_account   = FALSE
 											 AND a.institution_id = ?
+											 AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 							 )
 						 GROUP BY cs.account_id
 						 HAVING COUNT(DISTINCT cs.course_id) > 1
 				 ) t
-				""", Long.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId).get();
+				""", Long.class, startDate, endDate, timeZone, RoleId.PATIENT, institutionId,
+				behaviorBridgeProvider, behaviorBridgeProvider).get();
 
 		AnalyticsCounterWidget counterWidget = new AnalyticsCounterWidget();
 		counterWidget.setWidgetTotal(courseAggregateVisits);
@@ -890,13 +940,16 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsMultiChartWidget createCourseCompletionWidget(@Nonnull InstitutionId institutionId,
 																																@Nonnull LocalDate startDate,
-																																@Nonnull LocalDate endDate) {
+																																@Nonnull LocalDate endDate,
+																																@Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		List<CourseAccountVisitsRow> rows = getReadReplicaDatabase().queryForList("""
 						WITH params AS (
@@ -937,6 +990,7 @@ public class AnalyticsXrayService {
 						                 AND a.role_id        = ?
 						                 AND a.test_account   = FALSE
 						                 AND a.institution_id = ?
+						                 AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 						            WHERE cs.course_session_status_id = 'COMPLETED'
 						            GROUP BY cs.course_id, completion_day
 						    ),
@@ -965,7 +1019,8 @@ public class AnalyticsXrayService {
 						""",
 				CourseAccountVisitsRow.class,
 				startDate, endDate, timeZone,
-				RoleId.PATIENT, institutionId
+				RoleId.PATIENT, institutionId,
+				behaviorBridgeProvider, behaviorBridgeProvider
 		);
 
 
@@ -982,13 +1037,16 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public List<AnalyticsMultiChartWidget> createCourseModuleCompletionWidget(@Nonnull InstitutionId institutionId,
 																																						@Nonnull LocalDate startDate,
-																																						@Nonnull LocalDate endDate) {
+																																						@Nonnull LocalDate endDate,
+																																						@Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 		List<AnalyticsMultiChartWidget> widgets = new ArrayList<>();
 
 		for (Course course : getCourseService().findCoursesByInstitutionId(institutionId)) {
@@ -1040,6 +1098,7 @@ public class AnalyticsXrayService {
 							     AND a.role_id = ?
 							     AND a.test_account = FALSE
 							     AND a.institution_id = ?
+							     AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 							    JOIN course_session_unit csu
 							      ON csu.course_session_id = cs.course_session_id
 							    JOIN course_unit cu
@@ -1107,6 +1166,7 @@ public class AnalyticsXrayService {
 					ModuleAccountVisitsRow.class,
 					startDate, endDate, timeZone,
 					RoleId.PATIENT, institutionId,
+					behaviorBridgeProvider, behaviorBridgeProvider,
 					course.getCourseId(), course.getCourseId()
 			);
 
@@ -1126,13 +1186,16 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public List<AnalyticsMultiChartWidget> createCourseModuleVisitWidget(@Nonnull InstitutionId institutionId,
 																																			 @Nonnull LocalDate startDate,
-																																			 @Nonnull LocalDate endDate) {
+																																			 @Nonnull LocalDate endDate,
+																																			 @Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 		List<AnalyticsMultiChartWidget> widgets = new ArrayList<>();
 
 		for (Course course : getCourseService().findCoursesByInstitutionId(institutionId)) {
@@ -1168,6 +1231,7 @@ public class AnalyticsXrayService {
 								 ON a.account_id = ane.account_id
 								AND a.role_id = ?
 								AND a.test_account = FALSE
+								AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 							 JOIN course_unit cu
 								 ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
 							 JOIN course_module cm
@@ -1191,6 +1255,7 @@ public class AnalyticsXrayService {
 								 ON a.account_id = ane.account_id
 								AND a.role_id = ?
 								AND a.test_account = FALSE
+								AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 							 JOIN course_unit cu
 								 ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
 							 JOIN course_module cm
@@ -1217,9 +1282,13 @@ public class AnalyticsXrayService {
 					ModuleAccountVisitsRow.class,
 					startDate, endDate, timeZone,
 					institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
-					RoleId.PATIENT, course.getCourseId(),
+					RoleId.PATIENT,
+					behaviorBridgeProvider, behaviorBridgeProvider,
+					course.getCourseId(),
 					institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT,
-					RoleId.PATIENT, course.getCourseId()
+					RoleId.PATIENT,
+					behaviorBridgeProvider, behaviorBridgeProvider,
+					course.getCourseId()
 			);
 
 			widgets.add(buildModuleMultiChartWidget(
@@ -1238,13 +1307,16 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsMultiChartWidget createCourseAccountVisitsWidget(@Nonnull InstitutionId institutionId,
 																																	 @Nonnull LocalDate startDate,
-																																	 @Nonnull LocalDate endDate) {
+																																	 @Nonnull LocalDate endDate,
+																																	 @Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		// Data looks like this:
 		//    day     |              course_id               |          course_title          | distinct_accounts
@@ -1282,6 +1354,7 @@ public class AnalyticsXrayService {
 						    ON a.account_id = ane.account_id
 						   AND a.role_id = ?
 						   AND a.test_account = FALSE
+						   AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 						  JOIN course_unit cu
 						    ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
 						  JOIN course_module cm
@@ -1306,6 +1379,7 @@ public class AnalyticsXrayService {
 						    ON a.account_id = ane.account_id
 						   AND a.role_id = ?
 						   AND a.test_account = FALSE
+						   AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 						  JOIN course_unit cu
 						    ON cu.course_unit_id = (ane.data->>'courseUnitId')::uuid
 						  JOIN course_module cm
@@ -1333,7 +1407,9 @@ public class AnalyticsXrayService {
 				CourseAccountVisitsRow.class,
 				startDate, endDate, timeZone,
 				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT,
-				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT
+				behaviorBridgeProvider, behaviorBridgeProvider,
+				institutionId, AnalyticsNativeEventTypeId.PAGE_VIEW_COURSE_UNIT, RoleId.PATIENT,
+				behaviorBridgeProvider, behaviorBridgeProvider
 		);
 
 		return buildCourseMultiChartWidget(
@@ -1629,13 +1705,16 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public AnalyticsTableWidget createCourseDwellTimeWidget(@Nonnull InstitutionId institutionId,
 																													@Nonnull LocalDate startDate,
-																													@Nonnull LocalDate endDate) {
+																													@Nonnull LocalDate endDate,
+																													@Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
 		List<AnalyticsWidgetTableRow> tableRows = new ArrayList<>(courses.size());
@@ -1669,6 +1748,7 @@ public class AnalyticsXrayService {
 						    JOIN account       a  ON a.account_id        = fe.account_id
 						    WHERE a.role_id = ?
 						      AND a.test_account = FALSE
+						      AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 						    GROUP BY
 						        fe.institution_id,
 						        c.course_id,
@@ -1696,7 +1776,8 @@ public class AnalyticsXrayService {
 				startDate,
 				timeZone,
 				endDate,
-				RoleId.PATIENT);
+				RoleId.PATIENT,
+				behaviorBridgeProvider, behaviorBridgeProvider);
 
 		Map<UUID, CourseDwellTimeRow> courseDwellTimeRowsByCourseId =
 				courseDwellTimeRows.stream().collect(Collectors.toMap(CourseDwellTimeRow::getCourseId, Function.identity()));
@@ -1785,14 +1866,17 @@ public class AnalyticsXrayService {
 	@Nonnull
 	public List<AnalyticsTableWidget> createCourseUnitDwellTimeWidgets(@Nonnull InstitutionId institutionId,
 																																		 @Nonnull LocalDate startDate,
-																																		 @Nonnull LocalDate endDate) {
+																																		 @Nonnull LocalDate endDate,
+																																		 @Nonnull AnalyticsXrayFilter analyticsXrayFilter) {
 		requireNonNull(institutionId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(analyticsXrayFilter);
 
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		List<Course> courses = getCourseService().findCoursesByInstitutionId(institutionId);
 		ZoneId timeZone = institution.getTimeZone();
+		Boolean behaviorBridgeProvider = analyticsXrayFilter.getBehaviorBridgeProvider();
 
 		List<CourseModuleDwellTimeRow> courseModuleDwellTimeRows =
 				getReadReplicaDatabase().queryForList("""
@@ -1827,6 +1911,7 @@ public class AnalyticsXrayService {
 								    WHERE ic.institution_id = fe.institution_id
 								      AND a.role_id = ?
 								      AND a.test_account = FALSE
+								      AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 								    GROUP BY
 								        fe.institution_id,
 								        cm.course_module_id,
@@ -1882,6 +1967,7 @@ public class AnalyticsXrayService {
 						timeZone,
 						endDate,
 						RoleId.PATIENT,
+						behaviorBridgeProvider, behaviorBridgeProvider,
 						institutionId);
 
 		List<CourseUnitDwellTimeRow> courseUnitDwellTimeRows = getReadReplicaDatabase().queryForList("""
@@ -1916,6 +2002,7 @@ public class AnalyticsXrayService {
 						    WHERE ic.institution_id = fe.institution_id
 						      AND a.role_id = ?
 						      AND a.test_account = FALSE
+						      AND (?::BOOLEAN IS NULL OR a.metadata #> '{behaviorBridge,isProvider}' = to_jsonb(?::BOOLEAN))
 						    GROUP BY
 						        fe.institution_id,
 						        cu.course_unit_id,
@@ -1970,6 +2057,7 @@ public class AnalyticsXrayService {
 				timeZone,
 				endDate,
 				RoleId.PATIENT,
+				behaviorBridgeProvider, behaviorBridgeProvider,
 				institutionId);
 
 		// Group units by module, modules by course
