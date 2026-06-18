@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.db.AnalyticsReportGroupReport;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.service.AnalyticsXrayService;
+import com.cobaltplatform.api.service.AnalyticsXrayService.AnalyticsXrayFilter;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.soklet.web.annotation.GET;
@@ -49,6 +50,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -115,10 +117,12 @@ public class AnalyticsXrayResource {
 	@ReadReplica
 	public ApiResponse widgetsByAnalyticsReportGroupId(@Nonnull @PathParameter UUID analyticsReportGroupId,
 																										 @Nonnull @QueryParameter LocalDate startDate,
-																										 @Nonnull @QueryParameter LocalDate endDate) {
+																										 @Nonnull @QueryParameter LocalDate endDate,
+																										 @Nonnull @QueryParameter Optional<Boolean> behaviorBridgeProvider) {
 		requireNonNull(analyticsReportGroupId);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
+		requireNonNull(behaviorBridgeProvider);
 
 		Account account = getCurrentContext().getAccount().get();
 		InstitutionId institutionId = account.getInstitutionId();
@@ -131,6 +135,7 @@ public class AnalyticsXrayResource {
 
 		// TODO: temporary hack, remove
 		endDate = endDate.plusDays(1);
+		AnalyticsXrayFilter analyticsXrayFilter = new AnalyticsXrayFilter(behaviorBridgeProvider.orElse(null));
 
 		// Based on report type, pull data for it
 		for (AnalyticsReportGroupReport report : reports) {
@@ -139,23 +144,23 @@ public class AnalyticsXrayResource {
 
 				// N of unique people that accessed the website
 				case ADMIN_ANALYTICS_ACCOUNT_VISITS ->
-						widgets.add(getAnalyticsXrayService().createAccountVisitsWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createAccountVisitsWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of people that created an account
 				case ADMIN_ANALYTICS_ACCOUNT_CREATION ->
-						widgets.add(getAnalyticsXrayService().createAccountsCreatedWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createAccountsCreatedWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of repeat users (logged on more than once)
 				case ADMIN_ANALYTICS_ACCOUNT_REPEAT_VISITS ->
-						widgets.add(getAnalyticsXrayService().createAccountRepeatVisitsWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createAccountRepeatVisitsWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// List of websites from which the user accessed the platform
 				case ADMIN_ANALYTICS_ACCOUNT_REFERRER ->
-						widgets.add(getAnalyticsXrayService().createAccountReferrersWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createAccountReferrersWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of people who started the onboarding screening flow and N of people who finished
 				case ADMIN_ANALYTICS_ACCOUNT_ONBOARDING_RESULTS ->
-						widgets.add(getAnalyticsXrayService().createAccountOnboardingResultsWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createAccountOnboardingResultsWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// Using IP address to organized by zip code
 				//	case ADMIN_ANALYTICS_ACCOUNT_LOCATION -> throw new UnsupportedOperationException("TODO");
@@ -164,41 +169,41 @@ public class AnalyticsXrayResource {
 
 				// N of users per course
 				case ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS ->
-						widgets.add(getAnalyticsXrayService().createCourseAccountVisitsWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createCourseAccountVisitsWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of users doing more than one course
 				case ADMIN_ANALYTICS_COURSE_AGGREGATE_VISITS ->
-						widgets.add(getAnalyticsXrayService().createCourseAggregateVisitsWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createCourseAggregateVisitsWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of people that clicked/opened a unique module
 				case ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS -> {
 					List<AnalyticsMultiChartWidget> widgetList =
 							getAnalyticsXrayService().createCourseModuleVisitWidget(
-									institutionId, startDate, endDate);
+									institutionId, startDate, endDate, analyticsXrayFilter);
 					widgets.addAll(widgetList);
 				}
 
 				// N of minutes it takes for people to complete a course (mean, median, mode)
 				case ADMIN_ANALYTICS_COURSE_DWELL_TIME ->
-						widgets.add(getAnalyticsXrayService().createCourseDwellTimeWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createCourseDwellTimeWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of minutes it takes for people to get through a unique module (mean, median, mode)
 				case ADMIN_ANALYTICS_COURSE_MODULE_DWELL_TIME ->
-						widgets.addAll(getAnalyticsXrayService().createCourseUnitDwellTimeWidgets(institutionId, startDate, endDate));
+						widgets.addAll(getAnalyticsXrayService().createCourseUnitDwellTimeWidgets(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of people who complete each course
 				case ADMIN_ANALYTICS_COURSE_COMPLETION ->
-						widgets.add(getAnalyticsXrayService().createCourseCompletionWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createCourseCompletionWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of people completing one or more course
 				case ADMIN_ANALYTICS_COURSE_AGGREGATE_COMPLETIONS ->
-						widgets.add(getAnalyticsXrayService().createCourseAggregateCompletionsWidget(institutionId, startDate, endDate));
+						widgets.add(getAnalyticsXrayService().createCourseAggregateCompletionsWidget(institutionId, startDate, endDate, analyticsXrayFilter));
 
 				// N of people who complete a unique module
 				case ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION -> {
 					List<AnalyticsMultiChartWidget> widgetList =
 							getAnalyticsXrayService().createCourseModuleCompletionWidget(
-									institutionId, startDate, endDate);
+									institutionId, startDate, endDate, analyticsXrayFilter);
 					widgets.addAll(widgetList);
 				}
 
