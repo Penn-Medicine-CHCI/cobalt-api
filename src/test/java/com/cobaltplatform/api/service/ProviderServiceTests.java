@@ -38,12 +38,14 @@ import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.Appoi
 import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
+import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
 import com.cobaltplatform.api.model.service.ProviderSearchResult;
 import com.cobaltplatform.api.model.service.ProviderSearchResult.ProviderSearchResultTypeId;
 import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
+import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
@@ -436,6 +438,70 @@ public class ProviderServiceTests {
 	}
 
 	@Test
+	public void providerSearchResultsIncludeProviderWithoutAvailabilityWhenPhoneFallbackAvailable() {
+		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000031");
+		UUID appointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000041");
+		Provider provider = provider(providerId, "Phone Fallback Provider");
+		ProviderFind providerFind = providerFind(providerId, "Phone Fallback Provider", Set.of(appointmentTypeId));
+
+		provider.setPhoneNumber("+12155551000");
+
+		List<ProviderSearchResult> providerSearchResults = ProviderService.providerSearchResultsFor(
+				List.of(providerFind),
+				Map.of(providerId, provider),
+				Map.of(),
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, "Visit", null, null)));
+
+		assertContainsProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.PROVIDER, providerId);
+	}
+
+	@Test
+	public void providerSearchResultsOmitProviderWithoutAvailabilityOrPhoneFallback() {
+		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000032");
+		UUID appointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000042");
+
+		List<ProviderSearchResult> providerSearchResults = ProviderService.providerSearchResultsFor(
+				List.of(providerFind(providerId, "Unavailable Provider", Set.of(appointmentTypeId))),
+				Map.of(providerId, provider(providerId, "Unavailable Provider")),
+				Map.of(),
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, "Visit", null, null)));
+
+		assertDoesNotContainProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.PROVIDER, providerId);
+	}
+
+	@Test
+	public void providerSearchResultsIncludeProviderWithAvailableOnlineSlotWithoutPhoneFallback() {
+		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000033");
+		UUID appointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000043");
+
+		List<ProviderSearchResult> providerSearchResults = ProviderService.providerSearchResultsFor(
+				List.of(providerFindWithAvailability(providerId, "Available Provider", Set.of(appointmentTypeId),
+						AvailabilityStatus.AVAILABLE, List.of(appointmentTypeId))),
+				Map.of(providerId, provider(providerId, "Available Provider")),
+				Map.of(),
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, "Visit", null, null)));
+
+		assertContainsProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.PROVIDER, providerId);
+	}
+
+	@Test
+	public void providerSearchResultsOmitTelephoneProviderWithoutPhoneFallbackOrAvailability() {
+		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000034");
+		UUID appointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000044");
+		Provider provider = provider(providerId, "Telephone Provider");
+
+		provider.setVideoconferencePlatformId(VideoconferencePlatformId.TELEPHONE);
+
+		List<ProviderSearchResult> providerSearchResults = ProviderService.providerSearchResultsFor(
+				List.of(providerFind(providerId, "Telephone Provider", Set.of(appointmentTypeId))),
+				Map.of(providerId, provider),
+				Map.of(),
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, "Visit", null, null)));
+
+		assertDoesNotContainProviderSearchResult(providerSearchResults, ProviderSearchResultTypeId.PROVIDER, providerId);
+	}
+
+	@Test
 	public void providerSearchResultsSuppressProvidersRepresentedByClinicLevelResults() {
 		UUID representedProviderId = UUID.fromString("00000000-0000-0000-0000-000000000011");
 		UUID standaloneProviderId = UUID.fromString("00000000-0000-0000-0000-000000000012");
@@ -450,8 +516,8 @@ public class ProviderServiceTests {
 						providerFind(providerLevelClinicProviderId, "Provider-Level Clinic Provider")),
 				Map.of(
 						representedProviderId, provider(representedProviderId, "Represented Provider"),
-						standaloneProviderId, provider(standaloneProviderId, "Standalone Provider"),
-						providerLevelClinicProviderId, provider(providerLevelClinicProviderId, "Provider-Level Clinic Provider")),
+						standaloneProviderId, providerWithPhone(standaloneProviderId, "Standalone Provider"),
+						providerLevelClinicProviderId, providerWithPhone(providerLevelClinicProviderId, "Provider-Level Clinic Provider")),
 				Map.of(
 						representedProviderId, List.of(clinic(clinicLevelClinicId, "Aggregate Clinic", AppointmentBookingLevelId.CLINIC)),
 						providerLevelClinicProviderId, List.of(clinic(providerLevelClinicId, "Provider-Level Clinic", AppointmentBookingLevelId.PROVIDER))),
@@ -473,7 +539,7 @@ public class ProviderServiceTests {
 		List<ProviderSearchResult> providerSearchResults = ProviderService.providerSearchResultsFor(
 				List.of(providerFind(betaProviderId, "Beta"), providerFind(alphaProviderId, "Alpha")),
 				Map.of(
-						betaProviderId, provider(betaProviderId, "Beta"),
+						betaProviderId, providerWithPhone(betaProviderId, "Beta"),
 						alphaProviderId, provider(alphaProviderId, "Alpha")),
 				Map.of(alphaProviderId, List.of(clinic(alphaClinicId, "Alpha", AppointmentBookingLevelId.CLINIC))),
 				Map.of());
@@ -551,6 +617,14 @@ public class ProviderServiceTests {
 	}
 
 	@Nonnull
+	protected Provider providerWithPhone(@Nonnull UUID providerId,
+																			 @Nonnull String name) {
+		Provider provider = provider(providerId, name);
+		provider.setPhoneNumber("+12155551000");
+		return provider;
+	}
+
+	@Nonnull
 	protected ProviderFind providerFind(@Nonnull UUID providerId,
 																			@Nonnull String name) {
 		return providerFind(providerId, name, null);
@@ -564,6 +638,26 @@ public class ProviderServiceTests {
 		providerFind.setProviderId(providerId);
 		providerFind.setName(name);
 		providerFind.setAppointmentTypeIds(appointmentTypeIds);
+
+		return providerFind;
+	}
+
+	@Nonnull
+	protected ProviderFind providerFindWithAvailability(@Nonnull UUID providerId,
+																											@Nonnull String name,
+																											@Nullable Set<UUID> providerAppointmentTypeIds,
+																											@Nonnull AvailabilityStatus availabilityStatus,
+																											@Nullable List<UUID> availabilityAppointmentTypeIds) {
+		ProviderFind providerFind = providerFind(providerId, name, providerAppointmentTypeIds);
+		AvailabilityDate availabilityDate = new AvailabilityDate();
+		AvailabilityTime availabilityTime = new AvailabilityTime();
+
+		availabilityDate.setDate(LocalDate.of(2026, 1, 1));
+		availabilityTime.setTime(LocalTime.NOON);
+		availabilityTime.setStatus(availabilityStatus);
+		availabilityTime.setAppointmentTypeIds(availabilityAppointmentTypeIds);
+		availabilityDate.setTimes(List.of(availabilityTime));
+		providerFind.setDates(List.of(availabilityDate));
 
 		return providerFind;
 	}

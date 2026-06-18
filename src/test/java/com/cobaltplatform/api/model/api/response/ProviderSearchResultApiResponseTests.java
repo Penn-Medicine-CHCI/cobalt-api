@@ -252,6 +252,57 @@ public class ProviderSearchResultApiResponseTests {
 	}
 
 	@Test
+	public void providerResponseUsesPhoneFallbackWhenNoAvailabilityCanBeDetermined() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFind(providerId, Set.of(appointmentTypeId));
+
+		provider.setPhoneNumber("+12155551000");
+
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, null)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertNull(response.getFirstAvailableAppointment());
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, response.getAppointmentSelectionTypeId());
+		assertEquals("+12155551000", response.getPhoneNumber());
+		assertNotNull(response.getPhoneNumberDescription());
+	}
+
+	@Test
+	public void firstAvailableAppointmentIsNullForBookedOnlyAvailability() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAppointment(providerId, Set.of(appointmentTypeId),
+				AvailabilityStatus.BOOKED, List.of(appointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, null)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertNull(response.getFirstAvailableAppointment());
+	}
+
+	@Test
+	public void firstAvailableAppointmentIsNullForUnknownAppointmentTypeAvailability() {
+		UUID providerId = UUID.randomUUID();
+		UUID appointmentTypeId = UUID.randomUUID();
+		UUID unknownAppointmentTypeId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFindWithAppointment(providerId, Set.of(appointmentTypeId),
+				AvailabilityStatus.AVAILABLE, List.of(unknownAppointmentTypeId));
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forProvider(provider, providerFind,
+				Map.of(appointmentTypeId, appointmentType(appointmentTypeId, null)), Set.of());
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
+
+		assertNull(response.getFirstAvailableAppointment());
+	}
+
+	@Test
 	public void appointmentSelectionTypeOnlyUsesByPhoneWhenEveryProviderIsPhoneOnly() {
 		UUID firstProviderId = UUID.randomUUID();
 		UUID secondProviderId = UUID.randomUUID();
@@ -558,14 +609,22 @@ public class ProviderSearchResultApiResponseTests {
 	protected ProviderFind providerFindWithAvailableAppointment(@Nonnull UUID providerId,
 																															@Nullable Set<UUID> appointmentTypeIds,
 																															@Nullable List<UUID> availableAppointmentTypeIds) {
+		return providerFindWithAppointment(providerId, appointmentTypeIds, AvailabilityStatus.AVAILABLE, availableAppointmentTypeIds);
+	}
+
+	@Nonnull
+	protected ProviderFind providerFindWithAppointment(@Nonnull UUID providerId,
+																										@Nullable Set<UUID> appointmentTypeIds,
+																										@Nonnull AvailabilityStatus availabilityStatus,
+																										@Nullable List<UUID> availabilityAppointmentTypeIds) {
 		ProviderFind providerFind = providerFind(providerId, appointmentTypeIds);
 		AvailabilityDate availabilityDate = new AvailabilityDate();
 		AvailabilityTime availabilityTime = new AvailabilityTime();
 
 		availabilityDate.setDate(LocalDate.of(2026, 1, 1));
 		availabilityTime.setTime(LocalTime.NOON);
-		availabilityTime.setStatus(AvailabilityStatus.AVAILABLE);
-		availabilityTime.setAppointmentTypeIds(availableAppointmentTypeIds);
+		availabilityTime.setStatus(availabilityStatus);
+		availabilityTime.setAppointmentTypeIds(availabilityAppointmentTypeIds);
 		availabilityDate.setTimes(List.of(availabilityTime));
 		providerFind.setDates(List.of(availabilityDate));
 

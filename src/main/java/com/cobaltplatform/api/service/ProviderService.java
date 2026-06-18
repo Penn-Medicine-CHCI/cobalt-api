@@ -478,6 +478,7 @@ public class ProviderService {
 
 		ProviderFindRequest providerFindRequest = copyProviderFindRequest(request);
 		providerFindRequest.setIncludePastAvailability(false);
+		providerFindRequest.setAvailability(ProviderFindAvailability.ONLY_AVAILABLE);
 
 		List<ProviderFind> providerFinds = findProviders(providerFindRequest, account);
 
@@ -565,7 +566,7 @@ public class ProviderService {
 
 			Provider provider = providersById.get(providerFind.getProviderId());
 
-			if (provider != null)
+			if (provider != null && providerSearchResultCanBeShownForProvider(provider, providerFind, appointmentTypesById))
 				providerSearchResults.add(ProviderSearchResult.forProvider(provider, providerFind, appointmentTypesById,
 						completedAppointmentBookingScreeningKeys));
 		}
@@ -581,6 +582,61 @@ public class ProviderService {
 		sortProviderSearchResults(providerSearchResults);
 
 		return providerSearchResults;
+	}
+
+	protected static boolean providerSearchResultCanBeShownForProvider(@Nonnull Provider provider,
+																																			 @Nonnull ProviderFind providerFind,
+																																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(provider);
+		requireNonNull(providerFind);
+		requireNonNull(appointmentTypesById);
+
+		return providerFindHasOnlineBookableSlot(providerFind, appointmentTypesById)
+				|| providerHasFallbackPhoneNumber(provider, providerFind);
+	}
+
+	protected static boolean providerFindHasOnlineBookableSlot(@Nonnull ProviderFind providerFind,
+																														 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(providerFind);
+		requireNonNull(appointmentTypesById);
+
+		if (providerFind.getDates() == null)
+			return false;
+
+		for (AvailabilityDate availabilityDate : providerFind.getDates()) {
+			if (availabilityDate.getDate() == null || availabilityDate.getTimes() == null)
+				continue;
+
+			for (AvailabilityTime availabilityTime : availabilityDate.getTimes())
+				if (availabilityTime.getTime() != null
+						&& availabilityTime.getStatus() == AvailabilityStatus.AVAILABLE
+						&& availabilityTimeHasKnownAppointmentType(availabilityTime, appointmentTypesById))
+					return true;
+		}
+
+		return false;
+	}
+
+	protected static boolean availabilityTimeHasKnownAppointmentType(@Nonnull AvailabilityTime availabilityTime,
+																																	 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(availabilityTime);
+		requireNonNull(appointmentTypesById);
+
+		if (availabilityTime.getAppointmentTypeIds() == null)
+			return false;
+
+		return availabilityTime.getAppointmentTypeIds().stream()
+				.filter(Objects::nonNull)
+				.anyMatch(appointmentTypesById::containsKey);
+	}
+
+	protected static boolean providerHasFallbackPhoneNumber(@Nonnull Provider provider,
+																												 @Nonnull ProviderFind providerFind) {
+		requireNonNull(provider);
+		requireNonNull(providerFind);
+
+		return trimToNull(provider.getPhoneNumber()) != null
+				|| trimToNull(providerFind.getPhoneNumber()) != null;
 	}
 
 	@Nonnull
