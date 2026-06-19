@@ -124,6 +124,7 @@ public class Institution {
 	@Nullable
 	private Boolean featuresEnabled;
 	@Nullable
+	@DatabaseColumn("booking_v2_enabled")
 	private Boolean bookingV2Enabled;
 	@Nullable
 	private Boolean recommendedContentEnabled;

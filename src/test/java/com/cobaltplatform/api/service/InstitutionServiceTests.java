@@ -65,6 +65,24 @@ public class InstitutionServiceTests {
 	}
 
 	@Test
+	public void findInstitutionByIdMapsBookingV2Enabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+
+			database.execute("""
+					UPDATE institution
+					SET booking_v2_enabled=TRUE
+					WHERE institution_id=?
+					""", InstitutionId.COBALT);
+
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+
+			Assert.assertEquals(Boolean.TRUE, institution.getBookingV2Enabled());
+		});
+	}
+
+	@Test
 	public void featuresUseProviderSearchUrlNamesWhenBookingV2Enabled() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
