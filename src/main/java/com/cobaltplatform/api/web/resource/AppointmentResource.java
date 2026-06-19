@@ -429,7 +429,7 @@ public class AppointmentResource {
 		CreateAppointmentRequest request = getRequestBodyParser().parse(requestBody, CreateAppointmentRequest.class);
 
 		if (getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
-			validateAppointmentCreateNameFields(request);
+			validateAppointmentCreateContactFields(request);
 
 		request.setCreatedByAcountId(account.getAccountId());
 
@@ -470,11 +470,13 @@ public class AppointmentResource {
 		}});
 	}
 
-	protected void validateAppointmentCreateNameFields(@Nonnull CreateAppointmentRequest request) {
+	protected void validateAppointmentCreateContactFields(@Nonnull CreateAppointmentRequest request) {
 		requireNonNull(request);
 
 		String firstName = trimToNull(request.getFirstName());
 		String lastName = trimToNull(request.getLastName());
+		String emailAddress = trimToNull(request.getEmailAddress());
+		String phoneNumber = trimToNull(request.getPhoneNumber());
 		ValidationException validationException = new ValidationException();
 
 		if (firstName == null)
@@ -483,11 +485,19 @@ public class AppointmentResource {
 		if (lastName == null)
 			validationException.add(new FieldError("lastName", getStrings().get("Last name is required.")));
 
+		if (emailAddress == null)
+			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
+
+		if (phoneNumber == null)
+			validationException.add(new FieldError("phoneNumber", getStrings().get("Phone number is required.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		request.setFirstName(firstName);
 		request.setLastName(lastName);
+		request.setEmailAddress(emailAddress);
+		request.setPhoneNumber(phoneNumber);
 	}
 
 	@Nonnull

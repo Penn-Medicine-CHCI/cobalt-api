@@ -1093,6 +1093,9 @@ public class AppointmentService {
 		if (bookingV2Enabled && trimToNull(request.getEmailAddress()) == null)
 			request.setEmailAddress(existingAppointment.getEmailAddress());
 
+		if (bookingV2Enabled && trimToNull(request.getPhoneNumber()) == null)
+			request.setPhoneNumber(existingAppointmentAccount.getPhoneNumber());
+
 		UUID newAppointmentId = createAppointment(request);
 
 		CancelAppointmentRequest cancelRequest = new CancelAppointmentRequest();
@@ -1120,6 +1123,8 @@ public class AppointmentService {
 		UUID appointmentTypeId = request.getAppointmentTypeId();
 		UUID intakeAssessmentId = request.getIntakeAssessmentId();
 		UUID patientOrderId = request.getPatientOrderId();
+		String firstName = trimToNull(request.getFirstName());
+		String lastName = trimToNull(request.getLastName());
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String phoneNumber = trimToNull(request.getPhoneNumber());
 		String comment = trimToNull(request.getComment());
@@ -1158,8 +1163,22 @@ public class AppointmentService {
 			institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 			bookingV2Enabled = getInstitutionService().isBookingV2Enabled(institution.getInstitutionId());
 
-		if (date == null)
-			validationException.add(new FieldError("date", getStrings().get("Date is required.")));
+			if (bookingV2Enabled) {
+				if (firstName == null)
+					validationException.add(new FieldError("firstName", getStrings().get("First name is required.")));
+
+				if (lastName == null)
+					validationException.add(new FieldError("lastName", getStrings().get("Last name is required.")));
+
+				if (emailAddress == null)
+					validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
+
+				if (phoneNumber == null)
+					validationException.add(new FieldError("phoneNumber", getStrings().get("Phone number is required.")));
+			}
+
+			if (date == null)
+				validationException.add(new FieldError("date", getStrings().get("Date is required.")));
 
 		if (time == null)
 			validationException.add(new FieldError("time", getStrings().get("Time is required.")));
@@ -1486,8 +1505,8 @@ public class AppointmentService {
 			}
 		}
 
-		String firstName = bookingV2Enabled ? trimToNull(request.getFirstName()) : null;
-		String lastName = bookingV2Enabled ? trimToNull(request.getLastName()) : null;
+		firstName = bookingV2Enabled ? firstName : null;
+		lastName = bookingV2Enabled ? lastName : null;
 
 		if (firstName == null)
 			firstName = trimToNull(account.getFirstName());

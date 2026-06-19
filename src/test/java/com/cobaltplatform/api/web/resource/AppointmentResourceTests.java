@@ -60,7 +60,7 @@ public class AppointmentResourceTests {
 	}
 
 	@Test
-	public void createAppointmentDoesNotRequireFirstNameAndLastNameWhenBookingV2Disabled() {
+	public void createAppointmentDoesNotRequireContactFieldsWhenBookingV2Disabled() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AppointmentResource appointmentResource = app.getInjector().getInstance(AppointmentResource.class);
 			Account account = app.getInjector().getInstance(AccountService.class)
@@ -71,37 +71,45 @@ public class AppointmentResourceTests {
 			setBookingV2Enabled(database, false);
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
-				try {
-					appointmentResource.createAppointment("{}");
-					fail("Expected appointment creation to fail validation.");
-				} catch (ValidationException e) {
-					assertTrue(e.getFieldErrors().stream().noneMatch(fieldError ->
-							"firstName".equals(fieldError.getField()) || "lastName".equals(fieldError.getField())));
-				}
+					try {
+						appointmentResource.createAppointment("{}");
+						fail("Expected appointment creation to fail validation.");
+					} catch (ValidationException e) {
+						assertTrue(e.getFieldErrors().stream().noneMatch(fieldError ->
+								"firstName".equals(fieldError.getField())
+										|| "lastName".equals(fieldError.getField())
+										|| "emailAddress".equals(fieldError.getField())
+										|| "phoneNumber".equals(fieldError.getField())));
+					}
+				});
 			});
-		});
 	}
 
 	@Test
-	public void createAppointmentRejectsMissingFirstNameAndLastName() {
-		assertCreateAppointmentNameValidation("{}", new FieldError("firstName", "First name is required."),
-				new FieldError("lastName", "Last name is required."));
+	public void createAppointmentRejectsMissingContactFields() {
+		assertCreateAppointmentContactValidation("{}", new FieldError("firstName", "First name is required."),
+				new FieldError("lastName", "Last name is required."),
+				new FieldError("emailAddress", "Email address is required."),
+				new FieldError("phoneNumber", "Phone number is required."));
 	}
 
 	@Test
-	public void createAppointmentRejectsBlankFirstNameAndLastName() {
-		assertCreateAppointmentNameValidation("""
-				{
-				  "firstName": "   ",
-				  "lastName": "   "
-				}
-				""", new FieldError("firstName", "First name is required."),
-				new FieldError("lastName", "Last name is required."));
+	public void createAppointmentRejectsBlankContactFields() {
+		assertCreateAppointmentContactValidation("""
+					{
+					  "firstName": "   ",
+					  "lastName": "   ",
+					  "emailAddress": "   ",
+					  "phoneNumber": "   "
+					}
+					""", new FieldError("firstName", "First name is required."),
+				new FieldError("lastName", "Last name is required."),
+				new FieldError("emailAddress", "Email address is required."),
+				new FieldError("phoneNumber", "Phone number is required."));
 	}
 
-	protected void assertCreateAppointmentNameValidation(String requestBody,
-																											 FieldError firstNameFieldError,
-																											 FieldError lastNameFieldError) {
+	protected void assertCreateAppointmentContactValidation(String requestBody,
+																												 FieldError... expectedFieldErrors) {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AppointmentResource appointmentResource = app.getInjector().getInstance(AppointmentResource.class);
 			Account account = app.getInjector().getInstance(AccountService.class)
@@ -117,9 +125,10 @@ public class AppointmentResourceTests {
 					fail("Expected appointment creation to fail validation.");
 				} catch (ValidationException e) {
 					assertEquals(0, e.getGlobalErrors().size());
-					assertEquals(2, e.getFieldErrors().size());
-					assertTrue(e.getFieldErrors().contains(firstNameFieldError));
-					assertTrue(e.getFieldErrors().contains(lastNameFieldError));
+					assertEquals(expectedFieldErrors.length, e.getFieldErrors().size());
+
+					for (FieldError expectedFieldError : expectedFieldErrors)
+						assertTrue(e.getFieldErrors().contains(expectedFieldError));
 				}
 			});
 		});
