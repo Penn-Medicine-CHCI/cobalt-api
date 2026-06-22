@@ -22,16 +22,32 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
+import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
+import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
+import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
+import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.AppointmentService;
+import com.cobaltplatform.api.service.AvailabilityService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.JsonMapper.MappingNullability;
 import com.cobaltplatform.api.util.ValidationException;
@@ -43,7 +59,10 @@ import com.soklet.web.response.ApiResponse;
 import org.junit.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -176,6 +195,47 @@ public class ProviderResourceTests {
 	}
 
 	@Test
+	public void providerDetailIncludesBookingContextForRequestingAccount() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AvailabilityService availabilityService = app.getInjector().getInstance(AvailabilityService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Account otherAccount = createPatientAccount(accountService, "booking-context-other-" + UUID.randomUUID() + "@example.com");
+
+			setBookingV2Enabled(database, true);
+
+			DetailBookingFixture fixture = createDetailBookingFixture(database, availabilityService, appointmentService,
+					institutionService, account);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+				ApiResponse response = providerResource.provider(fixture.getProviderUrlName());
+				ProviderApiResponse provider = responseModelValue(response, "provider");
+
+				assertProviderBookingContext(provider, fixture, false);
+
+				completeAppointmentBookingScreening(appointmentService, database, account, fixture);
+
+				ApiResponse satisfiedResponse = providerResource.provider(fixture.getProviderUrlName());
+				ProviderApiResponse satisfiedProvider = responseModelValue(satisfiedResponse, "provider");
+
+				assertProviderBookingContext(satisfiedProvider, fixture, true);
+			});
+
+			currentContextExecutor.execute(new CurrentContext.Builder(otherAccount, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+				ApiResponse otherAccountResponse = providerResource.provider(fixture.getProviderUrlName());
+				ProviderApiResponse otherAccountProvider = responseModelValue(otherAccountResponse, "provider");
+
+				assertProviderBookingContext(otherAccountProvider, fixture, false);
+			});
+		});
+	}
+
+	@Test
 	public void clinicIncludesContactAndModalityDetails() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
@@ -284,6 +344,47 @@ public class ProviderResourceTests {
 						clinic.getSupportedAppointmentModalities().get(0).getAppointmentModalityId());
 				assertEquals(ProviderAppointmentModalityId.VIRTUAL,
 						clinic.getSupportedAppointmentModalities().get(1).getAppointmentModalityId());
+			});
+		});
+	}
+
+	@Test
+	public void clinicDetailIncludesBookingContextForRequestingAccount() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AvailabilityService availabilityService = app.getInjector().getInstance(AvailabilityService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Account otherAccount = createPatientAccount(accountService, "booking-context-clinic-other-" + UUID.randomUUID() + "@example.com");
+
+			setBookingV2Enabled(database, true);
+
+			DetailBookingFixture fixture = createDetailBookingFixture(database, availabilityService, appointmentService,
+					institutionService, account);
+
+			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+				ApiResponse response = providerResource.clinic(fixture.getClinicId());
+				ClinicApiResponse clinic = responseModelValue(response, "clinic");
+
+				assertClinicBookingContext(clinic, fixture, false);
+
+				completeAppointmentBookingScreening(appointmentService, database, account, fixture);
+
+				ApiResponse satisfiedResponse = providerResource.clinic(fixture.getClinicId());
+				ClinicApiResponse satisfiedClinic = responseModelValue(satisfiedResponse, "clinic");
+
+				assertClinicBookingContext(satisfiedClinic, fixture, true);
+			});
+
+			currentContextExecutor.execute(new CurrentContext.Builder(otherAccount, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
+				ApiResponse otherAccountResponse = providerResource.clinic(fixture.getClinicId());
+				ClinicApiResponse otherAccountClinic = responseModelValue(otherAccountResponse, "clinic");
+
+				assertClinicBookingContext(otherAccountClinic, fixture, false);
 			});
 		});
 	}
@@ -633,6 +734,151 @@ public class ProviderResourceTests {
 		ProviderResource.parseInstitutionLocationIdForProviderSearch("invalid");
 	}
 
+	private static DetailBookingFixture createDetailBookingFixture(Database database,
+																																 AvailabilityService availabilityService,
+																																 AppointmentService appointmentService,
+																																 InstitutionService institutionService,
+																																 Account account) {
+		UUID providerId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		String providerUrlName = "booking-context-provider-" + providerId;
+		UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+
+		assertNotNull(screeningFlowId);
+
+		database.execute("""
+				INSERT INTO clinic (
+				  clinic_id, description, institution_id, appointment_booking_level_id
+				) VALUES (?, ?, ?, ?)
+				""", clinicId, "Booking Context Clinic " + clinicId, InstitutionId.COBALT, AppointmentBookingLevelId.CLINIC);
+		database.execute("""
+				INSERT INTO provider (
+				  provider_id, institution_id, name, email_address, url_name, locale, time_zone,
+				  scheduling_system_id, videoconference_platform_id, active
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""", providerId, InstitutionId.COBALT, "Booking Context Provider " + providerId,
+				"booking-context-provider-" + providerId + "@example.com", providerUrlName, "en-US",
+				"America/New_York", SchedulingSystemId.COBALT, "SWITCHBOARD", true);
+		database.execute("""
+				INSERT INTO provider_clinic (
+				  provider_clinic_id, provider_id, clinic_id, primary_clinic
+				) VALUES (?, ?, ?, ?)
+				""", UUID.randomUUID(), providerId, clinicId, true);
+
+		UUID appointmentTypeId = appointmentService.createAppointmentType(new CreateAppointmentTypeRequest() {{
+			setProviderId(providerId);
+			setName("Booking Context Visit");
+			setDescription("Booking context visit");
+			setVisitTypeId(VisitTypeId.INITIAL);
+			setDurationInMinutes(60L);
+			setScreeningFlowId(screeningFlowId);
+			setHexColor("#FFFFFF");
+			setSchedulingSystemId(SchedulingSystemId.COBALT);
+			setPatientIntakeQuestions(Collections.emptyList());
+			setScreeningQuestions(Collections.emptyList());
+		}});
+		LocalDate availabilityDate = nextWeekday(account.getTimeZone() == null
+				? ZoneId.of("America/New_York")
+				: account.getTimeZone());
+
+		availabilityService.createLogicalAvailability(new CreateLogicalAvailabilityRequest() {{
+			setProviderId(providerId);
+			setAccountId(account.getAccountId());
+			setLogicalAvailabilityTypeId(LogicalAvailabilityTypeId.OPEN);
+			setRecurrenceTypeId(RecurrenceTypeId.NONE);
+			setAppointmentTypeIds(List.of(appointmentTypeId));
+			setStartDateTime(LocalDateTime.of(availabilityDate, LocalTime.of(10, 0)));
+			setEndDate(availabilityDate);
+			setEndTime(LocalTime.of(11, 0));
+		}});
+
+		DetailBookingFixture fixture = new DetailBookingFixture();
+		fixture.setProviderId(providerId);
+		fixture.setProviderUrlName(providerUrlName);
+		fixture.setClinicId(clinicId);
+		fixture.setAppointmentTypeId(appointmentTypeId);
+		fixture.setScreeningFlowId(screeningFlowId);
+		return fixture;
+	}
+
+	private static void completeAppointmentBookingScreening(AppointmentService appointmentService,
+																													Database database,
+																													Account account,
+																													DetailBookingFixture fixture) {
+		AppointmentBookingRequirements appointmentBookingRequirements =
+				appointmentService.findAppointmentBookingRequirements(appointmentBookingRequirementsRequest(account, fixture), account);
+
+		assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+				appointmentBookingRequirements.getAppointmentBookingRequirementsDestinationId());
+		assertNotNull(appointmentBookingRequirements.getScreeningSession());
+
+		database.execute("""
+				UPDATE screening_session
+				SET completed=TRUE,
+				    completed_at=NOW()
+				WHERE screening_session_id=?
+				""", appointmentBookingRequirements.getScreeningSession().getScreeningSessionId());
+	}
+
+	private static FindAppointmentBookingRequirementsRequest appointmentBookingRequirementsRequest(Account account,
+																																															 DetailBookingFixture fixture) {
+		FindAppointmentBookingRequirementsRequest request = new FindAppointmentBookingRequirementsRequest();
+		request.setAccountId(account.getAccountId());
+		request.setProviderId(fixture.getProviderId());
+		request.setAppointmentTypeId(fixture.getAppointmentTypeId());
+		request.setAppointmentSelectionTypeId(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED);
+		return request;
+	}
+
+	private static Account createPatientAccount(AccountService accountService,
+																							String emailAddress) {
+		UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+			setAccountSourceId(AccountSourceId.ANONYMOUS);
+			setInstitutionId(InstitutionId.COBALT);
+			setRoleId(RoleId.PATIENT);
+			setEmailAddress(emailAddress);
+		}});
+
+		return accountService.findAccountById(accountId).get();
+	}
+
+	private static LocalDate nextWeekday(ZoneId timeZone) {
+		LocalDate date = LocalDate.now(timeZone).plusDays(7);
+
+		while (date.getDayOfWeek().getValue() >= 6)
+			date = date.plusDays(1);
+
+		return date;
+	}
+
+	private static void assertProviderBookingContext(ProviderApiResponse provider,
+																									 DetailBookingFixture fixture,
+																									 boolean screeningSatisfied) {
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, provider.getAppointmentSelectionTypeId());
+		assertNotNull(provider.getScreeningRequirement());
+		assertEquals(fixture.getScreeningFlowId(), provider.getScreeningRequirement().getScreeningFlowId());
+		assertEquals(true, provider.getScreeningRequirement().getScreeningRequired());
+		assertEquals(screeningSatisfied, provider.getScreeningRequirement().getScreeningSatisfied());
+		assertEquals(screeningSatisfied
+						? AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING
+						: AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+				provider.getScreeningRequirement().getAppointmentBookingRequirementsDestinationId());
+	}
+
+	private static void assertClinicBookingContext(ClinicApiResponse clinic,
+																								 DetailBookingFixture fixture,
+																								 boolean screeningSatisfied) {
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, clinic.getAppointmentSelectionTypeId());
+		assertNotNull(clinic.getScreeningRequirement());
+		assertEquals(fixture.getScreeningFlowId(), clinic.getScreeningRequirement().getScreeningFlowId());
+		assertEquals(true, clinic.getScreeningRequirement().getScreeningRequired());
+		assertEquals(screeningSatisfied, clinic.getScreeningRequirement().getScreeningSatisfied());
+		assertEquals(screeningSatisfied
+						? AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING
+						: AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+				clinic.getScreeningRequirement().getAppointmentBookingRequirementsDestinationId());
+	}
+
 	@SuppressWarnings("unchecked")
 	private static <T> T responseModelValue(ApiResponse response,
 																					String key) {
@@ -649,5 +895,53 @@ public class ProviderResourceTests {
 		return new JsonMapper.Builder()
 				.mappingNullability(MappingNullability.EXCLUDE_NULLS)
 				.build();
+	}
+
+	private static class DetailBookingFixture {
+		private UUID providerId;
+		private String providerUrlName;
+		private UUID clinicId;
+		private UUID appointmentTypeId;
+		private UUID screeningFlowId;
+
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(UUID providerId) {
+			this.providerId = providerId;
+		}
+
+		public String getProviderUrlName() {
+			return this.providerUrlName;
+		}
+
+		public void setProviderUrlName(String providerUrlName) {
+			this.providerUrlName = providerUrlName;
+		}
+
+		public UUID getClinicId() {
+			return this.clinicId;
+		}
+
+		public void setClinicId(UUID clinicId) {
+			this.clinicId = clinicId;
+		}
+
+		public UUID getAppointmentTypeId() {
+			return this.appointmentTypeId;
+		}
+
+		public void setAppointmentTypeId(UUID appointmentTypeId) {
+			this.appointmentTypeId = appointmentTypeId;
+		}
+
+		public UUID getScreeningFlowId() {
+			return this.screeningFlowId;
+		}
+
+		public void setScreeningFlowId(UUID screeningFlowId) {
+			this.screeningFlowId = screeningFlowId;
+		}
 	}
 }

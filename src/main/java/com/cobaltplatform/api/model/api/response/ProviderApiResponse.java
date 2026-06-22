@@ -21,7 +21,10 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityApiResponse;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.AvailableAppointment;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Clinic;
@@ -30,7 +33,10 @@ import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.PaymentFunding;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.AvailabilityTime;
+import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
@@ -129,6 +135,10 @@ public class ProviderApiResponse {
 	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 	@Nullable
 	private final List<InstitutionLocationApiResponse> locations;
+	@Nullable
+	private final ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
+	@Nullable
+	private final ProviderSearchScreeningRequirement screeningRequirement;
 
 	public static class ProviderApiResponseBatchContext {
 		@Nonnull
@@ -202,6 +212,14 @@ public class ProviderApiResponse {
 
 		@Nonnull
 		ProviderApiResponse create(@Nonnull Provider provider,
+															 @Nonnull ProviderApiResponseBatchContext batchContext,
+															 @Assisted("providerFind") @Nonnull ProviderFind providerFind,
+															 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+															 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+															 @Nullable ProviderApiResponseSupplement... supplements);
+
+		@Nonnull
+		ProviderApiResponse create(@Nonnull Provider provider,
 															 @Nullable List<AvailabilityTime> availabilityTimes,
 															 @Nullable ProviderApiResponseSupplement... supplements);
 	}
@@ -256,6 +274,27 @@ public class ProviderApiResponse {
 				institutionService, configuration, provider, null, batchContext, true, supplements);
 	}
 
+	@AssistedInject
+	public ProviderApiResponse(@Nonnull ProviderService providerService,
+														 @Nonnull ClinicService clinicService,
+														 @Nonnull Formatter formatter,
+														 @Nonnull Strings strings,
+														 @Nonnull JsonMapper jsonMapper,
+														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
+														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
+														 @Nonnull Configuration configuration,
+														 @Assisted @Nonnull Provider provider,
+														 @Assisted @Nonnull ProviderApiResponseBatchContext batchContext,
+														 @Assisted("providerFind") @Nonnull ProviderFind providerFind,
+														 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+														 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, null, batchContext, true, providerFind, appointmentTypesById,
+				completedAppointmentBookingScreeningKeys, supplements);
+	}
+
 	protected ProviderApiResponse(@Nonnull ProviderService providerService,
 																@Nonnull ClinicService clinicService,
 																@Nonnull Formatter formatter,
@@ -270,6 +309,28 @@ public class ProviderApiResponse {
 																@Nonnull ProviderApiResponseBatchContext batchContext,
 																boolean includeWebsiteAndLocations,
 																@Nullable ProviderApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, availabilityTimes, batchContext, includeWebsiteAndLocations, null, Map.of(),
+				Set.of(), supplements);
+	}
+
+	protected ProviderApiResponse(@Nonnull ProviderService providerService,
+																@Nonnull ClinicService clinicService,
+																@Nonnull Formatter formatter,
+																@Nonnull Strings strings,
+																@Nonnull JsonMapper jsonMapper,
+																@Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
+																@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+																@Nonnull InstitutionService institutionService,
+																@Nonnull Configuration configuration,
+																@Nonnull Provider provider,
+																@Nullable List<AvailabilityTime> availabilityTimes,
+																@Nonnull ProviderApiResponseBatchContext batchContext,
+																boolean includeWebsiteAndLocations,
+																@Nullable ProviderFind providerFind,
+																@Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																@Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+																@Nullable ProviderApiResponseSupplement... supplements) {
 		requireNonNull(providerService);
 		requireNonNull(clinicService);
 		requireNonNull(formatter);
@@ -281,6 +342,8 @@ public class ProviderApiResponse {
 		requireNonNull(provider);
 		requireNonNull(configuration);
 		requireNonNull(batchContext);
+		requireNonNull(appointmentTypesById);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		List<ProviderApiResponseSupplement> supplementsList = Arrays.asList(supplements);
 		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
@@ -313,6 +376,20 @@ public class ProviderApiResponse {
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
 		this.supportedAppointmentModalities = bookingV2Enabled ? ProviderAppointmentModalitySupport.providerAppointmentModalityApiResponsesFor(provider, strings) : null;
 		this.locations = includeWebsiteAndLocations ? institutionLocationApiResponsesFor(provider, providerService, formatter, batchContext) : null;
+		if (providerFind == null) {
+			this.appointmentSelectionTypeId = null;
+			this.screeningRequirement = null;
+		} else {
+			Map<UUID, Provider> providersById = Map.of(provider.getProviderId(), provider);
+			List<AvailableAppointment> availableAppointments = ProviderSearchResultApiResponse.availableAppointmentsFor(List.of(providerFind),
+					providersById, appointmentTypesById);
+			AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
+
+			this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
+					providersById, availableAppointments, appointmentTypesById, completedAppointmentBookingScreeningKeys);
+			this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
+					appointmentTypesById, completedAppointmentBookingScreeningKeys);
+		}
 
 		String bio = trimToNull(provider.getBio());
 
@@ -576,6 +653,16 @@ public class ProviderApiResponse {
 	@Nullable
 	public List<ProviderAppointmentModalityApiResponse> getSupportedAppointmentModalities() {
 		return this.supportedAppointmentModalities;
+	}
+
+	@Nullable
+	public ProviderAppointmentSelectionTypeId getAppointmentSelectionTypeId() {
+		return this.appointmentSelectionTypeId;
+	}
+
+	@Nullable
+	public ProviderSearchScreeningRequirement getScreeningRequirement() {
+		return this.screeningRequirement;
 	}
 
 	@Nonnull

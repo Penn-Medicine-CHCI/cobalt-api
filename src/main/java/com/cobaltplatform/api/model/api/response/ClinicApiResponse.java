@@ -21,16 +21,22 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.AvailableAppointment;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.lokalized.Strings;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
+import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
@@ -86,6 +92,10 @@ public class ClinicApiResponse {
 	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 	@Nonnull
 	private final List<InstitutionLocationApiResponse> locations;
+	@Nullable
+	private final ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
+	@Nullable
+	private final ProviderSearchScreeningRequirement screeningRequirement;
 
 	public enum ClinicApiResponseSupplement {
 		DETAILS_HTML
@@ -153,6 +163,15 @@ public class ClinicApiResponse {
 		ClinicApiResponse create(@Nonnull Clinic clinic,
 															@Nonnull ClinicApiResponseBatchContext batchContext,
 															@Nullable ClinicApiResponseSupplement... supplements);
+
+		@Nonnull
+		ClinicApiResponse create(@Nonnull Clinic clinic,
+															@Nonnull ClinicApiResponseBatchContext batchContext,
+															@Assisted("providerFinds") @Nonnull List<ProviderFind> providerFinds,
+															@Assisted("providersById") @Nonnull Map<UUID, Provider> providersById,
+															@Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+															@Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+															@Nullable ClinicApiResponseSupplement... supplements);
 	}
 
 	@AssistedInject
@@ -175,6 +194,40 @@ public class ClinicApiResponse {
 													 @Assisted @Nonnull Clinic clinic,
 													 @Assisted @Nonnull ClinicApiResponseBatchContext batchContext,
 													 @Assisted @Nullable ClinicApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, currentContextProvider, clinic, batchContext, false, null,
+				Map.of(), Map.of(), Set.of(), supplements);
+	}
+
+	@AssistedInject
+	public ClinicApiResponse(@Nonnull ProviderService providerService,
+													 @Nonnull ClinicService clinicService,
+													 @Nonnull Formatter formatter,
+													 @Nonnull Strings strings,
+													 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+													 @Assisted @Nonnull Clinic clinic,
+													 @Assisted @Nonnull ClinicApiResponseBatchContext batchContext,
+													 @Assisted("providerFinds") @Nonnull List<ProviderFind> providerFinds,
+													 @Assisted("providersById") @Nonnull Map<UUID, Provider> providersById,
+													 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+													 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+													 @Assisted @Nullable ClinicApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, currentContextProvider, clinic, batchContext, true, providerFinds,
+				providersById, appointmentTypesById, completedAppointmentBookingScreeningKeys, supplements);
+	}
+
+	protected ClinicApiResponse(@Nonnull ProviderService providerService,
+															@Nonnull ClinicService clinicService,
+															@Nonnull Formatter formatter,
+															@Nonnull Strings strings,
+															@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+															@Nonnull Clinic clinic,
+															@Nonnull ClinicApiResponseBatchContext batchContext,
+															boolean includeBookingContext,
+															@Nullable List<ProviderFind> providerFinds,
+															@Nonnull Map<UUID, Provider> providersById,
+															@Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+															@Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+															@Nullable ClinicApiResponseSupplement... supplements) {
 		requireNonNull(providerService);
 		requireNonNull(clinicService);
 		requireNonNull(formatter);
@@ -182,6 +235,9 @@ public class ClinicApiResponse {
 		requireNonNull(currentContextProvider);
 		requireNonNull(clinic);
 		requireNonNull(batchContext);
+		requireNonNull(providersById);
+		requireNonNull(appointmentTypesById);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		List<ClinicApiResponseSupplement> supplementsList = Arrays.asList(supplements);
 
@@ -201,6 +257,21 @@ public class ClinicApiResponse {
 		this.websiteUrl = clinic.getWebsiteUrl();
 		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerService.findProvidersByClinicId(clinic.getClinicId()), strings);
 		this.locations = institutionLocationApiResponsesFor(clinic, clinicService, providerService, formatter, batchContext);
+		if (!includeBookingContext) {
+			this.appointmentSelectionTypeId = null;
+			this.screeningRequirement = null;
+		} else {
+			requireNonNull(providerFinds);
+
+			List<AvailableAppointment> availableAppointments = ProviderSearchResultApiResponse.availableAppointmentsFor(providerFinds,
+					providersById, appointmentTypesById);
+			AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
+
+			this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds, providersById,
+					availableAppointments, appointmentTypesById, completedAppointmentBookingScreeningKeys);
+			this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
+					appointmentTypesById, completedAppointmentBookingScreeningKeys);
+		}
 	}
 
 	@Nonnull
@@ -329,6 +400,16 @@ public class ClinicApiResponse {
 	@Nonnull
 	public List<ProviderAppointmentModalityApiResponse> getSupportedAppointmentModalities() {
 		return this.supportedAppointmentModalities;
+	}
+
+	@Nullable
+	public ProviderAppointmentSelectionTypeId getAppointmentSelectionTypeId() {
+		return this.appointmentSelectionTypeId;
+	}
+
+	@Nullable
+	public ProviderSearchScreeningRequirement getScreeningRequirement() {
+		return this.screeningRequirement;
 	}
 
 	@Nonnull

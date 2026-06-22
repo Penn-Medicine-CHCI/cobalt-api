@@ -73,6 +73,7 @@ import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
@@ -997,6 +998,47 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	protected ProviderFindRequest providerFindRequestForBookingContext(@Nonnull Account account,
+																																		 @Nullable UUID providerId,
+																																		 @Nullable UUID clinicId) {
+		requireNonNull(account);
+
+		ProviderFindRequest request = new ProviderFindRequest();
+		request.setInstitutionId(account.getInstitutionId());
+		request.setProviderId(providerId);
+		request.setClinicIds(clinicId == null ? Collections.emptySet() : Set.of(clinicId));
+		request.setAvailability(ProviderFindAvailability.ONLY_AVAILABLE);
+		request.setIncludePastAvailability(false);
+
+		return request;
+	}
+
+	@Nonnull
+	protected Map<UUID, AppointmentType> appointmentTypesByIdFor(@Nonnull Account account) {
+		requireNonNull(account);
+
+		return getAppointmentService().findAppointmentTypesByInstitutionId(account.getInstitutionId()).stream()
+				.collect(Collectors.toMap(AppointmentType::getAppointmentTypeId, Function.identity()));
+	}
+
+	@Nonnull
+	protected Map<UUID, Provider> providersByIdFor(@Nonnull List<ProviderFind> providerFinds,
+																								 @Nonnull Account account) {
+		requireNonNull(providerFinds);
+		requireNonNull(account);
+
+		return providerFinds.stream()
+				.map(ProviderFind::getProviderId)
+				.filter(Objects::nonNull)
+				.distinct()
+				.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
+				.filter(Objects::nonNull)
+				.filter(provider -> Boolean.TRUE.equals(provider.getActive()))
+				.filter(provider -> Objects.equals(provider.getInstitutionId(), account.getInstitutionId()))
+				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
+	}
+
+	@Nonnull
 	protected ClinicApiResponseBatchContext clinicApiResponseBatchContextFor(@Nonnull List<Clinic> clinics) {
 		requireNonNull(clinics);
 
@@ -1065,9 +1107,18 @@ public class ProviderResource {
 			throw new AuthorizationException();
 
 		ClinicApiResponseBatchContext batchContext = clinicApiResponseBatchContextFor(List.of(clinic));
+		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
+		List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequestForBookingContext(account, null, clinic.getClinicId()), account);
+		Map<UUID, Provider> providersById = providersByIdFor(providerFinds, account);
+		List<ProviderFind> activeProviderFinds = providerFinds.stream()
+				.filter(providerFind -> providersById.containsKey(providerFind.getProviderId()))
+				.collect(Collectors.toList());
+		Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
+				getProviderService().findCompletedAppointmentBookingScreeningKeys(account, activeProviderFinds, appointmentTypesById);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("clinic", getClinicApiResponseFactory().create(clinic, batchContext, ClinicApiResponseSupplement.DETAILS_HTML));
+			put("clinic", getClinicApiResponseFactory().create(clinic, batchContext, activeProviderFinds, providersById,
+					appointmentTypesById, completedAppointmentBookingScreeningKeys, ClinicApiResponseSupplement.DETAILS_HTML));
 		}});
 	}
 
@@ -1341,6 +1392,27 @@ public class ProviderResource {
 			throw new AuthorizationException();
 
 		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(List.of(provider));
+		boolean bookingV2Enabled = getInstitutionService().isBookingV2Enabled(account.getInstitutionId());
+
+		if (bookingV2Enabled) {
+			Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
+			ProviderFind providerFind = getProviderService().findProviders(providerFindRequestForBookingContext(account, provider.getProviderId(), null), account)
+					.stream()
+					.filter(providerFindResult -> provider.getProviderId().equals(providerFindResult.getProviderId()))
+					.findFirst()
+					.orElse(null);
+
+			if (providerFind != null) {
+				Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
+						getProviderService().findCompletedAppointmentBookingScreeningKeys(account, List.of(providerFind), appointmentTypesById);
+
+				return new ApiResponse(new HashMap<String, Object>() {{
+					put("provider", getProviderApiResponseFactory().create(provider, batchContext, providerFind, appointmentTypesById,
+							completedAppointmentBookingScreeningKeys, ProviderApiResponseSupplement.EVERYTHING,
+							ProviderApiResponseSupplement.DETAILS_HTML));
+				}});
+			}
+		}
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("provider", getProviderApiResponseFactory().create(provider, batchContext, ProviderApiResponseSupplement.EVERYTHING,
