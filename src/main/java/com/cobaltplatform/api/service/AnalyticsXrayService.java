@@ -256,7 +256,7 @@ public class AnalyticsXrayService {
 		AnalyticsMultiChartWidget multiChartWidget = new AnalyticsMultiChartWidget();
 		multiChartWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_VISITS);
 		multiChartWidget.setWidgetTitle(getStrings().get("Account Visits"));
-		multiChartWidget.setWidgetSubtitle(getStrings().get("This chart shows how many accounts visited {{platformName}} per-day", Map.of(
+		multiChartWidget.setWidgetSubtitle(getStrings().get("Daily distinct account visits to {{platformName}}. Totals may count the same account more than once across days.", Map.of(
 				"platformName", institution.getPlatformName()
 		)));
 		multiChartWidget.setWidgetTotal(widgetTotal);
@@ -557,7 +557,7 @@ public class AnalyticsXrayService {
 		tableWidget.setWidgetTitle(getStrings().get("Referrers"));
 		tableWidget.setWidgetTotal(widgetTotal);
 		tableWidget.setWidgetTotalDescription(getFormatter().formatInteger(widgetTotal));
-		tableWidget.setWidgetSubtitle(getStrings().get("Other websites that directed users to {{platformName}}", Map.of(
+		tableWidget.setWidgetSubtitle(getStrings().get("Referral events from other websites that directed users to {{platformName}}", Map.of(
 				"platformName", institution.getPlatformName()
 		)));
 		tableWidget.setWidgetReportId(ReportTypeId.ADMIN_ANALYTICS_ACCOUNT_REFERRER);
@@ -1029,7 +1029,7 @@ public class AnalyticsXrayService {
 				rows,
 				ReportTypeId.ADMIN_ANALYTICS_COURSE_COMPLETION,
 				"Course Completions",
-				"The total number of accounts who have completed the course"
+				"Daily distinct account course completions by course. Totals may count the same account more than once across days or courses"
 		);
 	}
 
@@ -1176,7 +1176,7 @@ public class AnalyticsXrayService {
 					rows,
 					ReportTypeId.ADMIN_ANALYTICS_COURSE_MODULE_COMPLETION,
 					format("%s: %s", "Module Completions", course.getTitle()),
-					"The total number of modules that were completed"
+					"Daily distinct account module completions. Totals may count the same account more than once across days or modules."
 			));
 		}
 
@@ -1297,7 +1297,7 @@ public class AnalyticsXrayService {
 					rows,
 					ReportTypeId.ADMIN_ANALYTICS_COURSE_MODULE_ACCOUNT_VISITS,
 					format("%s: %s", "Module Visits", course.getTitle()),
-					"The total number of modules that were visited"
+					"Daily distinct account visits to course units by module. Totals may count the same account more than once across days or modules"
 			));
 		}
 
@@ -1417,7 +1417,7 @@ public class AnalyticsXrayService {
 				rows,
 				ReportTypeId.ADMIN_ANALYTICS_COURSE_ACCOUNT_VISITS,
 				"Course Visits",
-				"The total number of accounts who have viewed a course unit at least once"
+				"Daily distinct account visits to course units by course. Totals may count the same account more than once across days or courses"
 		);
 	}
 
