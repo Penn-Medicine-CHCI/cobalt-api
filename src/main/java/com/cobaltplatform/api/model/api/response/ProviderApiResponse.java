@@ -29,9 +29,9 @@ import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportR
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.PaymentFunding;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.AvailabilityTime;
@@ -134,7 +134,7 @@ public class ProviderApiResponse {
 	@Nullable
 	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
 	@Nullable
-	private final List<InstitutionLocationApiResponse> locations;
+	private final List<LocationApiResponse> locations;
 	@Nullable
 	private final ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
 	@Nullable
@@ -142,10 +142,10 @@ public class ProviderApiResponse {
 
 	public static class ProviderApiResponseBatchContext {
 		@Nonnull
-		private final Map<UUID, List<InstitutionLocation>> institutionLocationsByProviderId;
+		private final Map<UUID, List<ProviderLocation>> providerLocationsByProviderId;
 		@Nonnull
 		private final Map<UUID, Address> addressesByAddressId;
-		private final boolean institutionLocationsPreloaded;
+		private final boolean providerLocationsPreloaded;
 		private final boolean addressesPreloaded;
 
 		@Nonnull
@@ -153,28 +153,28 @@ public class ProviderApiResponse {
 			return new ProviderApiResponseBatchContext(Map.of(), Map.of(), false, false);
 		}
 
-		public ProviderApiResponseBatchContext(@Nonnull Map<UUID, List<InstitutionLocation>> institutionLocationsByProviderId,
+		public ProviderApiResponseBatchContext(@Nonnull Map<UUID, List<ProviderLocation>> providerLocationsByProviderId,
 																					 @Nonnull Map<UUID, Address> addressesByAddressId,
-																					 boolean institutionLocationsPreloaded,
+																					 boolean providerLocationsPreloaded,
 																					 boolean addressesPreloaded) {
-			requireNonNull(institutionLocationsByProviderId);
+			requireNonNull(providerLocationsByProviderId);
 			requireNonNull(addressesByAddressId);
 
-			this.institutionLocationsByProviderId = new HashMap<>();
+			this.providerLocationsByProviderId = new HashMap<>();
 			this.addressesByAddressId = new HashMap<>(addressesByAddressId);
-			this.institutionLocationsPreloaded = institutionLocationsPreloaded;
+			this.providerLocationsPreloaded = providerLocationsPreloaded;
 			this.addressesPreloaded = addressesPreloaded;
 
-			for (Map.Entry<UUID, List<InstitutionLocation>> entry : institutionLocationsByProviderId.entrySet())
-				this.institutionLocationsByProviderId.put(entry.getKey(), List.copyOf(entry.getValue()));
+			for (Map.Entry<UUID, List<ProviderLocation>> entry : providerLocationsByProviderId.entrySet())
+				this.providerLocationsByProviderId.put(entry.getKey(), List.copyOf(entry.getValue()));
 		}
 
 		@Nonnull
-		public List<InstitutionLocation> getInstitutionLocationsByProviderId(@Nullable UUID providerId) {
+		public List<ProviderLocation> getProviderLocationsByProviderId(@Nullable UUID providerId) {
 			if (providerId == null)
 				return List.of();
 
-			return this.institutionLocationsByProviderId.getOrDefault(providerId, List.of());
+			return this.providerLocationsByProviderId.getOrDefault(providerId, List.of());
 		}
 
 		@Nullable
@@ -182,8 +182,8 @@ public class ProviderApiResponse {
 			return addressId == null ? null : this.addressesByAddressId.get(addressId);
 		}
 
-		public boolean isInstitutionLocationsPreloaded() {
-			return this.institutionLocationsPreloaded;
+		public boolean isProviderLocationsPreloaded() {
+			return this.providerLocationsPreloaded;
 		}
 
 		public boolean isAddressesPreloaded() {
@@ -375,7 +375,7 @@ public class ProviderApiResponse {
 		this.phoneNumberDescription = bookingV2Enabled ? formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale()) : null;
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
 		this.supportedAppointmentModalities = bookingV2Enabled ? ProviderAppointmentModalitySupport.providerAppointmentModalityApiResponsesFor(provider, strings) : null;
-		this.locations = includeWebsiteAndLocations ? institutionLocationApiResponsesFor(provider, providerService, formatter, batchContext) : null;
+		this.locations = includeWebsiteAndLocations ? locationApiResponsesFor(provider, providerService, formatter, batchContext) : null;
 		if (providerFind == null) {
 			this.appointmentSelectionTypeId = null;
 			this.screeningRequirement = null;
@@ -448,18 +448,18 @@ public class ProviderApiResponse {
 	}
 
 	@Nonnull
-	protected List<InstitutionLocationApiResponse> institutionLocationApiResponsesFor(@Nonnull Provider provider,
-																																									 @Nonnull ProviderService providerService,
-																																									 @Nonnull Formatter formatter,
-																																									 @Nonnull ProviderApiResponseBatchContext batchContext) {
+	protected List<LocationApiResponse> locationApiResponsesFor(@Nonnull Provider provider,
+																															@Nonnull ProviderService providerService,
+																															@Nonnull Formatter formatter,
+																															@Nonnull ProviderApiResponseBatchContext batchContext) {
 		requireNonNull(provider);
 		requireNonNull(providerService);
 		requireNonNull(formatter);
 		requireNonNull(batchContext);
 
-		List<InstitutionLocation> institutionLocations = batchContext.isInstitutionLocationsPreloaded()
-				? batchContext.getInstitutionLocationsByProviderId(provider.getProviderId())
-				: providerService.findInstitutionLocationsByProviderId(provider.getProviderId());
+		List<ProviderLocation> providerLocations = batchContext.isProviderLocationsPreloaded()
+				? batchContext.getProviderLocationsByProviderId(provider.getProviderId())
+				: providerService.findProviderLocationsByProviderId(provider.getProviderId());
 
 		Map<UUID, Address> addressesByAddressId;
 
@@ -468,18 +468,18 @@ public class ProviderApiResponse {
 		} else {
 			Set<UUID> addressIds = new HashSet<>();
 
-			for (InstitutionLocation institutionLocation : institutionLocations)
-				if (institutionLocation.getAddressId() != null)
-					addressIds.add(institutionLocation.getAddressId());
+			for (ProviderLocation providerLocation : providerLocations)
+				if (providerLocation.getAddressId() != null)
+					addressIds.add(providerLocation.getAddressId());
 
 			addressesByAddressId = providerService.findAddressesByIds(addressIds);
 		}
 
-		return institutionLocations.stream()
-				.map(institutionLocation -> new InstitutionLocationApiResponse(institutionLocation,
+		return providerLocations.stream()
+				.map(providerLocation -> new LocationApiResponse(providerLocation,
 						batchContext.isAddressesPreloaded()
-								? batchContext.getAddressByAddressId(institutionLocation.getAddressId())
-								: addressesByAddressId.get(institutionLocation.getAddressId()),
+								? batchContext.getAddressByAddressId(providerLocation.getAddressId())
+								: addressesByAddressId.get(providerLocation.getAddressId()),
 						formatter))
 				.collect(Collectors.toList());
 	}
@@ -666,7 +666,7 @@ public class ProviderApiResponse {
 	}
 
 	@Nonnull
-	public List<InstitutionLocationApiResponse> getLocations() {
+	public List<LocationApiResponse> getLocations() {
 		return this.locations == null ? List.of() : this.locations;
 	}
 }

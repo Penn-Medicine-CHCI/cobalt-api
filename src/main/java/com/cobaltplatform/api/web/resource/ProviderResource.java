@@ -57,15 +57,16 @@ import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Filter;
 import com.cobaltplatform.api.model.db.Followup;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
@@ -84,6 +85,7 @@ import com.cobaltplatform.api.service.AssessmentScoringService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.AvailabilityService;
+import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.FeatureService;
 import com.cobaltplatform.api.service.FollowupService;
@@ -168,6 +170,8 @@ public class ProviderResource {
 	@Nonnull
 	private final AppointmentService appointmentService;
 	@Nonnull
+	private final AddressService addressService;
+	@Nonnull
 	private final ClinicService clinicService;
 	@Nonnull
 	private final FollowupService followupService;
@@ -229,6 +233,7 @@ public class ProviderResource {
 													@Nonnull AssessmentScoringService assessmentScoringService,
 													@Nonnull ProviderService providerService,
 													@Nonnull AppointmentService appointmentService,
+													@Nonnull AddressService addressService,
 													@Nonnull ClinicService clinicService,
 													@Nonnull FollowupService followupService,
 													@Nonnull AuthorizationService authorizationService,
@@ -260,6 +265,7 @@ public class ProviderResource {
 		requireNonNull(assessmentScoringService);
 		requireNonNull(providerService);
 		requireNonNull(appointmentService);
+		requireNonNull(addressService);
 		requireNonNull(clinicService);
 		requireNonNull(followupService);
 		requireNonNull(authorizationService);
@@ -292,6 +298,7 @@ public class ProviderResource {
 		this.assessmentScoringService = assessmentScoringService;
 		this.providerService = providerService;
 		this.appointmentService = appointmentService;
+		this.addressService = addressService;
 		this.clinicService = clinicService;
 		this.followupService = followupService;
 		this.authorizationService = authorizationService;
@@ -985,16 +992,16 @@ public class ProviderResource {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 
-		Map<UUID, List<InstitutionLocation>> institutionLocationsByProviderId =
-				getProviderService().findInstitutionLocationsByProviderIds(providerIds);
-		Set<UUID> addressIds = institutionLocationsByProviderId.values().stream()
+		Map<UUID, List<ProviderLocation>> providerLocationsByProviderId =
+				getProviderService().findProviderLocationsByProviderIds(providerIds);
+		Set<UUID> addressIds = providerLocationsByProviderId.values().stream()
 				.flatMap(Collection::stream)
-				.map(InstitutionLocation::getAddressId)
+				.map(ProviderLocation::getAddressId)
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
-		Map<UUID, Address> addressesByAddressId = getProviderService().findAddressesByIds(addressIds);
+		Map<UUID, Address> addressesByAddressId = getAddressService().findAddressesByIds(addressIds);
 
-		return new ProviderApiResponseBatchContext(institutionLocationsByProviderId, addressesByAddressId, true, true);
+		return new ProviderApiResponseBatchContext(providerLocationsByProviderId, addressesByAddressId, true, true);
 	}
 
 	@Nonnull
@@ -1050,16 +1057,16 @@ public class ProviderResource {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 
-		Map<UUID, List<InstitutionLocation>> institutionLocationsByClinicId =
-				getClinicService().findInstitutionLocationsByClinicIds(clinicIds);
-		Set<UUID> addressIds = institutionLocationsByClinicId.values().stream()
+		Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId =
+				getClinicService().findClinicLocationsByClinicIds(clinicIds);
+		Set<UUID> addressIds = clinicLocationsByClinicId.values().stream()
 				.flatMap(Collection::stream)
-				.map(InstitutionLocation::getAddressId)
+				.map(ClinicLocation::getAddressId)
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
-		Map<UUID, Address> addressesByAddressId = getProviderService().findAddressesByIds(addressIds);
+		Map<UUID, Address> addressesByAddressId = getAddressService().findAddressesByIds(addressIds);
 
-		return new ClinicApiResponseBatchContext(institutionLocationsByClinicId, addressesByAddressId, true, true);
+		return new ClinicApiResponseBatchContext(clinicLocationsByClinicId, addressesByAddressId, true, true);
 	}
 
 	@Nonnull
@@ -1491,6 +1498,11 @@ public class ProviderResource {
 	@Nonnull
 	protected ProviderService getProviderService() {
 		return this.providerService;
+	}
+
+	@Nonnull
+	protected AddressService getAddressService() {
+		return this.addressService;
 	}
 
 	@Nonnull

@@ -21,6 +21,7 @@ package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -134,6 +135,45 @@ public class ClinicService {
 		}
 
 		return clinicsByProviderId;
+	}
+
+	@Nonnull
+	public List<ClinicLocation> findClinicLocationsByClinicId(@Nullable UUID clinicId) {
+		if (clinicId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM clinic_location
+				WHERE clinic_id=?
+				ORDER BY display_order, name, clinic_location_id
+				""", ClinicLocation.class, clinicId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<ClinicLocation>> findClinicLocationsByClinicIds(@Nullable Set<UUID> clinicIds) {
+		if (clinicIds == null || clinicIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<ClinicLocation> clinicLocations = getDatabase().queryForList("""
+				SELECT *
+				FROM clinic_location
+				WHERE clinic_id = ANY (CAST(? AS UUID[]))
+				ORDER BY clinic_id, display_order, name, clinic_location_id
+				""", ClinicLocation.class, (Object) clinicIds.toArray(new UUID[0]));
+
+		Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId = new HashMap<>();
+
+		for (ClinicLocation clinicLocation : clinicLocations) {
+			if (clinicLocation.getClinicId() == null)
+				continue;
+
+			List<ClinicLocation> clinicLocationsForClinic =
+					clinicLocationsByClinicId.computeIfAbsent(clinicLocation.getClinicId(), ignored -> new ArrayList<>());
+			clinicLocationsForClinic.add(clinicLocation);
+		}
+
+		return clinicLocationsByClinicId;
 	}
 
 	@Nonnull

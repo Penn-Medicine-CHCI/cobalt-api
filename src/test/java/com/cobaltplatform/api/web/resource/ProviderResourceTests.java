@@ -27,7 +27,7 @@ import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse;
-import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
+import com.cobaltplatform.api.model.api.response.LocationApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
@@ -112,7 +112,9 @@ public class ProviderResourceTests {
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
 			UUID providerId = UUID.randomUUID();
 			UUID clinicId = UUID.randomUUID();
+			UUID providerLocationId = UUID.randomUUID();
 			UUID providerAddressId = UUID.randomUUID();
+			UUID institutionLocationAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
 			String providerUrlName = "detail-provider-" + providerId;
 			String providerDetailsHtml = "<section><h2>Provider Details</h2><p>Provider detail copy.</p></section>";
@@ -144,13 +146,27 @@ public class ProviderResourceTests {
 					""", providerAddressId, "Provider Location Postal", "101 Provider Lane", "Philadelphia", "PA",
 					"19104", "US", "101 Provider Lane, Philadelphia, PA 19104");
 			database.execute("""
+					INSERT INTO provider_location (
+					  provider_location_id, provider_id, address_id, name, short_name, display_order,
+					  phone_number, website_url, email_address
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					""", providerLocationId, providerId, providerAddressId, "Detail Provider Office",
+					"Provider Office", 1, "+12155551414", "https://example.com/provider-location",
+					"provider-location@example.com");
+			database.execute("""
+					INSERT INTO address (
+					  address_id, postal_name, street_address_1, locality, region, postal_code, country_code, formatted_address
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					""", institutionLocationAddressId, "Incorrect Institution Location Postal", "999 Institution Road",
+					"Philadelphia", "PA", "19104", "US", "999 Institution Road, Philadelphia, PA 19104");
+			database.execute("""
 					INSERT INTO institution_location (
 					  institution_location_id, institution_id, address_id, name, short_name, display_order,
 					  phone_number, website_url, email_address
 					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationId, InstitutionId.COBALT, providerAddressId, "Detail Provider Office",
-					"Provider Office", 1, "+12155551414", "https://example.com/provider-location",
-					"provider-location@example.com");
+					""", institutionLocationId, InstitutionId.COBALT, institutionLocationAddressId,
+					"Incorrect Institution Provider Office", "Wrong Provider Office", 1, "+12155551999",
+					"https://example.com/wrong-provider-location", "wrong-provider-location@example.com");
 			database.execute("""
 					INSERT INTO provider_institution_location (
 					  provider_location_id, provider_id, institution_location_id
@@ -174,13 +190,15 @@ public class ProviderResourceTests {
 				assertEquals("(215) 555-1212", provider.getFormattedPhoneNumber());
 				assertFalse(provider.getDisplayPhoneNumberOnlyForBooking());
 				assertEquals(1, provider.getLocations().size());
-				InstitutionLocationApiResponse location = provider.getLocations().get(0);
-				assertEquals(institutionLocationId, location.getInstitutionLocationId());
+				LocationApiResponse location = provider.getLocations().get(0);
+				assertEquals(providerLocationId, location.getLocationId());
 				assertEquals("Detail Provider Office", location.getName());
 				assertEquals("+12155551414", location.getPhoneNumber());
 				assertEquals("(215) 555-1414", location.getFormattedPhoneNumber());
 				assertEquals("https://example.com/provider-location", location.getWebsiteUrl());
 				assertEquals("provider-location@example.com", location.getEmailAddress());
+				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionLocationId"));
+				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionId"));
 				assertNotNull(location.getAddress());
 				assertEquals(providerAddressId, location.getAddress().getAddressId());
 				assertEquals("101 Provider Lane", location.getAddress().getStreetAddress1());
@@ -246,7 +264,9 @@ public class ProviderResourceTests {
 			UUID clinicId = UUID.randomUUID();
 			UUID phoneProviderId = UUID.randomUUID();
 			UUID virtualProviderId = UUID.randomUUID();
+			UUID clinicLocationId = UUID.randomUUID();
 			UUID clinicAddressId = UUID.randomUUID();
+			UUID institutionLocationAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
 			String clinicDetailsHtml = "<section><h2>Clinic Details</h2><p>Clinic detail copy.</p></section>";
 
@@ -293,13 +313,27 @@ public class ProviderResourceTests {
 					""", clinicAddressId, "Clinic Location Postal", "202 Clinic Avenue", "Philadelphia", "PA",
 					"19107", "US", "202 Clinic Avenue, Philadelphia, PA 19107");
 			database.execute("""
+					INSERT INTO clinic_location (
+					  clinic_location_id, clinic_id, address_id, name, short_name, display_order,
+					  phone_number, website_url, email_address
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					""", clinicLocationId, clinicId, clinicAddressId, "Detail Clinic Front Desk",
+					"Clinic Front Desk", 1, "+12155551616", "https://example.com/detail-clinic-location",
+					"detail-clinic-location@example.com");
+			database.execute("""
+					INSERT INTO address (
+					  address_id, postal_name, street_address_1, locality, region, postal_code, country_code, formatted_address
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					""", institutionLocationAddressId, "Incorrect Institution Location Postal", "999 Clinic Institution Road",
+					"Philadelphia", "PA", "19107", "US", "999 Clinic Institution Road, Philadelphia, PA 19107");
+			database.execute("""
 					INSERT INTO institution_location (
 					  institution_location_id, institution_id, address_id, name, short_name, display_order,
 					  phone_number, website_url, email_address
 					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationId, InstitutionId.COBALT, clinicAddressId, "Detail Clinic Front Desk",
-					"Clinic Front Desk", 1, "+12155551616", "https://example.com/detail-clinic-location",
-					"detail-clinic-location@example.com");
+					""", institutionLocationId, InstitutionId.COBALT, institutionLocationAddressId,
+					"Incorrect Institution Clinic Front Desk", "Wrong Clinic Front Desk", 1, "+12155551998",
+					"https://example.com/wrong-clinic-location", "wrong-clinic-location@example.com");
 			database.execute("""
 					INSERT INTO provider_institution_location (
 					  provider_location_id, provider_id, institution_location_id
@@ -328,13 +362,15 @@ public class ProviderResourceTests {
 				assertEquals("https://example.com/clinic.png", clinic.getImageUrl());
 				assertEquals("https://example.com/detail-clinic", clinic.getWebsiteUrl());
 				assertEquals(1, clinic.getLocations().size());
-				InstitutionLocationApiResponse location = clinic.getLocations().get(0);
-				assertEquals(institutionLocationId, location.getInstitutionLocationId());
+				LocationApiResponse location = clinic.getLocations().get(0);
+				assertEquals(clinicLocationId, location.getLocationId());
 				assertEquals("Detail Clinic Front Desk", location.getName());
 				assertEquals("+12155551616", location.getPhoneNumber());
 				assertEquals("(215) 555-1616", location.getFormattedPhoneNumber());
 				assertEquals("https://example.com/detail-clinic-location", location.getWebsiteUrl());
 				assertEquals("detail-clinic-location@example.com", location.getEmailAddress());
+				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionLocationId"));
+				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionId"));
 				assertNotNull(location.getAddress());
 				assertEquals(clinicAddressId, location.getAddress().getAddressId());
 				assertEquals("202 Clinic Avenue", location.getAddress().getStreetAddress1());
@@ -433,7 +469,9 @@ public class ProviderResourceTests {
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
 			UUID clinicId = UUID.randomUUID();
 			UUID providerId = UUID.randomUUID();
+			UUID clinicLocationId = UUID.randomUUID();
 			UUID addressId = UUID.randomUUID();
+			UUID institutionLocationAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
 			String clinicDescription = "Autocomplete Clinic " + clinicId;
 
@@ -464,13 +502,27 @@ public class ProviderResourceTests {
 					""", addressId, "Autocomplete Location Postal", "303 Autocomplete Road", "Philadelphia", "PA",
 					"19108", "US", "303 Autocomplete Road, Philadelphia, PA 19108");
 			database.execute("""
+					INSERT INTO clinic_location (
+					  clinic_location_id, clinic_id, address_id, name, short_name, display_order,
+					  phone_number, website_url, email_address
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					""", clinicLocationId, clinicId, addressId, "Autocomplete Clinic Desk",
+					"Autocomplete Desk", 1, "+12155551818", "https://example.com/autocomplete-location",
+					"autocomplete-location@example.com");
+			database.execute("""
+					INSERT INTO address (
+					  address_id, postal_name, street_address_1, locality, region, postal_code, country_code, formatted_address
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					""", institutionLocationAddressId, "Incorrect Autocomplete Postal", "999 Autocomplete Institution Road",
+					"Philadelphia", "PA", "19108", "US", "999 Autocomplete Institution Road, Philadelphia, PA 19108");
+			database.execute("""
 					INSERT INTO institution_location (
 					  institution_location_id, institution_id, address_id, name, short_name, display_order,
 					  phone_number, website_url, email_address
 					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationId, InstitutionId.COBALT, addressId, "Autocomplete Clinic Desk",
-					"Autocomplete Desk", 1, "+12155551818", "https://example.com/autocomplete-location",
-					"autocomplete-location@example.com");
+					""", institutionLocationId, InstitutionId.COBALT, institutionLocationAddressId,
+					"Incorrect Autocomplete Clinic Desk", "Wrong Autocomplete Desk", 1, "+12155551997",
+					"https://example.com/wrong-autocomplete-location", "wrong-autocomplete-location@example.com");
 			database.execute("""
 					INSERT INTO provider_institution_location (
 					  provider_location_id, provider_id, institution_location_id
@@ -490,8 +542,8 @@ public class ProviderResourceTests {
 				assertEquals(1, clinic.getLocations().size());
 				assertFalse(jsonMapperExcludingNulls().toMap(clinic).containsKey("detailsHtml"));
 
-				InstitutionLocationApiResponse location = clinic.getLocations().get(0);
-				assertEquals(institutionLocationId, location.getInstitutionLocationId());
+				LocationApiResponse location = clinic.getLocations().get(0);
+				assertEquals(clinicLocationId, location.getLocationId());
 				assertEquals("Autocomplete Clinic Desk", location.getName());
 				assertEquals("(215) 555-1818", location.getFormattedPhoneNumber());
 				assertNotNull(location.getAddress());
