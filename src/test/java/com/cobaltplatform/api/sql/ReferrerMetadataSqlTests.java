@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -54,6 +55,21 @@ public class ReferrerMetadataSqlTests {
 		assertTrue(fixtureSql.contains("Aetna Choice Point-of-Service (POS) II"));
 		assertTrue(fixtureSql.contains("Quest Behavioral Health"));
 		assertTrue(fixtureSql.contains("LOWER(TRIM(description))=LOWER(TRIM('Penn Autism Clinic'))"));
+	}
+
+	@Test
+	public void providerClinicLocationSchemaAndFixtureContentAreSeparated() throws IOException {
+		String functionalSql = readSql("sql/updates/257-provider-clinic-locations.sql");
+		String fixtureSql = readSql("sql/updates/257-local-only-provider-clinic-location-test-data.sql");
+
+		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS provider_location"));
+		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS clinic_location"));
+		assertFalse(functionalSql.contains("fixtures.cobalt.care/locations"));
+
+		assertTrue(fixtureSql.contains("INSERT INTO provider_location"));
+		assertTrue(fixtureSql.contains("INSERT INTO clinic_location"));
+		assertTrue(fixtureSql.contains("INSERT INTO institution_location"));
+		assertTrue(fixtureSql.contains("fixtures.cobalt.care/locations"));
 	}
 
 	protected void assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(String sql) {
