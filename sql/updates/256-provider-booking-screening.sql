@@ -89,11 +89,10 @@ ON provider_institution_location(provider_id, institution_location_id);
 CREATE INDEX IF NOT EXISTS provider_institution_location_institution_location_id_idx
 ON provider_institution_location(institution_location_id, provider_id);
 
--- Add the screening-flow pointer to appointment types. Values created earlier
--- on this feature branch are intentionally discarded and rebuilt below from the
--- active legacy appointment assessments.
+-- Add the screening-flow pointer to appointment types. Existing values are
+-- preserved; active legacy appointment assessments are backfilled below only
+-- when an appointment type does not already point at a screening flow.
 ALTER TABLE appointment_type ADD COLUMN IF NOT EXISTS screening_flow_id UUID;
-UPDATE appointment_type SET screening_flow_id=NULL;
 
 DO $$
 BEGIN
@@ -188,6 +187,7 @@ BEGIN
 			ON assessment.assessment_id=ata.assessment_id
 		WHERE ata.active=TRUE
 		AND COALESCE(app_type.deleted, FALSE)=FALSE
+		AND app_type.screening_flow_id IS NULL
 		ORDER BY app_type.name, ata.appointment_type_id
 	LOOP
 		-- A generated provider intake flow belongs to the single institution that
@@ -372,6 +372,7 @@ function nextQuestionAfter(question) {
 
 let overallScore = 0;
 let firstUnansweredQuestionId = null;
+let terminalFailure = false;
 
 questions.forEach((question) => {
   answerOptionsForQuestionId(String(question.screeningQuestionId)).forEach((answerOption) => {
@@ -396,8 +397,12 @@ while (currentQuestion) {
     break;
   }
 
-  const selectedAnswerOption = answerOptionsForQuestionId(questionId)
-    .find((answerOption) => answerOption.metadata && answerOption.metadata.nextScreeningQuestionId);
+  const selectedAnswerOption = answerOptionsForQuestionId(questionId)[0];
+
+  if (!selectedAnswerOption || Number(selectedAnswerOption.score || 0) <= 0) {
+    terminalFailure = true;
+    break;
+  }
 
   if (selectedAnswerOption && selectedAnswerOption.metadata.nextScreeningQuestionId) {
     currentQuestion = questionsById[String(selectedAnswerOption.metadata.nextScreeningQuestionId)] || null;
@@ -408,7 +413,7 @@ while (currentQuestion) {
 
 output.completed = firstUnansweredQuestionId === null;
 output.score = { overallScore };
-output.belowScoringThreshold = overallScore < minimumEligibilityScore;
+output.belowScoringThreshold = terminalFailure || overallScore < minimumEligibilityScore;
 
 if (!output.completed && firstUnansweredQuestionId) {
   output.nextScreeningQuestionId = firstUnansweredQuestionId;
