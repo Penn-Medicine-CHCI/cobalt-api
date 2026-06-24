@@ -2883,6 +2883,7 @@ public class AppointmentService {
 
 		Account account = getAccountService().findAccountById(appointment.getAccountId()).get();
 		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
+		AppointmentType appointmentType = findAppointmentTypeByIdEvenIfDeleted(appointment.getAppointmentTypeId()).orElse(null);
 		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
 
 		String appointmentStartDateTimeDescription = getFormatter().formatDateTime(appointment.getStartTime(), FormatStyle.LONG, FormatStyle.SHORT);
@@ -2918,6 +2919,7 @@ public class AppointmentService {
 			cobaltPatientEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrlForPatient, appointmentId));
 			cobaltPatientEmailMessageContext.put("anotherTimeUrl", format("%s/connect-with-support", webappBaseUrlForPatient));
 			cobaltPatientEmailMessageContext.put("showMicrosoftTeamsAnonymousDirections", appointment.getVideoconferencePlatformId() == VideoconferencePlatformId.MICROSOFT_TEAMS);
+			cobaltPatientEmailMessageContext.put("appointmentCreatedPatientEmailBodyHtml", appointmentType == null ? null : trimToNull(appointmentType.getAppointmentCreatedPatientEmailBodyHtml()));
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(account.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT, account.getLocale())
 					.toAddresses(Collections.singletonList(appointmentEmailAddress))
