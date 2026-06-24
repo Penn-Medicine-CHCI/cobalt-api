@@ -112,6 +112,167 @@ public class ScreeningServiceTests {
 	}
 
 	@Test
+	public void appointmentBookingConfirmationDestinationInfersProviderContextWhenMetadataMissing() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionId institutionId = InstitutionId.COBALT;
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			UUID accountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSourceId.ANONYMOUS);
+				setInstitutionId(institutionId);
+			}});
+			UUID providerId = UUID.randomUUID();
+			UUID appointmentTypeId = UUID.randomUUID();
+			UUID screeningId = UUID.randomUUID();
+			UUID screeningVersionId = UUID.randomUUID();
+			UUID screeningFlowId = UUID.randomUUID();
+			UUID screeningFlowVersionId = UUID.randomUUID();
+
+			setBookingV2Enabled(database, institutionId, true);
+
+			database.execute("""
+					INSERT INTO provider (
+					  provider_id,
+					  institution_id,
+					  name,
+					  email_address,
+					  url_name,
+					  scheduling_system_id,
+					  videoconference_platform_id,
+					  active
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					""", providerId, institutionId, "Provider Intake Destination Test",
+					format("provider-intake-destination-%s@example.com", providerId),
+					format("provider-intake-destination-%s", providerId), "COBALT", "SWITCHBOARD", true);
+
+			database.execute("""
+					INSERT INTO appointment_type (
+					  appointment_type_id,
+					  visit_type_id,
+					  name,
+					  description,
+					  duration_in_minutes,
+					  scheduling_system_id,
+					  screening_flow_id
+					) VALUES (?, ?, ?, ?, ?, ?, ?)
+					""", appointmentTypeId, "INITIAL", "Provider Intake Destination Test",
+					"Provider intake destination test", 30L, "COBALT", null);
+
+			database.execute("""
+					INSERT INTO provider_appointment_type (
+					  provider_id,
+					  appointment_type_id,
+					  display_order
+					) VALUES (?, ?, ?)
+					""", providerId, appointmentTypeId, 1);
+
+			database.execute("""
+					INSERT INTO screening (
+					  screening_id,
+					  name,
+					  active_screening_version_id,
+					  created_by_account_id
+					) VALUES (?, ?, ?, ?)
+					""", screeningId, "Provider Intake Destination Test", null, accountId);
+
+			database.execute("""
+					INSERT INTO screening_version (
+					  screening_version_id,
+					  screening_id,
+					  screening_type_id,
+					  created_by_account_id,
+					  version_number,
+					  scoring_function
+					) VALUES (?, ?, ?, ?, ?, ?)
+					""", screeningVersionId, screeningId, "CUSTOM", accountId, 1,
+					"output.completed = true; output.score = {};");
+
+			database.execute("""
+					UPDATE screening
+					SET active_screening_version_id=?
+					WHERE screening_id=?
+					""", screeningVersionId, screeningId);
+
+			database.execute("""
+					INSERT INTO screening_institution (
+					  screening_id,
+					  institution_id
+					) VALUES (?, ?)
+					""", screeningId, institutionId);
+
+			database.execute("""
+					INSERT INTO screening_flow (
+					  screening_flow_id,
+					  institution_id,
+					  active_screening_flow_version_id,
+					  screening_flow_type_id,
+					  created_by_account_id,
+					  name
+					) VALUES (?, ?, ?, ?, ?, ?)
+					""", screeningFlowId, institutionId, null, "PROVIDER_INTAKE", accountId,
+					format("Provider Intake Destination Test %s", screeningFlowId));
+
+			database.execute("""
+					INSERT INTO screening_flow_version (
+					  screening_flow_version_id,
+					  screening_flow_id,
+					  initial_screening_id,
+					  phone_number_required,
+					  version_number,
+					  orchestration_function,
+					  results_function,
+					  destination_function,
+					  created_by_account_id
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					""", screeningFlowVersionId, screeningFlowId, screeningId, false, 1,
+					"output.completed = Boolean(input.screeningSession.completed); output.crisisIndicated = false;",
+					"output.supportRoleRecommendations = [];",
+					"""
+					output.screeningSessionDestinationId = 'APPOINTMENT_BOOKING_CONFIRMATION';
+					output.context = { result: 'SUCCESS' };
+					""", accountId);
+
+			database.execute("""
+					UPDATE screening_flow
+					SET active_screening_flow_version_id=?
+					WHERE screening_flow_id=?
+					""", screeningFlowVersionId, screeningFlowId);
+
+			database.execute("""
+					UPDATE appointment_type
+					SET screening_flow_id=?
+					WHERE appointment_type_id=?
+					""", screeningFlowId, appointmentTypeId);
+
+			UUID screeningSessionId = screeningService.createScreeningSession(new CreateScreeningSessionRequest() {{
+				setScreeningFlowId(screeningFlowId);
+				setTargetAccountId(accountId);
+				setCreatedByAccountId(accountId);
+			}});
+
+			database.execute("""
+					UPDATE screening_session
+					SET completed=TRUE,
+					    completed_at=NOW()
+					WHERE screening_session_id=?
+					""", screeningSessionId);
+
+			ScreeningSessionDestination screeningSessionDestination =
+					screeningService.determineDestinationForScreeningSessionId(screeningSessionId).get();
+
+			assertEquals(ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION,
+					screeningSessionDestination.getScreeningSessionDestinationId());
+			assertEquals("SUCCESS", screeningSessionDestination.getContext().get("result"));
+			assertEquals(accountId.toString(), screeningSessionDestination.getContext().get("accountId"));
+			assertEquals("PROVIDER", screeningSessionDestination.getContext().get("providerSearchResultTypeId"));
+			assertEquals(providerId.toString(), screeningSessionDestination.getContext().get("providerId"));
+			assertEquals(appointmentTypeId.toString(), screeningSessionDestination.getContext().get("appointmentTypeId"));
+			assertEquals(screeningFlowId.toString(), screeningSessionDestination.getContext().get("screeningFlowId"));
+		});
+	}
+
+	@Test
 	public void legacyProviderAppointmentBookingDestinationCarriesFlatAppointmentBookingContext() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionId institutionId = InstitutionId.COBALT;

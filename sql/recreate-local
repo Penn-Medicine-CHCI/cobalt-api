@@ -269,10 +269,8 @@ if [ -f "initial/bootstrap.sql" ]; then
 fi
 
 # Post-bootstrap patches. 250 depends on bootstrap fixture institutions/referrers,
-# 256 and 257 apply provider-booking/location functional migrations, and the
-# local-only fixture scripts add QA/developer seed data for recreated local DBs.
+# 256 applies the consolidated provider-booking/location functional migration,
+# and the local-only fixture script adds QA/developer seed data for recreated local DBs.
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-provider-booking-screening.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-provider-clinic-locations.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-local-only-provider-booking-test-data.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-local-only-provider-clinic-location-test-data.sql

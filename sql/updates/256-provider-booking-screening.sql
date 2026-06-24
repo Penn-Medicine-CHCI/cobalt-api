@@ -1,6 +1,11 @@
 BEGIN;
 SELECT _v.register_patch('256-provider-booking-screening', NULL, NULL);
 
+-- Consolidated production migration for provider search/booking v2. This keeps
+-- the branch's functional schema and data transformations in one deployable
+-- script while leaving QA/developer fixture data in the local-only companion
+-- script.
+
 -- Booking v2 is default-off so existing booking/referral flows remain the
 -- default behavior until an institution explicitly opts in.
 ALTER TABLE institution ADD COLUMN IF NOT EXISTS booking_v2_enabled BOOLEAN NOT NULL DEFAULT FALSE;
@@ -8,6 +13,53 @@ ALTER TABLE institution ADD COLUMN IF NOT EXISTS booking_v2_enabled BOOLEAN NOT 
 UPDATE institution
 SET booking_v2_enabled=TRUE
 WHERE institution_id='COBALT';
+
+-- Existing databases may already have the data-sync foreign table/view from
+-- earlier patches. Keep those objects aligned with the new institution column,
+-- but make this a no-op for environments that do not use the FDW setup.
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM information_schema.foreign_tables
+		WHERE foreign_table_schema=CURRENT_SCHEMA()
+		AND foreign_table_name='remote_institution'
+	)
+	AND NOT EXISTS (
+		SELECT 1
+		FROM information_schema.columns
+		WHERE table_schema=CURRENT_SCHEMA()
+		AND table_name='remote_institution'
+		AND column_name='booking_v2_enabled'
+	) THEN
+		ALTER FOREIGN TABLE remote_institution ADD COLUMN booking_v2_enabled BOOLEAN DEFAULT FALSE NOT NULL;
+	END IF;
+
+	IF EXISTS (
+		SELECT 1
+		FROM information_schema.columns
+		WHERE table_schema=CURRENT_SCHEMA()
+		AND table_name='remote_institution'
+		AND column_name='booking_v2_enabled'
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM pg_class c
+		JOIN pg_namespace n
+			ON n.oid=c.relnamespace
+		WHERE n.nspname=CURRENT_SCHEMA()
+		AND c.relname='v_remote_institution'
+		AND c.relkind='v'
+	) THEN
+		EXECUTE $view$
+CREATE OR REPLACE VIEW v_remote_institution
+AS
+SELECT ri.*
+FROM remote_institution ri
+WHERE ri.sync_data = TRUE
+$view$;
+	END IF;
+END $$;
 
 -- Add the explicit lookup used by provider search to distinguish provider-level
 -- booking rows from clinic aggregate booking rows.
@@ -833,6 +885,74 @@ SET metadata = JSONB_SET(ir.metadata, '{resultScreens}', updated_result_screens.
 FROM updated_result_screens
 WHERE ir.institution_referrer_id = updated_result_screens.institution_referrer_id
 AND ir.metadata->'resultScreens' IS DISTINCT FROM updated_result_screens.result_screens;
+
+
+-- Owner-specific location tables support provider/clinic detail responses that
+-- need a direct contact/location list rather than inheriting only broad
+-- institution locations. Rows are separate from provider_institution_location,
+-- which still models where a provider practices for filtering/search.
+CREATE TABLE IF NOT EXISTS provider_location (
+	provider_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	provider_id UUID NOT NULL REFERENCES provider,
+	address_id UUID REFERENCES address,
+	name TEXT NOT NULL,
+	short_name TEXT,
+	display_order INTEGER NOT NULL,
+	phone_number TEXT,
+	website_url TEXT,
+	email_address TEXT,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	CONSTRAINT provider_location_nonempty_name CHECK (LENGTH(BTRIM(name)) > 0)
+);
+
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1
+		FROM pg_trigger
+		WHERE tgrelid='provider_location'::REGCLASS
+		AND tgname='set_last_updated'
+	) THEN
+		CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON provider_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+	END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS provider_location_provider_id_display_order_idx
+ON provider_location(provider_id, display_order, name, provider_location_id);
+
+-- Clinics get the same direct location/contact model as providers so clinic
+-- search results and clinic detail pages can expose front desks or intake
+-- locations without creating artificial provider rows.
+CREATE TABLE IF NOT EXISTS clinic_location (
+	clinic_location_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	clinic_id UUID NOT NULL REFERENCES clinic,
+	address_id UUID REFERENCES address,
+	name TEXT NOT NULL,
+	short_name TEXT,
+	display_order INTEGER NOT NULL,
+	phone_number TEXT,
+	website_url TEXT,
+	email_address TEXT,
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	CONSTRAINT clinic_location_nonempty_name CHECK (LENGTH(BTRIM(name)) > 0)
+);
+
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1
+		FROM pg_trigger
+		WHERE tgrelid='clinic_location'::REGCLASS
+		AND tgname='set_last_updated'
+	) THEN
+		CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON clinic_location FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+	END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS clinic_location_clinic_id_display_order_idx
+ON clinic_location(clinic_id, display_order, name, clinic_location_id);
 
 
 COMMIT;

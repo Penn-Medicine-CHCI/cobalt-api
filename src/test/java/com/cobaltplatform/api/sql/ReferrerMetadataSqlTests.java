@@ -59,8 +59,8 @@ public class ReferrerMetadataSqlTests {
 
 	@Test
 	public void providerClinicLocationSchemaAndFixtureContentAreSeparated() throws IOException {
-		String functionalSql = readSql("sql/updates/257-provider-clinic-locations.sql");
-		String fixtureSql = readSql("sql/updates/257-local-only-provider-clinic-location-test-data.sql");
+		String functionalSql = readSql("sql/updates/256-provider-booking-screening.sql");
+		String fixtureSql = readSql("sql/updates/256-local-only-provider-booking-test-data.sql");
 
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS provider_location"));
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS clinic_location"));
