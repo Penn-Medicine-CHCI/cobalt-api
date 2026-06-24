@@ -85,6 +85,8 @@ public class ClinicApiResponse {
 	@Nullable
 	private final String formattedPhoneNumber;
 	@Nullable
+	private final String emailAddress;
+	@Nullable
 	private final String imageUrl;
 	@Nullable
 	private final String websiteUrl;
@@ -253,6 +255,7 @@ public class ClinicApiResponse {
 		this.phoneNumber = clinic.getPhoneNumber();
 		this.phoneNumberDescription = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 		this.formattedPhoneNumber = this.phoneNumberDescription;
+		this.emailAddress = clinic.getEmailAddress();
 		this.imageUrl = clinic.getImageUrl();
 		this.websiteUrl = clinic.getWebsiteUrl();
 		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerService.findProvidersByClinicId(clinic.getClinicId()), strings);
@@ -308,8 +311,7 @@ public class ClinicApiResponse {
 				.map(clinicLocation -> new LocationApiResponse(clinicLocation,
 						batchContext.isAddressesPreloaded()
 								? batchContext.getAddressByAddressId(clinicLocation.getAddressId())
-								: addressesByAddressId.get(clinicLocation.getAddressId()),
-						formatter))
+								: addressesByAddressId.get(clinicLocation.getAddressId())))
 				.collect(Collectors.toList());
 	}
 
@@ -385,6 +387,11 @@ public class ClinicApiResponse {
 	@Nullable
 	public String getFormattedPhoneNumber() {
 		return formattedPhoneNumber;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
 	}
 
 	@Nullable

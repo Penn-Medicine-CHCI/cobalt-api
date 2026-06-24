@@ -54,6 +54,8 @@ public class Clinic {
 	@Nullable
 	private String websiteUrl;
 	@Nullable
+	private String emailAddress;
+	@Nullable
 	private String phoneNumber;
 	@Nullable
 	private Locale locale;
@@ -150,6 +152,15 @@ public class Clinic {
 
 	public void setWebsiteUrl(@Nullable String websiteUrl) {
 		this.websiteUrl = websiteUrl;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
 	}
 
 	@Nullable

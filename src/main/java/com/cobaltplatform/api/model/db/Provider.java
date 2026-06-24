@@ -63,6 +63,8 @@ public class Provider {
 	@Nullable
 	private String bioUrl;
 	@Nullable
+	private String websiteUrl;
+	@Nullable
 	private String bio;
 	@Nullable
 	private Locale locale;
@@ -220,6 +222,15 @@ public class Provider {
 
 	public void setBioUrl(@Nullable String bioUrl) {
 		this.bioUrl = bioUrl;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return this.websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
 	}
 
 	@Nullable

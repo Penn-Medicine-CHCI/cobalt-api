@@ -22,7 +22,6 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.ProviderLocation;
-import com.cobaltplatform.api.util.Formatter;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -44,45 +43,25 @@ public class LocationApiResponse {
 	private final String shortName;
 	@Nullable
 	private final Address address;
-	@Nullable
-	private final String phoneNumber;
-	@Nullable
-	private final String formattedPhoneNumber;
-	@Nullable
-	private final String websiteUrl;
-	@Nullable
-	private final String emailAddress;
 
 	public LocationApiResponse(@Nonnull ProviderLocation providerLocation,
-														 @Nullable Address address,
-														 @Nonnull Formatter formatter) {
+														 @Nullable Address address) {
 		requireNonNull(providerLocation);
-		requireNonNull(formatter);
 
 		this.locationId = providerLocation.getProviderLocationId();
 		this.name = providerLocation.getName();
 		this.shortName = providerLocation.getShortName();
 		this.address = address;
-		this.phoneNumber = providerLocation.getPhoneNumber();
-		this.formattedPhoneNumber = formatter.formatPhoneNumber(providerLocation.getPhoneNumber());
-		this.websiteUrl = providerLocation.getWebsiteUrl();
-		this.emailAddress = providerLocation.getEmailAddress();
 	}
 
 	public LocationApiResponse(@Nonnull ClinicLocation clinicLocation,
-														 @Nullable Address address,
-														 @Nonnull Formatter formatter) {
+														 @Nullable Address address) {
 		requireNonNull(clinicLocation);
-		requireNonNull(formatter);
 
 		this.locationId = clinicLocation.getClinicLocationId();
 		this.name = clinicLocation.getName();
 		this.shortName = clinicLocation.getShortName();
 		this.address = address;
-		this.phoneNumber = clinicLocation.getPhoneNumber();
-		this.formattedPhoneNumber = formatter.formatPhoneNumber(clinicLocation.getPhoneNumber());
-		this.websiteUrl = clinicLocation.getWebsiteUrl();
-		this.emailAddress = clinicLocation.getEmailAddress();
 	}
 
 	@Nullable
@@ -103,25 +82,5 @@ public class LocationApiResponse {
 	@Nullable
 	public Address getAddress() {
 		return this.address;
-	}
-
-	@Nullable
-	public String getPhoneNumber() {
-		return this.phoneNumber;
-	}
-
-	@Nullable
-	public String getFormattedPhoneNumber() {
-		return this.formattedPhoneNumber;
-	}
-
-	@Nullable
-	public String getWebsiteUrl() {
-		return this.websiteUrl;
-	}
-
-	@Nullable
-	public String getEmailAddress() {
-		return this.emailAddress;
 	}
 }

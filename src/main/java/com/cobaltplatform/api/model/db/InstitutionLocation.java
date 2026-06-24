@@ -40,14 +40,6 @@ public class InstitutionLocation {
 	@Nullable
 	private String shortName;
 	@Nullable
-	private UUID addressId;
-	@Nullable
-	private String phoneNumber;
-	@Nullable
-	private String websiteUrl;
-	@Nullable
-	private String emailAddress;
-	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
@@ -90,43 +82,6 @@ public class InstitutionLocation {
 		this.shortName = shortName;
 	}
 
-	@Nullable
-	public UUID getAddressId() {
-		return this.addressId;
-	}
-
-	public void setAddressId(@Nullable UUID addressId) {
-		this.addressId = addressId;
-	}
-
-	@Nullable
-	public String getPhoneNumber() {
-		return this.phoneNumber;
-	}
-
-	public void setPhoneNumber(@Nullable String phoneNumber) {
-		this.phoneNumber = phoneNumber;
-	}
-
-	@Nullable
-	public String getWebsiteUrl() {
-		return this.websiteUrl;
-	}
-
-	public void setWebsiteUrl(@Nullable String websiteUrl) {
-		this.websiteUrl = websiteUrl;
-	}
-
-	@Nullable
-	public String getEmailAddress() {
-		return this.emailAddress;
-	}
-
-	public void setEmailAddress(@Nullable String emailAddress) {
-		this.emailAddress = emailAddress;
-	}
-
-	@Nullable
 	public Integer getDisplayOrder() {
 		return this.displayOrder;
 	}

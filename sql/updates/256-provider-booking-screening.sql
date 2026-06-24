@@ -124,13 +124,10 @@ END $$;
 ALTER TABLE clinic DROP COLUMN IF EXISTS bookable_as_provider;
 
 ALTER TABLE clinic ADD COLUMN IF NOT EXISTS website_url TEXT;
+ALTER TABLE clinic ADD COLUMN IF NOT EXISTS email_address TEXT;
 ALTER TABLE clinic ADD COLUMN IF NOT EXISTS details_html TEXT;
+ALTER TABLE provider ADD COLUMN IF NOT EXISTS website_url TEXT;
 ALTER TABLE provider ADD COLUMN IF NOT EXISTS details_html TEXT;
-
-ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS address_id UUID NULL REFERENCES address;
-ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS phone_number TEXT;
-ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS website_url TEXT;
-ALTER TABLE institution_location ADD COLUMN IF NOT EXISTS email_address TEXT;
 
 CREATE INDEX IF NOT EXISTS institution_location_institution_id_display_order_idx
 ON institution_location(institution_id, display_order, name, institution_location_id);
@@ -888,7 +885,7 @@ AND ir.metadata->'resultScreens' IS DISTINCT FROM updated_result_screens.result_
 
 
 -- Owner-specific location tables support provider/clinic detail responses that
--- need a direct contact/location list rather than inheriting only broad
+-- need a direct address/location list rather than inheriting only broad
 -- institution locations. Rows are separate from provider_institution_location,
 -- which still models where a provider practices for filtering/search.
 CREATE TABLE IF NOT EXISTS provider_location (
@@ -898,9 +895,6 @@ CREATE TABLE IF NOT EXISTS provider_location (
 	name TEXT NOT NULL,
 	short_name TEXT,
 	display_order INTEGER NOT NULL,
-	phone_number TEXT,
-	website_url TEXT,
-	email_address TEXT,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	CONSTRAINT provider_location_nonempty_name CHECK (LENGTH(BTRIM(name)) > 0)
@@ -921,7 +915,7 @@ END $$;
 CREATE INDEX IF NOT EXISTS provider_location_provider_id_display_order_idx
 ON provider_location(provider_id, display_order, name, provider_location_id);
 
--- Clinics get the same direct location/contact model as providers so clinic
+-- Clinics get the same direct address/location model as providers so clinic
 -- search results and clinic detail pages can expose front desks or intake
 -- locations without creating artificial provider rows.
 CREATE TABLE IF NOT EXISTS clinic_location (
@@ -931,9 +925,6 @@ CREATE TABLE IF NOT EXISTS clinic_location (
 	name TEXT NOT NULL,
 	short_name TEXT,
 	display_order INTEGER NOT NULL,
-	phone_number TEXT,
-	website_url TEXT,
-	email_address TEXT,
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	CONSTRAINT clinic_location_nonempty_name CHECK (LENGTH(BTRIM(name)) > 0)

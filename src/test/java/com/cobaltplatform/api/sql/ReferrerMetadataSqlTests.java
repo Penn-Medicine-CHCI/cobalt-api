@@ -64,12 +64,29 @@ public class ReferrerMetadataSqlTests {
 
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS provider_location"));
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS clinic_location"));
+		assertTrue(functionalSql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS website_url TEXT"));
+		assertTrue(functionalSql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS email_address TEXT"));
 		assertFalse(functionalSql.contains("fixtures.cobalt.care/locations"));
 
 		assertTrue(fixtureSql.contains("INSERT INTO provider_location"));
 		assertTrue(fixtureSql.contains("INSERT INTO clinic_location"));
 		assertTrue(fixtureSql.contains("INSERT INTO institution_location"));
-		assertTrue(fixtureSql.contains("fixtures.cobalt.care/locations"));
+		assertFalse(fixtureSql.contains("fixtures.cobalt.care/locations"));
+	}
+
+	@Test
+	public void providerClinicLocationContactCleanupDropsAccidentalColumns() throws IOException {
+		String cleanupSql = readSql("sql/updates/257-provider-booking-contact-ownership-cleanup.sql");
+
+		assertTrue(cleanupSql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS website_url TEXT"));
+		assertTrue(cleanupSql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS email_address TEXT"));
+		assertTrue(cleanupSql.contains("ALTER TABLE provider_location DROP COLUMN IF EXISTS phone_number"));
+		assertTrue(cleanupSql.contains("ALTER TABLE provider_location DROP COLUMN IF EXISTS website_url"));
+		assertTrue(cleanupSql.contains("ALTER TABLE provider_location DROP COLUMN IF EXISTS email_address"));
+		assertTrue(cleanupSql.contains("ALTER TABLE clinic_location DROP COLUMN IF EXISTS phone_number"));
+		assertTrue(cleanupSql.contains("ALTER TABLE clinic_location DROP COLUMN IF EXISTS website_url"));
+		assertTrue(cleanupSql.contains("ALTER TABLE clinic_location DROP COLUMN IF EXISTS email_address"));
+		assertTrue(cleanupSql.contains("ALTER TABLE institution_location DROP COLUMN IF EXISTS address_id"));
 	}
 
 	protected void assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(String sql) {

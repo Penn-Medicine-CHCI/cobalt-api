@@ -114,7 +114,6 @@ public class ProviderResourceTests {
 			UUID clinicId = UUID.randomUUID();
 			UUID providerLocationId = UUID.randomUUID();
 			UUID providerAddressId = UUID.randomUUID();
-			UUID institutionLocationAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
 			String providerUrlName = "detail-provider-" + providerId;
 			String providerDetailsHtml = "<section><h2>Provider Details</h2><p>Provider detail copy.</p></section>";
@@ -127,13 +126,14 @@ public class ProviderResourceTests {
 			database.execute("""
 					INSERT INTO provider (
 					  provider_id, institution_id, name, title, email_address, url_name, image_url, locale, time_zone,
-					  scheduling_system_id, videoconference_platform_id, description, bio_url, bio, phone_number,
+					  scheduling_system_id, videoconference_platform_id, description, bio_url, website_url, bio, phone_number,
 					  display_phone_number_only_for_booking, details_html
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", providerId, InstitutionId.COBALT, "Detail Provider", "LCSW",
 					"detail-provider-" + providerId + "@example.com", providerUrlName, "https://example.com/provider.png",
 					"en-US", "America/New_York", "ACUITY", "SWITCHBOARD", "Provider description",
-					"https://example.com/provider-bio", "Line one\nLine two", "+12155551212", false, providerDetailsHtml);
+					"https://example.com/provider-bio", "https://example.com/provider-website", "Line one\nLine two",
+					"+12155551212", false, providerDetailsHtml);
 			database.execute("""
 					INSERT INTO provider_clinic (
 					  provider_clinic_id, provider_id, clinic_id, primary_clinic
@@ -147,26 +147,16 @@ public class ProviderResourceTests {
 					"19104", "US", "101 Provider Lane, Philadelphia, PA 19104");
 			database.execute("""
 					INSERT INTO provider_location (
-					  provider_location_id, provider_id, address_id, name, short_name, display_order,
-					  phone_number, website_url, email_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					  provider_location_id, provider_id, address_id, name, short_name, display_order
+					) VALUES (?, ?, ?, ?, ?, ?)
 					""", providerLocationId, providerId, providerAddressId, "Detail Provider Office",
-					"Provider Office", 1, "+12155551414", "https://example.com/provider-location",
-					"provider-location@example.com");
-			database.execute("""
-					INSERT INTO address (
-					  address_id, postal_name, street_address_1, locality, region, postal_code, country_code, formatted_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationAddressId, "Incorrect Institution Location Postal", "999 Institution Road",
-					"Philadelphia", "PA", "19104", "US", "999 Institution Road, Philadelphia, PA 19104");
+					"Provider Office", 1);
 			database.execute("""
 					INSERT INTO institution_location (
-					  institution_location_id, institution_id, address_id, name, short_name, display_order,
-					  phone_number, website_url, email_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationId, InstitutionId.COBALT, institutionLocationAddressId,
-					"Incorrect Institution Provider Office", "Wrong Provider Office", 1, "+12155551999",
-					"https://example.com/wrong-provider-location", "wrong-provider-location@example.com");
+					  institution_location_id, institution_id, name, short_name, display_order
+					) VALUES (?, ?, ?, ?, ?)
+					""", institutionLocationId, InstitutionId.COBALT,
+					"Incorrect Institution Provider Office", "Wrong Provider Office", 1);
 			database.execute("""
 					INSERT INTO provider_institution_location (
 					  provider_location_id, provider_id, institution_location_id
@@ -183,7 +173,7 @@ public class ProviderResourceTests {
 				assertEquals("* Provider treatment", provider.getTreatmentDescription());
 				assertEquals(providerDetailsHtml, provider.getDetailsHtml());
 				assertEquals("https://example.com/provider-bio", provider.getBioUrl());
-				assertEquals("https://example.com/provider-bio", provider.getWebsiteUrl());
+				assertEquals("https://example.com/provider-website", provider.getWebsiteUrl());
 				assertEquals("Line one<br/>Line two", provider.getBio());
 				assertEquals("+12155551212", provider.getPhoneNumber());
 				assertEquals("(215) 555-1212", provider.getPhoneNumberDescription());
@@ -193,12 +183,13 @@ public class ProviderResourceTests {
 				LocationApiResponse location = provider.getLocations().get(0);
 				assertEquals(providerLocationId, location.getLocationId());
 				assertEquals("Detail Provider Office", location.getName());
-				assertEquals("+12155551414", location.getPhoneNumber());
-				assertEquals("(215) 555-1414", location.getFormattedPhoneNumber());
-				assertEquals("https://example.com/provider-location", location.getWebsiteUrl());
-				assertEquals("provider-location@example.com", location.getEmailAddress());
-				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionLocationId"));
-				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionId"));
+				Map<String, Object> serializedLocation = jsonMapperExcludingNulls().toMap(location);
+				assertFalse(serializedLocation.containsKey("institutionLocationId"));
+				assertFalse(serializedLocation.containsKey("institutionId"));
+				assertFalse(serializedLocation.containsKey("phoneNumber"));
+				assertFalse(serializedLocation.containsKey("formattedPhoneNumber"));
+				assertFalse(serializedLocation.containsKey("websiteUrl"));
+				assertFalse(serializedLocation.containsKey("emailAddress"));
 				assertNotNull(location.getAddress());
 				assertEquals(providerAddressId, location.getAddress().getAddressId());
 				assertEquals("101 Provider Lane", location.getAddress().getStreetAddress1());
@@ -266,7 +257,6 @@ public class ProviderResourceTests {
 			UUID virtualProviderId = UUID.randomUUID();
 			UUID clinicLocationId = UUID.randomUUID();
 			UUID clinicAddressId = UUID.randomUUID();
-			UUID institutionLocationAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
 			String clinicDetailsHtml = "<section><h2>Clinic Details</h2><p>Clinic detail copy.</p></section>";
 
@@ -275,11 +265,11 @@ public class ProviderResourceTests {
 			database.execute("""
 					INSERT INTO clinic (
 					  clinic_id, description, treatment_description, institution_id, appointment_booking_level_id,
-					  phone_number, image_url, locale, website_url, details_html
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					  phone_number, email_address, image_url, locale, website_url, details_html
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", clinicId, "Detail Clinic", "Clinic treatment", InstitutionId.COBALT, AppointmentBookingLevelId.CLINIC,
-					"+12155551313", "https://example.com/clinic.png", "en-US", "https://example.com/detail-clinic",
-					clinicDetailsHtml);
+					"+12155551313", "detail-clinic@example.com", "https://example.com/clinic.png", "en-US",
+					"https://example.com/detail-clinic", clinicDetailsHtml);
 			database.execute("""
 					INSERT INTO provider (
 					  provider_id, institution_id, name, email_address, url_name, locale, time_zone,
@@ -314,26 +304,16 @@ public class ProviderResourceTests {
 					"19107", "US", "202 Clinic Avenue, Philadelphia, PA 19107");
 			database.execute("""
 					INSERT INTO clinic_location (
-					  clinic_location_id, clinic_id, address_id, name, short_name, display_order,
-					  phone_number, website_url, email_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					  clinic_location_id, clinic_id, address_id, name, short_name, display_order
+					) VALUES (?, ?, ?, ?, ?, ?)
 					""", clinicLocationId, clinicId, clinicAddressId, "Detail Clinic Front Desk",
-					"Clinic Front Desk", 1, "+12155551616", "https://example.com/detail-clinic-location",
-					"detail-clinic-location@example.com");
-			database.execute("""
-					INSERT INTO address (
-					  address_id, postal_name, street_address_1, locality, region, postal_code, country_code, formatted_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationAddressId, "Incorrect Institution Location Postal", "999 Clinic Institution Road",
-					"Philadelphia", "PA", "19107", "US", "999 Clinic Institution Road, Philadelphia, PA 19107");
+					"Clinic Front Desk", 1);
 			database.execute("""
 					INSERT INTO institution_location (
-					  institution_location_id, institution_id, address_id, name, short_name, display_order,
-					  phone_number, website_url, email_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationId, InstitutionId.COBALT, institutionLocationAddressId,
-					"Incorrect Institution Clinic Front Desk", "Wrong Clinic Front Desk", 1, "+12155551998",
-					"https://example.com/wrong-clinic-location", "wrong-clinic-location@example.com");
+					  institution_location_id, institution_id, name, short_name, display_order
+					) VALUES (?, ?, ?, ?, ?)
+					""", institutionLocationId, InstitutionId.COBALT,
+					"Incorrect Institution Clinic Front Desk", "Wrong Clinic Front Desk", 1);
 			database.execute("""
 					INSERT INTO provider_institution_location (
 					  provider_location_id, provider_id, institution_location_id
@@ -359,18 +339,20 @@ public class ProviderResourceTests {
 				assertEquals("+12155551313", clinic.getPhoneNumber());
 				assertEquals("(215) 555-1313", clinic.getPhoneNumberDescription());
 				assertEquals("(215) 555-1313", clinic.getFormattedPhoneNumber());
+				assertEquals("detail-clinic@example.com", clinic.getEmailAddress());
 				assertEquals("https://example.com/clinic.png", clinic.getImageUrl());
 				assertEquals("https://example.com/detail-clinic", clinic.getWebsiteUrl());
 				assertEquals(1, clinic.getLocations().size());
 				LocationApiResponse location = clinic.getLocations().get(0);
 				assertEquals(clinicLocationId, location.getLocationId());
 				assertEquals("Detail Clinic Front Desk", location.getName());
-				assertEquals("+12155551616", location.getPhoneNumber());
-				assertEquals("(215) 555-1616", location.getFormattedPhoneNumber());
-				assertEquals("https://example.com/detail-clinic-location", location.getWebsiteUrl());
-				assertEquals("detail-clinic-location@example.com", location.getEmailAddress());
-				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionLocationId"));
-				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("institutionId"));
+				Map<String, Object> serializedLocation = jsonMapperExcludingNulls().toMap(location);
+				assertFalse(serializedLocation.containsKey("institutionLocationId"));
+				assertFalse(serializedLocation.containsKey("institutionId"));
+				assertFalse(serializedLocation.containsKey("phoneNumber"));
+				assertFalse(serializedLocation.containsKey("formattedPhoneNumber"));
+				assertFalse(serializedLocation.containsKey("websiteUrl"));
+				assertFalse(serializedLocation.containsKey("emailAddress"));
 				assertNotNull(location.getAddress());
 				assertEquals(clinicAddressId, location.getAddress().getAddressId());
 				assertEquals("202 Clinic Avenue", location.getAddress().getStreetAddress1());
@@ -471,17 +453,17 @@ public class ProviderResourceTests {
 			UUID providerId = UUID.randomUUID();
 			UUID clinicLocationId = UUID.randomUUID();
 			UUID addressId = UUID.randomUUID();
-			UUID institutionLocationAddressId = UUID.randomUUID();
 			UUID institutionLocationId = UUID.randomUUID();
 			String clinicDescription = "Autocomplete Clinic " + clinicId;
 
 			database.execute("""
 					INSERT INTO clinic (
 					  clinic_id, description, treatment_description, institution_id, appointment_booking_level_id,
-					  phone_number, locale, website_url
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					  phone_number, email_address, locale, website_url
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", clinicId, clinicDescription, "Autocomplete clinic treatment", InstitutionId.COBALT,
-					AppointmentBookingLevelId.CLINIC, "+12155551717", "en-US", "https://example.com/autocomplete-clinic");
+					AppointmentBookingLevelId.CLINIC, "+12155551717", "autocomplete-clinic@example.com", "en-US",
+					"https://example.com/autocomplete-clinic");
 			database.execute("""
 					INSERT INTO provider (
 					  provider_id, institution_id, name, email_address, url_name, locale, time_zone,
@@ -503,26 +485,16 @@ public class ProviderResourceTests {
 					"19108", "US", "303 Autocomplete Road, Philadelphia, PA 19108");
 			database.execute("""
 					INSERT INTO clinic_location (
-					  clinic_location_id, clinic_id, address_id, name, short_name, display_order,
-					  phone_number, website_url, email_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					  clinic_location_id, clinic_id, address_id, name, short_name, display_order
+					) VALUES (?, ?, ?, ?, ?, ?)
 					""", clinicLocationId, clinicId, addressId, "Autocomplete Clinic Desk",
-					"Autocomplete Desk", 1, "+12155551818", "https://example.com/autocomplete-location",
-					"autocomplete-location@example.com");
-			database.execute("""
-					INSERT INTO address (
-					  address_id, postal_name, street_address_1, locality, region, postal_code, country_code, formatted_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationAddressId, "Incorrect Autocomplete Postal", "999 Autocomplete Institution Road",
-					"Philadelphia", "PA", "19108", "US", "999 Autocomplete Institution Road, Philadelphia, PA 19108");
+					"Autocomplete Desk", 1);
 			database.execute("""
 					INSERT INTO institution_location (
-					  institution_location_id, institution_id, address_id, name, short_name, display_order,
-					  phone_number, website_url, email_address
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""", institutionLocationId, InstitutionId.COBALT, institutionLocationAddressId,
-					"Incorrect Autocomplete Clinic Desk", "Wrong Autocomplete Desk", 1, "+12155551997",
-					"https://example.com/wrong-autocomplete-location", "wrong-autocomplete-location@example.com");
+					  institution_location_id, institution_id, name, short_name, display_order
+					) VALUES (?, ?, ?, ?, ?)
+					""", institutionLocationId, InstitutionId.COBALT,
+					"Incorrect Autocomplete Clinic Desk", "Wrong Autocomplete Desk", 1);
 			database.execute("""
 					INSERT INTO provider_institution_location (
 					  provider_location_id, provider_id, institution_location_id
@@ -545,7 +517,7 @@ public class ProviderResourceTests {
 				LocationApiResponse location = clinic.getLocations().get(0);
 				assertEquals(clinicLocationId, location.getLocationId());
 				assertEquals("Autocomplete Clinic Desk", location.getName());
-				assertEquals("(215) 555-1818", location.getFormattedPhoneNumber());
+				assertFalse(jsonMapperExcludingNulls().toMap(location).containsKey("formattedPhoneNumber"));
 				assertNotNull(location.getAddress());
 				assertEquals("303 Autocomplete Road, Philadelphia, PA 19108", location.getAddress().getFormattedAddress());
 			});

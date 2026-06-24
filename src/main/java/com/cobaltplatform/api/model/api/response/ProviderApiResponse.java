@@ -349,6 +349,7 @@ public class ProviderApiResponse {
 		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
 		boolean bookingV2Enabled = institutionService.isBookingV2Enabled(provider.getInstitutionId());
 		String bioUrl = trimToNull(provider.getBioUrl());
+		String websiteUrl = trimToNull(provider.getWebsiteUrl());
 
 		this.providerId = provider.getProviderId();
 		this.institutionId = provider.getInstitutionId();
@@ -369,13 +370,13 @@ public class ProviderApiResponse {
 		this.locale = provider.getLocale();
 		this.tags = provider.getTags() == null ? Collections.emptyList() : jsonMapper.toList(provider.getTags(), String.class);
 		this.bioUrl = bioUrl;
-		this.websiteUrl = includeWebsiteAndLocations ? bioUrl : null;
+		this.websiteUrl = includeWebsiteAndLocations ? websiteUrl : null;
 		this.phoneNumber = provider.getPhoneNumber();
 		this.displayPhoneNumberOnlyForBooking = provider.getDisplayPhoneNumberOnlyForBooking();
 		this.phoneNumberDescription = bookingV2Enabled ? formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale()) : null;
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
 		this.supportedAppointmentModalities = bookingV2Enabled ? ProviderAppointmentModalitySupport.providerAppointmentModalityApiResponsesFor(provider, strings) : null;
-		this.locations = includeWebsiteAndLocations ? locationApiResponsesFor(provider, providerService, formatter, batchContext) : null;
+		this.locations = includeWebsiteAndLocations ? locationApiResponsesFor(provider, providerService, batchContext) : null;
 		if (providerFind == null) {
 			this.appointmentSelectionTypeId = null;
 			this.screeningRequirement = null;
@@ -450,11 +451,9 @@ public class ProviderApiResponse {
 	@Nonnull
 	protected List<LocationApiResponse> locationApiResponsesFor(@Nonnull Provider provider,
 																															@Nonnull ProviderService providerService,
-																															@Nonnull Formatter formatter,
 																															@Nonnull ProviderApiResponseBatchContext batchContext) {
 		requireNonNull(provider);
 		requireNonNull(providerService);
-		requireNonNull(formatter);
 		requireNonNull(batchContext);
 
 		List<ProviderLocation> providerLocations = batchContext.isProviderLocationsPreloaded()
@@ -479,8 +478,7 @@ public class ProviderApiResponse {
 				.map(providerLocation -> new LocationApiResponse(providerLocation,
 						batchContext.isAddressesPreloaded()
 								? batchContext.getAddressByAddressId(providerLocation.getAddressId())
-								: addressesByAddressId.get(providerLocation.getAddressId()),
-						formatter))
+								: addressesByAddressId.get(providerLocation.getAddressId())))
 				.collect(Collectors.toList());
 	}
 

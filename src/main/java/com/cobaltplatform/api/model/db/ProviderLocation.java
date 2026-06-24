@@ -42,12 +42,6 @@ public class ProviderLocation {
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
-	private String phoneNumber;
-	@Nullable
-	private String websiteUrl;
-	@Nullable
-	private String emailAddress;
-	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -106,34 +100,6 @@ public class ProviderLocation {
 		this.displayOrder = displayOrder;
 	}
 
-	@Nullable
-	public String getPhoneNumber() {
-		return phoneNumber;
-	}
-
-	public void setPhoneNumber(@Nullable String phoneNumber) {
-		this.phoneNumber = phoneNumber;
-	}
-
-	@Nullable
-	public String getWebsiteUrl() {
-		return websiteUrl;
-	}
-
-	public void setWebsiteUrl(@Nullable String websiteUrl) {
-		this.websiteUrl = websiteUrl;
-	}
-
-	@Nullable
-	public String getEmailAddress() {
-		return emailAddress;
-	}
-
-	public void setEmailAddress(@Nullable String emailAddress) {
-		this.emailAddress = emailAddress;
-	}
-
-	@Nullable
 	public Instant getCreated() {
 		return created;
 	}
