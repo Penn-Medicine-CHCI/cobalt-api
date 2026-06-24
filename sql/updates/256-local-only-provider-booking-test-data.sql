@@ -1,11 +1,10 @@
 BEGIN;
-SELECT _v.register_patch('256-local-only-provider-booking-test-data', ARRAY['257-provider-booking-contact-ownership-cleanup'], NULL);
+SELECT _v.register_patch('256-local-only-provider-booking-test-data', ARRAY['256-provider-booking-screening'], NULL);
 
 -- Local-only provider booking seed data for QA and developer databases.
 -- This script depends on bootstrap fixture rows and the consolidated production
 -- provider-booking/location schema, and is intentionally run only by
--- sql/recreate-local after initial/bootstrap.sql and the Booking V2 contact
--- ownership cleanup migration.
+-- sql/recreate-local after initial/bootstrap.sql and 256-provider-booking-screening.
 -- Do not run this as a production functional migration.
 
 -- Refresh Cobalt provider-search fixture rows so local and test databases have
