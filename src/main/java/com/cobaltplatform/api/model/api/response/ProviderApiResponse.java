@@ -21,12 +21,24 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityApiResponse;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.AvailableAppointment;
+import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
+import com.cobaltplatform.api.model.db.Address;
+import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentFunding;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.SupportRole;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.AvailabilityTime;
+import com.cobaltplatform.api.model.service.ProviderFind;
+import com.cobaltplatform.api.model.service.ProviderSearchScreeningRequirement;
+import com.cobaltplatform.api.service.ClinicService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
@@ -41,9 +53,11 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -76,6 +90,12 @@ public class ProviderApiResponse {
 	private final String license;
 	@Nullable
 	private final String specialty;
+	@Nullable
+	private final String description;
+	@Nullable
+	private final String treatmentDescription;
+	@Nullable
+	private final String detailsHtml;
 	@Nonnull
 	private final String imageUrl;
 	@Nonnull
@@ -100,18 +120,82 @@ public class ProviderApiResponse {
 	@Nullable
 	private final String bioUrl;
 	@Nullable
+	private final String websiteUrl;
+	@Nullable
 	private final String bio;
 	@Nullable
 	private final String phoneNumber;
 	@Nullable
+	private final String phoneNumberDescription;
+	@Nullable
 	private final String formattedPhoneNumber;
 	@Nullable
-	private Boolean displayPhoneNumberOnlyForBooking;
+	private final Boolean displayPhoneNumberOnlyForBooking;
+	@Nullable
+	private final List<ProviderAppointmentModalityApiResponse> supportedAppointmentModalities;
+	@Nullable
+	private final List<LocationApiResponse> locations;
+	@Nullable
+	private final ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
+	@Nullable
+	private final ProviderSearchScreeningRequirement screeningRequirement;
+
+	public static class ProviderApiResponseBatchContext {
+		@Nonnull
+		private final Map<UUID, List<ProviderLocation>> providerLocationsByProviderId;
+		@Nonnull
+		private final Map<UUID, Address> addressesByAddressId;
+		private final boolean providerLocationsPreloaded;
+		private final boolean addressesPreloaded;
+
+		@Nonnull
+		public static ProviderApiResponseBatchContext empty() {
+			return new ProviderApiResponseBatchContext(Map.of(), Map.of(), false, false);
+		}
+
+		public ProviderApiResponseBatchContext(@Nonnull Map<UUID, List<ProviderLocation>> providerLocationsByProviderId,
+																					 @Nonnull Map<UUID, Address> addressesByAddressId,
+																					 boolean providerLocationsPreloaded,
+																					 boolean addressesPreloaded) {
+			requireNonNull(providerLocationsByProviderId);
+			requireNonNull(addressesByAddressId);
+
+			this.providerLocationsByProviderId = new HashMap<>();
+			this.addressesByAddressId = new HashMap<>(addressesByAddressId);
+			this.providerLocationsPreloaded = providerLocationsPreloaded;
+			this.addressesPreloaded = addressesPreloaded;
+
+			for (Map.Entry<UUID, List<ProviderLocation>> entry : providerLocationsByProviderId.entrySet())
+				this.providerLocationsByProviderId.put(entry.getKey(), List.copyOf(entry.getValue()));
+		}
+
+		@Nonnull
+		public List<ProviderLocation> getProviderLocationsByProviderId(@Nullable UUID providerId) {
+			if (providerId == null)
+				return List.of();
+
+			return this.providerLocationsByProviderId.getOrDefault(providerId, List.of());
+		}
+
+		@Nullable
+		public Address getAddressByAddressId(@Nullable UUID addressId) {
+			return addressId == null ? null : this.addressesByAddressId.get(addressId);
+		}
+
+		public boolean isProviderLocationsPreloaded() {
+			return this.providerLocationsPreloaded;
+		}
+
+		public boolean isAddressesPreloaded() {
+			return this.addressesPreloaded;
+		}
+	}
 
 	public enum ProviderApiResponseSupplement {
 		EVERYTHING,
 		SUPPORT_ROLES,
-		PAYMENT_FUNDING
+		PAYMENT_FUNDING,
+		DETAILS_HTML
 	}
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
@@ -123,44 +207,149 @@ public class ProviderApiResponse {
 
 		@Nonnull
 		ProviderApiResponse create(@Nonnull Provider provider,
+															 @Nonnull ProviderApiResponseBatchContext batchContext,
+															 @Nullable ProviderApiResponseSupplement... supplements);
+
+		@Nonnull
+		ProviderApiResponse create(@Nonnull Provider provider,
+															 @Nonnull ProviderApiResponseBatchContext batchContext,
+															 @Assisted("providerFind") @Nonnull ProviderFind providerFind,
+															 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+															 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+															 @Nullable ProviderApiResponseSupplement... supplements);
+
+		@Nonnull
+		ProviderApiResponse create(@Nonnull Provider provider,
 															 @Nullable List<AvailabilityTime> availabilityTimes,
 															 @Nullable ProviderApiResponseSupplement... supplements);
 	}
 
 	@AssistedInject
 	public ProviderApiResponse(@Nonnull ProviderService providerService,
+														 @Nonnull ClinicService clinicService,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
 														 @Nonnull JsonMapper jsonMapper,
 														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
 														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
 														 @Nonnull Configuration configuration,
 														 @Assisted @Nonnull Provider provider,
 														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
-		this(providerService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory, configuration, provider, null, supplements);
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, null, ProviderApiResponseBatchContext.empty(), true, supplements);
 	}
 
 	@AssistedInject
 	public ProviderApiResponse(@Nonnull ProviderService providerService,
+														 @Nonnull ClinicService clinicService,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
 														 @Nonnull JsonMapper jsonMapper,
 														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
 														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
 														 @Nonnull Configuration configuration,
 														 @Assisted @Nonnull Provider provider,
 														 @Assisted @Nullable List<AvailabilityTime> availabilityTimes,
 														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, availabilityTimes, ProviderApiResponseBatchContext.empty(), true, supplements);
+	}
+
+	@AssistedInject
+	public ProviderApiResponse(@Nonnull ProviderService providerService,
+														 @Nonnull ClinicService clinicService,
+														 @Nonnull Formatter formatter,
+														 @Nonnull Strings strings,
+														 @Nonnull JsonMapper jsonMapper,
+														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
+														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
+														 @Nonnull Configuration configuration,
+														 @Assisted @Nonnull Provider provider,
+														 @Assisted @Nonnull ProviderApiResponseBatchContext batchContext,
+														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, null, batchContext, true, supplements);
+	}
+
+	@AssistedInject
+	public ProviderApiResponse(@Nonnull ProviderService providerService,
+														 @Nonnull ClinicService clinicService,
+														 @Nonnull Formatter formatter,
+														 @Nonnull Strings strings,
+														 @Nonnull JsonMapper jsonMapper,
+														 @Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
+														 @Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+														 @Nonnull InstitutionService institutionService,
+														 @Nonnull Configuration configuration,
+														 @Assisted @Nonnull Provider provider,
+														 @Assisted @Nonnull ProviderApiResponseBatchContext batchContext,
+														 @Assisted("providerFind") @Nonnull ProviderFind providerFind,
+														 @Assisted("appointmentTypesById") @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+														 @Assisted("completedAppointmentBookingScreeningKeys") @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+														 @Assisted @Nullable ProviderApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, null, batchContext, true, providerFind, appointmentTypesById,
+				completedAppointmentBookingScreeningKeys, supplements);
+	}
+
+	protected ProviderApiResponse(@Nonnull ProviderService providerService,
+																@Nonnull ClinicService clinicService,
+																@Nonnull Formatter formatter,
+																@Nonnull Strings strings,
+																@Nonnull JsonMapper jsonMapper,
+																@Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
+																@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+																@Nonnull InstitutionService institutionService,
+																@Nonnull Configuration configuration,
+																@Nonnull Provider provider,
+																@Nullable List<AvailabilityTime> availabilityTimes,
+																@Nonnull ProviderApiResponseBatchContext batchContext,
+																boolean includeWebsiteAndLocations,
+																@Nullable ProviderApiResponseSupplement... supplements) {
+		this(providerService, clinicService, formatter, strings, jsonMapper, availabilityTimeApiResponseFactory, supportRoleApiResponseFactory,
+				institutionService, configuration, provider, availabilityTimes, batchContext, includeWebsiteAndLocations, null, Map.of(),
+				Set.of(), supplements);
+	}
+
+	protected ProviderApiResponse(@Nonnull ProviderService providerService,
+																@Nonnull ClinicService clinicService,
+																@Nonnull Formatter formatter,
+																@Nonnull Strings strings,
+																@Nonnull JsonMapper jsonMapper,
+																@Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
+																@Nonnull SupportRoleApiResponseFactory supportRoleApiResponseFactory,
+																@Nonnull InstitutionService institutionService,
+																@Nonnull Configuration configuration,
+																@Nonnull Provider provider,
+																@Nullable List<AvailabilityTime> availabilityTimes,
+																@Nonnull ProviderApiResponseBatchContext batchContext,
+																boolean includeWebsiteAndLocations,
+																@Nullable ProviderFind providerFind,
+																@Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																@Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys,
+																@Nullable ProviderApiResponseSupplement... supplements) {
 		requireNonNull(providerService);
+		requireNonNull(clinicService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(jsonMapper);
 		requireNonNull(availabilityTimeApiResponseFactory);
 		requireNonNull(supportRoleApiResponseFactory);
+		requireNonNull(institutionService);
 		requireNonNull(provider);
 		requireNonNull(configuration);
+		requireNonNull(batchContext);
+		requireNonNull(appointmentTypesById);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		List<ProviderApiResponseSupplement> supplementsList = Arrays.asList(supplements);
+		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
+		boolean bookingV2Enabled = institutionService.isBookingV2Enabled(provider.getInstitutionId());
+		String bioUrl = trimToNull(provider.getBioUrl());
+		String websiteUrl = trimToNull(provider.getWebsiteUrl());
 
 		this.providerId = provider.getProviderId();
 		this.institutionId = provider.getInstitutionId();
@@ -172,15 +361,36 @@ public class ProviderApiResponse {
 		this.specialty = provider.getSpecialty();
 		this.license = provider.getLicense();
 		this.entity = provider.getEntity();
+		this.description = bookingV2Enabled ? provider.getDescription() : null;
+		this.treatmentDescription = bookingV2Enabled && includeEverything ? treatmentDescriptionFor(clinicService.findClinicsByProviderId(provider.getProviderId())) : null;
+		this.detailsHtml = supplementsList.contains(ProviderApiResponseSupplement.DETAILS_HTML) ? provider.getDetailsHtml() : null;
 		this.imageUrl = provider.getImageUrl();
 		this.isDefaultImageUrl = provider.getImageUrl() == null;
 		this.timeZone = provider.getTimeZone();
 		this.locale = provider.getLocale();
 		this.tags = provider.getTags() == null ? Collections.emptyList() : jsonMapper.toList(provider.getTags(), String.class);
-		this.bioUrl = trimToNull(provider.getBioUrl());
+		this.bioUrl = bioUrl;
+		this.websiteUrl = includeWebsiteAndLocations ? websiteUrl : null;
 		this.phoneNumber = provider.getPhoneNumber();
 		this.displayPhoneNumberOnlyForBooking = provider.getDisplayPhoneNumberOnlyForBooking();
+		this.phoneNumberDescription = bookingV2Enabled ? formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale()) : null;
 		this.formattedPhoneNumber = formatter.formatPhoneNumber(provider.getPhoneNumber(), provider.getLocale());
+		this.supportedAppointmentModalities = bookingV2Enabled ? ProviderAppointmentModalitySupport.providerAppointmentModalityApiResponsesFor(provider, strings) : null;
+		this.locations = includeWebsiteAndLocations ? locationApiResponsesFor(provider, providerService, batchContext) : null;
+		if (providerFind == null) {
+			this.appointmentSelectionTypeId = null;
+			this.screeningRequirement = null;
+		} else {
+			Map<UUID, Provider> providersById = Map.of(provider.getProviderId(), provider);
+			List<AvailableAppointment> availableAppointments = ProviderSearchResultApiResponse.availableAppointmentsFor(List.of(providerFind),
+					providersById, appointmentTypesById);
+			AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
+
+			this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
+					providersById, availableAppointments, appointmentTypesById, completedAppointmentBookingScreeningKeys);
+			this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
+					appointmentTypesById, completedAppointmentBookingScreeningKeys);
+		}
 
 		String bio = trimToNull(provider.getBio());
 
@@ -196,8 +406,6 @@ public class ProviderApiResponse {
 		}
 
 		this.bio = bio;
-
-		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
 
 		if (availabilityTimes == null)
 			this.availabilityTimes = null;
@@ -238,6 +446,55 @@ public class ProviderApiResponse {
 		} else {
 			this.paymentFundingDescriptions = null;
 		}
+	}
+
+	@Nonnull
+	protected List<LocationApiResponse> locationApiResponsesFor(@Nonnull Provider provider,
+																															@Nonnull ProviderService providerService,
+																															@Nonnull ProviderApiResponseBatchContext batchContext) {
+		requireNonNull(provider);
+		requireNonNull(providerService);
+		requireNonNull(batchContext);
+
+		List<ProviderLocation> providerLocations = batchContext.isProviderLocationsPreloaded()
+				? batchContext.getProviderLocationsByProviderId(provider.getProviderId())
+				: providerService.findProviderLocationsByProviderId(provider.getProviderId());
+
+		Map<UUID, Address> addressesByAddressId;
+
+		if (batchContext.isAddressesPreloaded()) {
+			addressesByAddressId = Map.of();
+		} else {
+			Set<UUID> addressIds = new HashSet<>();
+
+			for (ProviderLocation providerLocation : providerLocations)
+				if (providerLocation.getAddressId() != null)
+					addressIds.add(providerLocation.getAddressId());
+
+			addressesByAddressId = providerService.findAddressesByIds(addressIds);
+		}
+
+		return providerLocations.stream()
+				.map(providerLocation -> new LocationApiResponse(providerLocation,
+						batchContext.isAddressesPreloaded()
+								? batchContext.getAddressByAddressId(providerLocation.getAddressId())
+								: addressesByAddressId.get(providerLocation.getAddressId())))
+				.collect(Collectors.toList());
+	}
+
+	@Nullable
+	protected String treatmentDescriptionFor(@Nonnull List<Clinic> clinics) {
+		requireNonNull(clinics);
+
+		List<String> treatmentDescriptions = clinics.stream()
+				.map(Clinic::getTreatmentDescription)
+				.map(treatmentDescription -> trimToNull(treatmentDescription))
+				.filter(treatmentDescription -> treatmentDescription != null)
+				.collect(Collectors.toList());
+
+		return treatmentDescriptions.size() == 0
+				? null
+				: format("* %s", treatmentDescriptions.stream().collect(Collectors.joining(", ")));
 	}
 
 	@Nonnull
@@ -288,6 +545,21 @@ public class ProviderApiResponse {
 	@Nullable
 	public String getSpecialty() {
 		return specialty;
+	}
+
+	@Nullable
+	public String getDescription() {
+		return this.description;
+	}
+
+	@Nullable
+	public String getTreatmentDescription() {
+		return this.treatmentDescription;
+	}
+
+	@Nullable
+	public String getDetailsHtml() {
+		return this.detailsHtml;
 	}
 
 	@Nullable
@@ -347,7 +619,52 @@ public class ProviderApiResponse {
 	}
 
 	@Nullable
+	public String getWebsiteUrl() {
+		return this.websiteUrl;
+	}
+
+	@Nullable
 	public String getBio() {
 		return bio;
+	}
+
+	@Nullable
+	public String getPhoneNumber() {
+		return this.phoneNumber;
+	}
+
+	@Nullable
+	public String getPhoneNumberDescription() {
+		return this.phoneNumberDescription;
+	}
+
+	@Nullable
+	public String getFormattedPhoneNumber() {
+		return this.formattedPhoneNumber;
+	}
+
+	@Nullable
+	public Boolean getDisplayPhoneNumberOnlyForBooking() {
+		return this.displayPhoneNumberOnlyForBooking;
+	}
+
+	@Nullable
+	public List<ProviderAppointmentModalityApiResponse> getSupportedAppointmentModalities() {
+		return this.supportedAppointmentModalities;
+	}
+
+	@Nullable
+	public ProviderAppointmentSelectionTypeId getAppointmentSelectionTypeId() {
+		return this.appointmentSelectionTypeId;
+	}
+
+	@Nullable
+	public ProviderSearchScreeningRequirement getScreeningRequirement() {
+		return this.screeningRequirement;
+	}
+
+	@Nonnull
+	public List<LocationApiResponse> getLocations() {
+		return this.locations == null ? List.of() : this.locations;
 	}
 }

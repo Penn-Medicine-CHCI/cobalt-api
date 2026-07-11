@@ -19,8 +19,6 @@
 
 package com.cobaltplatform.api.model.db;
 
-import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.Instant;
@@ -30,11 +28,13 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class InstitutionLocation {
+public class ProviderLocation {
 	@Nullable
-	private UUID institutionLocationId;
+	private UUID providerLocationId;
 	@Nullable
-	private InstitutionId institutionId;
+	private UUID providerId;
+	@Nullable
+	private UUID addressId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -47,21 +47,30 @@ public class InstitutionLocation {
 	private Instant lastUpdated;
 
 	@Nullable
-	public UUID getInstitutionLocationId() {
-		return institutionLocationId;
+	public UUID getProviderLocationId() {
+		return providerLocationId;
 	}
 
-	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
-		this.institutionLocationId = institutionLocationId;
+	public void setProviderLocationId(@Nullable UUID providerLocationId) {
+		this.providerLocationId = providerLocationId;
 	}
 
 	@Nullable
-	public InstitutionId getInstitutionId() {
-		return institutionId;
+	public UUID getProviderId() {
+		return providerId;
 	}
 
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
+	public void setProviderId(@Nullable UUID providerId) {
+		this.providerId = providerId;
+	}
+
+	@Nullable
+	public UUID getAddressId() {
+		return addressId;
+	}
+
+	public void setAddressId(@Nullable UUID addressId) {
+		this.addressId = addressId;
 	}
 
 	@Nullable
@@ -75,22 +84,22 @@ public class InstitutionLocation {
 
 	@Nullable
 	public String getShortName() {
-		return this.shortName;
+		return shortName;
 	}
 
 	public void setShortName(@Nullable String shortName) {
 		this.shortName = shortName;
 	}
 
+	@Nullable
 	public Integer getDisplayOrder() {
-		return this.displayOrder;
+		return displayOrder;
 	}
 
 	public void setDisplayOrder(@Nullable Integer displayOrder) {
 		this.displayOrder = displayOrder;
 	}
 
-	@Nullable
 	public Instant getCreated() {
 		return created;
 	}

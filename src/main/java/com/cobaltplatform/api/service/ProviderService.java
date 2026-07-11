@@ -32,19 +32,24 @@ import com.cobaltplatform.api.model.api.request.SynchronizeEpicProviderSlotBooki
 import com.cobaltplatform.api.model.api.request.UpdateEpicDepartmentRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSession;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Assessment;
 import com.cobaltplatform.api.model.db.BusinessHour;
+import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.DepartmentAvailabilityStatus.DepartmentAvailabilityStatusId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.EpicFhirAppointmentFindCache;
 import com.cobaltplatform.api.model.db.EpicProviderSchedule;
 import com.cobaltplatform.api.model.db.EpicProviderSlotBooking;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Holiday;
 import com.cobaltplatform.api.model.db.Holiday.HolidayId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.Interaction;
 import com.cobaltplatform.api.model.db.InteractionType;
 import com.cobaltplatform.api.model.db.LogicalAvailability;
@@ -54,6 +59,7 @@ import com.cobaltplatform.api.model.db.PaymentFunding.PaymentFundingId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ProviderAvailability;
+import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.RecurrenceType.RecurrenceTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
@@ -63,12 +69,14 @@ import com.cobaltplatform.api.model.db.SystemAffinity.SystemAffinityId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.AppointmentTypeWithLogicalAvailabilityId;
 import com.cobaltplatform.api.model.service.AppointmentTypeWithProviderId;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.Availability;
 import com.cobaltplatform.api.model.service.Block;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityTime;
+import com.cobaltplatform.api.model.service.ProviderSearchResult;
 import com.cobaltplatform.api.util.BusinessHoursCalculator;
 import com.cobaltplatform.api.util.BusinessHoursCalculator.BusinessHours;
 import com.cobaltplatform.api.util.ValidationException;
@@ -99,6 +107,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -142,6 +151,10 @@ public class ProviderService {
 	@Nonnull
 	private final javax.inject.Provider<ClinicService> clinicServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<FeatureService> featureServiceProvider;
+	@Nonnull
+	private final javax.inject.Provider<AppointmentService> appointmentServiceProvider;
+	@Nonnull
 	private final javax.inject.Provider<AvailabilityService> availabilityServiceProvider;
 	@Nonnull
 	private final javax.inject.Provider<PatientOrderService> patientOrderServiceProvider;
@@ -170,6 +183,8 @@ public class ProviderService {
 												 @Nonnull javax.inject.Provider<SessionService> sessionServiceProvider,
 												 @Nonnull javax.inject.Provider<AssessmentScoringService> assessmentScoringServiceProvider,
 												 @Nonnull javax.inject.Provider<ClinicService> clinicServiceProvider,
+												 @Nonnull javax.inject.Provider<FeatureService> featureServiceProvider,
+												 @Nonnull javax.inject.Provider<AppointmentService> appointmentServiceProvider,
 												 @Nonnull javax.inject.Provider<AvailabilityService> availabilityServiceProvider,
 												 @Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 												 @Nonnull EnterprisePluginProvider enterprisePluginProvider,
@@ -185,6 +200,8 @@ public class ProviderService {
 		requireNonNull(sessionServiceProvider);
 		requireNonNull(assessmentScoringServiceProvider);
 		requireNonNull(clinicServiceProvider);
+		requireNonNull(featureServiceProvider);
+		requireNonNull(appointmentServiceProvider);
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(enterprisePluginProvider);
@@ -201,6 +218,8 @@ public class ProviderService {
 		this.sessionServiceProvider = sessionServiceProvider;
 		this.assessmentScoringServiceProvider = assessmentScoringServiceProvider;
 		this.clinicServiceProvider = clinicServiceProvider;
+		this.featureServiceProvider = featureServiceProvider;
+		this.appointmentServiceProvider = appointmentServiceProvider;
 		this.availabilityServiceProvider = availabilityServiceProvider;
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.enterprisePluginProvider = enterprisePluginProvider;
@@ -292,6 +311,128 @@ public class ProviderService {
 
 		return getDatabase().queryForList("SELECT p.* FROM provider p, provider_support_role psr " +
 				"WHERE psr.provider_id=p.provider_id AND psr.support_role_id=? AND p.institution_id=? AND p.active=TRUE ORDER BY p.name", Provider.class, supportRoleId, institutionId);
+	}
+
+	@Nonnull
+	public List<Provider> findProvidersByClinicId(@Nullable UUID clinicId) {
+		if (clinicId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT DISTINCT p.*
+				FROM provider p, provider_clinic pc
+				WHERE p.provider_id=pc.provider_id
+				AND pc.clinic_id=?
+				AND p.active=TRUE
+				ORDER BY p.name
+				""", Provider.class, clinicId);
+	}
+
+	@Nonnull
+	public List<ProviderLocation> findProviderLocationsByProviderId(@Nullable UUID providerId) {
+		if (providerId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM provider_location
+				WHERE provider_id=?
+				ORDER BY display_order, name, provider_location_id
+				""", ProviderLocation.class, providerId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<ProviderLocation>> findProviderLocationsByProviderIds(@Nullable Set<UUID> providerIds) {
+		if (providerIds == null || providerIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<ProviderLocation> providerLocations = getDatabase().queryForList("""
+				SELECT *
+				FROM provider_location
+				WHERE provider_id = ANY (CAST(? AS UUID[]))
+				ORDER BY provider_id, display_order, name, provider_location_id
+				""", ProviderLocation.class, (Object) providerIds.toArray(new UUID[0]));
+
+		Map<UUID, List<ProviderLocation>> providerLocationsByProviderId = new HashMap<>();
+
+		for (ProviderLocation providerLocation : providerLocations) {
+			if (providerLocation.getProviderId() == null)
+				continue;
+
+			List<ProviderLocation> providerLocationsForProvider =
+					providerLocationsByProviderId.computeIfAbsent(providerLocation.getProviderId(), ignored -> new ArrayList<>());
+			providerLocationsForProvider.add(providerLocation);
+		}
+
+		return providerLocationsByProviderId;
+	}
+
+	@Nonnull
+	public List<InstitutionLocation> findInstitutionLocationsByProviderId(@Nullable UUID providerId) {
+		if (providerId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT DISTINCT il.*
+				FROM provider_institution_location pil, institution_location il
+				WHERE pil.provider_id=?
+				AND il.institution_location_id=pil.institution_location_id
+				ORDER BY il.display_order, il.name, il.institution_location_id
+				""", InstitutionLocation.class, providerId);
+	}
+
+	@Nonnull
+	public Map<UUID, List<InstitutionLocation>> findInstitutionLocationsByProviderIds(@Nullable Set<UUID> providerIds) {
+		if (providerIds == null || providerIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<InstitutionLocationWithProviderId> institutionLocations = getDatabase().queryForList("""
+				SELECT il.*, pil.provider_id
+				FROM provider_institution_location pil, institution_location il
+				WHERE pil.provider_id = ANY (CAST(? AS UUID[]))
+				AND il.institution_location_id=pil.institution_location_id
+				ORDER BY pil.provider_id, il.display_order, il.name, il.institution_location_id
+				""", InstitutionLocationWithProviderId.class, (Object) providerIds.toArray(new UUID[0]));
+
+		Map<UUID, List<InstitutionLocation>> institutionLocationsByProviderId = new HashMap<>();
+		Map<UUID, Set<UUID>> institutionLocationIdsByProviderId = new HashMap<>();
+
+		for (InstitutionLocationWithProviderId institutionLocation : institutionLocations) {
+			if (institutionLocation.getProviderId() == null || institutionLocation.getInstitutionLocationId() == null)
+				continue;
+
+			Set<UUID> institutionLocationIdsForProvider =
+					institutionLocationIdsByProviderId.computeIfAbsent(institutionLocation.getProviderId(), ignored -> new HashSet<>());
+
+			if (!institutionLocationIdsForProvider.add(institutionLocation.getInstitutionLocationId()))
+				continue;
+
+			List<InstitutionLocation> institutionLocationsForProvider =
+					institutionLocationsByProviderId.computeIfAbsent(institutionLocation.getProviderId(), ignored -> new ArrayList<>());
+			institutionLocationsForProvider.add(institutionLocation);
+		}
+
+		return institutionLocationsByProviderId;
+	}
+
+	@Nonnull
+	public Map<UUID, Address> findAddressesByIds(@Nullable Set<UUID> addressIds) {
+		if (addressIds == null || addressIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<Address> addresses = getDatabase().queryForList("""
+				SELECT *
+				FROM address
+				WHERE address_id = ANY (CAST(? AS UUID[]))
+				""", Address.class, (Object) addressIds.toArray(new UUID[0]));
+
+		Map<UUID, Address> addressesByAddressId = new HashMap<>(addresses.size());
+
+		for (Address address : addresses)
+			if (address.getAddressId() != null)
+				addressesByAddressId.put(address.getAddressId(), address);
+
+		return addressesByAddressId;
 	}
 
 	@Nonnull
@@ -417,6 +558,309 @@ public class ProviderService {
 
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 		return institution.getEpicFhirEnabled();
+	}
+
+	@Nonnull
+	public List<ProviderSearchResult> findProviderSearchResults(@Nonnull FeatureId featureId,
+																															@Nullable UUID institutionLocationId,
+																															@Nonnull Account account) {
+		requireNonNull(featureId);
+		requireNonNull(account);
+
+		List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(featureId);
+
+		if (supportRoleIds.size() == 0)
+			return List.of();
+
+		ProviderFindRequest request = new ProviderFindRequest();
+		request.setInstitutionId(account.getInstitutionId());
+		request.setInstitutionLocationId(institutionLocationId);
+		request.setSupportRoleIds(new HashSet<>(supportRoleIds));
+
+		return findProviderSearchResults(request, account);
+	}
+
+	@Nonnull
+	public List<ProviderSearchResult> findProviderSearchResults(@Nonnull ProviderFindRequest request,
+																															@Nonnull Account account) {
+		requireNonNull(request);
+		requireNonNull(account);
+
+		ProviderFindRequest providerFindRequest = copyProviderFindRequest(request);
+		providerFindRequest.setIncludePastAvailability(false);
+		providerFindRequest.setAvailability(ProviderFindAvailability.ONLY_AVAILABLE);
+
+		List<ProviderFind> providerFinds = findProviders(providerFindRequest, account);
+
+		if (providerFinds.size() == 0)
+			return List.of();
+
+		Set<UUID> providerIds = providerFinds.stream()
+				.map(ProviderFind::getProviderId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toCollection(HashSet::new));
+
+		if (providerIds.size() == 0)
+			return List.of();
+
+		Map<UUID, AppointmentType> appointmentTypesById = getAppointmentService().findAppointmentTypesByInstitutionId(account.getInstitutionId()).stream()
+				.collect(Collectors.toMap(AppointmentType::getAppointmentTypeId, Function.identity()));
+		Map<UUID, Provider> providersById = providerIds.stream()
+				.map(providerId -> findProviderById(providerId).orElse(null))
+				.filter(Objects::nonNull)
+				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
+		Map<UUID, List<Clinic>> clinicsByProviderId = getClinicService().findClinicsByProviderIds(providerIds);
+		Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
+				findCompletedAppointmentBookingScreeningKeys(account, providerFinds, appointmentTypesById);
+
+		return providerSearchResultsFor(providerFinds, providersById, clinicsByProviderId, appointmentTypesById,
+				completedAppointmentBookingScreeningKeys);
+	}
+
+	@Nonnull
+	public Set<AppointmentBookingScreeningKey> findCompletedAppointmentBookingScreeningKeys(@Nonnull Account account,
+																																													@Nonnull List<ProviderFind> providerFinds,
+																																													@Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(account);
+		requireNonNull(providerFinds);
+		requireNonNull(appointmentTypesById);
+
+		return getAppointmentService().findCompletedAppointmentBookingScreeningKeys(account.getAccountId(),
+				appointmentBookingScreeningKeysFor(providerFinds, appointmentTypesById));
+	}
+
+	@Nonnull
+	protected static List<ProviderSearchResult> providerSearchResultsFor(@Nonnull List<ProviderFind> providerFinds,
+																																			 @Nonnull Map<UUID, Provider> providersById,
+																																			 @Nonnull Map<UUID, List<Clinic>> clinicsByProviderId,
+																																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		return providerSearchResultsFor(providerFinds, providersById, clinicsByProviderId, appointmentTypesById, Set.of());
+	}
+
+	@Nonnull
+	protected static List<ProviderSearchResult> providerSearchResultsFor(@Nonnull List<ProviderFind> providerFinds,
+																																			 @Nonnull Map<UUID, Provider> providersById,
+																																			 @Nonnull Map<UUID, List<Clinic>> clinicsByProviderId,
+																																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																																			 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
+		requireNonNull(providerFinds);
+		requireNonNull(providersById);
+		requireNonNull(clinicsByProviderId);
+		requireNonNull(appointmentTypesById);
+		requireNonNull(completedAppointmentBookingScreeningKeys);
+
+		Map<UUID, Clinic> clinicsById = new HashMap<>();
+		Map<UUID, List<ProviderFind>> providerFindsByClinicId = new HashMap<>();
+		Set<UUID> providerIdsRepresentedByClinicResult = new HashSet<>();
+
+		for (ProviderFind providerFind : providerFinds) {
+			List<Clinic> providerClinics = clinicsByProviderId.get(providerFind.getProviderId());
+
+			if (providerClinics == null)
+				continue;
+
+			for (Clinic clinic : providerClinics) {
+				if (!clinicBookedAtClinicLevel(clinic))
+					continue;
+
+				clinicsById.putIfAbsent(clinic.getClinicId(), clinic);
+
+				List<ProviderFind> clinicProviderFinds = providerFindsByClinicId.get(clinic.getClinicId());
+
+				if (clinicProviderFinds == null) {
+					clinicProviderFinds = new ArrayList<>();
+					providerFindsByClinicId.put(clinic.getClinicId(), clinicProviderFinds);
+				}
+
+				clinicProviderFinds.add(providerFind);
+
+				if (providerFind.getProviderId() != null)
+					providerIdsRepresentedByClinicResult.add(providerFind.getProviderId());
+			}
+		}
+
+		List<ProviderSearchResult> providerSearchResults = new ArrayList<>();
+
+		for (ProviderFind providerFind : providerFinds) {
+			if (providerIdsRepresentedByClinicResult.contains(providerFind.getProviderId()))
+				continue;
+
+			Provider provider = providersById.get(providerFind.getProviderId());
+
+			if (provider != null && providerSearchResultCanBeShownForProvider(provider, providerFind, appointmentTypesById))
+				providerSearchResults.add(ProviderSearchResult.forProvider(provider, providerFind, appointmentTypesById,
+						completedAppointmentBookingScreeningKeys));
+		}
+
+		for (Entry<UUID, List<ProviderFind>> entry : providerFindsByClinicId.entrySet()) {
+			Clinic clinic = clinicsById.get(entry.getKey());
+
+			if (clinic != null)
+				providerSearchResults.add(ProviderSearchResult.forClinic(clinic, entry.getValue(), providersById, appointmentTypesById,
+						completedAppointmentBookingScreeningKeys));
+		}
+
+		sortProviderSearchResults(providerSearchResults);
+
+		return providerSearchResults;
+	}
+
+	protected static boolean providerSearchResultCanBeShownForProvider(@Nonnull Provider provider,
+																																			 @Nonnull ProviderFind providerFind,
+																																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(provider);
+		requireNonNull(providerFind);
+		requireNonNull(appointmentTypesById);
+
+		return providerFindHasOnlineBookableSlot(providerFind, appointmentTypesById)
+				|| providerHasFallbackPhoneNumber(provider, providerFind);
+	}
+
+	protected static boolean providerFindHasOnlineBookableSlot(@Nonnull ProviderFind providerFind,
+																														 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(providerFind);
+		requireNonNull(appointmentTypesById);
+
+		if (providerFind.getDates() == null)
+			return false;
+
+		for (AvailabilityDate availabilityDate : providerFind.getDates()) {
+			if (availabilityDate.getDate() == null || availabilityDate.getTimes() == null)
+				continue;
+
+			for (AvailabilityTime availabilityTime : availabilityDate.getTimes())
+				if (availabilityTime.getTime() != null
+						&& availabilityTime.getStatus() == AvailabilityStatus.AVAILABLE
+						&& availabilityTimeHasKnownAppointmentType(availabilityTime, appointmentTypesById))
+					return true;
+		}
+
+		return false;
+	}
+
+	protected static boolean availabilityTimeHasKnownAppointmentType(@Nonnull AvailabilityTime availabilityTime,
+																																	 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(availabilityTime);
+		requireNonNull(appointmentTypesById);
+
+		if (availabilityTime.getAppointmentTypeIds() == null)
+			return false;
+
+		return availabilityTime.getAppointmentTypeIds().stream()
+				.filter(Objects::nonNull)
+				.anyMatch(appointmentTypesById::containsKey);
+	}
+
+	protected static boolean providerHasFallbackPhoneNumber(@Nonnull Provider provider,
+																												 @Nonnull ProviderFind providerFind) {
+		requireNonNull(provider);
+		requireNonNull(providerFind);
+
+		return trimToNull(provider.getPhoneNumber()) != null
+				|| trimToNull(providerFind.getPhoneNumber()) != null;
+	}
+
+	@Nonnull
+	protected static Set<AppointmentBookingScreeningKey> appointmentBookingScreeningKeysFor(@Nonnull List<ProviderFind> providerFinds,
+																																													@Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		requireNonNull(providerFinds);
+		requireNonNull(appointmentTypesById);
+
+		Set<AppointmentBookingScreeningKey> appointmentBookingScreeningKeys = new HashSet<>();
+
+		for (ProviderFind providerFind : providerFinds) {
+			if (providerFind.getProviderId() == null)
+				continue;
+
+			for (UUID appointmentTypeId : appointmentTypeIdsForAppointmentBookingScreeningKeys(providerFind)) {
+				if (appointmentTypeId == null)
+					continue;
+
+				AppointmentType appointmentType = appointmentTypesById.get(appointmentTypeId);
+
+				if (appointmentType == null || appointmentType.getScreeningFlowId() == null)
+					continue;
+
+				appointmentBookingScreeningKeys.add(new AppointmentBookingScreeningKey(providerFind.getProviderId(), appointmentTypeId,
+						appointmentType.getScreeningFlowId()));
+			}
+		}
+
+		return appointmentBookingScreeningKeys;
+	}
+
+	@Nonnull
+	protected static Set<UUID> appointmentTypeIdsForAppointmentBookingScreeningKeys(@Nonnull ProviderFind providerFind) {
+		requireNonNull(providerFind);
+
+		Set<UUID> appointmentTypeIds = new HashSet<>();
+
+		if (providerFind.getAppointmentTypeIds() != null)
+			appointmentTypeIds.addAll(providerFind.getAppointmentTypeIds().stream()
+					.filter(Objects::nonNull)
+					.collect(Collectors.toSet()));
+
+		if (providerFind.getDates() != null)
+			for (AvailabilityDate availabilityDate : providerFind.getDates()) {
+				if (availabilityDate.getTimes() == null)
+					continue;
+
+				for (AvailabilityTime availabilityTime : availabilityDate.getTimes()) {
+					if (availabilityTime.getAppointmentTypeIds() == null)
+						continue;
+
+					appointmentTypeIds.addAll(availabilityTime.getAppointmentTypeIds().stream()
+							.filter(Objects::nonNull)
+							.collect(Collectors.toSet()));
+				}
+			}
+
+		return appointmentTypeIds;
+	}
+
+	protected static void sortProviderSearchResults(@Nonnull List<ProviderSearchResult> providerSearchResults) {
+		requireNonNull(providerSearchResults);
+
+		providerSearchResults.sort(Comparator
+				.comparing(ProviderSearchResult::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+				.thenComparing(ProviderSearchResult::getProviderSearchResultTypeId)
+				.thenComparing(ProviderSearchResult::getProviderSearchResultId));
+	}
+
+	@Nonnull
+	protected ProviderFindRequest copyProviderFindRequest(@Nonnull ProviderFindRequest request) {
+		requireNonNull(request);
+
+		ProviderFindRequest copiedRequest = new ProviderFindRequest();
+		copiedRequest.setInstitutionId(request.getInstitutionId());
+		copiedRequest.setProviderId(request.getProviderId());
+		copiedRequest.setStartDate(request.getStartDate());
+		copiedRequest.setEndDate(request.getEndDate());
+		copiedRequest.setDaysOfWeek(request.getDaysOfWeek());
+		copiedRequest.setStartTime(request.getStartTime());
+		copiedRequest.setEndTime(request.getEndTime());
+		copiedRequest.setAvailability(request.getAvailability());
+		copiedRequest.setSupportRoleIds(request.getSupportRoleIds());
+		copiedRequest.setPaymentTypeIds(request.getPaymentTypeIds());
+		copiedRequest.setClinicIds(request.getClinicIds());
+		copiedRequest.setVisitTypeIds(request.getVisitTypeIds());
+		copiedRequest.setAppointmentTypeIds(request.getAppointmentTypeIds());
+		copiedRequest.setSupplements(request.getSupplements());
+		copiedRequest.setLicenseTypes(request.getLicenseTypes());
+		copiedRequest.setSystemAffinityId(request.getSystemAffinityId());
+		copiedRequest.setSpecialtyIds(request.getSpecialtyIds());
+		copiedRequest.setIncludePastAvailability(request.getIncludePastAvailability());
+		copiedRequest.setInstitutionLocationId(request.getInstitutionLocationId());
+		copiedRequest.setAppointmentTimeIds(request.getAppointmentTimeIds());
+		copiedRequest.setPatientOrderId(request.getPatientOrderId());
+		copiedRequest.setProviderFindOutputFormat(request.getProviderFindOutputFormat());
+
+		return copiedRequest;
+	}
+
+	protected static boolean clinicBookedAtClinicLevel(@Nonnull Clinic clinic) {
+		requireNonNull(clinic);
+		return clinic.getAppointmentBookingLevelId() == AppointmentBookingLevelId.CLINIC;
 	}
 
 	@Nonnull
@@ -2787,6 +3231,16 @@ public class ProviderService {
 	}
 
 	@Nonnull
+	protected FeatureService getFeatureService() {
+		return featureServiceProvider.get();
+	}
+
+	@Nonnull
+	protected AppointmentService getAppointmentService() {
+		return appointmentServiceProvider.get();
+	}
+
+	@Nonnull
 	protected AvailabilityService getAvailabilityService() {
 		return availabilityServiceProvider.get();
 	}
@@ -2834,5 +3288,19 @@ public class ProviderService {
 	@Nonnull
 	protected Logger getLogger() {
 		return logger;
+	}
+
+	protected static class InstitutionLocationWithProviderId extends InstitutionLocation {
+		@Nullable
+		private UUID providerId;
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
 	}
 }

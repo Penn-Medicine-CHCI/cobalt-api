@@ -257,7 +257,6 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/246-cour
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/247-account-timeline-report.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/248-ip-geolocation.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/249-institution-referrer-metadata.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/251-ip-geolocation-radius-double.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/252-page-group-table.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/253-account-alert.sql
@@ -269,3 +268,8 @@ if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
   PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/bootstrap.sql
 fi
+
+# Post-bootstrap patches. 250 depends on bootstrap fixture institutions/referrers,
+# and 256 applies the consolidated provider-booking/location functional migration.
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-autism-clinic-referrer.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-provider-booking-screening.sql

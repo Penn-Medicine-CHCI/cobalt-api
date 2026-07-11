@@ -31,25 +31,33 @@ import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.Appointm
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.AppointmentTimeApiResponse.AppointmentTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ClinicApiResponse.ClinicApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.FeatureApiResponse.FeatureApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FilterApiResponse.FilterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.FollowupApiResponse.FollowupApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseBatchContext;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
 import com.cobaltplatform.api.model.api.response.ProviderCalendarApiResponse.ProviderCalendarApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderListDetailsApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse;
+import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.ProviderSearchResultApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SpecialtyApiResponse.SpecialtyApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.SupportRoleApiResponse.SupportRoleApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse;
 import com.cobaltplatform.api.model.api.response.TimeZoneApiResponse.TimeZoneApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.VisitTypeApiResponse.VisitTypeApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Address;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentTime;
 import com.cobaltplatform.api.model.db.AppointmentTime.AppointmentTimeId;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
+import com.cobaltplatform.api.model.db.ClinicLocation;
 import com.cobaltplatform.api.model.db.Feature;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Filter;
@@ -58,6 +66,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PaymentType;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ProviderLocation;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.Specialty;
 import com.cobaltplatform.api.model.db.SupportRole;
@@ -65,6 +74,7 @@ import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import com.cobaltplatform.api.model.db.VisitType;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.AppointmentBookingScreeningKey;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
 import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityDate;
@@ -75,6 +85,7 @@ import com.cobaltplatform.api.service.AssessmentScoringService;
 import com.cobaltplatform.api.service.AssessmentService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.AvailabilityService;
+import com.cobaltplatform.api.service.AddressService;
 import com.cobaltplatform.api.service.ClinicService;
 import com.cobaltplatform.api.service.FeatureService;
 import com.cobaltplatform.api.service.FollowupService;
@@ -126,6 +137,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
@@ -135,8 +147,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
+import static com.cobaltplatform.api.util.ValidationUtility.isValidUUID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -146,6 +160,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class ProviderResource {
 	@Nonnull
+	protected static final String ALL_INSTITUTION_LOCATIONS_ID = "na";
+	@Nonnull
 	private final AssessmentService assessmentService;
 	@Nonnull
 	private final AssessmentScoringService assessmentScoringService;
@@ -153,6 +169,8 @@ public class ProviderResource {
 	private final ProviderService providerService;
 	@Nonnull
 	private final AppointmentService appointmentService;
+	@Nonnull
+	private final AddressService addressService;
 	@Nonnull
 	private final ClinicService clinicService;
 	@Nonnull
@@ -169,6 +187,10 @@ public class ProviderResource {
 	private final PatientOrderService patientOrderService;
 	@Nonnull
 	private final ProviderApiResponseFactory providerApiResponseFactory;
+	@Nonnull
+	private final ProviderListDetailsApiResponseFactory providerListDetailsApiResponseFactory;
+	@Nonnull
+	private final ProviderSearchResultApiResponseFactory providerSearchResultApiResponseFactory;
 	@Nonnull
 	private final ClinicApiResponseFactory clinicApiResponseFactory;
 	@Nonnull
@@ -211,6 +233,7 @@ public class ProviderResource {
 													@Nonnull AssessmentScoringService assessmentScoringService,
 													@Nonnull ProviderService providerService,
 													@Nonnull AppointmentService appointmentService,
+													@Nonnull AddressService addressService,
 													@Nonnull ClinicService clinicService,
 													@Nonnull FollowupService followupService,
 													@Nonnull AuthorizationService authorizationService,
@@ -219,6 +242,8 @@ public class ProviderResource {
 													@Nonnull ScreeningService screeningService,
 													@Nonnull PatientOrderService patientOrderService,
 													@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
+													@Nonnull ProviderListDetailsApiResponseFactory providerListDetailsApiResponseFactory,
+													@Nonnull ProviderSearchResultApiResponseFactory providerSearchResultApiResponseFactory,
 													@Nonnull ClinicApiResponseFactory clinicApiResponseFactory,
 													@Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 													@Nonnull AvailabilityTimeApiResponseFactory availabilityTimeApiResponseFactory,
@@ -240,6 +265,7 @@ public class ProviderResource {
 		requireNonNull(assessmentScoringService);
 		requireNonNull(providerService);
 		requireNonNull(appointmentService);
+		requireNonNull(addressService);
 		requireNonNull(clinicService);
 		requireNonNull(followupService);
 		requireNonNull(authorizationService);
@@ -248,6 +274,8 @@ public class ProviderResource {
 		requireNonNull(screeningService);
 		requireNonNull(patientOrderService);
 		requireNonNull(providerApiResponseFactory);
+		requireNonNull(providerListDetailsApiResponseFactory);
+		requireNonNull(providerSearchResultApiResponseFactory);
 		requireNonNull(clinicApiResponseFactory);
 		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(availabilityTimeApiResponseFactory);
@@ -270,6 +298,7 @@ public class ProviderResource {
 		this.assessmentScoringService = assessmentScoringService;
 		this.providerService = providerService;
 		this.appointmentService = appointmentService;
+		this.addressService = addressService;
 		this.clinicService = clinicService;
 		this.followupService = followupService;
 		this.authorizationService = authorizationService;
@@ -278,6 +307,8 @@ public class ProviderResource {
 		this.screeningService = screeningService;
 		this.patientOrderService = patientOrderService;
 		this.providerApiResponseFactory = providerApiResponseFactory;
+		this.providerListDetailsApiResponseFactory = providerListDetailsApiResponseFactory;
+		this.providerSearchResultApiResponseFactory = providerSearchResultApiResponseFactory;
 		this.clinicApiResponseFactory = clinicApiResponseFactory;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
 		this.availabilityTimeApiResponseFactory = availabilityTimeApiResponseFactory;
@@ -299,6 +330,87 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	@GET("/providers/search")
+	@AuthenticationRequired
+	public ApiResponse searchProviders(@Nonnull @QueryParameter Optional<FeatureId> featureId,
+																				@Nonnull @QueryParameter Optional<String> institutionLocationId) {
+		requireNonNull(featureId);
+		requireNonNull(institutionLocationId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
+		String institutionLocationIdAsString = normalizeInstitutionLocationIdForProviderSearch(institutionLocationId);
+
+		if (providerSearchArgumentsAbsent(featureId, institutionLocationIdAsString))
+			return emptyProviderSearchResponse();
+
+		if (featureId.isEmpty())
+			throw new ValidationException(new ValidationException.FieldError("featureId", getStrings().get("Feature ID is required.")));
+
+		if (institutionLocationIdAsString == null)
+			return emptyProviderSearchResponse();
+
+		UUID parsedInstitutionLocationId;
+
+		try {
+			parsedInstitutionLocationId = parseInstitutionLocationIdForProviderSearch(institutionLocationIdAsString);
+		} catch (IllegalArgumentException e) {
+			throw new ValidationException(new ValidationException.FieldError("institutionLocationId", getStrings().get("Institution Location ID is invalid.")));
+		}
+
+		List<ProviderSearchResultApiResponse> providerSearchResults = getProviderService().findProviderSearchResults(featureId.get(), parsedInstitutionLocationId, account).stream()
+				.map(providerSearchResult -> getProviderSearchResultApiResponseFactory().create(providerSearchResult))
+				.collect(Collectors.toList());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("providers", providerSearchResults);
+		}});
+	}
+
+	@Nonnull
+	protected ApiResponse emptyProviderSearchResponse() {
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("providers", List.of());
+		}});
+	}
+
+	protected static boolean providerSearchArgumentsAbsent(@Nonnull Optional<FeatureId> featureId,
+																												 @Nullable String institutionLocationId) {
+		requireNonNull(featureId);
+		return featureId.isEmpty() && institutionLocationId == null;
+	}
+
+	@Nullable
+	protected static String normalizeInstitutionLocationIdForProviderSearch(@Nonnull Optional<String> institutionLocationId) {
+		requireNonNull(institutionLocationId);
+		return trimToNull(institutionLocationId.orElse(null));
+	}
+
+	@Nullable
+	protected static UUID parseInstitutionLocationIdForProviderSearch(@Nonnull String institutionLocationId) {
+		requireNonNull(institutionLocationId);
+
+		institutionLocationId = trimToNull(institutionLocationId);
+
+		if (institutionLocationId == null)
+			throw new IllegalArgumentException("Institution Location ID is required.");
+
+		if (ALL_INSTITUTION_LOCATIONS_ID.equalsIgnoreCase(institutionLocationId)) {
+			// TODO: Reassess whether all-location search should include providers with no provider_institution_location
+			// rows, or only the union of providers explicitly available across the institution's locations.
+			return null;
+		}
+
+		if (!isValidUUID(institutionLocationId))
+			throw new IllegalArgumentException("Institution Location ID is invalid.");
+
+		return UUID.fromString(institutionLocationId);
+	}
+
+	@Nonnull
 	@POST("/providers/find")
 	@AuthenticationRequired
 	public Object findProviders(@Nonnull @RequestBody String requestBody,
@@ -309,6 +421,7 @@ public class ProviderResource {
 		Account account = getCurrentContext().getAccount().get();
 		Locale locale = getCurrentContext().getLocale();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
+		boolean bookingV2Enabled = getInstitutionService().isBookingV2Enabled(institution.getInstitutionId());
 		final int DEFAULT_NUMBER_OF_DAYS_TO_SEARCH = 90;
 
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
@@ -570,6 +683,8 @@ public class ProviderResource {
 					appointmentTypeJson.put("name", appointmentType.getName());
 					appointmentTypeJson.put("description", appointmentType.getDescription());
 					appointmentTypeJson.put("durationInMinutes", appointmentType.getDurationInMinutes());
+					if (bookingV2Enabled)
+						appointmentTypeJson.put("screeningFlowId", appointmentType.getScreeningFlowId());
 					appointmentTypeJson.put("durationInMinutesDescription", getStrings().get("{{duration}} minutes", new HashMap<String, Object>() {{
 						put("duration", appointmentType.getDurationInMinutes());
 					}}));
@@ -614,6 +729,10 @@ public class ProviderResource {
 
 		// Same for provider
 		Provider provider = request.getProviderId() == null ? null : getProviderService().findProviderById(request.getProviderId()).orElse(null);
+		ProviderApiResponseBatchContext providerApiResponseBatchContext = provider == null
+				? ProviderApiResponseBatchContext.empty()
+				: providerApiResponseBatchContextFor(List.of(provider));
+		ClinicApiResponseBatchContext clinicApiResponseBatchContext = clinicApiResponseBatchContextFor(clinics);
 
 		// If appointments are specified and requestor has permission, pull them too
 		List<Appointment> appointments = new ArrayList<>();
@@ -776,11 +895,11 @@ public class ProviderResource {
 			put("epicDepartments", epicDepartmentsJson);
 
 			if (provider != null)
-				put("provider", getProviderApiResponseFactory().create(provider, ProviderApiResponseSupplement.PAYMENT_FUNDING));
+				put("provider", getProviderApiResponseFactory().create(provider, providerApiResponseBatchContext, ProviderApiResponseSupplement.PAYMENT_FUNDING));
 
 			if (clinics.size() > 0)
 				put("clinics", clinics.stream()
-						.map(clinic -> getClinicApiResponseFactory().create(clinic))
+						.map(clinic -> getClinicApiResponseFactory().create(clinic, clinicApiResponseBatchContext))
 						.collect(Collectors.toList()));
 
 			if (specialties.size() > 0) {
@@ -862,6 +981,95 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	protected ProviderApiResponseBatchContext providerApiResponseBatchContextFor(@Nonnull List<Provider> providers) {
+		requireNonNull(providers);
+
+		if (providers.isEmpty())
+			return ProviderApiResponseBatchContext.empty();
+
+		Set<UUID> providerIds = providers.stream()
+				.map(Provider::getProviderId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		Map<UUID, List<ProviderLocation>> providerLocationsByProviderId =
+				getProviderService().findProviderLocationsByProviderIds(providerIds);
+		Set<UUID> addressIds = providerLocationsByProviderId.values().stream()
+				.flatMap(Collection::stream)
+				.map(ProviderLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, Address> addressesByAddressId = getAddressService().findAddressesByIds(addressIds);
+
+		return new ProviderApiResponseBatchContext(providerLocationsByProviderId, addressesByAddressId, true, true);
+	}
+
+	@Nonnull
+	protected ProviderFindRequest providerFindRequestForBookingContext(@Nonnull Account account,
+																																		 @Nullable UUID providerId,
+																																		 @Nullable UUID clinicId) {
+		requireNonNull(account);
+
+		ProviderFindRequest request = new ProviderFindRequest();
+		request.setInstitutionId(account.getInstitutionId());
+		request.setProviderId(providerId);
+		request.setClinicIds(clinicId == null ? Collections.emptySet() : Set.of(clinicId));
+		request.setAvailability(ProviderFindAvailability.ONLY_AVAILABLE);
+		request.setIncludePastAvailability(false);
+
+		return request;
+	}
+
+	@Nonnull
+	protected Map<UUID, AppointmentType> appointmentTypesByIdFor(@Nonnull Account account) {
+		requireNonNull(account);
+
+		return getAppointmentService().findAppointmentTypesByInstitutionId(account.getInstitutionId()).stream()
+				.collect(Collectors.toMap(AppointmentType::getAppointmentTypeId, Function.identity()));
+	}
+
+	@Nonnull
+	protected Map<UUID, Provider> providersByIdFor(@Nonnull List<ProviderFind> providerFinds,
+																								 @Nonnull Account account) {
+		requireNonNull(providerFinds);
+		requireNonNull(account);
+
+		return providerFinds.stream()
+				.map(ProviderFind::getProviderId)
+				.filter(Objects::nonNull)
+				.distinct()
+				.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
+				.filter(Objects::nonNull)
+				.filter(provider -> Boolean.TRUE.equals(provider.getActive()))
+				.filter(provider -> Objects.equals(provider.getInstitutionId(), account.getInstitutionId()))
+				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
+	}
+
+	@Nonnull
+	protected ClinicApiResponseBatchContext clinicApiResponseBatchContextFor(@Nonnull List<Clinic> clinics) {
+		requireNonNull(clinics);
+
+		if (clinics.isEmpty())
+			return ClinicApiResponseBatchContext.empty();
+
+		Set<UUID> clinicIds = clinics.stream()
+				.map(Clinic::getClinicId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId =
+				getClinicService().findClinicLocationsByClinicIds(clinicIds);
+		Set<UUID> addressIds = clinicLocationsByClinicId.values().stream()
+				.flatMap(Collection::stream)
+				.map(ClinicLocation::getAddressId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		Map<UUID, Address> addressesByAddressId = getAddressService().findAddressesByIds(addressIds);
+
+		return new ClinicApiResponseBatchContext(clinicLocationsByClinicId, addressesByAddressId, true, true);
+	}
+
+	@Nonnull
 	protected String normalizeTimeFormat(@Nonnull String timeDescription,
 																			 @Nonnull Locale locale) {
 		requireNonNull(timeDescription);
@@ -877,11 +1085,47 @@ public class ProviderResource {
 	public ApiResponse providers() {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findProvidersByInstitutionId(account.getInstitutionId());
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(providers);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, batchContext))
 					.collect(Collectors.toList()));
+		}});
+	}
+
+	@Nonnull
+	@GET("/clinics/{clinicId}")
+	@AuthenticationRequired
+	public ApiResponse clinic(@Nonnull @PathParameter UUID clinicId) {
+		requireNonNull(clinicId);
+
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
+		Clinic clinic = getClinicService().findClinicById(clinicId).orElse(null);
+
+		if (clinic == null)
+			throw new NotFoundException();
+
+		if (!Objects.equals(clinic.getInstitutionId(), account.getInstitutionId()))
+			throw new AuthorizationException();
+
+		ClinicApiResponseBatchContext batchContext = clinicApiResponseBatchContextFor(List.of(clinic));
+		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
+		List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequestForBookingContext(account, null, clinic.getClinicId()), account);
+		Map<UUID, Provider> providersById = providersByIdFor(providerFinds, account);
+		List<ProviderFind> activeProviderFinds = providerFinds.stream()
+				.filter(providerFind -> providersById.containsKey(providerFind.getProviderId()))
+				.collect(Collectors.toList());
+		Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
+				getProviderService().findCompletedAppointmentBookingScreeningKeys(account, activeProviderFinds, appointmentTypesById);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("clinic", getClinicApiResponseFactory().create(clinic, batchContext, activeProviderFinds, providersById,
+					appointmentTypesById, completedAppointmentBookingScreeningKeys, ClinicApiResponseSupplement.DETAILS_HTML));
 		}});
 	}
 
@@ -894,13 +1138,15 @@ public class ProviderResource {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findProvidersForAutocomplete(query.orElse(null), account.getInstitutionId());
 		List<Clinic> clinics = getClinicService().findClinicsForAutocomplete(query.orElse(null), account.getInstitutionId());
+		ProviderApiResponseBatchContext providerBatchContext = providerApiResponseBatchContextFor(providers);
+		ClinicApiResponseBatchContext clinicBatchContext = clinicApiResponseBatchContextFor(clinics);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, providerBatchContext))
 					.collect(Collectors.toList()));
 			put("clinics", clinics.stream()
-					.map((clinic) -> getClinicApiResponseFactory().create(clinic))
+					.map((clinic) -> getClinicApiResponseFactory().create(clinic, clinicBatchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -911,10 +1157,11 @@ public class ProviderResource {
 	public ApiResponse recentProviders() {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findRecentProvidersByAccountId(account.getAccountId());
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(providers);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, batchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -925,10 +1172,11 @@ public class ProviderResource {
 	public ApiResponse lcswProviders() {
 		Account account = getCurrentContext().getAccount().get();
 		List<Provider> providers = getProviderService().findLcswProvidersByInstitutionId(account.getInstitutionId());
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(providers);
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("providers", providers.stream()
-					.map((provider) -> getProviderApiResponseFactory().create(provider))
+					.map((provider) -> getProviderApiResponseFactory().create(provider, batchContext))
 					.collect(Collectors.toList()));
 		}});
 	}
@@ -1150,8 +1398,32 @@ public class ProviderResource {
 		if (!getAuthorizationService().canViewProvider(provider, account))
 			throw new AuthorizationException();
 
+		ProviderApiResponseBatchContext batchContext = providerApiResponseBatchContextFor(List.of(provider));
+		boolean bookingV2Enabled = getInstitutionService().isBookingV2Enabled(account.getInstitutionId());
+
+		if (bookingV2Enabled) {
+			Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
+			ProviderFind providerFind = getProviderService().findProviders(providerFindRequestForBookingContext(account, provider.getProviderId(), null), account)
+					.stream()
+					.filter(providerFindResult -> provider.getProviderId().equals(providerFindResult.getProviderId()))
+					.findFirst()
+					.orElse(null);
+
+			if (providerFind != null) {
+				Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
+						getProviderService().findCompletedAppointmentBookingScreeningKeys(account, List.of(providerFind), appointmentTypesById);
+
+				return new ApiResponse(new HashMap<String, Object>() {{
+					put("provider", getProviderApiResponseFactory().create(provider, batchContext, providerFind, appointmentTypesById,
+							completedAppointmentBookingScreeningKeys, ProviderApiResponseSupplement.EVERYTHING,
+							ProviderApiResponseSupplement.DETAILS_HTML));
+				}});
+			}
+		}
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("provider", getProviderApiResponseFactory().create(provider, ProviderApiResponseSupplement.EVERYTHING));
+			put("provider", getProviderApiResponseFactory().create(provider, batchContext, ProviderApiResponseSupplement.EVERYTHING,
+					ProviderApiResponseSupplement.DETAILS_HTML));
 		}});
 	}
 
@@ -1229,6 +1501,11 @@ public class ProviderResource {
 	}
 
 	@Nonnull
+	protected AddressService getAddressService() {
+		return this.addressService;
+	}
+
+	@Nonnull
 	protected ClinicService getClinicService() {
 		return this.clinicService;
 	}
@@ -1261,6 +1538,16 @@ public class ProviderResource {
 	@Nonnull
 	protected ProviderApiResponseFactory getProviderApiResponseFactory() {
 		return this.providerApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ProviderListDetailsApiResponseFactory getProviderListDetailsApiResponseFactory() {
+		return this.providerListDetailsApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ProviderSearchResultApiResponseFactory getProviderSearchResultApiResponseFactory() {
+		return this.providerSearchResultApiResponseFactory;
 	}
 
 	@Nonnull

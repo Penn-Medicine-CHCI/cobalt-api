@@ -68,6 +68,12 @@ public class AppointmentApiResponse {
 	@Nonnull
 	private final UUID createdByAccountId;
 	@Nullable
+	private final String firstName;
+	@Nullable
+	private final String lastName;
+	@Nullable
+	private final String emailAddress;
+	@Nullable
 	private final UUID appointmentTypeId;
 	@Nullable
 	private final UUID intakeAssessmentId;
@@ -206,6 +212,9 @@ public class AppointmentApiResponse {
 		this.appointmentReasonId = appointment.getAppointmentReasonId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
 		this.createdByAccountId = appointment.getCreatedByAccountId();
+		this.firstName = appointment.getFirstName();
+		this.lastName = appointment.getLastName();
+		this.emailAddress = appointment.getEmailAddress();
 		this.acuityAppointmentId = appointment.getAcuityAppointmentId();
 		this.intakeAssessmentId = appointment.getIntakeAssessmentId();
 		this.patientOrderId = appointment.getPatientOrderId();
@@ -290,6 +299,21 @@ public class AppointmentApiResponse {
 	@Nonnull
 	public UUID getCreatedByAccountId() {
 		return createdByAccountId;
+	}
+
+	@Nullable
+	public String getFirstName() {
+		return firstName;
+	}
+
+	@Nullable
+	public String getLastName() {
+		return lastName;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
 	}
 
 	@Nonnull
