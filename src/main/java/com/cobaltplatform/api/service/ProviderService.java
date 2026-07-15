@@ -1659,9 +1659,20 @@ public class ProviderService {
 
 			// Remove block ranges first...
 			if (blockRanges.size() > 0) {
-				for (RangedValue<Availability> availabilityRange : availabilityRanges)
-					for (RangedValue<Block> blockRange : blockRanges)
-						availabilityRangesMinusBlocks.addAll(availabilityRange.minusRange(blockRange));
+				for (RangedValue<Availability> availabilityRange : availabilityRanges) {
+					List<RangedValue<Availability>> currentAvailabilityRanges = List.of(availabilityRange);
+
+					for (RangedValue<Block> blockRange : blockRanges) {
+						List<RangedValue<Availability>> updatedAvailabilityRanges = new ArrayList<>();
+
+						for (RangedValue<Availability> currentAvailabilityRange : currentAvailabilityRanges)
+							updatedAvailabilityRanges.addAll(currentAvailabilityRange.minusRange(blockRange));
+
+						currentAvailabilityRanges = updatedAvailabilityRanges;
+					}
+
+					availabilityRangesMinusBlocks.addAll(currentAvailabilityRanges);
+				}
 			} else {
 				availabilityRangesMinusBlocks.addAll(availabilityRanges);
 			}
