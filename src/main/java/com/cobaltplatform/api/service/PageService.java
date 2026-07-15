@@ -376,6 +376,11 @@ public class PageService {
 				int errorCountBeforeRow = validationException.getGlobalErrors().size() + validationException.getFieldErrors().size();
 				RowTypeId rowTypeId = pageRow.getRowTypeId();
 
+				// Custom rows may retain intentionally unused columns. They do not add requirements beyond
+				// the page-level headline, description, and image needed for publication.
+				if (rowTypeId.equals(RowTypeId.CUSTOM_ROW))
+					continue;
+
 				if (rowTypeId.equals(RowTypeId.RESOURCES)) {
 					if (findPageRowContentByPageRowId(pageRow.getPageRowId()).isEmpty())
 						validationException.add(new FieldError("pageRow", getStrings().get(format("At least one Resource is required for the Resource row in Section %s.\n", pageSection.getName()))));
@@ -392,8 +397,6 @@ public class PageService {
 				} else if (rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT) || rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT)) {
 					int requiredColumnCount = rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT) ? 2 : 1;
 					validateRequiredPageRowColumns(pageRow, pageSection, requiredColumnCount, false, validationException);
-				} else if (rowTypeId.equals(RowTypeId.CUSTOM_ROW)) {
-					validateCustomPageRow(pageRow, pageSection, validationException);
 				} else if (rowTypeId.equals(RowTypeId.CALL_TO_ACTION_BLOCK)
 						|| rowTypeId.equals(RowTypeId.CALL_TO_ACTION_FULL_WIDTH)) {
 					validateCallToActionPageRow(pageRow, pageSection, validationException);
@@ -427,14 +430,11 @@ public class PageService {
 		requireNonNull(validationException);
 
 		for (int columnIndex = 0; columnIndex < requiredColumnCount; columnIndex++) {
-			int itemNumber = columnIndex + 1;
 			Optional<PageRowColumn> pageRowColumn = findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), columnIndex);
 
-			if (pageRowColumn.isEmpty()) {
-				validationException.add(new FieldError("pageRowColumn", getStrings().get(format("Item %s is required for the %s row in Section %s.\n",
-						itemNumber, pageRow.getName(), pageSection.getName()))));
-				continue;
-			}
+			if (pageRowColumn.isEmpty())
+				throw new IllegalStateException(format("Page row ID %s of type %s is missing required column %s",
+						pageRow.getPageRowId(), pageRow.getRowTypeId(), columnIndex + 1));
 
 			if (imageRequired)
 				validateImagePageRowColumn(pageRowColumn.get(), pageSection, validationException);
@@ -454,14 +454,17 @@ public class PageService {
 		String pageSectionName = pageSection.getName();
 		Integer itemNumber = pageRowColumn.getColumnDisplayOrder() + 1;
 
+		if (isPublishableImagePageRowColumn(pageRowColumn))
+			return;
+
 		if (!hasMeaningfulPageBuilderText(pageRowColumn.getHeadline()))
 			validationException.add(new FieldError("headline", getStrings().get(format("A Headline is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (!hasMeaningfulPageBuilderText(pageRowColumn.getDescription()))
 			validationException.add(new FieldError("description", getStrings().get(format("A Description is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
-		if (pageRowColumn.getImageFileUploadId() == null)
-			validationException.add(new FieldError("imageFileUploadId", getStrings().get(format("An Image is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 		if (Boolean.TRUE.equals(pageRowColumn.getUsePlaceholderImage()))
 			validationException.add(new FieldError("imageFileUploadId", getStrings().get(format("Replace the placeholder image for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
+		else if (pageRowColumn.getImageFileUploadId() == null)
+			validationException.add(new FieldError("imageFileUploadId", getStrings().get(format("An Image is required for Item %s in the Content Row in Section %s.\n", itemNumber, pageSectionName))));
 	}
 
 	@Nonnull
@@ -480,35 +483,13 @@ public class PageService {
 		}
 	}
 
-	@Nonnull
-	private void validateCustomPageRow(@Nonnull PageRow pageRow,
-																		 @Nonnull PageSection pageSection,
-																		 @Nonnull ValidationException validationException) {
-		requireNonNull(pageRow);
-		requireNonNull(pageSection);
-		requireNonNull(validationException);
+	static boolean isPublishableImagePageRowColumn(@Nonnull PageRowColumn pageRowColumn) {
+		requireNonNull(pageRowColumn);
 
-		List<PageRowColumn> pageRowColumns = findPageRowColumnsByPageRowId(pageRow.getPageRowId());
-
-		if (pageRowColumns.isEmpty()) {
-			validationException.add(new FieldError("pageRowColumn", getStrings().get(format("At least one column is required for the Custom Row in Section %s.\n", pageSection.getName()))));
-			return;
-		}
-
-		if (pageRowColumns.size() > 4)
-			validationException.add(new FieldError("pageRowColumn", getStrings().get(format("At most four columns are allowed for the Custom Row in Section %s.\n", pageSection.getName()))));
-
-		for (PageRowColumn pageRowColumn : pageRowColumns) {
-			Integer itemNumber = pageRowColumn.getColumnDisplayOrder() + 1;
-
-			if (Boolean.TRUE.equals(pageRowColumn.getUsePlaceholderImage()))
-				validationException.add(new FieldError("imageFileUploadId", getStrings().get(format("Replace the placeholder image for Item %s in the Custom Row in Section %s.\n", itemNumber, pageSection.getName()))));
-
-			if (!hasMeaningfulPageBuilderText(pageRowColumn.getHeadline())
-					&& !hasMeaningfulPageBuilderText(pageRowColumn.getDescription())
-					&& pageRowColumn.getImageFileUploadId() == null)
-				validationException.add(new FieldError("pageRowColumn", getStrings().get(format("Text or an image is required for Item %s in the Custom Row in Section %s.\n", itemNumber, pageSection.getName()))));
-		}
+		return hasMeaningfulPageBuilderText(pageRowColumn.getHeadline())
+				&& hasMeaningfulPageBuilderText(pageRowColumn.getDescription())
+				&& pageRowColumn.getImageFileUploadId() != null
+				&& !Boolean.TRUE.equals(pageRowColumn.getUsePlaceholderImage());
 	}
 
 	@Nonnull

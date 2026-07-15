@@ -20,11 +20,13 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.UnitTest;
+import com.cobaltplatform.api.model.db.PageRowColumn;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -90,5 +92,31 @@ public class PageServiceValidationTest {
 
 		Assert.assertTrue(PageService.hasMeaningfulPageBuilderText("<p>Meaningful content</p>"));
 		Assert.assertTrue(PageService.hasMeaningfulPageBuilderText("A headline"));
+	}
+
+	@Test
+	public void requiresHeadlineDescriptionAndUploadedImageForImageColumns() {
+		PageRowColumn pageRowColumn = new PageRowColumn();
+		pageRowColumn.setHeadline("Headline");
+		pageRowColumn.setDescription("<p>Description</p>");
+		pageRowColumn.setImageFileUploadId(UUID.randomUUID());
+		pageRowColumn.setUsePlaceholderImage(false);
+
+		Assert.assertTrue(PageService.isPublishableImagePageRowColumn(pageRowColumn));
+
+		pageRowColumn.setHeadline("<p><br></p>");
+		Assert.assertFalse(PageService.isPublishableImagePageRowColumn(pageRowColumn));
+		pageRowColumn.setHeadline("Headline");
+
+		pageRowColumn.setDescription(null);
+		Assert.assertFalse(PageService.isPublishableImagePageRowColumn(pageRowColumn));
+		pageRowColumn.setDescription("Description");
+
+		pageRowColumn.setImageFileUploadId(null);
+		Assert.assertFalse(PageService.isPublishableImagePageRowColumn(pageRowColumn));
+		pageRowColumn.setImageFileUploadId(UUID.randomUUID());
+
+		pageRowColumn.setUsePlaceholderImage(true);
+		Assert.assertFalse(PageService.isPublishableImagePageRowColumn(pageRowColumn));
 	}
 }
