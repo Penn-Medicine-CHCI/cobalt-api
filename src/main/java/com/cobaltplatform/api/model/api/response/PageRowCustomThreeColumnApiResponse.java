@@ -22,6 +22,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
@@ -48,6 +49,10 @@ public class PageRowCustomThreeColumnApiResponse {
 	private final String name;
 	@Nonnull
 	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PageRowPaddingId paddingTopId;
+	@Nonnull
+	private final PageRowPaddingId paddingBottomId;
 	@Nonnull
 	private final PageRowColumn columnOne;
 	@Nonnull
@@ -83,6 +88,8 @@ public class PageRowCustomThreeColumnApiResponse {
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.name = pageRow.getName() == null ? "Text & Image" : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingTopId = pageRow.getPaddingTopId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingTopId();
+		this.paddingBottomId = pageRow.getPaddingBottomId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingBottomId();
 		this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 		this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 		this.columnThree = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 2).orElse(null);
@@ -115,6 +122,16 @@ public class PageRowCustomThreeColumnApiResponse {
 	}
 
 	@Nonnull
+	public PageRowPaddingId getPaddingTopId() {
+		return paddingTopId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingBottomId() {
+		return paddingBottomId;
+	}
+
+	@Nonnull
 	public PageRowColumn getColumnTwo() {
 		return columnTwo;
 	}
@@ -134,4 +151,3 @@ public class PageRowCustomThreeColumnApiResponse {
 		return pageSectionId;
 	}
 }
-

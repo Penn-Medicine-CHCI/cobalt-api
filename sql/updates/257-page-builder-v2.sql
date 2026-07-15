@@ -2,6 +2,10 @@ BEGIN;
 
 SELECT _v.register_patch('257-page-builder-v2', NULL, NULL);
 
+-- DEPLOYMENT NOTE: this data reshape introduces row-type values that pre-V2 API
+-- instances cannot deserialize. Follow docs/page-builder-v2-deployment.md and
+-- run it only after draining old instances during the maintenance window.
+
 -- Preserve pre-migration page data for audit and manual recovery after the section-to-row reshape
 CREATE TABLE page_builder_v2_257_backup_page AS
 SELECT NOW() AS backed_up_at, p.*
@@ -80,6 +84,58 @@ ALTER TABLE page_row_column
   ADD COLUMN content_order_id TEXT NOT NULL REFERENCES page_row_column_content_order DEFAULT 'IMAGE_THEN_TEXT',
   ADD COLUMN use_placeholder_image BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Normalize any historical gaps or duplicate display positions before enforcing the
+-- invariant relied on by custom-row add/edit/reorder operations.
+WITH ordered_columns AS (
+  SELECT
+    prc.page_row_column_id,
+    row_number() OVER (
+      PARTITION BY prc.page_row_id
+      ORDER BY prc.column_display_order, prc.page_row_column_id
+    ) - 1 AS normalized_display_order
+  FROM page_row_column prc
+)
+UPDATE page_row_column prc
+SET column_display_order = oc.normalized_display_order
+FROM ordered_columns oc
+WHERE prc.page_row_column_id = oc.page_row_column_id
+  AND prc.column_display_order <> oc.normalized_display_order;
+
+ALTER TABLE page_row_column
+  ADD CONSTRAINT page_row_column_page_row_id_column_display_order_key
+  UNIQUE (page_row_id, column_display_order)
+  DEFERRABLE INITIALLY IMMEDIATE;
+
+-- Serialize column creation on the parent row and enforce the four-column
+-- product limit even for callers outside PageService.
+CREATE FUNCTION page_row_column_enforce_limit() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND NEW.page_row_id = OLD.page_row_id THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM 1
+  FROM page_row
+  WHERE page_row_id = NEW.page_row_id
+  FOR UPDATE;
+
+  IF (
+    SELECT count(*)
+    FROM page_row_column
+    WHERE page_row_id = NEW.page_row_id
+  ) >= 4 THEN
+    RAISE EXCEPTION 'A page row cannot contain more than four columns'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER page_row_column_enforce_limit
+BEFORE INSERT OR UPDATE OF page_row_id ON page_row_column
+FOR EACH ROW EXECUTE PROCEDURE page_row_column_enforce_limit();
+
 -- Register the new page builder row types
 INSERT INTO row_type (row_type_id, description)
 VALUES
@@ -119,6 +175,26 @@ WHERE p.deleted_flag = FALSE
       AND ps.deleted_flag = FALSE
   );
 
+-- Materialize the keeper choice so every subsequent reshape step, including
+-- cleanup of inactive rows, uses the exact same section for each page.
+CREATE TEMPORARY TABLE page_builder_v2_257_keeper_section ON COMMIT DROP AS
+SELECT page_id, page_section_id AS keeper_section_id
+FROM (
+  SELECT
+    ps.page_id,
+    ps.page_section_id,
+    row_number() OVER (
+      PARTITION BY ps.page_id
+      ORDER BY ps.display_order, ps.page_section_id
+    ) AS section_rank
+  FROM page_section ps
+  WHERE ps.deleted_flag = FALSE
+) ranked_sections
+WHERE section_rank = 1;
+
+CREATE UNIQUE INDEX page_builder_v2_257_keeper_section_page_id_key
+ON page_builder_v2_257_keeper_section(page_id);
+
 -- Move legacy section headline/description content into text rows and collapse each page to one content section
 WITH ordered_sections AS (
   SELECT
@@ -133,13 +209,6 @@ WITH ordered_sections AS (
     row_number() OVER (PARTITION BY ps.page_id ORDER BY ps.display_order, ps.page_section_id) AS section_rank
   FROM page_section ps
   WHERE ps.deleted_flag = FALSE
-),
-keeper_sections AS (
-  SELECT
-    os.page_id,
-    os.page_section_id AS keeper_section_id
-  FROM ordered_sections os
-  WHERE os.section_rank = 1
 ),
 ordered_items AS (
   SELECT
@@ -157,7 +226,7 @@ ordered_items AS (
     0 AS item_order,
     0 AS row_order
   FROM ordered_sections os
-  JOIN keeper_sections ks
+  JOIN page_builder_v2_257_keeper_section ks
     ON ks.page_id = os.page_id
   WHERE COALESCE(NULLIF(BTRIM(os.headline), ''), NULLIF(BTRIM(os.description), '')) IS NOT NULL
 
@@ -186,7 +255,7 @@ ordered_items AS (
     1 AS item_order,
     pr.display_order AS row_order
   FROM ordered_sections os
-  JOIN keeper_sections ks
+  JOIN page_builder_v2_257_keeper_section ks
     ON ks.page_id = os.page_id
   JOIN page_row pr
     ON pr.page_section_id = os.page_section_id
@@ -275,12 +344,26 @@ updated_keeper_sections AS (
     description = NULL,
     background_color_id = 'WHITE',
     display_order = 0
-  FROM keeper_sections ks
+  FROM page_builder_v2_257_keeper_section ks
   WHERE ps.page_section_id = ks.keeper_section_id
   RETURNING ps.page_section_id
 )
+SELECT COUNT(*) AS updated_keeper_section_count
+FROM updated_keeper_sections;
+
+-- The display reshape above intentionally ignores inactive rows. Reparent every
+-- residual row as well so deleting old/deleted sections cannot violate the
+-- non-cascading page_row.page_section_id foreign key.
+UPDATE page_row pr
+SET page_section_id = ks.keeper_section_id
+FROM page_section source_section
+JOIN page_builder_v2_257_keeper_section ks
+  ON ks.page_id = source_section.page_id
+WHERE pr.page_section_id = source_section.page_section_id
+  AND pr.page_section_id <> ks.keeper_section_id;
+
 DELETE FROM page_section ps
-USING keeper_sections ks
+USING page_builder_v2_257_keeper_section ks
 WHERE ps.page_id = ks.page_id
   AND ps.page_section_id <> ks.keeper_section_id;
 
@@ -362,5 +445,17 @@ FROM
   LEFT OUTER JOIN file_upload fu ON prcta.image_file_upload_id = fu.file_upload_id
 WHERE
   pr.deleted_flag = FALSE;
+
+-- When a Page viewer clicks a Page Builder call-to-action button.
+--
+-- Additional data:
+-- * pageId (UUID)
+-- * pageRowId (UUID, the CTA row containing the clicked button)
+-- * rowTypeId (String, either CALL_TO_ACTION_BLOCK or CALL_TO_ACTION_FULL_WIDTH)
+-- * linkUrl (String, the browser-normalized destination URL)
+-- * linkText (String, the CTA button text)
+-- * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred)
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description)
+VALUES ('CLICKTHROUGH_PAGE_CALL_TO_ACTION', 'Clickthrough (Page Call to Action)');
 
 COMMIT;
