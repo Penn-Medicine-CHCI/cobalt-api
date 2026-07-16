@@ -1179,6 +1179,7 @@ public class PageService {
 
 		UUID pageSectionId = request.getPageSectionId();
 		UUID pageRowId = UUID.randomUUID();
+		UUID pageRowAnchorId = pageRowId;
 		RowTypeId rowTypeId = request.getRowTypeId();
 		String name = trimToNull(request.getName());
 		BackgroundColorId backgroundColorId = request.getBackgroundColorId();
@@ -1228,10 +1229,10 @@ public class PageService {
 
 		getDatabase().execute("""
 				INSERT INTO page_row
-				  (page_row_id, page_section_id, row_type_id, name, background_color_id, padding_id, padding_top_id, padding_bottom_id, created_by_account_id, display_order)
+				  (page_row_id, page_row_anchor_id, page_section_id, row_type_id, name, background_color_id, padding_id, padding_top_id, padding_bottom_id, created_by_account_id, display_order)
 				VALUES
-				  (?,?,?,?,?,?,?,?,?,?)
-				""", pageRowId, pageSectionId, rowTypeId, name, backgroundColorId, paddingTopId, paddingTopId, paddingBottomId, createdByAccountId, displayOrder);
+				  (?,?,?,?,?,?,?,?,?,?,?)
+				""", pageRowId, pageRowAnchorId, pageSectionId, rowTypeId, name, backgroundColorId, paddingTopId, paddingTopId, paddingBottomId, createdByAccountId, displayOrder);
 
 		return pageRowId;
 	}
@@ -2883,6 +2884,16 @@ public class PageService {
 	}
 
 	@Nonnull
+	static UUID pageRowAnchorIdForDuplicate(@Nonnull UUID sourcePageRowAnchorId,
+														 @Nonnull UUID newPageRowId,
+														 boolean copyForEditing) {
+		requireNonNull(sourcePageRowAnchorId);
+		requireNonNull(newPageRowId);
+
+		return copyForEditing ? sourcePageRowAnchorId : newPageRowId;
+	}
+
+	@Nonnull
 	public UUID duplicatePage(@Nonnull DuplicatePageRequest request,
 														@Nonnull InstitutionId institutionId) {
 		requireNonNull(request);
@@ -2973,14 +2984,16 @@ public class PageService {
 
 			for (PageRow pageRow : pageRows) {
 				newPageRowId = UUID.randomUUID();
+				UUID newPageRowAnchorId = pageRowAnchorIdForDuplicate(
+						pageRow.getPageRowAnchorId(), newPageRowId, copyForEditing);
 
 				getDatabase().execute("""
 						INSERT INTO page_row
-						(page_row_id,page_section_id,row_type_id,name,background_color_id,padding_id,padding_top_id,padding_bottom_id,deleted_flag,display_order,created_by_account_id)
-						SELECT ?, ?, row_type_id,name,background_color_id,padding_id,padding_top_id,padding_bottom_id,deleted_flag,display_order, ?
+						(page_row_id,page_row_anchor_id,page_section_id,row_type_id,name,background_color_id,padding_id,padding_top_id,padding_bottom_id,deleted_flag,display_order,created_by_account_id)
+						SELECT ?, ?, ?, row_type_id,name,background_color_id,padding_id,padding_top_id,padding_bottom_id,deleted_flag,display_order, ?
 						FROM page_row
 						WHERE page_row_id = ?
-						""", newPageRowId, newPageSectionId, accountId, pageRow.getPageRowId());
+						""", newPageRowId, newPageRowAnchorId, newPageSectionId, accountId, pageRow.getPageRowId());
 
 				getDatabase().execute("""
 						INSERT INTO page_row_column

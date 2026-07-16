@@ -51,6 +51,8 @@ public class PageRowTagApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
 	private final UUID pageSectionId;
 	@Nonnull
 	private final String name;
@@ -94,6 +96,7 @@ public class PageRowTagApiResponse {
 		Optional<TagGroup> tagGroup = tagService.findUncachedTagGroupByTagId(pageRowTag.getTagId());
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
@@ -126,6 +129,11 @@ public class PageRowTagApiResponse {
 	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
 	}
 
 	@Nonnull

@@ -49,6 +49,8 @@ public class PageRowGroupSessionApiResponse {
 	@Nullable
 	private UUID pageRowId;
 	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
 	private final UUID pageSectionId;
 	@Nonnull
 	private final String name;
@@ -90,6 +92,7 @@ public class PageRowGroupSessionApiResponse {
 		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
@@ -112,6 +115,11 @@ public class PageRowGroupSessionApiResponse {
 	@Nullable
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
 	}
 
 	@Nonnull

@@ -52,6 +52,8 @@ public class PageRowMailingListApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
 	private final UUID pageSectionId;
 	@Nonnull
 	private final String name;
@@ -105,6 +107,7 @@ public class PageRowMailingListApiResponse {
 		Set<Supplement> supplementsAsSet = supplements == null ? Set.of() : new HashSet<>(Arrays.asList(supplements));
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
 		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
@@ -133,6 +136,11 @@ public class PageRowMailingListApiResponse {
 	@Nonnull
 	public UUID getPageRowId() {
 		return this.pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return this.pageRowAnchorId;
 	}
 
 	@Nonnull

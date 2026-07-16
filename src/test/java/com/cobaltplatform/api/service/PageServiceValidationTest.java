@@ -119,4 +119,15 @@ public class PageServiceValidationTest {
 		pageRowColumn.setUsePlaceholderImage(true);
 		Assert.assertFalse(PageService.isPublishableImagePageRowColumn(pageRowColumn));
 	}
+
+	@Test
+	public void preservesRowAnchorsOnlyForCopiesCreatedForEditing() {
+		UUID sourcePageRowAnchorId = UUID.randomUUID();
+		UUID newPageRowId = UUID.randomUUID();
+
+		Assert.assertEquals(sourcePageRowAnchorId,
+				PageService.pageRowAnchorIdForDuplicate(sourcePageRowAnchorId, newPageRowId, true));
+		Assert.assertEquals(newPageRowId,
+				PageService.pageRowAnchorIdForDuplicate(sourcePageRowAnchorId, newPageRowId, false));
+	}
 }

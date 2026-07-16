@@ -77,7 +77,21 @@ ALTER TABLE page_row
   ADD COLUMN background_color_id TEXT NOT NULL REFERENCES background_color DEFAULT 'WHITE',
   ADD COLUMN padding_id TEXT NOT NULL REFERENCES page_row_padding DEFAULT 'MEDIUM',
   ADD COLUMN padding_top_id TEXT NOT NULL REFERENCES page_row_padding DEFAULT 'MEDIUM',
-  ADD COLUMN padding_bottom_id TEXT NOT NULL REFERENCES page_row_padding DEFAULT 'MEDIUM';
+  ADD COLUMN padding_bottom_id TEXT NOT NULL REFERENCES page_row_padding DEFAULT 'MEDIUM',
+  ADD COLUMN page_row_anchor_id UUID NULL;
+
+-- A row's primary key changes whenever a live page is copied for editing. Give
+-- existing rows a separate logical identity so public fragment links can remain
+-- stable across that versioning cycle. Using the original primary key makes the
+-- backfill deterministic; newly-created rows receive a fresh UUID by default.
+UPDATE page_row
+SET page_row_anchor_id = page_row_id;
+
+ALTER TABLE page_row
+  ALTER COLUMN page_row_anchor_id SET DEFAULT uuid_generate_v4(),
+  ALTER COLUMN page_row_anchor_id SET NOT NULL,
+  ADD CONSTRAINT page_row_page_section_id_page_row_anchor_id_key
+    UNIQUE (page_section_id, page_row_anchor_id);
 
 -- Add custom-row column presentation settings
 ALTER TABLE page_row_column
@@ -409,7 +423,8 @@ SELECT
   pr.name,
   pr.background_color_id,
   pr.padding_top_id,
-  pr.padding_bottom_id
+  pr.padding_bottom_id,
+  pr.page_row_anchor_id
 FROM page_row pr, page_section ps, page p
 WHERE pr.page_section_id = ps.page_section_id
 AND ps.page_id = p.page_id

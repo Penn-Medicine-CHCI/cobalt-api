@@ -36,6 +36,8 @@ public class PageRow {
 	@Nullable
 	private UUID pageRowId;
 	@Nullable
+	private UUID pageRowAnchorId;
+	@Nullable
 	private UUID pageSectionId;
 	@Nullable
 	private RowTypeId rowTypeId;
@@ -67,6 +69,15 @@ public class PageRow {
 
 	public void setPageRowId(@Nullable UUID pageRowId) {
 		this.pageRowId = pageRowId;
+	}
+
+	@Nullable
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
+	}
+
+	public void setPageRowAnchorId(@Nullable UUID pageRowAnchorId) {
+		this.pageRowAnchorId = pageRowAnchorId;
 	}
 
 	@Nullable

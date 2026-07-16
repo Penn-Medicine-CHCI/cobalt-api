@@ -44,6 +44,8 @@ public class PageRowCustomThreeColumnApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
 	private final String name;
@@ -83,6 +85,7 @@ public class PageRowCustomThreeColumnApiResponse {
 		requireNonNull(pageService);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.displayOrder = pageRow.getDisplayOrder();
@@ -99,6 +102,11 @@ public class PageRowCustomThreeColumnApiResponse {
 	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
 	}
 
 	@Nonnull

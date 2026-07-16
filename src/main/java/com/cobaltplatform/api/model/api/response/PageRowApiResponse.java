@@ -65,6 +65,8 @@ public class PageRowApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
 	private final UUID pageSectionId;
 	@Nonnull
 	private final RowTypeId rowTypeId;
@@ -157,6 +159,7 @@ public class PageRowApiResponse {
 		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
@@ -247,6 +250,11 @@ public class PageRowApiResponse {
 	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
 	}
 
 	@Nonnull

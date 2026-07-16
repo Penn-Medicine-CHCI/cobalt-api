@@ -903,6 +903,7 @@ mismatches AS (
   LEFT JOIN page_row current USING (page_row_id)
   WHERE current.page_row_id IS NULL
      OR current.page_section_id IS DISTINCT FROM expected.expected_page_section_id
+     OR current.page_row_anchor_id IS DISTINCT FROM current.page_row_id
      OR current.name IS DISTINCT FROM expected.expected_name
      OR current.background_color_id IS DISTINCT FROM expected.expected_background_color_id
      OR current.display_order IS DISTINCT FROM expected.expected_display_order
@@ -911,8 +912,26 @@ mismatches AS (
      OR current.padding_bottom_id IS DISTINCT FROM 'MEDIUM'
 )
 SELECT 31, 'existing_rows_match_expected_v2_state', mismatch_count = 0,
-       format('%s row(s) differ in keeper, name, background, order, or padding', mismatch_count)
+       format('%s row(s) differ in keeper, anchor, name, background, order, or padding', mismatch_count)
 FROM mismatches;
+
+INSERT INTO page_builder_v2_rehearsal.verification_result
+WITH duplicate_anchors AS (
+  SELECT page_section_id, page_row_anchor_id, count(*) AS row_count
+  FROM page_row
+  GROUP BY page_section_id, page_row_anchor_id
+  HAVING count(*) > 1
+),
+invalid AS (
+  SELECT
+    (SELECT count(*) FROM page_row WHERE page_row_anchor_id IS NULL)
+      + COALESCE((SELECT sum(row_count - 1) FROM duplicate_anchors), 0)
+      AS invalid_count
+)
+SELECT 31, 'page_row_anchors_populated_and_unique_within_section',
+       invalid_count = 0,
+       format('%s null or duplicate row anchor(s)', invalid_count)
+FROM invalid;
 
 INSERT INTO page_builder_v2_rehearsal.verification_result
 WITH mismatches AS (
@@ -1365,6 +1384,7 @@ WITH required_columns(
     ('page_row', 'padding_id', to_regtype('text')::OID, TRUE, '''MEDIUM''::text'),
     ('page_row', 'padding_top_id', to_regtype('text')::OID, TRUE, '''MEDIUM''::text'),
     ('page_row', 'padding_bottom_id', to_regtype('text')::OID, TRUE, '''MEDIUM''::text'),
+    ('page_row', 'page_row_anchor_id', to_regtype('uuid')::OID, TRUE, 'uuid_generate_v4()'),
     ('page_row_column', 'content_order_id', to_regtype('text')::OID, TRUE, '''IMAGE_THEN_TEXT''::text'),
     ('page_row_column', 'use_placeholder_image', to_regtype('boolean')::OID, TRUE, 'false'),
     ('page_row_call_to_action', 'page_row_call_to_action_id', to_regtype('uuid')::OID, TRUE, 'uuid_generate_v4()'),
@@ -1522,6 +1542,37 @@ SELECT 57, 'column_invariants_are_enforced',
        'deferrable column-order uniqueness and the four-column trigger must be active';
 
 INSERT INTO page_builder_v2_rehearsal.verification_result
+SELECT 57, 'page_row_anchor_uniqueness_is_enforced',
+       EXISTS (
+         SELECT 1
+         FROM pg_constraint constraint_record
+         JOIN pg_index index_record
+           ON index_record.indexrelid = constraint_record.conindid
+         WHERE constraint_record.conrelid = 'cobalt.page_row'::REGCLASS
+           AND constraint_record.conname =
+             'page_row_page_section_id_page_row_anchor_id_key'
+           AND constraint_record.contype = 'u'
+           AND NOT constraint_record.condeferrable
+           AND NOT constraint_record.condeferred
+           AND constraint_record.convalidated
+           AND (
+             SELECT array_agg(column_record.attname::TEXT ORDER BY key_record.ordinality)
+             FROM unnest(constraint_record.conkey) WITH ORDINALITY
+               AS key_record(attnum, ordinality)
+             JOIN pg_attribute column_record
+               ON column_record.attrelid = constraint_record.conrelid
+              AND column_record.attnum = key_record.attnum
+           ) = ARRAY['page_section_id', 'page_row_anchor_id']::TEXT[]
+           AND index_record.indisunique
+           AND index_record.indisvalid
+           AND index_record.indisready
+           AND index_record.indimmediate
+           AND index_record.indpred IS NULL
+           AND index_record.indexprs IS NULL
+       ),
+       'row anchors must be unique within each concrete page section';
+
+INSERT INTO page_builder_v2_rehearsal.verification_result
 SELECT
   57,
   'column_limit_trigger_rejects_fifth_and_reparent',
@@ -1625,7 +1676,7 @@ WITH expected(view_name, columns) AS (
         'page_row_id', 'page_section_id', 'row_type_id', 'deleted_flag',
         'display_order', 'created_by_account_id', 'created', 'last_updated',
         'institution_id', 'name', 'background_color_id', 'padding_top_id',
-        'padding_bottom_id'
+        'padding_bottom_id', 'page_row_anchor_id'
       ]::TEXT[]
     ),
     (
@@ -1695,6 +1746,8 @@ WITH expected_mapping(
     ('v_page_row', 12, 'padding_top_id', 'page_row', 'padding_top_id'),
     ('v_page_row', 13, 'padding_bottom_id',
       'page_row', 'padding_bottom_id'),
+    ('v_page_row', 14, 'page_row_anchor_id',
+      'page_row', 'page_row_anchor_id'),
     ('v_page_row_column', 1, 'page_row_column_id',
       'page_row_column', 'page_row_column_id'),
     ('v_page_row_column', 2, 'page_row_id',
@@ -1781,7 +1834,8 @@ WITH expected AS (
       row.name,
       row.background_color_id,
       row.padding_top_id,
-      row.padding_bottom_id
+      row.padding_bottom_id,
+      row.page_row_anchor_id
     FROM page_row row
     JOIN page_section section USING (page_section_id)
     JOIN page USING (page_id)
