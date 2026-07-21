@@ -42,12 +42,13 @@ printed explicitly by the importer.
 
 ## Safety and prerequisites
 
-- Connect the production scripts to a physical read replica. They verify
-  `pg_is_in_recovery()` and refuse to run against a writable primary.
+- Prefer connecting the production scripts to a physical read replica. When no
+  replica is available, they support an explicitly confirmed primary connection
+  only when `default_transaction_read_only=on` was forced for the whole session.
 - Use a production role with schema access and `SELECT` on the exported tables.
-  `TEMP` is not required. After the replica check, the source-data work is
-  limited to `SELECT` and `COPY TO STDOUT` inside a repeatable-read, read-only
-  transaction.
+  For a primary, use a dedicated non-owner, non-superuser role with no write
+  privileges. `TEMP` is not required. Source-data work is limited to `SELECT`
+  and `COPY TO STDOUT` inside a repeatable-read, read-only transaction.
 - Run the exporter from a unique empty directory approved for production data.
   `psql` writes the `COPY TO STDOUT` streams to client-side CSV files containing
   unmodified production copy, IDs, URLs, and storage keys.
@@ -62,14 +63,30 @@ printed explicitly by the importer.
 
 ## 1. Profile the production shape
 
-This prints aggregate shape without printing page copy. It aborts unless the
-source is a physical read replica before migration 257:
+This prints aggregate shape without printing page copy. By default it requires
+a physical read replica before migration 257:
 
 ```sh
 psql "$PROD_DSN" -X \
   -v source_institution_id='SOURCE_INSTITUTION' \
   -f /absolute/path/to/sql/page-builder-v2-rehearsal/00-profile-production.sql
 ```
+
+If no replica is available, connect with the dedicated read-only production
+role and require both a connection-wide read-only default and the explicit
+primary opt-in:
+
+```sh
+PGOPTIONS='-c default_transaction_read_only=on -c lock_timeout=5s -c statement_timeout=30min -c idle_in_transaction_session_timeout=5min' \
+PGAPPNAME='page-builder-v2-profile' \
+psql "$PROD_DSN" -X \
+  -v source_institution_id='SOURCE_INSTITUTION' \
+  -v confirm_read_only_primary=YES \
+  -f /absolute/path/to/sql/page-builder-v2-rehearsal/00-profile-production.sql
+```
+
+The opt-in alone is insufficient: the script also verifies the connection was
+forced read-only and verifies its explicit transaction remains read-only.
 
 Require zero `active_rows_hidden_in_deleted_sections`. Such a row can become
 visible when migration 257 removes its deleted section. Also review rows with
@@ -92,6 +109,22 @@ psql "$PROD_DSN" -X \
   -v source_institution_id='SOURCE_INSTITUTION' \
   -f /absolute/path/to/sql/page-builder-v2-rehearsal/01-export-production.sql
 ```
+
+For the read-only-primary fallback, use the same connection protections:
+
+```sh
+PGOPTIONS='-c default_transaction_read_only=on -c lock_timeout=5s -c statement_timeout=30min -c idle_in_transaction_session_timeout=5min' \
+PGAPPNAME='page-builder-v2-export' \
+psql "$PROD_DSN" -X \
+  -v source_institution_id='SOURCE_INSTITUTION' \
+  -v confirm_read_only_primary=YES \
+  -f /absolute/path/to/sql/page-builder-v2-rehearsal/01-export-production.sql
+```
+
+This mode cannot write database data, but its reads still run on the primary.
+Run it during an acceptable operational window. As with a replica export,
+discard the directory after any error or nonzero exit; only
+`99-export-complete.csv` marks a complete bundle.
 
 All source-data reads use one repeatable-read, read-only snapshot. The exporter
 writes 20 files, including:

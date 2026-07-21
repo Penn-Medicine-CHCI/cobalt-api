@@ -8,18 +8,42 @@
 
 -- A physical hot standby rejects all DDL and DML, including operations on
 -- temporary tables. Keep every server-side operation in this script limited to
--- transaction control, SELECT, and COPY TO STDOUT. The pg_is_in_recovery
--- guard prevents accidentally pointing this production-data exporter at the
--- writable primary.
-SELECT pg_is_in_recovery() AS page_rehearsal_is_replica
-\gset
-\if :page_rehearsal_is_replica
+-- transaction control, SELECT, and COPY TO STDOUT. A writable primary is
+-- supported only through an explicit opt-in on a connection whose default
+-- transaction mode was forced read-only before this file was read.
+\if :{?confirm_read_only_primary}
 \else
-  \warn 'The export source must be a physical read replica (pg_is_in_recovery() must be true)'
+  \set confirm_read_only_primary NO
+\endif
+
+SELECT
+  pg_is_in_recovery() AS page_rehearsal_is_replica,
+  current_setting('default_transaction_read_only')::BOOLEAN
+    AS page_rehearsal_defaults_to_read_only,
+  (
+    pg_is_in_recovery()
+    OR (
+      :'confirm_read_only_primary' = 'YES'
+      AND current_setting('default_transaction_read_only')::BOOLEAN
+    )
+  ) AS page_rehearsal_source_connection_is_safe
+\gset
+\if :page_rehearsal_source_connection_is_safe
+\else
+  \warn 'The export source must be a physical read replica, or pass confirm_read_only_primary=YES on a connection with default_transaction_read_only=on'
   SELECT 1 / 0;
 \endif
 
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+
+SELECT current_setting('transaction_read_only')::BOOLEAN
+  AS page_rehearsal_source_transaction_is_read_only
+\gset
+\if :page_rehearsal_source_transaction_is_read_only
+\else
+  \warn 'The export source transaction is not read-only'
+  SELECT 1 / 0;
+\endif
 
 SELECT NOT (
   EXISTS (

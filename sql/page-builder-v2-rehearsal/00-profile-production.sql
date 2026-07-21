@@ -6,21 +6,49 @@
   SELECT 1 / 0;
 \endif
 
--- This profile is safe to run on a physical read replica. Every database
--- access operation below is a SELECT; scope sets are reconstructed with CTEs
--- instead of being materialized in session work tables. Transaction control
--- keeps all profile sections on one repeatable-read snapshot.
+-- This profile is safe to run on a physical read replica. A writable primary
+-- is also supported only through an explicit opt-in on a connection whose
+-- default transaction mode was forced read-only before this file was read.
+-- Every database access operation below is a SELECT; scope sets are
+-- reconstructed with CTEs instead of being materialized in session work
+-- tables. Transaction control keeps all profile sections on one
+-- repeatable-read snapshot.
 
-SELECT pg_is_in_recovery() AS source_is_read_replica
+\if :{?confirm_read_only_primary}
+\else
+  \set confirm_read_only_primary NO
+\endif
+
+SELECT
+  pg_is_in_recovery() AS source_is_read_replica,
+  current_setting('default_transaction_read_only')::BOOLEAN
+    AS source_defaults_to_read_only,
+  (
+    pg_is_in_recovery()
+    OR (
+      :'confirm_read_only_primary' = 'YES'
+      AND current_setting('default_transaction_read_only')::BOOLEAN
+    )
+  ) AS source_connection_is_safe
 \gset
 
-\if :source_is_read_replica
+\if :source_connection_is_safe
 \else
-  \echo 'ERROR: Refusing to profile a writable database; use a physical read replica'
+  \echo 'ERROR: Source must be a physical read replica, or pass confirm_read_only_primary=YES on a connection with default_transaction_read_only=on'
   SELECT 1 / 0;
 \endif
 
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+
+SELECT current_setting('transaction_read_only')::BOOLEAN
+  AS source_transaction_is_read_only
+\gset
+
+\if :source_transaction_is_read_only
+\else
+  \echo 'ERROR: Source transaction is not read-only'
+  SELECT 1 / 0;
+\endif
 
 SELECT NOT (
   EXISTS (
