@@ -42,10 +42,15 @@ printed explicitly by the importer.
 
 ## Safety and prerequisites
 
-- Use a production role with `SELECT` on the exported tables and `TEMP`
-  privilege. The production scripts perform no persistent writes.
-- Run `\copy` from a unique empty directory approved for production data. The
-  CSV files contain unmodified production copy, IDs, URLs, and storage keys.
+- Connect the production scripts to a physical read replica. They verify
+  `pg_is_in_recovery()` and refuse to run against a writable primary.
+- Use a production role with schema access and `SELECT` on the exported tables.
+  `TEMP` is not required. After the replica check, the source-data work is
+  limited to `SELECT` and `COPY TO STDOUT` inside a repeatable-read, read-only
+  transaction.
+- Run the exporter from a unique empty directory approved for production data.
+  `psql` writes the `COPY TO STDOUT` streams to client-side CSV files containing
+  unmodified production copy, IDs, URLs, and storage keys.
 - Do not run the local importer against production. It requires
   `confirm_local_import=YES`, but the operator must still verify the target.
 - Use a disposable local database with patch 256 present and patch 257 absent.
@@ -57,7 +62,8 @@ printed explicitly by the importer.
 
 ## 1. Profile the production shape
 
-This prints aggregate shape without printing page copy:
+This prints aggregate shape without printing page copy. It aborts unless the
+source is a physical read replica before migration 257:
 
 ```sh
 psql "$PROD_DSN" -X \
@@ -72,8 +78,8 @@ historical fifth column.
 
 ## 2. Export the faithful source bundle
 
-Run from a unique empty directory because `\copy` paths are relative to the
-client's current directory and client-side file writes are not transactional:
+Run from a unique empty directory because the client-side output paths are
+relative to the current directory and file writes are not transactional:
 
 ```sh
 EXPORT_ROOT='/path/on/approved-volume'
@@ -87,8 +93,8 @@ psql "$PROD_DSN" -X \
   -f /absolute/path/to/sql/page-builder-v2-rehearsal/01-export-production.sql
 ```
 
-All reads use one repeatable-read, read-only snapshot. The exporter writes 20
-files, including:
+All source-data reads use one repeatable-read, read-only snapshot. The exporter
+writes 20 files, including:
 
 - `01` through `11`: page groups, pages, sections, rows, columns, and raw
   association IDs.
@@ -101,6 +107,10 @@ files, including:
 The export includes all selected institution pages, including drafts, editing
 copies, deleted data, parents, and all members of selected page groups. It
 aborts if a parent or page group crosses the institution boundary.
+
+Replica lag affects freshness but not consistency within the fixed snapshot. A
+long standby query can be canceled by a recovery conflict; if that happens,
+discard the partial directory and retry from a new empty one.
 
 ## 3. Resolve local-only ID differences
 
