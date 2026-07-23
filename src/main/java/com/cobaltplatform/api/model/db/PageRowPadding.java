@@ -22,40 +22,37 @@ package com.cobaltplatform.api.model.db;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import static java.lang.String.format;
+
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class RowType {
+public class PageRowPadding {
 	@Nullable
-	private RowTypeId rowTypeId;
+	private PageRowPaddingId pageRowPaddingId;
 	@Nullable
 	private String description;
 
-	public enum RowTypeId {
-		RESOURCES,
-		GROUP_SESSIONS,
-		TAG_GROUP,
-		TAG,
-		CUSTOM_ROW,
-		ONE_COLUMN_TEXT,
-		TWO_COLUMN_TEXT,
-		ONE_COLUMN_IMAGE,
-		ONE_COLUMN_IMAGE_RIGHT,
-		TWO_COLUMN_IMAGE,
-		THREE_COLUMN_IMAGE,
-		MAILING_LIST,
-		CALL_TO_ACTION_BLOCK,
-		CALL_TO_ACTION_FULL_WIDTH
+	public enum PageRowPaddingId {
+		NONE,
+		SMALL,
+		MEDIUM,
+		LARGE
+	}
+
+	@Override
+	public String toString() {
+		return format("%s{pageRowPaddingId=%s, description=%s}", getClass().getSimpleName(), getPageRowPaddingId(), getDescription());
 	}
 
 	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
+	public PageRowPaddingId getPageRowPaddingId() {
+		return pageRowPaddingId;
 	}
 
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
+	public void setPageRowPaddingId(@Nullable PageRowPaddingId pageRowPaddingId) {
+		this.pageRowPaddingId = pageRowPaddingId;
 	}
 
 	@Nullable

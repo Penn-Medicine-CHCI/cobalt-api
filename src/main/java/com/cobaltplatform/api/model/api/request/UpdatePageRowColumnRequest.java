@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.PageRowColumnContentOrder.PageRowColumnContentOrderId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -41,6 +42,10 @@ public class UpdatePageRowColumnRequest {
 	private String imageFileUploadId;
 	@Nullable
 	private String imageAltText;
+	@Nullable
+	private Boolean usePlaceholderImage;
+	@Nullable
+	private PageRowColumnContentOrderId contentOrderId;
 
 	@Nullable
 	public UUID getPageRowId() {
@@ -85,6 +90,24 @@ public class UpdatePageRowColumnRequest {
 
 	public void setImageAltText(@Nullable String imageAltText) {
 		this.imageAltText = imageAltText;
+	}
+
+	@Nullable
+	public Boolean getUsePlaceholderImage() {
+		return usePlaceholderImage;
+	}
+
+	public void setUsePlaceholderImage(@Nullable Boolean usePlaceholderImage) {
+		this.usePlaceholderImage = usePlaceholderImage;
+	}
+
+	@Nullable
+	public PageRowColumnContentOrderId getContentOrderId() {
+		return contentOrderId;
+	}
+
+	public void setContentOrderId(@Nullable PageRowColumnContentOrderId contentOrderId) {
+		this.contentOrderId = contentOrderId;
 	}
 
 	@Nullable

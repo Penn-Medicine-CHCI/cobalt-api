@@ -17,30 +17,22 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.db;
-
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
-import java.time.Instant;
-import java.util.UUID;
+package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
-import com.cobaltplatform.api.model.db.RowType.RowTypeId;
+
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class PageRow {
+public class UpdatePageRowRequest {
 	@Nullable
 	private UUID pageRowId;
-	@Nullable
-	private UUID pageRowAnchorId;
-	@Nullable
-	private UUID pageSectionId;
-	@Nullable
-	private RowTypeId rowTypeId;
 	@Nullable
 	private String name;
 	@Nullable
@@ -51,16 +43,6 @@ public class PageRow {
 	private PageRowPaddingId paddingTopId;
 	@Nullable
 	private PageRowPaddingId paddingBottomId;
-	@Nullable
-	private Boolean deletedFlag;
-	@Nullable
-	private Integer displayOrder;
-	@Nullable
-	private UUID createdByAccountId;
-	@Nullable
-	private Instant created;
-	@Nullable
-	private Instant lastUpdated;
 
 	@Nullable
 	public UUID getPageRowId() {
@@ -69,33 +51,6 @@ public class PageRow {
 
 	public void setPageRowId(@Nullable UUID pageRowId) {
 		this.pageRowId = pageRowId;
-	}
-
-	@Nullable
-	public UUID getPageRowAnchorId() {
-		return pageRowAnchorId;
-	}
-
-	public void setPageRowAnchorId(@Nullable UUID pageRowAnchorId) {
-		this.pageRowAnchorId = pageRowAnchorId;
-	}
-
-	@Nullable
-	public UUID getPageSectionId() {
-		return pageSectionId;
-	}
-
-	public void setPageSectionId(@Nullable UUID pageSectionId) {
-		this.pageSectionId = pageSectionId;
-	}
-
-	@Nullable
-	public RowTypeId getRowTypeId() {
-		return rowTypeId;
-	}
-
-	public void setRowTypeId(@Nullable RowTypeId rowTypeId) {
-		this.rowTypeId = rowTypeId;
 	}
 
 	@Nullable
@@ -141,50 +96,5 @@ public class PageRow {
 
 	public void setPaddingBottomId(@Nullable PageRowPaddingId paddingBottomId) {
 		this.paddingBottomId = paddingBottomId;
-	}
-
-	@Nullable
-	public Boolean getDeletedFlag() {
-		return deletedFlag;
-	}
-
-	public void setDeletedFlag(@Nullable Boolean deletedFlag) {
-		this.deletedFlag = deletedFlag;
-	}
-
-	@Nullable
-	public UUID getCreatedByAccountId() {
-		return createdByAccountId;
-	}
-
-	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
-		this.createdByAccountId = createdByAccountId;
-	}
-
-	@Nullable
-	public Instant getCreated() {
-		return created;
-	}
-
-	public void setCreated(@Nullable Instant created) {
-		this.created = created;
-	}
-
-	@Nullable
-	public Instant getLastUpdated() {
-		return lastUpdated;
-	}
-
-	public void setLastUpdated(@Nullable Instant lastUpdated) {
-		this.lastUpdated = lastUpdated;
-	}
-
-	@Nullable
-	public Integer getDisplayOrder() {
-		return displayOrder;
-	}
-
-	public void setDisplayOrder(@Nullable Integer displayOrder) {
-		this.displayOrder = displayOrder;
 	}
 }

@@ -20,7 +20,9 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse.MailingListEntryApiResponseFactory;
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.service.MailingListService;
@@ -49,6 +51,18 @@ import static java.util.Objects.requireNonNull;
 public class PageRowMailingListApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
+	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PageRowPaddingId paddingTopId;
+	@Nonnull
+	private final PageRowPaddingId paddingBottomId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -93,6 +107,12 @@ public class PageRowMailingListApiResponse {
 		Set<Supplement> supplementsAsSet = supplements == null ? Set.of() : new HashSet<>(Arrays.asList(supplements));
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingTopId = pageRow.getPaddingTopId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingTopId();
+		this.paddingBottomId = pageRow.getPaddingBottomId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingBottomId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
 		this.mailingListId = pageRowMailingList.getMailingListId();
@@ -107,8 +127,45 @@ public class PageRowMailingListApiResponse {
 	}
 
 	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Subscribe";
+	}
+
+	@Nonnull
 	public UUID getPageRowId() {
 		return this.pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return this.pageRowAnchorId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return this.pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return this.name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return this.backgroundColorId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingTopId() {
+		return this.paddingTopId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingBottomId() {
+		return this.paddingBottomId;
 	}
 
 	@Nonnull
@@ -141,5 +198,3 @@ public class PageRowMailingListApiResponse {
 		return this.mailingListEntries;
 	}
 }
-
-

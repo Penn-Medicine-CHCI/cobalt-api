@@ -19,8 +19,10 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
 import com.cobaltplatform.api.model.db.PageStatus;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
@@ -46,6 +48,18 @@ import static java.util.Objects.requireNonNull;
 public class PageRowGroupSessionApiResponse {
 	@Nullable
 	private UUID pageRowId;
+	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PageRowPaddingId paddingTopId;
+	@Nonnull
+	private final PageRowPaddingId paddingBottomId;
 	@Nullable
 	private Integer displayOrder;
 	@Nonnull
@@ -78,17 +92,59 @@ public class PageRowGroupSessionApiResponse {
 		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingTopId = pageRow.getPaddingTopId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingTopId();
+		this.paddingBottomId = pageRow.getPaddingBottomId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingBottomId();
 		//If this page is published only show ADDED group sessions
 		this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true: false).stream()
 				.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.rowTypeId = pageRow.getRowTypeId();
+	}
 
-}
+	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Group Sessions";
+	}
 
 	@Nullable
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingTopId() {
+		return paddingTopId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingBottomId() {
+		return paddingBottomId;
 	}
 
 	@Nullable
@@ -106,5 +162,3 @@ public class PageRowGroupSessionApiResponse {
 		return rowTypeId;
 	}
 }
-
-
