@@ -428,6 +428,49 @@ FROM (
 ORDER BY reference_type;
 
 \echo ''
+\echo 'Active singleton-association anomalies (zero rows is expected)'
+WITH selected_page AS (
+  SELECT p.page_id
+  FROM cobalt.page p
+  WHERE p.institution_id = :'source_institution_id'
+),
+selected_section AS (
+  SELECT ps.page_section_id
+  FROM cobalt.page_section ps
+  JOIN selected_page p ON p.page_id = ps.page_id
+),
+selected_row AS (
+  SELECT pr.page_row_id, pr.row_type_id, pr.deleted_flag
+  FROM cobalt.page_row pr
+  JOIN selected_section ps ON ps.page_section_id = pr.page_section_id
+),
+association_shape AS (
+  SELECT
+    'TAG'::TEXT AS row_type_id,
+    selected.page_row_id,
+    count(association.page_row_tag_id) AS association_count
+  FROM selected_row selected
+  LEFT JOIN cobalt.page_row_tag association USING (page_row_id)
+  WHERE selected.row_type_id = 'TAG'
+    AND selected.deleted_flag = FALSE
+  GROUP BY selected.page_row_id
+  UNION ALL
+  SELECT
+    'TAG_GROUP',
+    selected.page_row_id,
+    count(association.page_row_tag_group_id)
+  FROM selected_row selected
+  LEFT JOIN cobalt.page_row_tag_group association USING (page_row_id)
+  WHERE selected.row_type_id = 'TAG_GROUP'
+    AND selected.deleted_flag = FALSE
+  GROUP BY selected.page_row_id
+)
+SELECT row_type_id, page_row_id, association_count
+FROM association_shape
+WHERE association_count <> 1
+ORDER BY row_type_id, page_row_id;
+
+\echo ''
 \echo 'Sensitive-text triage counts (matching text is intentionally not printed)'
 WITH selected_page AS (
   SELECT p.page_id, p.page_group_id

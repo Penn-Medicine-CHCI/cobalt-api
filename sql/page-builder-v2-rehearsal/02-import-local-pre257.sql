@@ -42,6 +42,33 @@ SELECT upper(:'confirm_local_import') = 'YES' AS page_rehearsal_confirmed \gset
   \set include_external_associations 'true'
 \endif
 
+-- Each association family can be controlled independently. The original
+-- umbrella flag remains the default for backwards compatibility.
+\if :{?include_group_session_associations}
+\else
+  \set include_group_session_associations :include_external_associations
+\endif
+
+\if :{?include_content_associations}
+\else
+  \set include_content_associations :include_external_associations
+\endif
+
+\if :{?include_tag_group_associations}
+\else
+  \set include_tag_group_associations :include_external_associations
+\endif
+
+\if :{?include_tag_associations}
+\else
+  \set include_tag_associations :include_external_associations
+\endif
+
+\if :{?include_mailing_list_associations}
+\else
+  \set include_mailing_list_associations :include_external_associations
+\endif
+
 \if :{?url_prefix}
 \else
   \set url_prefix ''
@@ -80,6 +107,11 @@ CREATE TABLE page_builder_v2_rehearsal.settings (
   target_institution_id TEXT NOT NULL,
   target_account_id UUID NOT NULL,
   include_external_associations BOOLEAN NOT NULL,
+  include_group_session_associations BOOLEAN NOT NULL,
+  include_content_associations BOOLEAN NOT NULL,
+  include_tag_group_associations BOOLEAN NOT NULL,
+  include_tag_associations BOOLEAN NOT NULL,
+  include_mailing_list_associations BOOLEAN NOT NULL,
   url_prefix TEXT NOT NULL
 );
 
@@ -87,12 +119,22 @@ INSERT INTO page_builder_v2_rehearsal.settings (
   target_institution_id,
   target_account_id,
   include_external_associations,
+  include_group_session_associations,
+  include_content_associations,
+  include_tag_group_associations,
+  include_tag_associations,
+  include_mailing_list_associations,
   url_prefix
 )
 VALUES (
   :'target_institution_id',
   :'target_account_id'::UUID,
   :'include_external_associations'::BOOLEAN,
+  :'include_group_session_associations'::BOOLEAN,
+  :'include_content_associations'::BOOLEAN,
+  :'include_tag_group_associations'::BOOLEAN,
+  :'include_tag_associations'::BOOLEAN,
+  :'include_mailing_list_associations'::BOOLEAN,
   :'url_prefix'
 );
 
@@ -492,6 +534,32 @@ BEGIN
   END IF;
 
   IF EXISTS (
+    SELECT source_row.page_row_id
+    FROM page_builder_v2_rehearsal.source_page_row source_row
+    LEFT JOIN page_builder_v2_rehearsal.source_page_row_tag association
+      USING (page_row_id)
+    WHERE source_row.row_type_id = 'TAG'
+      AND source_row.deleted_flag = FALSE
+    GROUP BY source_row.page_row_id
+    HAVING count(association.page_row_tag_id) <> 1
+  ) THEN
+    RAISE EXCEPTION 'Every active staged TAG row must have exactly one page_row_tag association';
+  END IF;
+
+  IF EXISTS (
+    SELECT source_row.page_row_id
+    FROM page_builder_v2_rehearsal.source_page_row source_row
+    LEFT JOIN page_builder_v2_rehearsal.source_page_row_tag_group association
+      USING (page_row_id)
+    WHERE source_row.row_type_id = 'TAG_GROUP'
+      AND source_row.deleted_flag = FALSE
+    GROUP BY source_row.page_row_id
+    HAVING count(association.page_row_tag_group_id) <> 1
+  ) THEN
+    RAISE EXCEPTION 'Every active staged TAG_GROUP row must have exactly one page_row_tag_group association';
+  END IF;
+
+  IF EXISTS (
     SELECT 1
     FROM (
       SELECT image_file_upload_id AS file_upload_id
@@ -592,6 +660,24 @@ DECLARE
 BEGIN
   SELECT * INTO STRICT configured FROM page_builder_v2_rehearsal.settings;
 
+  IF NOT configured.include_tag_associations AND EXISTS (
+    SELECT 1
+    FROM page_builder_v2_rehearsal.source_page_row
+    WHERE row_type_id = 'TAG'
+      AND deleted_flag = FALSE
+  ) THEN
+    RAISE EXCEPTION 'The source contains active TAG rows; pass -v include_tag_associations=true so pages remain API-readable';
+  END IF;
+
+  IF NOT configured.include_tag_group_associations AND EXISTS (
+    SELECT 1
+    FROM page_builder_v2_rehearsal.source_page_row
+    WHERE row_type_id = 'TAG_GROUP'
+      AND deleted_flag = FALSE
+  ) THEN
+    RAISE EXCEPTION 'The source contains active TAG_GROUP rows; pass -v include_tag_group_associations=true so pages remain API-readable';
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM page_builder_v2_rehearsal.source_page source
@@ -652,24 +738,32 @@ BEGIN
     RAISE EXCEPTION 'A core page-owned UUID from the export already exists locally; use a fresh disposable database';
   END IF;
 
-  IF configured.include_external_associations AND (
-    EXISTS (
+  IF (
+    configured.include_group_session_associations AND EXISTS (
       SELECT 1 FROM page_row_group_session target
       JOIN page_builder_v2_rehearsal.source_page_row_group_session source
         USING (page_row_group_session_id)
-    ) OR EXISTS (
+    )
+  ) OR (
+    configured.include_content_associations AND EXISTS (
       SELECT 1 FROM page_row_content target
       JOIN page_builder_v2_rehearsal.source_page_row_content source
         USING (page_row_content_id)
-    ) OR EXISTS (
+    )
+  ) OR (
+    configured.include_tag_group_associations AND EXISTS (
       SELECT 1 FROM page_row_tag_group target
       JOIN page_builder_v2_rehearsal.source_page_row_tag_group source
         USING (page_row_tag_group_id)
-    ) OR EXISTS (
+    )
+  ) OR (
+    configured.include_tag_associations AND EXISTS (
       SELECT 1 FROM page_row_tag target
       JOIN page_builder_v2_rehearsal.source_page_row_tag source
         USING (page_row_tag_id)
-    ) OR EXISTS (
+    )
+  ) OR (
+    configured.include_mailing_list_associations AND EXISTS (
       SELECT 1 FROM page_row_mailing_list target
       JOIN page_builder_v2_rehearsal.source_page_row_mailing_list source
         USING (page_row_mailing_list_id)
@@ -831,7 +925,7 @@ BEGIN
     RAISE EXCEPTION 'The local database is missing a file_upload_type used by a source image';
   END IF;
 
-  IF configured.include_external_associations AND EXISTS (
+  IF configured.include_mailing_list_associations AND EXISTS (
     SELECT 1
     FROM page_builder_v2_rehearsal.source_mailing_list source
     JOIN page_builder_v2_rehearsal.reference_map list_mapping
@@ -853,7 +947,7 @@ BEGIN
     RAISE EXCEPTION 'A mapped local mailing_list conflicts with the faithful source snapshot';
   END IF;
 
-  IF configured.include_external_associations AND EXISTS (
+  IF configured.include_content_associations AND EXISTS (
     SELECT 1
     FROM page_builder_v2_rehearsal.reference_map mapping
     LEFT JOIN v_admin_content target
@@ -865,7 +959,7 @@ BEGIN
     RAISE EXCEPTION 'A CONTENT source ID has no mapped LIVE local record; edit 70-reference-map.csv';
   END IF;
 
-  IF configured.include_external_associations AND EXISTS (
+  IF configured.include_group_session_associations AND EXISTS (
     SELECT 1
     FROM page_builder_v2_rehearsal.reference_map mapping
     LEFT JOIN group_session target
@@ -878,7 +972,7 @@ BEGIN
     RAISE EXCEPTION 'A GROUP_SESSION source ID has no mapped ADDED target-institution record; edit 70-reference-map.csv';
   END IF;
 
-  IF configured.include_external_associations AND EXISTS (
+  IF configured.include_tag_group_associations AND EXISTS (
     SELECT 1
     FROM page_builder_v2_rehearsal.reference_map mapping
     LEFT JOIN tag_group target ON target.tag_group_id = mapping.target_id
@@ -888,7 +982,7 @@ BEGIN
     RAISE EXCEPTION 'A TAG_GROUP source ID has no mapped local record; edit 70-reference-map.csv';
   END IF;
 
-  IF configured.include_external_associations AND EXISTS (
+  IF configured.include_tag_associations AND EXISTS (
     SELECT 1
     FROM page_builder_v2_rehearsal.reference_map mapping
     LEFT JOIN tag target ON target.tag_id = mapping.target_id
@@ -991,7 +1085,7 @@ LEFT JOIN mailing_list target ON target.mailing_list_id = mapping.target_id::UUI
 CROSS JOIN page_builder_v2_rehearsal.settings configured
 WHERE mapping.reference_type = 'MAILING_LIST'
   AND target.mailing_list_id IS NULL
-  AND configured.include_external_associations;
+  AND configured.include_mailing_list_associations;
 
 INSERT INTO mailing_list (
   mailing_list_id,
@@ -1020,7 +1114,7 @@ JOIN page_builder_v2_rehearsal.created_local_object created
   ON created.object_type = 'MAILING_LIST'
  AND created.object_id = list_mapping.target_id
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_mailing_list_associations;
 
 INSERT INTO page_group (page_group_id, analytics_campaign_key)
 SELECT page_group_id, analytics_campaign_key
@@ -1211,7 +1305,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'GROUP_SESSION'
  AND mapping.source_id = source.group_session_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_group_session_associations;
 
 INSERT INTO page_row_content (
   page_row_content_id,
@@ -1233,7 +1327,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'CONTENT'
  AND mapping.source_id = source.content_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_content_associations;
 
 INSERT INTO page_row_tag_group (
   page_row_tag_group_id,
@@ -1253,7 +1347,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'TAG_GROUP'
  AND mapping.source_id = source.tag_group_id
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_tag_group_associations;
 
 INSERT INTO page_row_tag (
   page_row_tag_id,
@@ -1273,7 +1367,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'TAG'
  AND mapping.source_id = source.tag_id
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_tag_associations;
 
 INSERT INTO page_row_mailing_list (
   page_row_mailing_list_id,
@@ -1297,7 +1391,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'MAILING_LIST'
  AND mapping.source_id = source.mailing_list_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_mailing_list_associations;
 
 DO $$
 DECLARE
@@ -1373,7 +1467,7 @@ FROM page_row_group_session target
 JOIN page_builder_v2_rehearsal.source_page_row_group_session source
   USING (page_row_group_session_id)
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_group_session_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.baseline_page_row_content AS
 SELECT target.*
@@ -1381,7 +1475,7 @@ FROM page_row_content target
 JOIN page_builder_v2_rehearsal.source_page_row_content source
   USING (page_row_content_id)
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_content_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.baseline_page_row_tag_group AS
 SELECT target.*
@@ -1389,7 +1483,7 @@ FROM page_row_tag_group target
 JOIN page_builder_v2_rehearsal.source_page_row_tag_group source
   USING (page_row_tag_group_id)
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_tag_group_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.baseline_page_row_tag AS
 SELECT target.*
@@ -1397,7 +1491,7 @@ FROM page_row_tag target
 JOIN page_builder_v2_rehearsal.source_page_row_tag source
   USING (page_row_tag_id)
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_tag_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.baseline_page_row_mailing_list AS
 SELECT target.*
@@ -1405,7 +1499,7 @@ FROM page_row_mailing_list target
 JOIN page_builder_v2_rehearsal.source_page_row_mailing_list source
   USING (page_row_mailing_list_id)
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_mailing_list_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.baseline_file_upload AS
 SELECT target.*
@@ -1421,7 +1515,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'MAILING_LIST'
  AND mapping.target_id = target.mailing_list_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_mailing_list_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.baseline_analytics_native_event_type AS
 SELECT *
@@ -1575,7 +1669,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'GROUP_SESSION'
  AND mapping.source_id = source.group_session_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_group_session_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.expected_import_page_row_content AS
 SELECT
@@ -1590,7 +1684,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'CONTENT'
  AND mapping.source_id = source.content_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_content_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.expected_import_page_row_tag_group AS
 SELECT
@@ -1604,7 +1698,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'TAG_GROUP'
  AND mapping.source_id = source.tag_group_id
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_tag_group_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.expected_import_page_row_tag AS
 SELECT
@@ -1618,7 +1712,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'TAG'
  AND mapping.source_id = source.tag_id
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_tag_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.expected_import_page_row_mailing_list AS
 SELECT
@@ -1634,7 +1728,7 @@ JOIN page_builder_v2_rehearsal.reference_map mapping
   ON mapping.reference_type = 'MAILING_LIST'
  AND mapping.source_id = source.mailing_list_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_mailing_list_associations;
 
 CREATE TABLE page_builder_v2_rehearsal.expected_import_file_upload AS
 SELECT
@@ -1675,7 +1769,7 @@ JOIN page_builder_v2_rehearsal.reference_map account_mapping
   ON account_mapping.reference_type = 'ACCOUNT'
  AND account_mapping.source_id = source.created_by_account_id::TEXT
 CROSS JOIN page_builder_v2_rehearsal.settings configured
-WHERE configured.include_external_associations;
+WHERE configured.include_mailing_list_associations;
 
 CREATE OR REPLACE FUNCTION page_builder_v2_rehearsal.table_difference_count(
   expected_table REGCLASS,
@@ -1825,14 +1919,16 @@ BEGIN
     FROM page_builder_v2_rehearsal.source_manifest source
     FULL JOIN page_builder_v2_rehearsal.baseline_manifest baseline USING (table_name)
     WHERE baseline.row_count IS DISTINCT FROM CASE
-        WHEN source.table_name IN (
-          'page_row_group_session',
-          'page_row_content',
-          'page_row_tag_group',
-          'page_row_tag',
-          'page_row_mailing_list',
-          'mailing_list'
-        ) AND NOT configured.include_external_associations THEN 0
+        WHEN source.table_name = 'page_row_group_session'
+          AND NOT configured.include_group_session_associations THEN 0
+        WHEN source.table_name = 'page_row_content'
+          AND NOT configured.include_content_associations THEN 0
+        WHEN source.table_name = 'page_row_tag_group'
+          AND NOT configured.include_tag_group_associations THEN 0
+        WHEN source.table_name = 'page_row_tag'
+          AND NOT configured.include_tag_associations THEN 0
+        WHEN source.table_name IN ('page_row_mailing_list', 'mailing_list')
+          AND NOT configured.include_mailing_list_associations THEN 0
         ELSE source.row_count
       END
   ) THEN

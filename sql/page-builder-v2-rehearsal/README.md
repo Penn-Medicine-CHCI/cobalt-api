@@ -237,10 +237,36 @@ The import:
 - Runs 15 source-to-local fidelity checks and aborts if any fail.
 - Prints mapping summaries/details, slug mappings, and page/column image URLs.
 
-Set `include_external_associations=false` only for a core
-section/row/column rehearsal. The raw association CSVs and source IDs remain
-staged, but the five external association tables and their mailing-list
-dependencies are intentionally not loaded or validated against local targets.
+`include_external_associations` is the default for each association family.
+Each family can be overridden independently with:
+
+- `include_group_session_associations`
+- `include_content_associations`
+- `include_tag_group_associations`
+- `include_tag_associations`
+- `include_mailing_list_associations`
+
+For example, when local content and group-session records are unavailable but
+the exported taxonomy IDs exist locally, retain the singleton relationships
+needed to render `TAG` and `TAG_GROUP` rows:
+
+```sh
+psql "$LOCAL_DSN" -X \
+  -v confirm_local_import=YES \
+  -v target_institution_id='LOCAL_INSTITUTION' \
+  -v target_account_id='LOCAL_ADMIN_ACCOUNT_UUID' \
+  -v include_external_associations=false \
+  -v include_tag_associations=true \
+  -v include_tag_group_associations=true \
+  -v include_mailing_list_associations=true \
+  -f /absolute/path/to/sql/page-builder-v2-rehearsal/02-import-local-pre257.sql
+```
+
+Active `TAG` and `TAG_GROUP` rows must retain exactly one corresponding
+association; the importer aborts instead of creating a fixture the page API
+cannot render. Mailing-list dependencies are fully bundled and can normally be
+enabled even when content and group-session associations are omitted. Raw CSVs
+and source IDs for any disabled family remain staged for inspection.
 
 ## 6. Apply migration 257 and verify
 

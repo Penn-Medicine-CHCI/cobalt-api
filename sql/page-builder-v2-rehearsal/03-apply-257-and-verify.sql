@@ -1879,6 +1879,42 @@ SELECT 59, 'v_page_row_column_matches_base_tables', count(*) = 0,
 FROM differences;
 
 INSERT INTO page_builder_v2_rehearsal.verification_result
+SELECT
+  59,
+  'active_imported_tag_rows_have_exactly_one_association',
+  count(*) = 0,
+  format('%s active imported TAG row(s) have an association count other than one', count(*))
+FROM (
+  SELECT current_row.page_row_id
+  FROM page_row current_row
+  JOIN page_builder_v2_rehearsal.baseline_page_row imported_row
+    USING (page_row_id)
+  LEFT JOIN page_row_tag association USING (page_row_id)
+  WHERE current_row.row_type_id = 'TAG'
+    AND current_row.deleted_flag = FALSE
+  GROUP BY current_row.page_row_id
+  HAVING count(association.page_row_tag_id) <> 1
+) anomalies;
+
+INSERT INTO page_builder_v2_rehearsal.verification_result
+SELECT
+  59,
+  'active_imported_tag_group_rows_have_exactly_one_association',
+  count(*) = 0,
+  format('%s active imported TAG_GROUP row(s) have an association count other than one', count(*))
+FROM (
+  SELECT current_row.page_row_id
+  FROM page_row current_row
+  JOIN page_builder_v2_rehearsal.baseline_page_row imported_row
+    USING (page_row_id)
+  LEFT JOIN page_row_tag_group association USING (page_row_id)
+  WHERE current_row.row_type_id = 'TAG_GROUP'
+    AND current_row.deleted_flag = FALSE
+  GROUP BY current_row.page_row_id
+  HAVING count(association.page_row_tag_group_id) <> 1
+) anomalies;
+
+INSERT INTO page_builder_v2_rehearsal.verification_result
 WITH expected AS (
   SELECT analytics_native_event_type_id, description
   FROM page_builder_v2_rehearsal.baseline_analytics_native_event_type
