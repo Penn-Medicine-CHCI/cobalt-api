@@ -1,10 +1,18 @@
 BEGIN;
-SELECT _v.register_patch('256-local-only-provider-booking-test-data', ARRAY['256-provider-booking-screening'], NULL);
+SELECT _v.register_patch(
+	'260-local-only-provider-booking-seed',
+	ARRAY[
+		'250-autism-clinic-referrer',
+		'259-provider-booking-database',
+		'260-cobalt-provider-booking-configuration'
+	],
+	NULL
+);
 
 -- Local-only provider booking seed data for QA and developer databases.
--- This script depends on bootstrap fixture rows and the consolidated production
--- provider-booking/location schema, and is intentionally run only by
--- sql/recreate-local after initial/bootstrap.sql and 256-provider-booking-screening.
+-- This script depends on bootstrap fixture rows, the environment-agnostic
+-- provider-booking database migration, and the Cobalt tenant configuration. It
+-- is intentionally run only by local/bootstrap database recreation scripts.
 -- Do not run this as a production functional migration.
 
 -- Refresh Cobalt provider-search fixture rows so local and test databases have
@@ -203,28 +211,6 @@ SET nav_description=EXCLUDED.nav_description,
 	landing_page_visible=EXCLUDED.landing_page_visible,
 	treatment_description=EXCLUDED.treatment_description;
 
-INSERT INTO feature_support_role (
-	feature_support_role_id,
-	feature_id,
-	support_role_id
-)
-SELECT
-	feature_support_role_fixture.feature_support_role_id,
-	feature_support_role_fixture.feature_id,
-	feature_support_role_fixture.support_role_id
-FROM (VALUES
-	('67ab92eb-fb06-4d83-9103-5b97fdb10001'::UUID, 'MEDICATION_PRESCRIBER', 'PSYCHIATRIST'),
-	('67ab92eb-fb06-4d83-9103-5b97fdb10002'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'CARE_MANAGER'),
-	('67ab92eb-fb06-4d83-9103-5b97fdb10003'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'CHAPLAIN'),
-	('67ab92eb-fb06-4d83-9103-5b97fdb10004'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'CLINICIAN'),
-	('67ab92eb-fb06-4d83-9103-5b97fdb10005'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'COACH'),
-	('67ab92eb-fb06-4d83-9103-5b97fdb10006'::UUID, 'MENTAL_HEALTH_PROVIDERS', 'PSYCHIATRIST')
-) AS feature_support_role_fixture(feature_support_role_id, feature_id, support_role_id)
-JOIN feature
-	ON feature.feature_id=feature_support_role_fixture.feature_id
-JOIN support_role
-	ON support_role.support_role_id=feature_support_role_fixture.support_role_id
-ON CONFLICT (feature_id, support_role_id) DO NOTHING;
 
 UPDATE institution_location
 SET short_name=location_fixture.short_name,

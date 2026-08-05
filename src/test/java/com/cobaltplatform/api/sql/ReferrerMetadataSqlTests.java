@@ -36,13 +36,13 @@ public class ReferrerMetadataSqlTests {
 	@Test
 	public void resultScreenBookingPathMigrationsWriteAppointmentTypeIdAndPath() throws IOException {
 		assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(
-				readSql("sql/updates/256-provider-booking-screening.sql"));
+				readSql("sql/updates/260-cobalt-provider-booking-configuration.sql"));
 	}
 
 	@Test
 	public void providerClinicDetailsHtmlSchemaAndFixtureContentAreSeparated() throws IOException {
-		String functionalSql = readSql("sql/updates/256-provider-booking-screening.sql");
-		String fixtureSql = readSql("sql/updates/256-local-only-provider-booking-test-data.sql");
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
 
 		assertTrue(functionalSql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS details_html TEXT"));
 		assertTrue(functionalSql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS details_html TEXT"));
@@ -58,9 +58,21 @@ public class ReferrerMetadataSqlTests {
 	}
 
 	@Test
+	public void providerSearchFeatureSupportRolesAreDeployable() throws IOException {
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
+
+		assertTrue(functionalSql.contains("INSERT INTO feature_support_role"));
+		assertTrue(functionalSql.contains("'MEDICATION_PRESCRIBER', 'PSYCHIATRIST'"));
+		assertTrue(functionalSql.contains("'MENTAL_HEALTH_PROVIDERS', 'CARE_MANAGER'"));
+		assertTrue(functionalSql.contains("ON CONFLICT (feature_id, support_role_id) DO NOTHING"));
+		assertFalse(fixtureSql.contains("INSERT INTO feature_support_role"));
+	}
+
+	@Test
 	public void providerClinicLocationSchemaAndFixtureContentAreSeparated() throws IOException {
-		String functionalSql = readSql("sql/updates/256-provider-booking-screening.sql");
-		String fixtureSql = readSql("sql/updates/256-local-only-provider-booking-test-data.sql");
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
 
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS provider_location"));
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS clinic_location"));
@@ -76,8 +88,8 @@ public class ReferrerMetadataSqlTests {
 
 	@Test
 	public void providerClinicLocationContactCleanupDropsAccidentalColumns() throws IOException {
-		String functionalSql = readSql("sql/updates/256-provider-booking-screening.sql");
-		String fixtureSql = readSql("sql/updates/256-local-only-provider-booking-test-data.sql");
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
 
 		assertTrue(functionalSql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS website_url TEXT"));
 		assertTrue(functionalSql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS email_address TEXT"));
@@ -89,7 +101,9 @@ public class ReferrerMetadataSqlTests {
 		assertTrue(functionalSql.contains("ALTER TABLE clinic_location DROP COLUMN IF EXISTS website_url"));
 		assertTrue(functionalSql.contains("ALTER TABLE clinic_location DROP COLUMN IF EXISTS email_address"));
 		assertTrue(functionalSql.contains("ALTER TABLE institution_location DROP COLUMN IF EXISTS address_id"));
-		assertTrue(fixtureSql.contains("ARRAY['256-provider-booking-screening']"));
+		assertTrue(fixtureSql.contains("'250-autism-clinic-referrer'"));
+		assertTrue(fixtureSql.contains("'259-provider-booking-database'"));
+		assertTrue(fixtureSql.contains("'260-cobalt-provider-booking-configuration'"));
 		assertFalse(fixtureSql.contains("257-provider-booking-contact-" + "ownership-cleanup"));
 	}
 

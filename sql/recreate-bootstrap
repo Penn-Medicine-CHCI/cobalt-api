@@ -262,7 +262,6 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/252-page
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/253-account-alert.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/254-group-topic-archived.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/255-account-onboarding-complete-v2-report.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-autism-clinic-penn-updates.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/257-page-builder-v2.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/258-page-subscription-email-additional-content.sql
 
@@ -271,7 +270,11 @@ if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < initial/bootstrap.sql
 fi
 
-# Post-bootstrap patches. 250 depends on bootstrap fixture institutions/referrers,
-# and 256 applies the consolidated provider-booking/location functional migration.
+# Post-bootstrap patches. The Autism Clinic updates depend on bootstrap fixture
+# institutions/referrers. Provider booking database changes run before tenant
+# rollout configuration and local/bootstrap seed data.
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/250-autism-clinic-referrer.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-provider-booking-screening.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/256-autism-clinic-penn-updates.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/259-provider-booking-database.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/260-cobalt-provider-booking-configuration.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/260-local-only-provider-booking-seed.sql
