@@ -23,6 +23,8 @@ import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
+import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
+import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.LogicalAvailabilityType.LogicalAvailabilityTypeId;
@@ -31,6 +33,7 @@ import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.model.service.ProviderCalendar;
+import com.cobaltplatform.api.model.service.ProviderFind;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.inject.Injector;
 import com.pyranid.Database;
@@ -108,6 +111,75 @@ public class AvailabilityServiceTests {
 		});
 	}
 
+	@Test
+	public void testProviderFindSubtractsMultipleBlocksCumulatively() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AvailabilityService availabilityService = app.getInjector().getInstance(AvailabilityService.class);
+			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+
+			TestProvider testProvider = createTestProvider(app.getInjector());
+			LocalDate availabilityStartDate = LocalDate.of(2026, 6, 26);
+			LocalDate blockedDate = LocalDate.of(2026, 7, 3);
+
+			availabilityService.createLogicalAvailability(new CreateLogicalAvailabilityRequest() {{
+				setProviderId(testProvider.getProviderId());
+				setAccountId(testProvider.getAccountId());
+				setLogicalAvailabilityTypeId(LogicalAvailabilityTypeId.OPEN);
+				setRecurrenceTypeId(RecurrenceTypeId.DAILY);
+				setRecurFriday(true);
+				setAppointmentTypeIds(List.of(testProvider.getRpvAppointmentTypeId()));
+				setStartDateTime(LocalDateTime.of(availabilityStartDate, LocalTime.of(9, 0)));
+				setEndTime(LocalTime.of(9, 30));
+			}});
+
+			availabilityService.createLogicalAvailability(new CreateLogicalAvailabilityRequest() {{
+				setProviderId(testProvider.getProviderId());
+				setAccountId(testProvider.getAccountId());
+				setLogicalAvailabilityTypeId(LogicalAvailabilityTypeId.OPEN);
+				setRecurrenceTypeId(RecurrenceTypeId.DAILY);
+				setRecurFriday(true);
+				setAppointmentTypeIds(List.of(testProvider.getRpvAppointmentTypeId()));
+				setStartDateTime(LocalDateTime.of(availabilityStartDate, LocalTime.of(9, 30)));
+				setEndTime(LocalTime.of(10, 0));
+			}});
+
+			availabilityService.createLogicalAvailability(new CreateLogicalAvailabilityRequest() {{
+				setProviderId(testProvider.getProviderId());
+				setAccountId(testProvider.getAccountId());
+				setLogicalAvailabilityTypeId(LogicalAvailabilityTypeId.BLOCK);
+				setRecurrenceTypeId(RecurrenceTypeId.NONE);
+				setStartDateTime(LocalDateTime.of(blockedDate, LocalTime.of(9, 0)));
+				setEndDate(blockedDate);
+				setEndTime(LocalTime.of(9, 30));
+			}});
+
+			availabilityService.createLogicalAvailability(new CreateLogicalAvailabilityRequest() {{
+				setProviderId(testProvider.getProviderId());
+				setAccountId(testProvider.getAccountId());
+				setLogicalAvailabilityTypeId(LogicalAvailabilityTypeId.BLOCK);
+				setRecurrenceTypeId(RecurrenceTypeId.NONE);
+				setStartDateTime(LocalDateTime.of(blockedDate, LocalTime.of(9, 30)));
+				setEndDate(blockedDate);
+				setEndTime(LocalTime.of(10, 30));
+			}});
+
+			Account account = accountService.findAccountById(testProvider.getAccountId()).get();
+			List<ProviderFind> providerFinds = providerService.findProviders(new ProviderFindRequest() {{
+				setInstitutionId(InstitutionId.COBALT);
+				setProviderId(testProvider.getProviderId());
+				setStartDate(blockedDate);
+				setStartTime(LocalTime.MIN);
+				setEndDate(blockedDate);
+				setEndTime(LocalTime.MAX);
+				setIncludePastAvailability(true);
+			}}, account);
+
+			Assert.assertEquals("Wrong provider count", 1, providerFinds.size());
+			Assert.assertTrue("Blocked date should not have bookable times", providerFinds.get(0).getDates().isEmpty());
+		});
+	}
+
 	@Nonnull
 	protected TestProvider createTestProvider(@Nonnull Injector injector) {
 		Database database = injector.getInstance(DatabaseProvider.class).getWritableMasterDatabase();
@@ -120,9 +192,9 @@ public class AvailabilityServiceTests {
 		Long RPV_DURATION_IN_MINUTES = 30L;
 
 		// Make a provider
-		database.execute("INSERT INTO provider (provider_id, institution_id, name, email_address) VALUES (?,?,?,?)",
-				providerId, InstitutionId.COBALT, format("Test Provider %s", nextSequence),
-				format("testprovider-%s@cobaltinnovations.org", nextSequence));
+		database.execute("INSERT INTO provider (provider_id, institution_id, name, url_name, email_address, scheduling_system_id) VALUES (?,?,?,?,?,?)",
+				providerId, InstitutionId.COBALT, format("Test Provider %s", nextSequence), format("test-provider-%s", nextSequence),
+				format("testprovider-%s@cobaltinnovations.org", nextSequence), SchedulingSystemId.COBALT);
 
 		// Make an account for the provider
 		UUID accountId = accountService.createAccount(new CreateAccountRequest() {{

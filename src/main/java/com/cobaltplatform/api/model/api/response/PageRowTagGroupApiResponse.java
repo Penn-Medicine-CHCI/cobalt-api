@@ -19,7 +19,9 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
 import com.cobaltplatform.api.service.PageService;
@@ -41,6 +43,18 @@ import static java.util.Objects.requireNonNull;
 public class PageRowTagGroupApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
+	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
+	private final UUID pageSectionId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PageRowPaddingId paddingTopId;
+	@Nonnull
+	private final PageRowPaddingId paddingBottomId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -69,14 +83,57 @@ public class PageRowTagGroupApiResponse {
 		requireNonNull(tagGroupApiResponseFactory);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
+		this.pageSectionId = pageRow.getPageSectionId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingTopId = pageRow.getPaddingTopId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingTopId();
+		this.paddingBottomId = pageRow.getPaddingBottomId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingBottomId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));
 		this.rowTypeId = pageRow.getRowTypeId();
 	}
 
 	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		return "Tag Group";
+	}
+
+	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
+	}
+
+	@Nonnull
+	public UUID getPageSectionId() {
+		return pageSectionId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingTopId() {
+		return paddingTopId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingBottomId() {
+		return paddingBottomId;
 	}
 
 	@Nonnull
@@ -94,5 +151,3 @@ public class PageRowTagGroupApiResponse {
 		return rowTypeId;
 	}
 }
-
-

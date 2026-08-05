@@ -443,6 +443,17 @@ public class AnalyticsNativeEventType {
 		//   FEATURED_TOPIC
 		//   COMMUNITY
 		CLICKTHROUGH_PAGE_LINK,
+		// When a Page viewer clicks a Page Builder call-to-action button.
+		// Additional data:
+		// * pageId (UUID)
+		// * pageRowId (UUID, the CTA row containing the clicked button)
+		// * rowTypeId (String, either CALL_TO_ACTION_BLOCK or CALL_TO_ACTION_FULL_WIDTH)
+		// * linkUrl (String, the browser-normalized destination URL)
+		// * linkText (String, the CTA button text)
+		// * siteLocationIds (String[], where this page "lives" on the site at the moment this event occurred. Values are defined by PK of site_location table, reproduced below)
+		//   FEATURED_TOPIC
+		//   COMMUNITY
+		CLICKTHROUGH_PAGE_CALL_TO_ACTION,
 		// When the user clicks to download a file that's part of a course unit.
 		// Additional data:
 		// * courseUnitId (UUID)

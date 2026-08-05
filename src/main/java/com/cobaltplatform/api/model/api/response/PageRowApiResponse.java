@@ -21,15 +21,19 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.api.response.ContentApiResponse.ContentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.GroupSessionApiResponse.GroupSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomOneColumnApiResponse.PageCustomOneColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomThreeColumnApiResponse.PageCustomThreeColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowCustomTwoColumnApiResponse.PageCustomTwoColumnApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowTagApiResponse.PageRowTagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagApiResponse.TagApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.TagGroupApiResponse.TagGroupApiResponseFactory;
+import com.cobaltplatform.api.model.db.BackgroundColor.BackgroundColorId;
 import com.cobaltplatform.api.model.db.Color.ColorId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageRow;
+import com.cobaltplatform.api.model.db.PageRowPadding.PageRowPaddingId;
+import com.cobaltplatform.api.model.db.PageRowCallToAction;
 import com.cobaltplatform.api.model.db.PageRowColumn;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.PageRowTag;
@@ -61,9 +65,19 @@ public class PageRowApiResponse {
 	@Nonnull
 	private final UUID pageRowId;
 	@Nonnull
+	private final UUID pageRowAnchorId;
+	@Nonnull
 	private final UUID pageSectionId;
 	@Nonnull
 	private final RowTypeId rowTypeId;
+	@Nonnull
+	private final String name;
+	@Nonnull
+	private final BackgroundColorId backgroundColorId;
+	@Nonnull
+	private final PageRowPaddingId paddingTopId;
+	@Nonnull
+	private final PageRowPaddingId paddingBottomId;
 	@Nonnull
 	private final Integer displayOrder;
 	@Nonnull
@@ -76,6 +90,8 @@ public class PageRowApiResponse {
 	private PageRowColumn columnTwo;
 	@Nonnull
 	private PageRowColumn columnThree;
+	@Nullable
+	private List<PageRowColumnApiResponse> columns;
 	@Nonnull
 	private TagGroupApiResponse tagGroup;
 	@Nonnull
@@ -87,7 +103,17 @@ public class PageRowApiResponse {
 	@Nullable
 	private String title;
 	@Nullable
+	private String headline;
+	@Nullable
 	private String description;
+	@Nullable
+	private String buttonText;
+	@Nullable
+	private String buttonUrl;
+	@Nullable
+	private UUID imageFileUploadId;
+	@Nullable
+	private String imageUrl;
 
 	@Nonnull
 	private Boolean displayRow;
@@ -106,6 +132,7 @@ public class PageRowApiResponse {
 														@Nonnull PageService pageService,
 														@Nonnull PageCustomOneColumnApiResponseFactory pageCustomOneColumnApiResponseFactory,
 														@Nonnull PageCustomTwoColumnApiResponseFactory pageCustomTwoColumnApiResponseFactory,
+														@Nonnull PageRowImageApiResponseFactory pageRowImageApiResponseFactory,
 														@Nonnull ContentApiResponseFactory contentApiResponseFactory,
 														@Nonnull GroupSessionApiResponseFactory groupSessionApiResponseFactory,
 														@Nonnull TagGroupApiResponseFactory tagGroupApiResponseFactory,
@@ -120,6 +147,7 @@ public class PageRowApiResponse {
 		requireNonNull(pageCustomOneColumnApiResponseFactory);
 		requireNonNull(pageCustomTwoColumnApiResponseFactory);
 		requireNonNull(pageCustomThreeColumnApiResponseFactory);
+		requireNonNull(pageRowImageApiResponseFactory);
 		requireNonNull(contentApiResponseFactory);
 		requireNonNull(groupSessionApiResponseFactory);
 		requireNonNull(tagGroupApiResponseFactory);
@@ -131,8 +159,13 @@ public class PageRowApiResponse {
 		Page page = pageService.findPageByPageRowId(pageRow.getPageRowId()).orElse(null);
 
 		this.pageRowId = pageRow.getPageRowId();
+		this.pageRowAnchorId = pageRow.getPageRowAnchorId();
 		this.pageSectionId = pageRow.getPageSectionId();
 		this.rowTypeId = pageRow.getRowTypeId();
+		this.name = pageRow.getName() == null ? defaultRowNameForRowType(pageRow.getRowTypeId()) : pageRow.getName();
+		this.backgroundColorId = pageRow.getBackgroundColorId() == null ? BackgroundColorId.WHITE : pageRow.getBackgroundColorId();
+		this.paddingTopId = pageRow.getPaddingTopId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingTopId();
+		this.paddingBottomId = pageRow.getPaddingBottomId() == null ? PageRowPaddingId.MEDIUM : pageRow.getPaddingBottomId();
 		this.displayOrder = pageRow.getDisplayOrder();
 		this.tagGroupColorId = null;
 		this.displayRow = true;
@@ -156,9 +189,16 @@ public class PageRowApiResponse {
 			TagGroup tagGroup = tagService.findUncachedTagGroupByTagId(pageRowTag.getTagId()).get();
 			this.tagGroupColorId = tagGroup.getColorId();
 			this.tag = tagApiResponseFactory.create(tagService.findTagById(pageRowTag.getTagId()).get());
-		} else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE))
+		} else if (this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE)
+				|| this.rowTypeId.equals(RowTypeId.ONE_COLUMN_IMAGE_RIGHT)
+				|| this.rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT))
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
-		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)) {
+		else if (this.rowTypeId.equals(RowTypeId.CUSTOM_ROW))
+			this.columns = pageService.findPageRowColumnsByPageRowId(pageRow.getPageRowId()).stream()
+					.map(pageRowImageApiResponseFactory::create)
+					.collect(Collectors.toList());
+		else if (this.rowTypeId.equals(RowTypeId.TWO_COLUMN_IMAGE)
+				|| this.rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT)) {
 			this.columnOne = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 0).orElse(null);
 			this.columnTwo = pageService.findPageRowColumnByPageRowIdAndDisplayOrder(pageRow.getPageRowId(), 1).orElse(null);
 		} else if (this.rowTypeId.equals(RowTypeId.THREE_COLUMN_IMAGE)) {
@@ -170,12 +210,51 @@ public class PageRowApiResponse {
 			this.mailingListId = pageRowMailingList == null ? null : pageRowMailingList.getMailingListId();
 			this.title = pageRowMailingList == null ? null : pageRowMailingList.getTitle();
 			this.description = pageRowMailingList == null ? null : pageRowMailingList.getDescription();
+		} else if (this.rowTypeId.equals(RowTypeId.CALL_TO_ACTION_BLOCK) || this.rowTypeId.equals(RowTypeId.CALL_TO_ACTION_FULL_WIDTH)) {
+			PageRowCallToAction pageRowCallToAction = pageService.findPageRowCallToActionByRowId(pageRow.getPageRowId()).orElse(null);
+			this.headline = pageRowCallToAction == null ? null : pageRowCallToAction.getHeadline();
+			this.description = pageRowCallToAction == null ? null : pageRowCallToAction.getDescription();
+			this.buttonText = pageRowCallToAction == null ? null : pageRowCallToAction.getButtonText();
+			this.buttonUrl = pageRowCallToAction == null ? null : pageRowCallToAction.getButtonUrl();
+			this.imageFileUploadId = pageRowCallToAction == null ? null : pageRowCallToAction.getImageFileUploadId();
+			this.imageUrl = pageRowCallToAction == null ? null : pageRowCallToAction.getImageUrl();
 		}
+	}
+
+	@Nonnull
+	private String defaultRowNameForRowType(@Nonnull RowTypeId rowTypeId) {
+		requireNonNull(rowTypeId);
+
+		if (rowTypeId.equals(RowTypeId.RESOURCES))
+			return "Resources";
+		if (rowTypeId.equals(RowTypeId.GROUP_SESSIONS))
+			return "Group Sessions";
+		if (rowTypeId.equals(RowTypeId.TAG_GROUP))
+			return "Tag Group";
+		if (rowTypeId.equals(RowTypeId.TAG))
+			return "Tag";
+		if (rowTypeId.equals(RowTypeId.CUSTOM_ROW))
+			return "Custom Row";
+		if (rowTypeId.equals(RowTypeId.ONE_COLUMN_TEXT) || rowTypeId.equals(RowTypeId.TWO_COLUMN_TEXT))
+			return "Text";
+		if (rowTypeId.equals(RowTypeId.MAILING_LIST))
+			return "Subscribe";
+		if (rowTypeId.equals(RowTypeId.CALL_TO_ACTION_BLOCK))
+			return "Call-to-Action (Block)";
+		if (rowTypeId.equals(RowTypeId.CALL_TO_ACTION_FULL_WIDTH))
+			return "Call-to-Action (Full-width)";
+
+		return "Text & Image";
 	}
 
 	@Nonnull
 	public UUID getPageRowId() {
 		return pageRowId;
+	}
+
+	@Nonnull
+	public UUID getPageRowAnchorId() {
+		return pageRowAnchorId;
 	}
 
 	@Nonnull
@@ -186,6 +265,26 @@ public class PageRowApiResponse {
 	@Nonnull
 	public RowTypeId getRowTypeId() {
 		return rowTypeId;
+	}
+
+	@Nonnull
+	public String getName() {
+		return name;
+	}
+
+	@Nonnull
+	public BackgroundColorId getBackgroundColorId() {
+		return backgroundColorId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingTopId() {
+		return paddingTopId;
+	}
+
+	@Nonnull
+	public PageRowPaddingId getPaddingBottomId() {
+		return paddingBottomId;
 	}
 
 	@Nonnull
@@ -223,6 +322,11 @@ public class PageRowApiResponse {
 		return columnThree;
 	}
 
+	@Nullable
+	public List<PageRowColumnApiResponse> getColumns() {
+		return columns;
+	}
+
 	@Nonnull
 	public TagApiResponse getTag() {
 		return tag;
@@ -252,6 +356,29 @@ public class PageRowApiResponse {
 	public Optional<String> getDescription() {
 		return Optional.ofNullable(this.description);
 	}
+
+	@Nonnull
+	public Optional<String> getHeadline() {
+		return Optional.ofNullable(this.headline);
+	}
+
+	@Nonnull
+	public Optional<String> getButtonText() {
+		return Optional.ofNullable(this.buttonText);
+	}
+
+	@Nonnull
+	public Optional<String> getButtonUrl() {
+		return Optional.ofNullable(this.buttonUrl);
+	}
+
+	@Nonnull
+	public Optional<UUID> getImageFileUploadId() {
+		return Optional.ofNullable(this.imageFileUploadId);
+	}
+
+	@Nonnull
+	public Optional<String> getImageUrl() {
+		return Optional.ofNullable(this.imageUrl);
+	}
 }
-
-

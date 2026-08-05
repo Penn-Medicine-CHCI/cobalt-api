@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.PageRowColumn;
+import com.cobaltplatform.api.model.db.PageRowColumnContentOrder.PageRowColumnContentOrderId;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -51,6 +52,12 @@ public class PageRowColumnApiResponse {
 	private String imageAltText;
 	@Nullable
 	private String imageUrl;
+	@Nullable
+	private Boolean usePlaceholderImage;
+	@Nullable
+	private Integer columnDisplayOrder;
+	@Nullable
+	private PageRowColumnContentOrderId contentOrderId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -75,8 +82,10 @@ public class PageRowColumnApiResponse {
 		this.imageFileUploadId = pageRowImage.getImageFileUploadId();
 		this.imageAltText = pageRowImage.getImageAltText();
 		this.imageUrl = pageRowImage.getImageUrl();
-
-}
+		this.usePlaceholderImage = pageRowImage.getUsePlaceholderImage();
+		this.columnDisplayOrder = pageRowImage.getColumnDisplayOrder();
+		this.contentOrderId = pageRowImage.getContentOrderId();
+	}
 
 	@Nullable
 	public UUID getPageRowColumnId() {
@@ -112,6 +121,19 @@ public class PageRowColumnApiResponse {
 	public String getImageUrl() {
 		return imageUrl;
 	}
+
+	@Nullable
+	public Boolean getUsePlaceholderImage() {
+		return usePlaceholderImage;
+	}
+
+	@Nullable
+	public Integer getColumnDisplayOrder() {
+		return columnDisplayOrder;
+	}
+
+	@Nullable
+	public PageRowColumnContentOrderId getContentOrderId() {
+		return contentOrderId;
+	}
 }
-
-

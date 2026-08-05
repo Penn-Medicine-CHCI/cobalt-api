@@ -23,6 +23,8 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
 
+import com.cobaltplatform.api.model.db.PageRowColumnContentOrder.PageRowColumnContentOrderId;
+
 /**
  * @author Transmogrify, LLC.
  */
@@ -43,7 +45,11 @@ public class PageRowColumn {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	private Boolean usePlaceholderImage;
+	@Nullable
 	private Integer columnDisplayOrder;
+	@Nullable
+	private PageRowColumnContentOrderId contentOrderId;
 
 	@Nullable
 	public UUID getPageRowColumnId() {
@@ -109,11 +115,29 @@ public class PageRowColumn {
 	}
 
 	@Nullable
+	public PageRowColumnContentOrderId getContentOrderId() {
+		return contentOrderId;
+	}
+
+	public void setContentOrderId(@Nullable PageRowColumnContentOrderId contentOrderId) {
+		this.contentOrderId = contentOrderId;
+	}
+
+	@Nullable
 	public String getImageUrl() {
 		return imageUrl;
 	}
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public Boolean getUsePlaceholderImage() {
+		return usePlaceholderImage;
+	}
+
+	public void setUsePlaceholderImage(@Nullable Boolean usePlaceholderImage) {
+		this.usePlaceholderImage = usePlaceholderImage;
 	}
 }

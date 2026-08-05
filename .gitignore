@@ -54,6 +54,7 @@ sql/initial/bootstrap.sql
 localstack/secrets/*
 localstack/volume/
 !localstack/secrets/.gitkeep
+localstack/volume/
 
 
 scratchpad

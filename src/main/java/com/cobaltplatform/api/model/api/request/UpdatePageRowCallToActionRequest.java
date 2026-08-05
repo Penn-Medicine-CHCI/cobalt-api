@@ -19,31 +19,36 @@
 
 package com.cobaltplatform.api.model.api.request;
 
-import com.cobaltplatform.api.model.db.PageRowColumnContentOrder.PageRowColumnContentOrderId;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageRowColumnRequest {
+public class UpdatePageRowCallToActionRequest {
+	@Nullable
+	private UUID pageRowId;
 	@Nullable
 	private String headline;
 	@Nullable
 	private String description;
 	@Nullable
+	private String buttonText;
+	@Nullable
+	private String buttonUrl;
+	@Nullable
 	private String imageFileUploadId;
-	@Nullable
-	private String imageAltText;
-	@Nullable
-	private Boolean usePlaceholderImage;
 
 	@Nullable
-	private Integer columnDisplayOrder;
-	@Nullable
-	private PageRowColumnContentOrderId contentOrderId;
+	public UUID getPageRowId() {
+		return pageRowId;
+	}
+
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
+	}
 
 	@Nullable
 	public String getHeadline() {
@@ -64,47 +69,29 @@ public class CreatePageRowColumnRequest {
 	}
 
 	@Nullable
+	public String getButtonText() {
+		return buttonText;
+	}
+
+	public void setButtonText(@Nullable String buttonText) {
+		this.buttonText = buttonText;
+	}
+
+	@Nullable
+	public String getButtonUrl() {
+		return buttonUrl;
+	}
+
+	public void setButtonUrl(@Nullable String buttonUrl) {
+		this.buttonUrl = buttonUrl;
+	}
+
+	@Nullable
 	public String getImageFileUploadId() {
 		return imageFileUploadId;
 	}
 
 	public void setImageFileUploadId(@Nullable String imageFileUploadId) {
 		this.imageFileUploadId = imageFileUploadId;
-	}
-
-	@Nullable
-	public String getImageAltText() {
-		return imageAltText;
-	}
-
-	public void setImageAltText(@Nullable String imageAltText) {
-		this.imageAltText = imageAltText;
-	}
-
-	@Nullable
-	public Boolean getUsePlaceholderImage() {
-		return usePlaceholderImage;
-	}
-
-	public void setUsePlaceholderImage(@Nullable Boolean usePlaceholderImage) {
-		this.usePlaceholderImage = usePlaceholderImage;
-	}
-
-	@Nullable
-	public Integer getColumnDisplayOrder() {
-		return columnDisplayOrder;
-	}
-
-	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
-		this.columnDisplayOrder = columnDisplayOrder;
-	}
-
-	@Nullable
-	public PageRowColumnContentOrderId getContentOrderId() {
-		return contentOrderId;
-	}
-
-	public void setContentOrderId(@Nullable PageRowColumnContentOrderId contentOrderId) {
-		this.contentOrderId = contentOrderId;
 	}
 }

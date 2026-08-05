@@ -320,6 +320,7 @@ public class CommunityService {
 		PageGroup pageGroup = getPageService().findPageGroupById(pageGroupId)
 				.orElseThrow(() -> new IllegalStateException(format("Unable to find page group for Page Group ID %s.", pageGroupId)));
 		String analyticsCampaignKey = trimToNull(pageGroup.getAnalyticsCampaignKey());
+		String subscriptionEmailAdditionalContentHtml = trimToNull(pageGroup.getSubscriptionEmailAdditionalContentHtml());
 
 		Locale locale = institution.getLocale() == null ? Locale.US : institution.getLocale();
 		ZoneId defaultTimeZone = institution.getTimeZone() == null ? ZoneId.of("UTC") : institution.getTimeZone();
@@ -378,12 +379,13 @@ public class CommunityService {
 		if (upcomingGroupSessionContext.size() == 1)
 			singleUpcomingGroupSessionTitle = trimToNull((String) upcomingGroupSessionContext.get(0).get("title"));
 
-		Map<String, Object> baseMessageContext = new HashMap<>(12);
+		Map<String, Object> baseMessageContext = new HashMap<>(13);
 		baseMessageContext.put("pageTitle", pageTitle);
 		baseMessageContext.put("singleUpcomingGroupSessionTitle", singleUpcomingGroupSessionTitle);
 		baseMessageContext.put("currentMonthName", currentMonthName);
 		baseMessageContext.put("multipleUpcomingGroupSessions", multipleUpcomingGroupSessions);
 		baseMessageContext.put("multipleFooterContents", multipleFooterContents);
+		baseMessageContext.put("subscriptionEmailAdditionalContentHtml", subscriptionEmailAdditionalContentHtml);
 		baseMessageContext.put("communityPageUrl", communityPageUrl);
 		baseMessageContext.put("recordingUrl", recordingUrl);
 		baseMessageContext.put("recordingTitle", recordingTitle);

@@ -17,33 +17,51 @@
  * limitations under the License.
  */
 
-package com.cobaltplatform.api.model.api.request;
-
-import com.cobaltplatform.api.model.db.PageRowColumnContentOrder.PageRowColumnContentOrderId;
+package com.cobaltplatform.api.model.db;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class CreatePageRowColumnRequest {
+public class PageRowCallToAction {
+	@Nullable
+	private UUID pageRowCallToActionId;
+	@Nullable
+	private UUID pageRowId;
 	@Nullable
 	private String headline;
 	@Nullable
 	private String description;
 	@Nullable
-	private String imageFileUploadId;
+	private String buttonText;
 	@Nullable
-	private String imageAltText;
+	private String buttonUrl;
 	@Nullable
-	private Boolean usePlaceholderImage;
+	private UUID imageFileUploadId;
+	@Nullable
+	private String imageUrl;
 
 	@Nullable
-	private Integer columnDisplayOrder;
+	public UUID getPageRowCallToActionId() {
+		return pageRowCallToActionId;
+	}
+
+	public void setPageRowCallToActionId(@Nullable UUID pageRowCallToActionId) {
+		this.pageRowCallToActionId = pageRowCallToActionId;
+	}
+
 	@Nullable
-	private PageRowColumnContentOrderId contentOrderId;
+	public UUID getPageRowId() {
+		return pageRowId;
+	}
+
+	public void setPageRowId(@Nullable UUID pageRowId) {
+		this.pageRowId = pageRowId;
+	}
 
 	@Nullable
 	public String getHeadline() {
@@ -64,47 +82,38 @@ public class CreatePageRowColumnRequest {
 	}
 
 	@Nullable
-	public String getImageFileUploadId() {
+	public String getButtonText() {
+		return buttonText;
+	}
+
+	public void setButtonText(@Nullable String buttonText) {
+		this.buttonText = buttonText;
+	}
+
+	@Nullable
+	public String getButtonUrl() {
+		return buttonUrl;
+	}
+
+	public void setButtonUrl(@Nullable String buttonUrl) {
+		this.buttonUrl = buttonUrl;
+	}
+
+	@Nullable
+	public UUID getImageFileUploadId() {
 		return imageFileUploadId;
 	}
 
-	public void setImageFileUploadId(@Nullable String imageFileUploadId) {
+	public void setImageFileUploadId(@Nullable UUID imageFileUploadId) {
 		this.imageFileUploadId = imageFileUploadId;
 	}
 
 	@Nullable
-	public String getImageAltText() {
-		return imageAltText;
+	public String getImageUrl() {
+		return imageUrl;
 	}
 
-	public void setImageAltText(@Nullable String imageAltText) {
-		this.imageAltText = imageAltText;
-	}
-
-	@Nullable
-	public Boolean getUsePlaceholderImage() {
-		return usePlaceholderImage;
-	}
-
-	public void setUsePlaceholderImage(@Nullable Boolean usePlaceholderImage) {
-		this.usePlaceholderImage = usePlaceholderImage;
-	}
-
-	@Nullable
-	public Integer getColumnDisplayOrder() {
-		return columnDisplayOrder;
-	}
-
-	public void setColumnDisplayOrder(@Nullable Integer columnDisplayOrder) {
-		this.columnDisplayOrder = columnDisplayOrder;
-	}
-
-	@Nullable
-	public PageRowColumnContentOrderId getContentOrderId() {
-		return contentOrderId;
-	}
-
-	public void setContentOrderId(@Nullable PageRowColumnContentOrderId contentOrderId) {
-		this.contentOrderId = contentOrderId;
+	public void setImageUrl(@Nullable String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 }
