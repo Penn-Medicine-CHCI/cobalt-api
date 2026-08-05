@@ -92,7 +92,13 @@ public class EpicProviderScheduleTests {
 
 	@Test
 	public void testScheduleSlots() throws Exception {
-		EpicProviderScheduleConfig epicProviderScheduleConfig = epicProviderScheduleConfigFromFile(Path.of("resources/test/epic-provider-schedule-config.json"));
+		final String EPIC_PROVIDER_SCHEDULE_CONFIG_FILE_ENV_VAR_NAME = "EPIC_PROVIDER_SCHEDULE_CONFIG_FILE";
+		String epicProviderScheduleConfigFilename = trimToNull(System.getenv(EPIC_PROVIDER_SCHEDULE_CONFIG_FILE_ENV_VAR_NAME));
+
+		if (epicProviderScheduleConfigFilename == null)
+			throw new IllegalStateException(format("You must specify the %s environment variable", EPIC_PROVIDER_SCHEDULE_CONFIG_FILE_ENV_VAR_NAME));
+
+		EpicProviderScheduleConfig epicProviderScheduleConfig = epicProviderScheduleConfigFromFile(Path.of(epicProviderScheduleConfigFilename));
 		EpicEmpCredentials epicEmpCredentials = epicEmpCredentialsFromConfig((epicProviderScheduleConfig));
 		Logger logger = LoggerFactory.getLogger(getClass());
 
