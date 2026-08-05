@@ -133,7 +133,23 @@
 				<a href="{{#if communityPageUrl}}{{{communityPageUrl}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{pageTitle}} Community Page</a>
 				for additional resources{{#if footerContents}}, including {{#if multipleFooterContents}}recent group session recordings such as {{#each footerContents}}{{#unless @first}}, {{/unless}}<a href="{{#if url}}{{{url}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{title}}</a>{{/each}}{{else}}last month&rsquo;s group session recording on <a href="{{#if recordingUrl}}{{{recordingUrl}}}{{else}}#{{/if}}" style="color:#2C4F82; text-decoration:underline;">{{recordingTitle}}</a>{{/if}}{{/if}}.
 			</td>
+		</tr>
+		{{#if subscriptionEmailAdditionalContentHtml}}
+			<tr>
+				<td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td>
 			</tr>
+			<tr>
+				<td style="border-top:1px solid #DBD7D3; line-height:1px; font-size:1px;">&nbsp;</td>
+			</tr>
+			<tr>
+				<td height="16" style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td>
+			</tr>
+			<tr>
+				<td align="left">
+					{{{subscriptionEmailAdditionalContentHtml}}}
+				</td>
+			</tr>
+		{{/if}}
 	</table>
 {{/partial}}
 

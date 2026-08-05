@@ -32,6 +32,8 @@ public class PageGroup {
 	private UUID pageGroupId;
 	@Nullable
 	private String analyticsCampaignKey;
+	@Nullable
+	private String subscriptionEmailAdditionalContentHtml;
 
 	@Nullable
 	public UUID getPageGroupId() {
@@ -49,5 +51,14 @@ public class PageGroup {
 
 	public void setAnalyticsCampaignKey(@Nullable String analyticsCampaignKey) {
 		this.analyticsCampaignKey = analyticsCampaignKey;
+	}
+
+	@Nullable
+	public String getSubscriptionEmailAdditionalContentHtml() {
+		return subscriptionEmailAdditionalContentHtml;
+	}
+
+	public void setSubscriptionEmailAdditionalContentHtml(@Nullable String subscriptionEmailAdditionalContentHtml) {
+		this.subscriptionEmailAdditionalContentHtml = subscriptionEmailAdditionalContentHtml;
 	}
 }
