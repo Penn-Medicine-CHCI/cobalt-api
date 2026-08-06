@@ -32,6 +32,11 @@ import java.util.UUID;
  */
 @NotThreadSafe
 public class CreateAppointmentRequest {
+	public enum BookingExperienceId {
+		V1,
+		V2
+	}
+
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -52,6 +57,8 @@ public class CreateAppointmentRequest {
 	private UUID intakeAssessmentId;
 	@Nullable
 	private ProviderAppointmentModalityId appointmentModalityId;
+	@Nullable
+	private BookingExperienceId bookingExperienceId;
 	@Nullable
 	private String firstName;
 	@Nullable
@@ -144,6 +151,15 @@ public class CreateAppointmentRequest {
 
 	public void setAppointmentModalityId(@Nullable ProviderAppointmentModalityId appointmentModalityId) {
 		this.appointmentModalityId = appointmentModalityId;
+	}
+
+	@Nullable
+	public BookingExperienceId getBookingExperienceId() {
+		return this.bookingExperienceId;
+	}
+
+	public void setBookingExperienceId(@Nullable BookingExperienceId bookingExperienceId) {
+		this.bookingExperienceId = bookingExperienceId;
 	}
 
 	@Nullable

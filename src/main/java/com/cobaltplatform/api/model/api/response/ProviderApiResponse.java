@@ -387,7 +387,7 @@ public class ProviderApiResponse {
 			AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
 
 			this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
-					providersById, availableAppointments, appointmentTypesById, completedAppointmentBookingScreeningKeys);
+					providersById, availableAppointments, appointmentTypesById);
 			this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
 					appointmentTypesById, completedAppointmentBookingScreeningKeys);
 		}

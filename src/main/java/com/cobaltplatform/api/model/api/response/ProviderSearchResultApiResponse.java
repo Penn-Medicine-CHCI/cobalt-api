@@ -159,7 +159,7 @@ public class ProviderSearchResultApiResponse {
 			this.phoneNumberDescription = formatter.formatPhoneNumber(phoneNumber, provider.getLocale());
 			this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(provider, strings);
 			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(List.of(providerFind), Map.of(provider.getProviderId(), provider),
-					availableAppointments, appointmentTypesById, providerSearchResult.getCompletedAppointmentBookingScreeningKeys());
+					availableAppointments, appointmentTypesById);
 			this.appointmentDescription = appointmentDescriptionFor(providerFind, firstAvailableAppointment, appointmentTypesById);
 			this.firstAvailableAppointment = firstAvailableAppointment == null ? null : new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, provider.getLocale());
 			this.hasMoreAppointments = availableAppointments.size() > 1;
@@ -191,7 +191,7 @@ public class ProviderSearchResultApiResponse {
 			this.phoneNumberDescription = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 			this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerFinds, providersById, strings);
 			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments,
-					appointmentTypesById, providerSearchResult.getCompletedAppointmentBookingScreeningKeys());
+					appointmentTypesById);
 			this.appointmentDescription = firstAvailableAppointment == null || firstAvailableAppointment.getAppointmentType() == null
 					? null
 					: descriptionFor(firstAvailableAppointment.getAppointmentType());
@@ -349,23 +349,13 @@ public class ProviderSearchResultApiResponse {
 
 	@Nonnull
 	protected static ProviderAppointmentSelectionTypeId appointmentSelectionTypeIdFor(@Nonnull List<ProviderFind> providerFinds,
-																																									 @Nonnull Map<UUID, Provider> providersById,
-																																									 @Nonnull List<AvailableAppointment> availableAppointments,
-																																									 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
-		return appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments, appointmentTypesById, Set.of());
-	}
-
-	@Nonnull
-	protected static ProviderAppointmentSelectionTypeId appointmentSelectionTypeIdFor(@Nonnull List<ProviderFind> providerFinds,
-																																									 @Nonnull Map<UUID, Provider> providersById,
-																																									 @Nonnull List<AvailableAppointment> availableAppointments,
-																																									 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																																									 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
+																													 @Nonnull Map<UUID, Provider> providersById,
+																													 @Nonnull List<AvailableAppointment> availableAppointments,
+																													 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(availableAppointments);
 		requireNonNull(appointmentTypesById);
-		requireNonNull(completedAppointmentBookingScreeningKeys);
 
 		if (appointmentByPhoneFor(providerFinds, providersById))
 			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
@@ -384,15 +374,12 @@ public class ProviderSearchResultApiResponse {
 		if (appointmentTypeIds.size() == 0)
 			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
 
-		UUID screeningFlowId = screeningFlowIdForAppointmentTypeAmbiguity(appointmentTypeIds, appointmentTypesById);
-
-		if (screeningFlowId == null)
+		if (!appointmentTypeAmbiguityHasScreeningResolver(appointmentTypeIds, appointmentTypesById))
 			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
 
-		return appointmentTypeAmbiguityResolvedByCompletedScreening(availableAppointments.get(0), screeningFlowId,
-				completedAppointmentBookingScreeningKeys)
-				? ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED
-				: ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED;
+		// A completed shared screening flow does not identify which appointment type the caller selected.
+		// Keep the selection unresolved until the client submits one of the types carried by the slot.
+		return ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED;
 	}
 
 	protected static boolean appointmentTypeAmbiguityHasScreeningResolver(@Nonnull Set<UUID> appointmentTypeIds,
@@ -418,23 +405,6 @@ public class ProviderSearchResultApiResponse {
 		}
 
 		return screeningFlowIds.size() == 1 ? screeningFlowIds.iterator().next() : null;
-	}
-
-	protected static boolean appointmentTypeAmbiguityResolvedByCompletedScreening(@Nonnull AvailableAppointment firstAvailableAppointment,
-																																							 @Nonnull UUID screeningFlowId,
-																																							 @Nonnull Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys) {
-		requireNonNull(firstAvailableAppointment);
-		requireNonNull(screeningFlowId);
-		requireNonNull(completedAppointmentBookingScreeningKeys);
-
-		if (firstAvailableAppointment.getProvider() == null || firstAvailableAppointment.getProvider().getProviderId() == null)
-			return false;
-
-		UUID providerId = firstAvailableAppointment.getProvider().getProviderId();
-
-		return completedAppointmentBookingScreeningKeys.stream()
-				.anyMatch(completedAppointmentBookingScreeningKey -> providerId.equals(completedAppointmentBookingScreeningKey.getProviderId())
-						&& screeningFlowId.equals(completedAppointmentBookingScreeningKey.getScreeningFlowId()));
 	}
 
 	protected static boolean appointmentByPhoneFor(@Nonnull List<ProviderFind> providerFinds,

@@ -9,6 +9,23 @@ SELECT _v.register_patch('259-provider-booking-database', NULL, NULL);
 -- default behavior until an institution explicitly opts in.
 ALTER TABLE institution ADD COLUMN IF NOT EXISTS booking_v2_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Integrated Care uses its own appointment workflow and must remain on booking
+-- v1. Enforce that invariant in both directions so neither flag can be enabled
+-- while the other is already active.
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1
+		FROM pg_constraint
+		WHERE conrelid='institution'::REGCLASS
+		AND conname='institution_booking_v2_not_integrated_care_check'
+	) THEN
+		ALTER TABLE institution
+		ADD CONSTRAINT institution_booking_v2_not_integrated_care_check
+		CHECK (NOT (integrated_care_enabled AND booking_v2_enabled));
+	END IF;
+END $$;
+
 -- Existing databases may already have the data-sync foreign table/view from
 -- earlier patches. Keep those objects aligned with the new institution column,
 -- but make this a no-op for environments that do not use the FDW setup.
@@ -182,11 +199,21 @@ END $$;
 ALTER TABLE appointment ADD COLUMN IF NOT EXISTS first_name TEXT NULL;
 ALTER TABLE appointment ADD COLUMN IF NOT EXISTS last_name TEXT NULL;
 ALTER TABLE appointment ADD COLUMN IF NOT EXISTS email_address TEXT NULL;
+ALTER TABLE appointment ADD COLUMN IF NOT EXISTS contact_phone_number TEXT NULL;
+
+-- HTTP appointment creation is transaction-wrapped and also takes an advisory
+-- transaction lock to fail fast under contention. This partial unique index is
+-- the final database-level guard against two active native appointments being
+-- created for the same provider and start time.
+CREATE UNIQUE INDEX IF NOT EXISTS appointment_native_active_provider_start_time_idx
+ON appointment(provider_id, start_time)
+WHERE canceled=FALSE AND scheduling_system_id='COBALT';
 
 UPDATE appointment app
-SET first_name=a.first_name,
-	last_name=a.last_name,
-	email_address=COALESCE(app.email_address, a.email_address)
+SET first_name=COALESCE(app.first_name, a.first_name),
+	last_name=COALESCE(app.last_name, a.last_name),
+	email_address=COALESCE(app.email_address, a.email_address),
+	contact_phone_number=COALESCE(app.contact_phone_number, a.phone_number)
 FROM account a
 WHERE a.account_id=app.account_id;
 
@@ -256,6 +283,19 @@ BEGIN
 		WHERE ata.active=TRUE
 		AND COALESCE(app_type.deleted, FALSE)=FALSE
 		AND app_type.screening_flow_id IS NULL
+		-- Integrated Care remains on booking v1. Exclude an appointment type
+		-- when any provider offering it belongs to an IC institution, including
+		-- appointment types shared between IC and non-IC institutions.
+		AND NOT EXISTS (
+			SELECT 1
+			FROM provider_appointment_type assessed_pat
+			JOIN provider assessed_provider
+				ON assessed_provider.provider_id=assessed_pat.provider_id
+			JOIN institution assessed_institution
+				ON assessed_institution.institution_id=assessed_provider.institution_id
+			WHERE assessed_pat.appointment_type_id=ata.appointment_type_id
+			AND assessed_institution.integrated_care_enabled=TRUE
+		)
 		ORDER BY app_type.name, ata.appointment_type_id
 	LOOP
 		-- A generated provider intake flow belongs to the single institution that
@@ -512,18 +552,17 @@ output.integratedCareTriages = [];
 $results$;
 
 		v_destination_function := FORMAT($destination$
-const minimumEligibilityScore = %s;
 const ineligibleMessage = %s;
 const screeningSessionScreening = (input.screeningSessionScreenings || [])[0];
-const overallScore = screeningSessionScreening && screeningSessionScreening.scoreAsObject
-  ? Number(screeningSessionScreening.scoreAsObject.overallScore || 0)
-  : 0;
+const belowScoringThreshold = screeningSessionScreening
+  ? Boolean(screeningSessionScreening.belowScoringThreshold)
+  : true;
 
 output.screeningSessionDestinationId = null;
 output.context = {};
 
 if (input.screeningSession.completed) {
-  const eligible = overallScore >= minimumEligibilityScore;
+  const eligible = !belowScoringThreshold;
 
   output.screeningSessionDestinationId = 'APPOINTMENT_BOOKING_CONFIRMATION';
   output.context.result = eligible ? 'SUCCESS' : 'FAILURE';
@@ -533,7 +572,6 @@ if (input.screeningSession.completed) {
   }
 }
 $destination$,
-			v_appointment_assessment.minimum_eligibility_score,
 			COALESCE(TO_JSON(v_appointment_assessment.ineligible_message)::TEXT, 'null'));
 
 		-- Create the screening shell, version, institution link, questions, and

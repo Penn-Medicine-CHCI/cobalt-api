@@ -149,10 +149,24 @@ public class InstitutionService {
 			return false;
 
 		return getDatabase().queryForObject("""
-				SELECT booking_v2_enabled
+				SELECT booking_v2_enabled, integrated_care_enabled
 				FROM institution
 				WHERE institution_id=?
-				""", Boolean.class, institutionId).orElse(false);
+				""", Institution.class, institutionId)
+				.map(this::isBookingV2Enabled)
+				.orElse(false);
+	}
+
+	@Nonnull
+	public Boolean isBookingV2Enabled(@Nullable Institution institution) {
+		if (institution == null)
+			return false;
+
+		// Integrated Care currently relies on the legacy patient-order booking flow.
+		// Treat V2 as disabled even if the stored flag is accidentally enabled so all
+		// API behavior and responses fail safe while the two experiences coexist.
+		return Boolean.TRUE.equals(institution.getBookingV2Enabled())
+				&& !Boolean.TRUE.equals(institution.getIntegratedCareEnabled());
 	}
 
 	@Nonnull
@@ -488,7 +502,7 @@ public class InstitutionService {
 				"AND ss.screening_session_id = ? " +
 				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeatureForInstitution.class, screeningSessionId, institution.getInstitutionId());
 
-		boolean bookingV2Enabled = Boolean.TRUE.equals(institution.getBookingV2Enabled());
+		boolean bookingV2Enabled = isBookingV2Enabled(institution);
 
 		features.forEach(feature -> {
 			List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());

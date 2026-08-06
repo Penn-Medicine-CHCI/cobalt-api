@@ -477,7 +477,7 @@ public class ProviderSearchResultApiResponseTests {
 		assertEquals(false, unsatisfiedResponse.getScreeningRequirement().getScreeningSatisfied());
 
 		assertNotNull(satisfiedResponse.getScreeningRequirement());
-		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, satisfiedResponse.getAppointmentSelectionTypeId());
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED, satisfiedResponse.getAppointmentSelectionTypeId());
 		assertNotNull(satisfiedResponse.getFirstAvailableAppointment());
 		assertNull(satisfiedResponse.getFirstAvailableAppointment().getAppointmentTypeId());
 		assertEquals(Set.of(appointmentTypeId, otherAppointmentTypeId),
@@ -540,7 +540,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
 
-		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED, response.getAppointmentSelectionTypeId());
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED, response.getAppointmentSelectionTypeId());
 		assertNotNull(response.getFirstAvailableAppointment());
 		assertNull(response.getFirstAvailableAppointment().getAppointmentTypeId());
 		assertEquals(Set.of(appointmentTypeId, otherAppointmentTypeId),

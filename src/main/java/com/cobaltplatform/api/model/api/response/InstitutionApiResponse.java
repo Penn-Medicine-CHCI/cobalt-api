@@ -334,7 +334,7 @@ public class InstitutionApiResponse {
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
 		this.featuresEnabled = institution.getFeaturesEnabled();
-		this.bookingV2Enabled = Boolean.TRUE.equals(institution.getBookingV2Enabled());
+		this.bookingV2Enabled = institutionService.isBookingV2Enabled(institution);
 		this.recommendedContentEnabled = institution.getRecommendedContentEnabled();
 		this.userSubmittedContentEnabled = institution.getUserSubmittedContentEnabled();
 		this.userSubmittedGroupSessionEnabled = institution.getUserSubmittedGroupSessionEnabled();

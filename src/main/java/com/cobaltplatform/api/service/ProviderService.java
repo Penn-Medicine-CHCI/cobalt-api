@@ -920,15 +920,24 @@ public class ProviderService {
 
 		// If provider ID is specified or clinic IDs are specified, ignore the rest of the filters
 		if (providerId != null) {
-			providers = getDatabase().queryForList("SELECT * FROM provider WHERE provider_id=?", Provider.class, providerId);
+			providers = getDatabase().queryForList("""
+					SELECT *
+					FROM provider
+					WHERE provider_id=?
+					AND institution_id=?
+					AND active=TRUE
+					""", Provider.class, providerId, institutionId);
 		} else if (clinicIds.size() > 0) {
 			// For now - clinics also trump other filter types
 			List<Object> parameters = new ArrayList<>();
+			parameters.add(institutionId);
 			parameters.addAll(clinicIds);
 
 			providers = getDatabase().queryForList(format("""
 						SELECT DISTINCT p.* FROM provider p, provider_clinic pc
 						WHERE p.provider_id=pc.provider_id
+						AND p.institution_id=?
+						AND p.active=TRUE
 						AND pc.clinic_id IN %s
 						ORDER BY p.name  
 					""", sqlInListPlaceholders(clinicIds)), Provider.class, parameters.toArray(new Object[]{}));

@@ -126,6 +126,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -161,6 +162,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class ProviderResource {
 	@Nonnull
 	protected static final String ALL_INSTITUTION_LOCATIONS_ID = "na";
+	protected static final long MAX_PROVIDER_FIND_RANGE_IN_DAYS = 90L;
 	@Nonnull
 	private final AssessmentService assessmentService;
 	@Nonnull
@@ -422,11 +424,10 @@ public class ProviderResource {
 		Locale locale = getCurrentContext().getLocale();
 		Institution institution = getInstitutionService().findInstitutionById(account.getInstitutionId()).get();
 		boolean bookingV2Enabled = getInstitutionService().isBookingV2Enabled(institution.getInstitutionId());
-		final int DEFAULT_NUMBER_OF_DAYS_TO_SEARCH = 90;
-
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
 		request.setInstitutionId(institution.getInstitutionId());
 		request.setIncludePastAvailability(false);
+		normalizeAndValidateProviderFindDateRange(request, account.getTimeZone());
 
 		// Prevent non-IC institutions from specifying order information
 		if (!institution.getIntegratedCareEnabled())
@@ -438,9 +439,6 @@ public class ProviderResource {
 
 		if (patientOrderId != null)
 			connectWithSupportDescriptionOverride = getPatientOrderService().findConnectWithSupportDescriptionOverrideForPatientOrderId(patientOrderId).orElse(null);
-
-		if (request.getStartDate() != null && request.getEndDate() == null)
-			request.setEndDate(request.getStartDate().plusDays(DEFAULT_NUMBER_OF_DAYS_TO_SEARCH));
 
 		Set<UUID> providerIds = new HashSet<>();
 		Set<ProviderFindSupplement> supplements = request.getSupplements() == null ? Collections.emptySet() : request.getSupplements();
@@ -539,8 +537,8 @@ public class ProviderResource {
 		// 4. Insert empty lists for each missing date to fill in "holes" where there are no
 		// results for that date (UI prefers to show "no providers available for this date" kind of message in that scenario)
 		if (institution.getFeaturesEnabled()) {
-			LocalDate startDate = request.getStartDate() == null ? LocalDate.now(account.getTimeZone()) : request.getStartDate();
-			LocalDate endDate = request.getEndDate() == null ? startDate.plusDays(DEFAULT_NUMBER_OF_DAYS_TO_SEARCH) : request.getEndDate();
+			LocalDate startDate = request.getStartDate();
+			LocalDate endDate = request.getEndDate();
 
 			for (LocalDate currentDate = startDate;
 					 currentDate.isBefore(endDate) || currentDate.isEqual(endDate);
@@ -737,6 +735,16 @@ public class ProviderResource {
 		// If appointments are specified and requestor has permission, pull them too
 		List<Appointment> appointments = new ArrayList<>();
 		boolean includeAppointments = supplements.contains(ProviderFindSupplement.APPOINTMENTS);
+		boolean includeFollowups = supplements.contains(ProviderFindSupplement.FOLLOWUPS);
+
+		if (includeAppointments || includeFollowups) {
+			for (UUID providerId : providerIds) {
+				Provider appointmentProvider = getProviderService().findProviderById(providerId).orElse(null);
+
+				if (appointmentProvider == null || !getAuthorizationService().canViewProviderCalendar(appointmentProvider, account))
+					throw new AuthorizationException();
+			}
+		}
 
 		if (includeAppointments) {
 			for (UUID providerId : providerIds) {
@@ -753,8 +761,6 @@ public class ProviderResource {
 
 		// If followups are specified and requestor has permission, pull them too
 		List<Followup> followups = new ArrayList<>();
-		boolean includeFollowups = supplements.contains(ProviderFindSupplement.FOLLOWUPS);
-
 		if (includeFollowups) {
 			for (UUID providerId : providerIds) {
 				List<Followup> providerFollowups = getFollowupService().findFollowupsByProviderId(providerId, request.getStartDate(), request.getEndDate());
@@ -912,7 +918,8 @@ public class ProviderResource {
 
 			if (includeAppointments)
 				put("appointments", sortedAppointments.stream()
-						.map(appointment -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.ACCOUNT, AppointmentApiResponseSupplement.APPOINTMENT_REASON)))
+						.map(appointment -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.ACCOUNT,
+								AppointmentApiResponseSupplement.APPOINTMENT_REASON, AppointmentApiResponseSupplement.PRIVATE_DETAILS)))
 						.collect(Collectors.toList()));
 
 			if (includeFollowups)
@@ -920,6 +927,26 @@ public class ProviderResource {
 						.map(followup -> getFollowupApiResponseFactory().create(followup, Set.of(FollowupApiResponseSupplement.ALL)))
 						.collect(Collectors.toList()));
 		}});
+	}
+
+	protected static void normalizeAndValidateProviderFindDateRange(@Nonnull ProviderFindRequest request,
+																																 @Nonnull ZoneId timeZone) {
+		requireNonNull(request);
+		requireNonNull(timeZone);
+
+		LocalDate startDate = request.getStartDate() == null ? LocalDate.now(timeZone) : request.getStartDate();
+		LocalDate endDate = request.getEndDate() == null ? startDate.plusDays(MAX_PROVIDER_FIND_RANGE_IN_DAYS) : request.getEndDate();
+
+		if (startDate.isAfter(endDate))
+			throw new ValidationException(new ValidationException.FieldError("startDate",
+					"Start date cannot be after end date."));
+
+		if (ChronoUnit.DAYS.between(startDate, endDate) > MAX_PROVIDER_FIND_RANGE_IN_DAYS)
+			throw new ValidationException(new ValidationException.FieldError("endDate",
+					"Provider availability date range cannot exceed 90 days."));
+
+		request.setStartDate(startDate);
+		request.setEndDate(endDate);
 	}
 
 	protected static class ProviderFindSection {

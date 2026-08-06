@@ -74,6 +74,10 @@ public class AppointmentApiResponse {
 	@Nullable
 	private final String emailAddress;
 	@Nullable
+	private final String contactPhoneNumber;
+	@Nullable
+	private final String contactPhoneNumberDescription;
+	@Nullable
 	private final UUID appointmentTypeId;
 	@Nullable
 	private final UUID intakeAssessmentId;
@@ -155,6 +159,7 @@ public class AppointmentApiResponse {
 		ACCOUNT,
 		APPOINTMENT_REASON,
 		APPOINTMENT_TYPE,
+		PRIVATE_DETAILS,
 
 		ALL // Special status
 	}
@@ -207,14 +212,19 @@ public class AppointmentApiResponse {
 		if(supplements == null)
 			supplements = Collections.emptySet();
 
+		boolean showPrivateDetails = supplements.contains(AppointmentApiResponseSupplement.ALL)
+				|| supplements.contains(AppointmentApiResponseSupplement.PRIVATE_DETAILS);
+
 		this.appointmentId = appointment.getAppointmentId();
 		this.accountId = appointment.getAccountId();
 		this.appointmentReasonId = appointment.getAppointmentReasonId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
 		this.createdByAccountId = appointment.getCreatedByAccountId();
-		this.firstName = appointment.getFirstName();
-		this.lastName = appointment.getLastName();
-		this.emailAddress = appointment.getEmailAddress();
+		this.firstName = showPrivateDetails ? appointment.getFirstName() : null;
+		this.lastName = showPrivateDetails ? appointment.getLastName() : null;
+		this.emailAddress = showPrivateDetails ? appointment.getEmailAddress() : null;
+		this.contactPhoneNumber = showPrivateDetails ? appointment.getContactPhoneNumber() : null;
+		this.contactPhoneNumberDescription = this.contactPhoneNumber == null ? null : formatter.formatPhoneNumber(this.contactPhoneNumber);
 		this.acuityAppointmentId = appointment.getAcuityAppointmentId();
 		this.intakeAssessmentId = appointment.getIntakeAssessmentId();
 		this.patientOrderId = appointment.getPatientOrderId();
@@ -255,8 +265,8 @@ public class AppointmentApiResponse {
 		else
 			this.provider = null;
 
-		this.phoneNumber = appointment.getPhoneNumber();
-		this.phoneNumberDescription = appointment.getPhoneNumber() == null ? null : formatter.formatPhoneNumber(appointment.getPhoneNumber());
+		this.phoneNumber = showPrivateDetails ? appointment.getPhoneNumber() : null;
+		this.phoneNumberDescription = this.phoneNumber == null ? null : formatter.formatPhoneNumber(this.phoneNumber);
 
 		if (supplements.contains(AppointmentApiResponseSupplement.ALL) || supplements.contains(AppointmentApiResponseSupplement.ACCOUNT))
 			this.account = accountApiResponseFactory.create(accountService.findAccountById(appointment.getAccountId()).get());
@@ -314,6 +324,16 @@ public class AppointmentApiResponse {
 	@Nullable
 	public String getEmailAddress() {
 		return this.emailAddress;
+	}
+
+	@Nullable
+	public String getContactPhoneNumber() {
+		return this.contactPhoneNumber;
+	}
+
+	@Nullable
+	public String getContactPhoneNumberDescription() {
+		return this.contactPhoneNumberDescription;
 	}
 
 	@Nonnull

@@ -79,6 +79,41 @@ public class InstitutionServiceTests {
 			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
 
 			Assert.assertEquals(Boolean.TRUE, institution.getBookingV2Enabled());
+			Assert.assertTrue(institutionService.isBookingV2Enabled(InstitutionId.COBALT));
+		});
+	}
+
+	@Test
+	public void bookingV2IsEffectivelyDisabledForIntegratedCareWhenStoredFlagIsEnabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+			institution.setBookingV2Enabled(true);
+			institution.setIntegratedCareEnabled(true);
+
+			Assert.assertEquals(Boolean.TRUE, institution.getBookingV2Enabled());
+			Assert.assertEquals(Boolean.TRUE, institution.getIntegratedCareEnabled());
+			Assert.assertFalse(institutionService.isBookingV2Enabled(institution));
+		});
+	}
+
+	@Test
+	public void featuresKeepLegacyUrlsForIntegratedCareWhenStoredBookingV2FlagIsEnabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+
+			ensureFeatureSupportRole(database, FeatureId.THERAPY, SupportRoleId.CLINICIAN);
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+			institution.setBookingV2Enabled(true);
+			institution.setIntegratedCareEnabled(true);
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Map<FeatureId, FeatureForInstitution> featuresByFeatureId = featuresByFeatureId(
+					institutionService.findFeaturesByInstitutionId(institution, account));
+
+			Assert.assertEquals("/connect-with-support/therapy",
+					featuresByFeatureId.get(FeatureId.THERAPY).getUrlName());
 		});
 	}
 

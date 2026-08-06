@@ -22,18 +22,23 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.soklet.web.exception.NotFoundException;
+import com.soklet.web.exception.AuthorizationException;
 import org.junit.Test;
 
 import java.time.ZoneId;
 import java.util.Locale;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -86,30 +91,43 @@ public class AppointmentResourceTests {
 	}
 
 	@Test
-	public void createAppointmentRejectsMissingContactFields() {
-		assertCreateAppointmentContactValidation("{}", new FieldError("firstName", "First name is required."),
-				new FieldError("lastName", "Last name is required."),
-				new FieldError("emailAddress", "Email address is required."),
-				new FieldError("phoneNumber", "Phone number is required."));
+	public void createAppointmentUsesAccountContactFieldsWhenRequestFieldsAreMissing() {
+		assertCreateAppointmentUsesAccountContactFallback("{}");
 	}
 
 	@Test
-	public void createAppointmentRejectsBlankContactFields() {
-		assertCreateAppointmentContactValidation("""
+	public void createAppointmentUsesAccountContactFieldsWhenRequestFieldsAreBlank() {
+		assertCreateAppointmentUsesAccountContactFallback("""
 					{
 					  "firstName": "   ",
 					  "lastName": "   ",
 					  "emailAddress": "   ",
 					  "phoneNumber": "   "
 					}
-					""", new FieldError("firstName", "First name is required."),
-				new FieldError("lastName", "Last name is required."),
-				new FieldError("emailAddress", "Email address is required."),
-				new FieldError("phoneNumber", "Phone number is required."));
+					""");
 	}
 
-	protected void assertCreateAppointmentContactValidation(String requestBody,
-																												 FieldError... expectedFieldErrors) {
+	@Test(expected = AuthorizationException.class)
+	public void createAppointmentRejectsCrossInstitutionOnBehalfBooking() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentResource appointmentResource = app.getInjector().getInstance(AppointmentResource.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Account currentAccount = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			UUID targetAccountId = accountService.createAccount(new CreateAccountRequest() {{
+				setAccountSourceId(AccountSourceId.ANONYMOUS);
+				setInstitutionId(InstitutionId.COBALT_IC);
+				setRoleId(RoleId.PATIENT);
+				setEmailAddress("cross-institution-booking-" + UUID.randomUUID() + "@example.com");
+			}});
+
+			currentContextExecutor.execute(new CurrentContext.Builder(currentAccount, Locale.US,
+					ZoneId.of("America/New_York")).build(), () -> appointmentResource.createAppointment(
+					"{\"accountId\":\"" + targetAccountId + "\"}"));
+		});
+	}
+
+	protected void assertCreateAppointmentUsesAccountContactFallback(String requestBody) {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AppointmentResource appointmentResource = app.getInjector().getInstance(AppointmentResource.class);
 			Account account = app.getInjector().getInstance(AccountService.class)
@@ -118,17 +136,25 @@ public class AppointmentResourceTests {
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
 
 			setBookingV2Enabled(database, true);
+			database.execute("""
+					UPDATE account
+					SET first_name='Resource',
+					    last_name='Fallback',
+					    email_address='resource-fallback@example.com',
+					    phone_number='+12155550123'
+					WHERE account_id=?
+					""", account.getAccountId());
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
 				try {
 					appointmentResource.createAppointment(requestBody);
 					fail("Expected appointment creation to fail validation.");
 				} catch (ValidationException e) {
-					assertEquals(0, e.getGlobalErrors().size());
-					assertEquals(expectedFieldErrors.length, e.getFieldErrors().size());
-
-					for (FieldError expectedFieldError : expectedFieldErrors)
-						assertTrue(e.getFieldErrors().contains(expectedFieldError));
+					assertTrue(e.getFieldErrors().stream().noneMatch(fieldError ->
+							"firstName".equals(fieldError.getField())
+									|| "lastName".equals(fieldError.getField())
+									|| "emailAddress".equals(fieldError.getField())
+									|| "phoneNumber".equals(fieldError.getField())));
 				}
 			});
 		});

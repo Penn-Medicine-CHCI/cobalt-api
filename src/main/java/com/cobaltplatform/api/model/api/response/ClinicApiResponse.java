@@ -271,7 +271,7 @@ public class ClinicApiResponse {
 			AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
 
 			this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds, providersById,
-					availableAppointments, appointmentTypesById, completedAppointmentBookingScreeningKeys);
+					availableAppointments, appointmentTypesById);
 			this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
 					appointmentTypesById, completedAppointmentBookingScreeningKeys);
 		}

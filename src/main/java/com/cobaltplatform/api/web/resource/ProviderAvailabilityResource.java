@@ -61,6 +61,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -84,6 +85,8 @@ import static java.util.Objects.requireNonNull;
 public class ProviderAvailabilityResource {
 	@Nonnull
 	protected static final Long DEFAULT_AVAILABILITY_RANGE_IN_DAYS = 90L;
+	@Nonnull
+	protected static final Long MAX_AVAILABILITY_RANGE_IN_DAYS = 90L;
 	@Nonnull
 	private final ProviderService providerService;
 	@Nonnull
@@ -395,6 +398,10 @@ public class ProviderAvailabilityResource {
 		if (resolvedStartDate.isAfter(resolvedEndDate))
 			throw new ValidationException(new ValidationException.FieldError("startDate",
 					"Start date cannot be after end date."));
+
+		if (ChronoUnit.DAYS.between(resolvedStartDate, resolvedEndDate) > MAX_AVAILABILITY_RANGE_IN_DAYS)
+			throw new ValidationException(new ValidationException.FieldError("endDate",
+					"Availability date range cannot exceed 90 days."));
 
 		return new AvailabilityDateRange(resolvedStartDate, resolvedEndDate);
 	}

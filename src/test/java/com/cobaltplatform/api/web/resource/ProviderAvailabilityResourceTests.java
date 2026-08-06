@@ -122,6 +122,13 @@ public class ProviderAvailabilityResourceTests {
 				Optional.of(LocalDate.of(2026, 1, 1)), ZoneId.of("America/New_York"));
 	}
 
+	@Test(expected = ValidationException.class)
+	public void availabilityDateRangeRejectsRangeLongerThanNinetyDays() {
+		LocalDate startDate = LocalDate.of(2026, 1, 1);
+		ProviderAvailabilityResource.availabilityDateRangeFor(Optional.of(startDate),
+				Optional.of(startDate.plusDays(91)), ZoneId.of("America/New_York"));
+	}
+
 	@Test
 	public void providerSupportRolesMatchFeature() {
 		assertTrue(ProviderAvailabilityResource.providerSupportRolesMatchFeature(List.of(SupportRoleId.CLINICIAN),

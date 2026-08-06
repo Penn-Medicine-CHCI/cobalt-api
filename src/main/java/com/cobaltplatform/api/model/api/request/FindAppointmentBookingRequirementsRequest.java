@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -40,6 +41,8 @@ public class FindAppointmentBookingRequirementsRequest {
 	private UUID appointmentTypeId;
 	@Nullable
 	private ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
+	@Nullable
+	private ProviderAppointmentModalityId appointmentModalityId;
 	@Nullable
 	private LocalDate date;
 	@Nullable
@@ -83,6 +86,15 @@ public class FindAppointmentBookingRequirementsRequest {
 
 	public void setAppointmentSelectionTypeId(@Nullable ProviderAppointmentSelectionTypeId appointmentSelectionTypeId) {
 		this.appointmentSelectionTypeId = appointmentSelectionTypeId;
+	}
+
+	@Nullable
+	public ProviderAppointmentModalityId getAppointmentModalityId() {
+		return this.appointmentModalityId;
+	}
+
+	public void setAppointmentModalityId(@Nullable ProviderAppointmentModalityId appointmentModalityId) {
+		this.appointmentModalityId = appointmentModalityId;
 	}
 
 	@Nullable

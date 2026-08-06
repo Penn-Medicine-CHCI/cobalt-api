@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentTypeRequest;
 import com.cobaltplatform.api.model.api.request.CreateLogicalAvailabilityRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
+import com.cobaltplatform.api.model.api.request.ProviderFindRequest;
 import com.cobaltplatform.api.model.api.response.ClinicApiResponse;
 import com.cobaltplatform.api.model.api.response.LocationApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse;
@@ -79,6 +80,43 @@ import static org.junit.Assert.assertTrue;
  * @author Transmogrify, LLC.
  */
 public class ProviderResourceTests {
+	@Test
+	public void providerFindDateRangeDefaultsToNinetyDays() {
+		ProviderFindRequest request = new ProviderFindRequest();
+		LocalDate startDate = LocalDate.of(2026, 8, 5);
+		request.setStartDate(startDate);
+
+		ProviderResource.normalizeAndValidateProviderFindDateRange(request, ZoneId.of("America/New_York"));
+
+		assertEquals(startDate, request.getStartDate());
+		assertEquals(startDate.plusDays(90), request.getEndDate());
+	}
+
+	@Test
+	public void providerFindDateRangeRejectsReversedAndOverlongRanges() {
+		ProviderFindRequest reversedRequest = new ProviderFindRequest();
+		reversedRequest.setStartDate(LocalDate.of(2026, 8, 6));
+		reversedRequest.setEndDate(LocalDate.of(2026, 8, 5));
+
+		try {
+			ProviderResource.normalizeAndValidateProviderFindDateRange(reversedRequest, ZoneId.of("America/New_York"));
+			throw new AssertionError("Expected reversed date range to be rejected.");
+		} catch (ValidationException e) {
+			assertTrue(e.getFieldErrors().stream().anyMatch(fieldError -> "startDate".equals(fieldError.getField())));
+		}
+
+		ProviderFindRequest overlongRequest = new ProviderFindRequest();
+		overlongRequest.setStartDate(LocalDate.of(2026, 8, 5));
+		overlongRequest.setEndDate(LocalDate.of(2026, 11, 4));
+
+		try {
+			ProviderResource.normalizeAndValidateProviderFindDateRange(overlongRequest, ZoneId.of("America/New_York"));
+			throw new AssertionError("Expected overlong date range to be rejected.");
+		} catch (ValidationException e) {
+			assertTrue(e.getFieldErrors().stream().anyMatch(fieldError -> "endDate".equals(fieldError.getField())));
+		}
+	}
+
 	@Test
 	public void clinicReturnsClinicForCurrentInstitution() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
@@ -835,6 +873,16 @@ public class ProviderResourceTests {
 		assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
 				appointmentBookingRequirements.getAppointmentBookingRequirementsDestinationId());
 		assertNotNull(appointmentBookingRequirements.getScreeningSession());
+		database.execute("""
+				UPDATE screening_flow_version sfv
+				SET destination_function=?
+				FROM screening_session ss
+				WHERE ss.screening_session_id=?
+				AND ss.screening_flow_version_id=sfv.screening_flow_version_id
+				""", """
+				output.screeningSessionDestinationId = 'APPOINTMENT_BOOKING_CONFIRMATION';
+				output.context = { result: 'SUCCESS' };
+				""", appointmentBookingRequirements.getScreeningSession().getScreeningSessionId());
 
 		database.execute("""
 				UPDATE screening_session

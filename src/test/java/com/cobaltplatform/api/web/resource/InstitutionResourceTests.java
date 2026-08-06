@@ -22,10 +22,14 @@ package com.cobaltplatform.api.web.resource;
 import com.cobaltplatform.api.IntegrationTestExecutor;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
+import com.cobaltplatform.api.model.api.response.InstitutionApiResponse;
+import com.cobaltplatform.api.model.api.response.InstitutionApiResponse.InstitutionApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.InstitutionLocationApiResponse;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.AccountService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.soklet.web.exception.AuthorizationException;
@@ -44,6 +48,26 @@ import static org.junit.Assert.assertEquals;
  * @author Transmogrify, LLC.
  */
 public class InstitutionResourceTests {
+	@Test
+	public void getInstitutionHidesBookingV2ForIntegratedCareWhenStoredFlagIsEnabled() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionApiResponseFactory institutionApiResponseFactory = app.getInjector()
+					.getInstance(InstitutionApiResponseFactory.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Account account = app.getInjector().getInstance(AccountService.class)
+					.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+			institution.setIntegratedCareEnabled(true);
+			institution.setBookingV2Enabled(true);
+			CurrentContext currentContext = new CurrentContext.Builder(account, Locale.US,
+					ZoneId.of("America/New_York")).build();
+
+			InstitutionApiResponse response = institutionApiResponseFactory.create(institution, currentContext);
+
+			assertEquals(Boolean.FALSE, response.getBookingV2Enabled());
+		});
+	}
+
 	@Test
 	public void getLocationReturnsLocationForCurrentInstitution() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
@@ -133,7 +157,7 @@ public class InstitutionResourceTests {
 	}
 
 	private static void setBookingV2Enabled(Database database,
-																					boolean enabled) {
+																	boolean enabled) {
 		database.execute("UPDATE institution SET booking_v2_enabled=? WHERE institution_id=?", enabled, InstitutionId.COBALT);
 	}
 }

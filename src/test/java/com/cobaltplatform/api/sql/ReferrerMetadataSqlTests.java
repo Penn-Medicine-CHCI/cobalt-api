@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -34,15 +35,43 @@ import static org.junit.Assert.assertTrue;
  */
 public class ReferrerMetadataSqlTests {
 	@Test
-	public void resultScreenBookingPathMigrationsWriteAppointmentTypeIdAndPath() throws IOException {
-		assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(
-				readSql("sql/updates/260-cobalt-provider-booking-configuration.sql"));
+	public void cobaltProviderBookingConfigurationIsTenantScopedAndStaysDark() throws IOException {
+		String initialSql = readSql("sql/initial/000-base-creates.sql");
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+		String configurationSql = readSql("sql/updates/259-cobalt-provider-booking-configuration.sql");
+		String fixtureSql = readSql("sql/updates/259-local-only-provider-booking-seed.sql");
+
+		assertTrue(initialSql.contains("booking_v2_enabled bool NOT NULL DEFAULT false"));
+		assertTrue(functionalSql.contains("booking_v2_enabled BOOLEAN NOT NULL DEFAULT FALSE"));
+		assertFalse(functionalSql.contains("SET booking_v2_enabled=TRUE"));
+		assertFalse(configurationSql.contains("SET booking_v2_enabled=TRUE"));
+		assertEquals(5, countOccurrences(configurationSql, "\nUPDATE "));
+		assertTrue(configurationSql.contains("WHERE provider.institution_id='COBALT'"));
+		assertEquals(2, countOccurrences(configurationSql, "AND sf.institution_id='COBALT'"));
+		assertTrue(configurationSql.contains("WHERE institution_id='COBALT'"));
+		assertTrue(configurationSql.contains("UPDATE institution_referrer"));
+		assertTrue(configurationSql.contains("AND ir.from_institution_id='COBALT'"));
+		assertTrue(configurationSql.contains("'{booking,v2Path}'"));
+		assertFalse(configurationSql.contains("'{booking,path}'"));
+		assertTrue(fixtureSql.contains("SET booking_v2_enabled=TRUE"));
+		assertTrue(fixtureSql.contains("WHERE institution_id='COBALT'"));
+	}
+
+	@Test
+	public void providerBookingDatabaseEnforcesIntegratedCareIsolation() throws IOException {
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+
+		assertTrue(functionalSql.contains("institution_booking_v2_not_integrated_care_check"));
+		assertTrue(functionalSql.contains("CHECK (NOT (integrated_care_enabled AND booking_v2_enabled))"));
+		assertTrue(functionalSql.contains("AND NOT EXISTS ("));
+		assertTrue(functionalSql.contains("assessed_pat.appointment_type_id=ata.appointment_type_id"));
+		assertTrue(functionalSql.contains("assessed_institution.integrated_care_enabled=TRUE"));
 	}
 
 	@Test
 	public void providerClinicDetailsHtmlSchemaAndFixtureContentAreSeparated() throws IOException {
 		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
-		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
+		String fixtureSql = readSql("sql/updates/259-local-only-provider-booking-seed.sql");
 
 		assertTrue(functionalSql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS details_html TEXT"));
 		assertTrue(functionalSql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS details_html TEXT"));
@@ -60,7 +89,7 @@ public class ReferrerMetadataSqlTests {
 	@Test
 	public void providerSearchFeatureSupportRolesAreDeployable() throws IOException {
 		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
-		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
+		String fixtureSql = readSql("sql/updates/259-local-only-provider-booking-seed.sql");
 
 		assertTrue(functionalSql.contains("INSERT INTO feature_support_role"));
 		assertTrue(functionalSql.contains("'MEDICATION_PRESCRIBER', 'PSYCHIATRIST'"));
@@ -72,7 +101,7 @@ public class ReferrerMetadataSqlTests {
 	@Test
 	public void providerClinicLocationSchemaAndFixtureContentAreSeparated() throws IOException {
 		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
-		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
+		String fixtureSql = readSql("sql/updates/259-local-only-provider-booking-seed.sql");
 
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS provider_location"));
 		assertTrue(functionalSql.contains("CREATE TABLE IF NOT EXISTS clinic_location"));
@@ -89,7 +118,7 @@ public class ReferrerMetadataSqlTests {
 	@Test
 	public void providerClinicLocationContactCleanupDropsAccidentalColumns() throws IOException {
 		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
-		String fixtureSql = readSql("sql/updates/260-local-only-provider-booking-seed.sql");
+		String fixtureSql = readSql("sql/updates/259-local-only-provider-booking-seed.sql");
 
 		assertTrue(functionalSql.contains("ALTER TABLE provider ADD COLUMN IF NOT EXISTS website_url TEXT"));
 		assertTrue(functionalSql.contains("ALTER TABLE clinic ADD COLUMN IF NOT EXISTS email_address TEXT"));
@@ -103,15 +132,39 @@ public class ReferrerMetadataSqlTests {
 		assertTrue(functionalSql.contains("ALTER TABLE institution_location DROP COLUMN IF EXISTS address_id"));
 		assertTrue(fixtureSql.contains("'250-autism-clinic-referrer'"));
 		assertTrue(fixtureSql.contains("'259-provider-booking-database'"));
-		assertTrue(fixtureSql.contains("'260-cobalt-provider-booking-configuration'"));
+		assertTrue(fixtureSql.contains("'259-cobalt-provider-booking-configuration'"));
 		assertFalse(fixtureSql.contains("257-provider-booking-contact-" + "ownership-cleanup"));
 	}
 
-	protected void assertResultScreenBookingMigrationWritesAppointmentTypeIdAndPath(String sql) {
-		assertTrue(sql.contains("'{booking,path}'"));
-		assertTrue(sql.contains("appointmentTypeId=%s&institutionLocationId=%s&featureId=%s"));
-		assertTrue(sql.contains("'{booking,appointmentTypeId}'"));
-		assertTrue(sql.contains("TO_JSONB(booking_route.appointment_type_id)"));
+	@Test
+	public void appointmentBookingDestinationUsesTerminalScoringOutcome() throws IOException {
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+
+		assertTrue(functionalSql.contains("Boolean(screeningSessionScreening.belowScoringThreshold)"));
+		assertTrue(functionalSql.contains("const eligible = !belowScoringThreshold;"));
+		assertFalse(functionalSql.contains("const eligible = overallScore >= minimumEligibilityScore;"));
+	}
+
+	@Test
+	public void pennAutismBookingDestinationDeclaresExplicitResult() throws IOException {
+		String configurationSql = readSql("sql/updates/259-cobalt-provider-booking-configuration.sql");
+
+		assertTrue(configurationSql.contains("output.context.result = 'SUCCESS';"));
+		assertTrue(configurationSql.contains("output.context.result = 'FAILURE';"));
+	}
+
+	@Test
+	public void nativeAppointmentUniquenessAndContactSnapshotAreInProviderBookingMigration() throws IOException {
+		String functionalSql = readSql("sql/updates/259-provider-booking-database.sql");
+
+		assertTrue(functionalSql.contains("appointment_native_active_provider_start_time_idx"));
+		assertTrue(functionalSql.contains("contact_phone_number=COALESCE(app.contact_phone_number, a.phone_number)"));
+		assertTrue(functionalSql.contains("first_name=COALESCE(app.first_name, a.first_name)"));
+		assertTrue(functionalSql.contains("last_name=COALESCE(app.last_name, a.last_name)"));
+	}
+
+	protected int countOccurrences(String value, String substring) {
+		return (value.length() - value.replace(substring, "").length()) / substring.length();
 	}
 
 	protected String readSql(String filename) throws IOException {

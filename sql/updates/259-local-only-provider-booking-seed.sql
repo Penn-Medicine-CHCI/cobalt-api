@@ -1,10 +1,10 @@
 BEGIN;
 SELECT _v.register_patch(
-	'260-local-only-provider-booking-seed',
+	'259-local-only-provider-booking-seed',
 	ARRAY[
 		'250-autism-clinic-referrer',
 		'259-provider-booking-database',
-		'260-cobalt-provider-booking-configuration'
+		'259-cobalt-provider-booking-configuration'
 	],
 	NULL
 );
@@ -14,6 +14,12 @@ SELECT _v.register_patch(
 -- provider-booking database migration, and the Cobalt tenant configuration. It
 -- is intentionally run only by local/bootstrap database recreation scripts.
 -- Do not run this as a production functional migration.
+
+-- Local and bootstrap databases opt in so QA exercises booking v2 by default.
+-- Production remains disabled until an institution is explicitly activated.
+UPDATE institution
+SET booking_v2_enabled=TRUE
+WHERE institution_id='COBALT';
 
 -- Refresh Cobalt provider-search fixture rows so local and test databases have
 -- varied provider bio/description/phone/modality data, clinic

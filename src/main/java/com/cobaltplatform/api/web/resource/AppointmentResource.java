@@ -55,7 +55,6 @@ import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.ValidationException;
-import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
 import com.lokalized.Strings;
 import com.soklet.json.JSONObject;
@@ -97,7 +96,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
  * @author Transmogrify, LLC.
@@ -230,7 +228,8 @@ public class AppointmentResource {
 			throw new AuthorizationException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+					AppointmentApiResponseSupplement.PRIVATE_DETAILS)));
 		}});
 	}
 
@@ -265,7 +264,8 @@ public class AppointmentResource {
 			List<Appointment> appointments = getAppointmentService().findAppointmentsByProviderId(providerId.get(), startDate.get(), endDate.get());
 			return new ApiResponse(new HashMap<String, Object>() {{
 				put("appointments", appointments.stream()
-						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, null))
+						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment,
+								Set.of(AppointmentApiResponseSupplement.PRIVATE_DETAILS)))
 						.collect(Collectors.toList()));
 			}});
 		}
@@ -275,8 +275,17 @@ public class AppointmentResource {
 		if (account.getRoleId() == RoleId.MHIC
 				|| account.getRoleId() == RoleId.ADMINISTRATOR) {
 			// If an account ID was passed in, use it if we can
-			if (!accountId.isEmpty())
-				account = getAccountService().findAccountById(accountId.get()).orElse(null);
+			if (!accountId.isEmpty()) {
+				Account targetAccount = getAccountService().findAccountById(accountId.get()).orElse(null);
+
+				if (targetAccount == null)
+					throw new NotFoundException();
+
+				if (!getAuthorizationService().canEditAccount(targetAccount, account))
+					throw new AuthorizationException();
+
+				account = targetAccount;
+			}
 		}
 
 		if (account == null)
@@ -315,7 +324,8 @@ public class AppointmentResource {
 				Map<String, Object> dateGroup = new HashMap<>();
 				dateGroup.put("date", date.equals(today) ? getStrings().get("Today") : getFormatter().formatDate(date, FormatStyle.MEDIUM));
 				dateGroup.put("appointments", appointmentsForDate.stream()
-						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_REASON)))
+						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+								AppointmentApiResponseSupplement.APPOINTMENT_REASON, AppointmentApiResponseSupplement.PRIVATE_DETAILS)))
 						.collect(Collectors.toList()));
 
 				dateGroups.add(dateGroup);
@@ -324,7 +334,8 @@ public class AppointmentResource {
 			responseData.put("appointmentGroups", dateGroups);
 		} else {
 			responseData.put("appointments", appointments.stream()
-					.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_REASON)))
+					.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+							AppointmentApiResponseSupplement.APPOINTMENT_REASON, AppointmentApiResponseSupplement.PRIVATE_DETAILS)))
 					.collect(Collectors.toList()));
 		}
 
@@ -374,7 +385,8 @@ public class AppointmentResource {
 		Appointment appointment = getAppointmentService().findAppointmentById(newAppointmentId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+					AppointmentApiResponseSupplement.PRIVATE_DETAILS)));
 		}});
 	}
 
@@ -402,6 +414,13 @@ public class AppointmentResource {
 		if (!getAuthorizationService().canEditAccount(targetAccount, currentAccount))
 			throw new AuthorizationException();
 
+		if (request.getProviderId() != null) {
+			Provider provider = getProviderService().findProviderById(request.getProviderId()).orElse(null);
+
+			if (provider != null && !getAuthorizationService().canViewProvider(provider, currentAccount))
+				throw new AuthorizationException();
+		}
+
 		AppointmentBookingRequirements appointmentBookingRequirements =
 				getAppointmentService().findAppointmentBookingRequirements(request, currentAccount);
 
@@ -428,9 +447,6 @@ public class AppointmentResource {
 
 		CreateAppointmentRequest request = getRequestBodyParser().parse(requestBody, CreateAppointmentRequest.class);
 
-		if (getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
-			validateAppointmentCreateContactFields(request);
-
 		request.setCreatedByAcountId(account.getAccountId());
 
 		// Some users can book on behalf of other users
@@ -444,6 +460,14 @@ public class AppointmentResource {
 			// If you are not a special role, you can only book for yourself
 			request.setAccountId(account.getAccountId());
 		}
+
+		Account targetAccount = getAccountService().findAccountById(request.getAccountId()).orElse(null);
+
+		if (targetAccount == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(targetAccount, account))
+			throw new AuthorizationException();
 
 		UUID appointmentId = getAppointmentService().createAppointment(request);
 		Appointment appointment = getAppointmentService().findAppointmentById(appointmentId).get();
@@ -465,39 +489,10 @@ public class AppointmentResource {
 		Account updatedAccount = getAccountService().findAccountById(request.getAccountId()).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+					AppointmentApiResponseSupplement.PRIVATE_DETAILS)));
 			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
-	}
-
-	protected void validateAppointmentCreateContactFields(@Nonnull CreateAppointmentRequest request) {
-		requireNonNull(request);
-
-		String firstName = trimToNull(request.getFirstName());
-		String lastName = trimToNull(request.getLastName());
-		String emailAddress = trimToNull(request.getEmailAddress());
-		String phoneNumber = trimToNull(request.getPhoneNumber());
-		ValidationException validationException = new ValidationException();
-
-		if (firstName == null)
-			validationException.add(new FieldError("firstName", getStrings().get("First name is required.")));
-
-		if (lastName == null)
-			validationException.add(new FieldError("lastName", getStrings().get("Last name is required.")));
-
-		if (emailAddress == null)
-			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is required.")));
-
-		if (phoneNumber == null)
-			validationException.add(new FieldError("phoneNumber", getStrings().get("Phone number is required.")));
-
-		if (validationException.hasErrors())
-			throw validationException;
-
-		request.setFirstName(firstName);
-		request.setLastName(lastName);
-		request.setEmailAddress(emailAddress);
-		request.setPhoneNumber(phoneNumber);
 	}
 
 	@Nonnull
