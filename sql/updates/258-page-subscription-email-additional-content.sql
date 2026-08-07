@@ -25,6 +25,9 @@ SET subscription_email_additional_content_html = $html$
       Every parenting journey is unique, but we learn so much when we share our experiences. Whether it&rsquo;s a bedtime routine hack, a trick for picky eaters, or a way to find calm during a hectic day, your insight could be exactly what another parent needs to hear. Fill out <a href="https://URL_GOES_HERE" target="_blank" style="color:#2C4F82; text-decoration:underline;">this form</a> to share your tips and tricks with fellow parents. Tips will be shared anonymously on the Penn Cobalt Parents @ Penn Medicine page.
     </td>
   </tr>
+  <tr>
+    <td height="8" style="height:8px; line-height:8px; font-size:1px;">&nbsp;</td>
+  </tr>
 </table>
 $html$
 WHERE page_group_id = 'XXXX';
