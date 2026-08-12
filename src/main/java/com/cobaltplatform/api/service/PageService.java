@@ -1245,58 +1245,56 @@ public class PageService {
 		requireNonNull(createdByAccountId);
 		requireNonNull(institutionId);
 
-		return getDatabase().transaction(() -> {
-			Optional<PageRow> sourcePageRow = findPageRowById(pageRowId, institutionId);
-			ValidationException validationException = new ValidationException();
+		Optional<PageRow> sourcePageRow = findPageRowById(pageRowId, institutionId);
+		ValidationException validationException = new ValidationException();
 
-			if (sourcePageRow.isEmpty())
-				validationException.add(new FieldError("pageRowId", getStrings().get("Could not find page row.")));
-			else if (sourcePageRow.get().getRowTypeId().equals(RowTypeId.MAILING_LIST))
-				validationException.add(new FieldError("rowTypeId", getStrings().get("Subscribe rows cannot be duplicated.")));
+		if (sourcePageRow.isEmpty())
+			validationException.add(new FieldError("pageRowId", getStrings().get("Could not find page row.")));
+		else if (sourcePageRow.get().getRowTypeId().equals(RowTypeId.MAILING_LIST))
+			validationException.add(new FieldError("rowTypeId", getStrings().get("Subscribe rows cannot be duplicated.")));
 
-			if (validationException.hasErrors())
-				throw validationException;
+		if (validationException.hasErrors())
+			throw validationException;
 
-			UUID pageSectionId = sourcePageRow.get().getPageSectionId();
+		UUID pageSectionId = sourcePageRow.get().getPageSectionId();
 
-			getDatabase().queryForObject("""
-					SELECT page_section_id
-					FROM page_section
-					WHERE page_section_id = ?
-					FOR UPDATE
-					""", UUID.class, pageSectionId).orElseThrow();
+		getDatabase().queryForObject("""
+				SELECT page_section_id
+				FROM page_section
+				WHERE page_section_id = ?
+				FOR UPDATE
+				""", UUID.class, pageSectionId).orElseThrow();
 
-			List<PageRow> lockedPageRows = getDatabase().queryForList("""
-					SELECT *
-					FROM page_row
-					WHERE page_section_id = ?
-					AND deleted_flag = FALSE
-					ORDER BY display_order
-					FOR UPDATE
-					""", PageRow.class, pageSectionId);
-			PageRow lockedSource = lockedPageRows.stream()
-					.filter(pageRow -> pageRowId.equals(pageRow.getPageRowId()))
-					.findFirst()
-					.orElseThrow();
-			Integer duplicateDisplayOrder = lockedSource.getDisplayOrder() + 1;
-			UUID duplicatedPageRowId = UUID.randomUUID();
-			String sourceName = lockedSource.getName() == null
-					? defaultRowNameForRowType(lockedSource.getRowTypeId())
-					: lockedSource.getName();
+		List<PageRow> lockedPageRows = getDatabase().queryForList("""
+				SELECT *
+				FROM page_row
+				WHERE page_section_id = ?
+				AND deleted_flag = FALSE
+				ORDER BY display_order
+				FOR UPDATE
+				""", PageRow.class, pageSectionId);
+		PageRow lockedSource = lockedPageRows.stream()
+				.filter(pageRow -> pageRowId.equals(pageRow.getPageRowId()))
+				.findFirst()
+				.orElseThrow();
+		Integer duplicateDisplayOrder = lockedSource.getDisplayOrder() + 1;
+		UUID duplicatedPageRowId = UUID.randomUUID();
+		String sourceName = lockedSource.getName() == null
+				? defaultRowNameForRowType(lockedSource.getRowTypeId())
+				: lockedSource.getName();
 
-			getDatabase().execute("""
-					UPDATE page_row
-					SET display_order = display_order + 1
-					WHERE page_section_id = ?
-					AND deleted_flag = FALSE
-					AND display_order >= ?
-					""", pageSectionId, duplicateDisplayOrder);
+		getDatabase().execute("""
+				UPDATE page_row
+				SET display_order = display_order + 1
+				WHERE page_section_id = ?
+				AND deleted_flag = FALSE
+				AND display_order >= ?
+				""", pageSectionId, duplicateDisplayOrder);
 
-			copyPageRowRecords(pageRowId, duplicatedPageRowId, duplicatedPageRowId, pageSectionId,
-					format("%s Copy", sourceName), duplicateDisplayOrder, createdByAccountId);
+		copyPageRowRecords(pageRowId, duplicatedPageRowId, duplicatedPageRowId, pageSectionId,
+				format("%s Copy", sourceName), duplicateDisplayOrder, createdByAccountId);
 
-			return duplicatedPageRowId;
-		});
+		return duplicatedPageRowId;
 	}
 
 	@Nonnull
