@@ -1238,6 +1238,66 @@ public class PageService {
 	}
 
 	@Nonnull
+	public UUID duplicatePageRow(@Nonnull UUID pageRowId,
+												 @Nonnull UUID createdByAccountId,
+												 @Nonnull InstitutionId institutionId) {
+		requireNonNull(pageRowId);
+		requireNonNull(createdByAccountId);
+		requireNonNull(institutionId);
+
+		Optional<PageRow> sourcePageRow = findPageRowById(pageRowId, institutionId);
+		ValidationException validationException = new ValidationException();
+
+		if (sourcePageRow.isEmpty())
+			validationException.add(new FieldError("pageRowId", getStrings().get("Could not find page row.")));
+		else if (sourcePageRow.get().getRowTypeId().equals(RowTypeId.MAILING_LIST))
+			validationException.add(new FieldError("rowTypeId", getStrings().get("Subscribe rows cannot be duplicated.")));
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UUID pageSectionId = sourcePageRow.get().getPageSectionId();
+
+		getDatabase().queryForObject("""
+				SELECT page_section_id
+				FROM page_section
+				WHERE page_section_id = ?
+				FOR UPDATE
+				""", UUID.class, pageSectionId).orElseThrow();
+
+		List<PageRow> lockedPageRows = getDatabase().queryForList("""
+				SELECT *
+				FROM page_row
+				WHERE page_section_id = ?
+				AND deleted_flag = FALSE
+				ORDER BY display_order
+				FOR UPDATE
+				""", PageRow.class, pageSectionId);
+		PageRow lockedSource = lockedPageRows.stream()
+				.filter(pageRow -> pageRowId.equals(pageRow.getPageRowId()))
+				.findFirst()
+				.orElseThrow();
+		Integer duplicateDisplayOrder = lockedSource.getDisplayOrder() + 1;
+		UUID duplicatedPageRowId = UUID.randomUUID();
+		String sourceName = lockedSource.getName() == null
+				? defaultRowNameForRowType(lockedSource.getRowTypeId())
+				: lockedSource.getName();
+
+		getDatabase().execute("""
+				UPDATE page_row
+				SET display_order = display_order + 1
+				WHERE page_section_id = ?
+				AND deleted_flag = FALSE
+				AND display_order >= ?
+				""", pageSectionId, duplicateDisplayOrder);
+
+		copyPageRowRecords(pageRowId, duplicatedPageRowId, duplicatedPageRowId, pageSectionId,
+				format("%s Copy", sourceName), duplicateDisplayOrder, createdByAccountId);
+
+		return duplicatedPageRowId;
+	}
+
+	@Nonnull
 	public void deletePageRow(@Nonnull UUID pageRowId,
 														@Nonnull InstitutionId institutionId) {
 		requireNonNull(pageRowId);
@@ -2900,6 +2960,86 @@ public class PageService {
 		return copyForEditing ? sourcePageRowAnchorId : newPageRowId;
 	}
 
+	private void copyPageRowRecords(@Nonnull UUID sourcePageRowId,
+																	@Nonnull UUID destinationPageRowId,
+																	@Nonnull UUID destinationPageRowAnchorId,
+																	@Nonnull UUID destinationPageSectionId,
+																	@Nullable String destinationName,
+																	@Nonnull Integer destinationDisplayOrder,
+																	@Nonnull UUID createdByAccountId) {
+		requireNonNull(sourcePageRowId);
+		requireNonNull(destinationPageRowId);
+		requireNonNull(destinationPageRowAnchorId);
+		requireNonNull(destinationPageSectionId);
+		requireNonNull(destinationDisplayOrder);
+		requireNonNull(createdByAccountId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row
+				(page_row_id,page_row_anchor_id,page_section_id,row_type_id,name,background_color_id,padding_id,padding_top_id,padding_bottom_id,deleted_flag,display_order,created_by_account_id)
+				SELECT ?, ?, ?, row_type_id, ?, background_color_id, padding_id, padding_top_id, padding_bottom_id, deleted_flag, ?, ?
+				FROM page_row
+				WHERE page_row_id = ?
+				""", destinationPageRowId, destinationPageRowAnchorId, destinationPageSectionId, destinationName,
+				destinationDisplayOrder, createdByAccountId, sourcePageRowId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_column
+				(page_row_id,headline,description,image_file_upload_id,image_alt_text,use_placeholder_image,column_display_order,content_order_id)
+				SELECT ?,headline,description,image_file_upload_id,image_alt_text,use_placeholder_image,column_display_order,content_order_id
+				FROM page_row_column
+				WHERE page_row_id = ?
+				""", destinationPageRowId, sourcePageRowId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_group_session
+				(page_row_id,group_session_id,group_session_display_order)
+				SELECT ?,group_session_id,group_session_display_order
+				FROM page_row_group_session
+				WHERE page_row_id = ?
+				""", destinationPageRowId, sourcePageRowId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_content
+				(page_row_id, content_id, content_display_order)
+				SELECT ?, content_id, content_display_order
+				FROM page_row_content
+				WHERE page_row_id = ?
+				""", destinationPageRowId, sourcePageRowId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_tag_group
+				(page_row_id, tag_group_id)
+				SELECT ?, tag_group_id
+				FROM page_row_tag_group
+				WHERE page_row_id = ?
+				""", destinationPageRowId, sourcePageRowId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_tag
+				(page_row_id, tag_id)
+				SELECT ?, tag_id
+				FROM page_row_tag
+				WHERE page_row_id = ?
+				""", destinationPageRowId, sourcePageRowId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_mailing_list
+				(page_row_id, mailing_list_id, title, description)
+				SELECT ?, mailing_list_id, title, description
+				FROM page_row_mailing_list
+				WHERE page_row_id = ?
+				""", destinationPageRowId, sourcePageRowId);
+
+		getDatabase().execute("""
+				INSERT INTO page_row_call_to_action
+				(page_row_id, headline, description, button_text, button_url, image_file_upload_id)
+				SELECT ?, headline, description, button_text, button_url, image_file_upload_id
+				FROM page_row_call_to_action
+				WHERE page_row_id = ?
+				""", destinationPageRowId, sourcePageRowId);
+	}
+
 	@Nonnull
 	public UUID duplicatePage(@Nonnull DuplicatePageRequest request,
 														@Nonnull InstitutionId institutionId) {
@@ -2994,68 +3134,8 @@ public class PageService {
 				UUID newPageRowAnchorId = pageRowAnchorIdForDuplicate(
 						pageRow.getPageRowAnchorId(), newPageRowId, copyForEditing);
 
-				getDatabase().execute("""
-						INSERT INTO page_row
-						(page_row_id,page_row_anchor_id,page_section_id,row_type_id,name,background_color_id,padding_id,padding_top_id,padding_bottom_id,deleted_flag,display_order,created_by_account_id)
-						SELECT ?, ?, ?, row_type_id,name,background_color_id,padding_id,padding_top_id,padding_bottom_id,deleted_flag,display_order, ?
-						FROM page_row
-						WHERE page_row_id = ?
-						""", newPageRowId, newPageRowAnchorId, newPageSectionId, accountId, pageRow.getPageRowId());
-
-				getDatabase().execute("""
-						INSERT INTO page_row_column
-						(page_row_id,headline,description,image_file_upload_id,image_alt_text,use_placeholder_image,column_display_order,content_order_id)
-						SELECT ?,headline,description,image_file_upload_id,image_alt_text,use_placeholder_image,column_display_order,content_order_id
-						FROM page_row_column
-						WHERE page_row_id = ?""", newPageRowId, pageRow.getPageRowId());
-
-				getDatabase().execute("""
-						INSERT INTO page_row_group_session
-						(page_row_id,group_session_id,group_session_display_order)
-						SELECT ?,group_session_id,group_session_display_order
-						FROM page_row_group_session
-						WHERE page_row_id=?
-						""", newPageRowId, pageRow.getPageRowId());
-
-				getDatabase().execute("""
-						INSERT INTO page_row_content
-						(page_row_id, content_id, content_display_order)
-						SELECT ?, content_id, content_display_order
-						FROM page_row_content
-						WHERE page_row_id=?
-						""", newPageRowId, pageRow.getPageRowId());
-
-				getDatabase().execute("""
-						INSERT INTO page_row_tag_group
-						(page_row_id, tag_group_id)
-						SELECT ?, tag_group_id
-						FROM page_row_tag_group
-						WHERE page_row_id=?
-						""", newPageRowId, pageRow.getPageRowId());
-
-				getDatabase().execute("""
-						INSERT INTO page_row_tag
-						(page_row_id, tag_id)
-						SELECT ?, tag_id
-						FROM page_row_tag
-						WHERE page_row_id=?
-						""", newPageRowId, pageRow.getPageRowId());
-
-				getDatabase().execute("""
-						INSERT INTO page_row_mailing_list
-						(page_row_id, mailing_list_id, title, description)
-						SELECT ?, mailing_list_id, title, description
-						FROM page_row_mailing_list
-						WHERE page_row_id=?
-						""", newPageRowId, pageRow.getPageRowId());
-
-				getDatabase().execute("""
-						INSERT INTO page_row_call_to_action
-						(page_row_id, headline, description, button_text, button_url, image_file_upload_id)
-						SELECT ?, headline, description, button_text, button_url, image_file_upload_id
-						FROM page_row_call_to_action
-						WHERE page_row_id=?
-						""", newPageRowId, pageRow.getPageRowId());
+				copyPageRowRecords(pageRow.getPageRowId(), newPageRowId, newPageRowAnchorId, newPageSectionId,
+						pageRow.getName(), pageRow.getDisplayOrder(), accountId);
 			}
 		}
 

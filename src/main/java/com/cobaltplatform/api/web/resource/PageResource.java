@@ -821,6 +821,29 @@ public class PageResource {
 		}});
 	}
 
+	@POST("/pages/row/{pageRowId}/duplicate")
+	@AuthenticationRequired
+	public ApiResponse duplicatePageRow(@Nonnull @PathParameter("pageRowId") UUID pageRowId) {
+		requireNonNull(pageRowId);
+
+		Account account = getCurrentContext().getAccount().get();
+		InstitutionId institutionId = getCurrentContext().getInstitutionId();
+
+		if (!getAuthorizationService().canManagePages(institutionId, account))
+			throw new AuthorizationException();
+
+		UUID duplicatedPageRowId = getPageService().duplicatePageRow(pageRowId, account.getAccountId(), institutionId);
+		PageRow duplicatedPageRow = getPageService().findPageRowById(duplicatedPageRowId, institutionId)
+				.orElseThrow(NotFoundException::new);
+		List<PageRow> pageRows = getPageService().findPageRowsBySectionId(duplicatedPageRow.getPageSectionId(), institutionId);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("pageRow", getPageRowApiResponseFactory().create(duplicatedPageRow));
+			put("pageRows", pageRows.stream().map(pageRow -> getPageRowApiResponseFactory().create(pageRow))
+					.collect(Collectors.toList()));
+		}});
+	}
+
 	@PUT("/pages/row/{pageRowId}/settings")
 	@AuthenticationRequired
 	public ApiResponse updatePageRow(@Nonnull @PathParameter("pageRowId") UUID pageRowId,
