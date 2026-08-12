@@ -2608,7 +2608,13 @@ public class PageService {
 		parameters.add(pageRowId);
 
 		if (includeOnlyAdded) {
-			query.append(" AND group_session_status_id = ? ");
+			query.append("""
+					AND vgs.group_session_status_id = ?
+					AND (
+					  vgs.start_date_time IS NULL
+					  OR vgs.start_date_time >= (CURRENT_TIMESTAMP AT TIME ZONE vgs.time_zone)
+					)
+					""");
 			parameters.add(GroupSessionStatusId.ADDED);
 		}
 
