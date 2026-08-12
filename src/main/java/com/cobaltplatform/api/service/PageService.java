@@ -2603,7 +2603,8 @@ public class PageService {
 				SELECT vgs.*
 				FROM v_page_row_group_session vp, v_group_session vgs
 				WHERE vp.group_session_id = vgs.group_session_id
-				AND page_row_id = ?""");
+				AND page_row_id = ?
+				""");
 
 		parameters.add(pageRowId);
 
