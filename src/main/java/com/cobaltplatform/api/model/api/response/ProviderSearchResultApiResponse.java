@@ -191,7 +191,7 @@ public class ProviderSearchResultApiResponse {
 			this.phoneNumberDescription = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 			this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerFinds, providersById, strings);
 			this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments,
-					appointmentTypesById);
+					appointmentTypesById, clinic.getPhoneNumber());
 			this.appointmentDescription = firstAvailableAppointment == null || firstAvailableAppointment.getAppointmentType() == null
 					? null
 					: descriptionFor(firstAvailableAppointment.getAppointmentType());
@@ -274,7 +274,8 @@ public class ProviderSearchResultApiResponse {
 		this.phoneNumber = clinic.getPhoneNumber();
 		this.phoneNumberDescription = formatter.formatPhoneNumber(clinic.getPhoneNumber(), clinic.getLocale());
 		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerFinds, providersById, strings);
-		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments, appointmentTypesById);
+		this.appointmentSelectionTypeId = appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments,
+				appointmentTypesById, clinic.getPhoneNumber());
 		this.appointmentDescription = firstAvailableAppointment == null || firstAvailableAppointment.getAppointmentType() == null
 				? null
 				: descriptionFor(firstAvailableAppointment.getAppointmentType());
@@ -349,19 +350,43 @@ public class ProviderSearchResultApiResponse {
 
 	@Nonnull
 	protected static ProviderAppointmentSelectionTypeId appointmentSelectionTypeIdFor(@Nonnull List<ProviderFind> providerFinds,
-																													 @Nonnull Map<UUID, Provider> providersById,
-																													 @Nonnull List<AvailableAppointment> availableAppointments,
-																													 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+																			 @Nonnull Map<UUID, Provider> providersById,
+																			 @Nonnull List<AvailableAppointment> availableAppointments,
+																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById) {
+		return appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments, appointmentTypesById,
+				phoneFallbackAvailableFor(providerFinds, providersById));
+	}
+
+	@Nonnull
+	protected static ProviderAppointmentSelectionTypeId appointmentSelectionTypeIdFor(@Nonnull List<ProviderFind> providerFinds,
+																			 @Nonnull Map<UUID, Provider> providersById,
+																			 @Nonnull List<AvailableAppointment> availableAppointments,
+																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																			 @Nullable String phoneFallbackNumber) {
+		return appointmentSelectionTypeIdFor(providerFinds, providersById, availableAppointments, appointmentTypesById,
+				trimToNull(phoneFallbackNumber) != null);
+	}
+
+	@Nonnull
+	protected static ProviderAppointmentSelectionTypeId appointmentSelectionTypeIdFor(@Nonnull List<ProviderFind> providerFinds,
+																			 @Nonnull Map<UUID, Provider> providersById,
+																			 @Nonnull List<AvailableAppointment> availableAppointments,
+																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																			 boolean phoneFallbackAvailable) {
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(availableAppointments);
 		requireNonNull(appointmentTypesById);
 
+		// A provider configured as telephone-only must never become online-bookable merely because its
+		// public phone is missing. Clients render an unavailable state when this contract has no number.
 		if (appointmentByPhoneFor(providerFinds, providersById))
 			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
 
 		if (availableAppointments.size() == 0)
-			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
+			return phoneFallbackAvailable
+					? ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE
+					: ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED;
 
 		Set<UUID> appointmentTypeIds = distinctAppointmentTypeIdsForAvailableAppointments(availableAppointments);
 
@@ -372,10 +397,14 @@ public class ProviderSearchResultApiResponse {
 			return ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED;
 
 		if (appointmentTypeIds.size() == 0)
-			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
+			return phoneFallbackAvailable
+					? ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE
+					: ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED;
 
 		if (!appointmentTypeAmbiguityHasScreeningResolver(appointmentTypeIds, appointmentTypesById))
-			return ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE;
+			return phoneFallbackAvailable
+					? ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE
+					: ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED;
 
 		// A completed shared screening flow does not identify which appointment type the caller selected.
 		// Keep the selection unresolved until the client submits one of the types carried by the slot.
@@ -423,6 +452,22 @@ public class ProviderSearchResultApiResponse {
 		}
 
 		return true;
+	}
+
+	protected static boolean phoneFallbackAvailableFor(@Nonnull List<ProviderFind> providerFinds,
+																						@Nonnull Map<UUID, Provider> providersById) {
+		requireNonNull(providerFinds);
+		requireNonNull(providersById);
+
+		for (ProviderFind providerFind : providerFinds) {
+			Provider provider = providersById.get(providerFind.getProviderId());
+
+			if ((provider != null && trimToNull(provider.getPhoneNumber()) != null)
+					|| trimToNull(providerFind.getPhoneNumber()) != null)
+				return true;
+		}
+
+		return false;
 	}
 
 	@Nullable

@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.AvailableAppointment;
 import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.FirstAvailableAppointmentApiResponse;
 import com.cobaltplatform.api.model.db.AppointmentType;
@@ -88,6 +89,8 @@ public class ProviderAvailabilityApiResponse {
 	private final FirstAvailableAppointmentApiResponse firstAvailableAppointment;
 	@Nullable
 	private final ProviderSearchScreeningRequirement screeningRequirement;
+	@Nonnull
+	private final ProviderAppointmentSelectionTypeId appointmentSelectionTypeId;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -146,6 +149,8 @@ public class ProviderAvailabilityApiResponse {
 				: new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, localeFor(provider, locale));
 		this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
 				appointmentTypesById, completedAppointmentBookingScreeningKeys);
+		this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds,
+				providersById, availableAppointments, appointmentTypesById);
 	}
 
 	@AssistedInject
@@ -186,6 +191,8 @@ public class ProviderAvailabilityApiResponse {
 				localeFor(firstAvailableAppointment.getProvider(), localeFor(clinic, Locale.US)));
 		this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
 				appointmentTypesById, completedAppointmentBookingScreeningKeys);
+		this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds,
+				providersById, availableAppointments, appointmentTypesById, clinic.getPhoneNumber());
 	}
 
 	@Nonnull
@@ -403,6 +410,11 @@ public class ProviderAvailabilityApiResponse {
 	@Nullable
 	public ProviderSearchScreeningRequirement getScreeningRequirement() {
 		return screeningRequirement;
+	}
+
+	@Nonnull
+	public ProviderAppointmentSelectionTypeId getAppointmentSelectionTypeId() {
+		return appointmentSelectionTypeId;
 	}
 
 	@ThreadSafe

@@ -147,16 +147,28 @@ public class ProviderApiResponse {
 		private final Map<UUID, Address> addressesByAddressId;
 		private final boolean providerLocationsPreloaded;
 		private final boolean addressesPreloaded;
+		@Nullable
+		private final Boolean bookingV2Enabled;
+		private final boolean bookingV2EnabledPreloaded;
 
 		@Nonnull
 		public static ProviderApiResponseBatchContext empty() {
-			return new ProviderApiResponseBatchContext(Map.of(), Map.of(), false, false);
+			return new ProviderApiResponseBatchContext(Map.of(), Map.of(), false, false, null, false);
 		}
 
 		public ProviderApiResponseBatchContext(@Nonnull Map<UUID, List<ProviderLocation>> providerLocationsByProviderId,
-																					 @Nonnull Map<UUID, Address> addressesByAddressId,
-																					 boolean providerLocationsPreloaded,
-																					 boolean addressesPreloaded) {
+																				 @Nonnull Map<UUID, Address> addressesByAddressId,
+																				 boolean providerLocationsPreloaded,
+																				 boolean addressesPreloaded) {
+			this(providerLocationsByProviderId, addressesByAddressId, providerLocationsPreloaded, addressesPreloaded, null, false);
+		}
+
+		public ProviderApiResponseBatchContext(@Nonnull Map<UUID, List<ProviderLocation>> providerLocationsByProviderId,
+																				 @Nonnull Map<UUID, Address> addressesByAddressId,
+																				 boolean providerLocationsPreloaded,
+																				 boolean addressesPreloaded,
+																				 @Nullable Boolean bookingV2Enabled,
+																				 boolean bookingV2EnabledPreloaded) {
 			requireNonNull(providerLocationsByProviderId);
 			requireNonNull(addressesByAddressId);
 
@@ -164,6 +176,8 @@ public class ProviderApiResponse {
 			this.addressesByAddressId = new HashMap<>(addressesByAddressId);
 			this.providerLocationsPreloaded = providerLocationsPreloaded;
 			this.addressesPreloaded = addressesPreloaded;
+			this.bookingV2Enabled = bookingV2Enabled;
+			this.bookingV2EnabledPreloaded = bookingV2EnabledPreloaded;
 
 			for (Map.Entry<UUID, List<ProviderLocation>> entry : providerLocationsByProviderId.entrySet())
 				this.providerLocationsByProviderId.put(entry.getKey(), List.copyOf(entry.getValue()));
@@ -188,6 +202,15 @@ public class ProviderApiResponse {
 
 		public boolean isAddressesPreloaded() {
 			return this.addressesPreloaded;
+		}
+
+		@Nullable
+		public Boolean getBookingV2Enabled() {
+			return this.bookingV2Enabled;
+		}
+
+		public boolean isBookingV2EnabledPreloaded() {
+			return this.bookingV2EnabledPreloaded;
 		}
 	}
 
@@ -347,7 +370,9 @@ public class ProviderApiResponse {
 
 		List<ProviderApiResponseSupplement> supplementsList = Arrays.asList(supplements);
 		boolean includeEverything = supplementsList.contains(ProviderApiResponseSupplement.EVERYTHING);
-		boolean bookingV2Enabled = institutionService.isBookingV2Enabled(provider.getInstitutionId());
+		boolean bookingV2Enabled = batchContext.isBookingV2EnabledPreloaded()
+				? Boolean.TRUE.equals(batchContext.getBookingV2Enabled())
+				: institutionService.isBookingV2Enabled(provider.getInstitutionId());
 		String bioUrl = trimToNull(provider.getBioUrl());
 		String websiteUrl = trimToNull(provider.getWebsiteUrl());
 

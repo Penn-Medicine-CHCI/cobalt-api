@@ -520,15 +520,21 @@ public class InstitutionService {
 			// Special case for recommended content - only some institutions support content screening/reqs,
 			// so only include the query param for those institutions.
 			// If no query param, user is sent to regular content landing page
-			if (!bookingV2Enabled
-					&& feature.getFeatureId().equals(FeatureId.SELF_HELP_RESOURCES)
-					&& feature.getRecommended()
-					&& institution.getRecommendedContentEnabled()) {
-				feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
-			}
+			applyRecommendedContentUrlName(feature, institution);
 		});
 
 		return features;
+	}
+
+	protected static void applyRecommendedContentUrlName(@Nonnull FeatureForInstitution feature,
+																								@Nonnull Institution institution) {
+		requireNonNull(feature);
+		requireNonNull(institution);
+
+		if (feature.getFeatureId() == FeatureId.SELF_HELP_RESOURCES
+				&& Boolean.TRUE.equals(feature.getRecommended())
+				&& Boolean.TRUE.equals(institution.getRecommendedContentEnabled()))
+			feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
 	}
 
 	protected void applyProviderSearchUrlNameForBookingV2(@Nonnull FeatureForInstitution feature,

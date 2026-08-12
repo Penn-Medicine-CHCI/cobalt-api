@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
+import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
@@ -67,6 +68,22 @@ import static org.junit.Assert.assertTrue;
  * @author Transmogrify, LLC.
  */
 public class ProviderServiceTests {
+	@Test
+	public void nativeAvailabilityCanExcludeAppointmentBeingRescheduled() {
+		UUID excludedAppointmentId = UUID.randomUUID();
+		UUID retainedAppointmentId = UUID.randomUUID();
+		Appointment excludedAppointment = new Appointment();
+		Appointment retainedAppointment = new Appointment();
+		excludedAppointment.setAppointmentId(excludedAppointmentId);
+		retainedAppointment.setAppointmentId(retainedAppointmentId);
+
+		List<Appointment> appointments = ProviderService.appointmentsExcluding(
+				List.of(excludedAppointment, retainedAppointment), excludedAppointmentId);
+
+		assertEquals(1, appointments.size());
+		assertEquals(retainedAppointmentId, appointments.get(0).getAppointmentId());
+	}
+
 	@Test
 	public void providerSearchResultsIncludeCurrentClinicLevelBookingFixture() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {

@@ -118,6 +118,28 @@ public class ProviderResourceTests {
 	}
 
 	@Test
+	public void legacyProviderFindDateRangePreservesReversedAndOverlongRequests() {
+		ProviderFindRequest reversedRequest = new ProviderFindRequest();
+		LocalDate reversedStartDate = LocalDate.of(2026, 8, 6);
+		LocalDate reversedEndDate = LocalDate.of(2026, 8, 5);
+		reversedRequest.setStartDate(reversedStartDate);
+		reversedRequest.setEndDate(reversedEndDate);
+
+		ProviderResource.applyLegacyProviderFindDateDefaults(reversedRequest);
+
+		assertEquals(reversedStartDate, reversedRequest.getStartDate());
+		assertEquals(reversedEndDate, reversedRequest.getEndDate());
+
+		ProviderFindRequest startOnlyRequest = new ProviderFindRequest();
+		LocalDate startDate = LocalDate.of(2026, 8, 5);
+		startOnlyRequest.setStartDate(startDate);
+
+		ProviderResource.applyLegacyProviderFindDateDefaults(startOnlyRequest);
+
+		assertEquals(startDate.plusDays(90), startOnlyRequest.getEndDate());
+	}
+
+	@Test
 	public void clinicReturnsClinicForCurrentInstitution() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			ProviderResource providerResource = app.getInjector().getInstance(ProviderResource.class);
@@ -697,7 +719,7 @@ public class ProviderResourceTests {
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
 					() -> providerAvailabilityResource.providerAvailability(UUID.randomUUID(), Optional.empty(), Optional.empty(),
-							Optional.of("invalid-feature-id"), Optional.empty()));
+							Optional.of("invalid-feature-id"), Optional.empty(), Optional.empty()));
 		});
 	}
 
@@ -714,7 +736,7 @@ public class ProviderResourceTests {
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(),
 					() -> providerAvailabilityResource.clinicAvailability(UUID.randomUUID(), Optional.empty(), Optional.empty(),
-							Optional.of("invalid-feature-id"), Optional.empty()));
+							Optional.of("invalid-feature-id"), Optional.empty(), Optional.empty()));
 		});
 	}
 

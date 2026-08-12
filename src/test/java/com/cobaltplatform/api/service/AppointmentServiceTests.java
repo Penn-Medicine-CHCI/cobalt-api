@@ -61,6 +61,7 @@ import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.inject.AbstractModule;
 import com.pyranid.Database;
@@ -70,6 +71,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,6 +92,58 @@ import static org.junit.Assert.fail;
  */
 @ThreadSafe
 public class AppointmentServiceTests {
+	@Test
+	public void generatedProviderIntakeScoringHonorsOptionalNeutralAndMultiSelectAnswers() throws Exception {
+		UUID optionalQuestionId = UUID.randomUUID();
+		UUID requiredQuestionId = UUID.randomUUID();
+		UUID neutralAnswerId = UUID.randomUUID();
+		UUID neutralAnswerOptionId = UUID.randomUUID();
+
+		ScreeningService.ScreeningScoringFunctionOutput neutralOutput = executeGeneratedProviderIntakeScoringFunction(0,
+				List.of(
+						scoringQuestion(optionalQuestionId, 1, 0),
+						scoringQuestion(requiredQuestionId, 2, 1)
+				),
+				Map.of(requiredQuestionId.toString(), List.of(neutralAnswerId.toString())),
+				Map.of(neutralAnswerId.toString(), scoringAnswerOption(neutralAnswerOptionId, 0, 1, Map.of())),
+				Set.of(requiredQuestionId.toString()));
+
+		assertEquals(true, neutralOutput.getCompleted());
+		assertEquals(false, neutralOutput.getBelowScoringThreshold());
+		assertEquals(Integer.valueOf(0), neutralOutput.getScore().getOverallScore());
+
+		UUID multiSelectQuestionId = UUID.randomUUID();
+		UUID zeroAnswerId = UUID.randomUUID();
+		UUID positiveAnswerId = UUID.randomUUID();
+		UUID zeroAnswerOptionId = UUID.randomUUID();
+		UUID positiveAnswerOptionId = UUID.randomUUID();
+
+		ScreeningService.ScreeningScoringFunctionOutput multiSelectOutput = executeGeneratedProviderIntakeScoringFunction(2,
+				List.of(scoringQuestion(multiSelectQuestionId, 1, 1)),
+				Map.of(multiSelectQuestionId.toString(), List.of(zeroAnswerId.toString(), positiveAnswerId.toString())),
+				Map.of(
+						zeroAnswerId.toString(), scoringAnswerOption(zeroAnswerOptionId, 0, 2, Map.of()),
+						positiveAnswerId.toString(), scoringAnswerOption(positiveAnswerOptionId, 2, 1, Map.of())
+				),
+				Set.of(multiSelectQuestionId.toString()));
+
+		assertEquals(true, multiSelectOutput.getCompleted());
+		assertEquals(false, multiSelectOutput.getBelowScoringThreshold());
+		assertEquals(Integer.valueOf(2), multiSelectOutput.getScore().getOverallScore());
+
+		ScreeningService.ScreeningScoringFunctionOutput terminalOutput = executeGeneratedProviderIntakeScoringFunction(0,
+				List.of(scoringQuestion(multiSelectQuestionId, 1, 1)),
+				Map.of(multiSelectQuestionId.toString(), List.of(positiveAnswerId.toString(), zeroAnswerId.toString())),
+				Map.of(
+						zeroAnswerId.toString(), scoringAnswerOption(zeroAnswerOptionId, 0, 2, Map.of("terminal", true)),
+						positiveAnswerId.toString(), scoringAnswerOption(positiveAnswerOptionId, 2, 1, Map.of())
+				),
+				Set.of(multiSelectQuestionId.toString()));
+
+		assertEquals(true, terminalOutput.getCompleted());
+		assertEquals(true, terminalOutput.getBelowScoringThreshold());
+	}
+
 	@Test
 	public void appointmentBookingScreeningRequiresExplicitSuccessDestinationResult() {
 		assertTrue(AppointmentService.appointmentBookingScreeningSucceeded(new ScreeningSessionDestination(
@@ -134,6 +188,19 @@ public class AppointmentServiceTests {
 		availabilityTime.setAppointmentTypeIds(List.of(UUID.randomUUID()));
 		assertFalse(AppointmentService.providerFindsContainAvailableAppointment(List.of(providerFind), providerId,
 				appointmentTypeId, date, time, null));
+	}
+
+	@Test
+	public void appointmentTimeRangeOverlapUsesHalfOpenIntervals() {
+		LocalDateTime ten = LocalDateTime.of(2026, 8, 20, 10, 0);
+		LocalDateTime tenThirty = ten.plusMinutes(30);
+		LocalDateTime eleven = ten.plusHours(1);
+		LocalDateTime elevenThirty = ten.plusMinutes(90);
+
+		assertTrue(AppointmentService.appointmentTimeRangesOverlap(ten, eleven, tenThirty, elevenThirty));
+		assertTrue(AppointmentService.appointmentTimeRangesOverlap(tenThirty, elevenThirty, ten, eleven));
+		assertFalse(AppointmentService.appointmentTimeRangesOverlap(ten, eleven, eleven, elevenThirty));
+		assertFalse(AppointmentService.appointmentTimeRangesOverlap(eleven, elevenThirty, ten, eleven));
 	}
 
 	@Test
@@ -223,6 +290,126 @@ public class AppointmentServiceTests {
 			assertFalse(completedScreeningKeys.contains(otherProviderScreeningKey));
 			assertTrue(completedScreeningKeys.contains(sameProviderOtherAppointmentTypeScreeningKey));
 			assertFalse(completedScreeningKeys.contains(otherScreeningFlowKey));
+		});
+	}
+
+	@Test
+	public void latestCompletedAppointmentBookingScreeningOutcomeWins() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			ProviderAppointmentTypePair pair = findProviderAppointmentTypePair(database);
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get()
+					.getFeatureScreeningFlowId();
+			AppointmentBookingScreeningKey screeningKey = new AppointmentBookingScreeningKey(pair.getProviderId(),
+					pair.getAppointmentTypeId(), screeningFlowId);
+
+			setAppointmentTypeScreeningFlow(database, pair.getAppointmentTypeId(), screeningFlowId);
+			AppointmentBookingRequirements initialRequirements = appointmentService.findAppointmentBookingRequirements(
+					requestFor(account, pair), account);
+			completeScreeningSession(database, initialRequirements.getScreeningSession().getScreeningSessionId(),
+					"SUCCESS", 10);
+
+			assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account)
+							.getAppointmentBookingRequirementsDestinationId());
+
+			CreateScreeningSessionRequest failedSessionRequest = new CreateScreeningSessionRequest();
+			failedSessionRequest.setScreeningFlowId(screeningFlowId);
+			failedSessionRequest.setTargetAccountId(account.getAccountId());
+			failedSessionRequest.setCreatedByAccountId(account.getAccountId());
+			failedSessionRequest.setMetadata(Map.of("appointmentBooking", Map.of(
+					"providerId", pair.getProviderId().toString(),
+					"appointmentTypeId", pair.getAppointmentTypeId().toString()
+			)));
+			UUID failedScreeningSessionId = screeningService.createScreeningSession(failedSessionRequest);
+			completeScreeningSession(database, failedScreeningSessionId, "FAILURE", 0);
+
+			AppointmentBookingRequirements requirementsAfterFailure = appointmentService.findAppointmentBookingRequirements(
+					requestFor(account, pair), account);
+			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+					requirementsAfterFailure.getAppointmentBookingRequirementsDestinationId());
+			assertEquals(false, requirementsAfterFailure.getScreeningSatisfied());
+			assertTrue(appointmentService.findCompletedAppointmentBookingScreeningKeys(account.getAccountId(),
+					Set.of(screeningKey)).isEmpty());
+		});
+	}
+
+	@Test
+	public void expiredAppointmentBookingScreeningNoLongerQualifies() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			ProviderAppointmentTypePair pair = findProviderAppointmentTypePair(database);
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get()
+					.getFeatureScreeningFlowId();
+
+			setAppointmentTypeScreeningFlow(database, pair.getAppointmentTypeId(), screeningFlowId);
+			AppointmentBookingRequirements initialRequirements = appointmentService.findAppointmentBookingRequirements(
+					requestFor(account, pair), account);
+			completeScreeningSession(database, initialRequirements.getScreeningSession().getScreeningSessionId(),
+					"SUCCESS", 2);
+			database.execute("""
+					UPDATE screening_flow_version sfv
+					SET recommendation_expiration_minutes=1
+					FROM screening_flow sf
+					WHERE sf.screening_flow_id=?
+					AND sf.active_screening_flow_version_id=sfv.screening_flow_version_id
+					""", screeningFlowId);
+
+			AppointmentBookingRequirements expiredRequirements = appointmentService.findAppointmentBookingRequirements(
+					requestFor(account, pair), account);
+			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+					expiredRequirements.getAppointmentBookingRequirementsDestinationId());
+			assertEquals(false, expiredRequirements.getScreeningSatisfied());
+		});
+	}
+
+	@Test
+	public void supersededScreeningFlowVersionNoLongerQualifies() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			CreateAppointmentTypeRequest createRequest = appointmentTypeRequest(testData.getProviderId());
+			createRequest.setScreeningQuestions(screeningQuestions("Initial eligibility question?"));
+
+			UUID appointmentTypeId = appointmentService.createAppointmentType(createRequest);
+			ProviderAppointmentTypePair pair = new ProviderAppointmentTypePair();
+			pair.setProviderId(testData.getProviderId());
+			pair.setAppointmentTypeId(appointmentTypeId);
+			AppointmentBookingRequirements initialRequirements = appointmentService.findAppointmentBookingRequirements(
+					requestFor(account, pair), account);
+			completeScreeningSession(database, initialRequirements.getScreeningSession().getScreeningSessionId());
+
+			assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account)
+							.getAppointmentBookingRequirementsDestinationId());
+
+			appointmentService.updateAppointmentType(updateAppointmentTypeRequest(testData.getProviderId(), appointmentTypeId,
+					screeningQuestions("Replacement eligibility question?")));
+
+			AppointmentBookingRequirements requirementsForNewVersion = appointmentService.findAppointmentBookingRequirements(
+					requestFor(account, pair), account);
+			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+					requirementsForNewVersion.getAppointmentBookingRequirementsDestinationId());
+			assertEquals(false, requirementsForNewVersion.getScreeningSatisfied());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
 		});
 	}
 
@@ -624,6 +811,35 @@ public class AppointmentServiceTests {
 			assertEquals(originalAccount.getPhoneNumber(), account.getPhoneNumber());
 			assertEquals("Account", account.getFirstName());
 			assertEquals("Fallback", account.getLastName());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentRejectsUnverifiedSubmittedEmailWhenBookingV2Enabled() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			CreateAppointmentRequest request = requestForAcuityAppointment(testData);
+			request.setEmailAddress(String.format("unverified-%s@cobaltinnovations.org", UUID.randomUUID()));
+
+			try {
+				appointmentService.createAppointment(request);
+				fail("Expected booking v2 to reject an unverified appointment email address.");
+			} catch (ValidationException e) {
+				assertTrue(e.getGlobalErrors().contains(
+						"Sorry, you must validate your email address before booking an appointment."));
+			}
+
+			assertNull(acuitySchedulingClient.getLastCreateAppointmentRequest());
 		}, new AbstractModule() {
 			@Override
 			protected void configure() {
@@ -1330,6 +1546,42 @@ public class AppointmentServiceTests {
 	}
 
 	@Test
+	public void updateAppointmentTypePreservesReusableScreeningFlowWhenBookingV2Enabled() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			UUID reusableScreeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get()
+					.getFeatureScreeningFlowId();
+
+			setBookingV2Enabled(database, true);
+			UUID appointmentTypeId = appointmentService.createAppointmentType(
+					appointmentTypeRequest(testData.getProviderId(), reusableScreeningFlowId));
+			UUID reusableScreeningFlowVersionId = activeScreeningFlowVersionId(database, reusableScreeningFlowId);
+
+			// This mirrors the destructive legacy projection: the request omits the flow ID while carrying a
+			// subset of the reusable flow's questions. Neither omission nor projection may replace the flow.
+			appointmentService.updateAppointmentType(updateAppointmentTypeRequest(testData.getProviderId(), appointmentTypeId,
+					screeningQuestions("Projected reusable-flow question?")));
+
+			assertEquals(reusableScreeningFlowId,
+					appointmentService.findAppointmentTypeById(appointmentTypeId).get().getScreeningFlowId());
+			assertEquals(reusableScreeningFlowVersionId,
+					activeScreeningFlowVersionId(database, reusableScreeningFlowId));
+			assertEquals(0L, activeAssessmentCount(database, appointmentTypeId));
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
 	public void updateAppointmentTypeClearsScreeningFlowWhenBookingV2EnabledAndQuestionsRemoved() {
 		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
 
@@ -1438,8 +1690,9 @@ public class AppointmentServiceTests {
 
 		database.execute("""
 				INSERT INTO account_email_verification (account_id, code, email_address, verified)
-				VALUES (?, ?, ?, ?)
-				""", accountId, "123456", accountEmailAddress, true);
+				VALUES (?, ?, ?, ?), (?, ?, ?, ?)
+				""", accountId, "123456", accountEmailAddress, true,
+				accountId, "654321", "booking-email@cobaltinnovations.org", true);
 
 		UUID providerId = UUID.randomUUID();
 
@@ -1707,7 +1960,14 @@ public class AppointmentServiceTests {
 	}
 
 	protected void completeScreeningSession(@Nonnull Database database,
-																														@Nonnull UUID screeningSessionId) {
+																								@Nonnull UUID screeningSessionId) {
+		completeScreeningSession(database, screeningSessionId, "SUCCESS", 0);
+	}
+
+	protected void completeScreeningSession(@Nonnull Database database,
+																								@Nonnull UUID screeningSessionId,
+																								@Nonnull String result,
+																								int completedMinutesAgo) {
 		database.execute("""
 				UPDATE screening_flow_version sfv
 				SET destination_function=?
@@ -1716,14 +1976,16 @@ public class AppointmentServiceTests {
 				AND ss.screening_flow_version_id=sfv.screening_flow_version_id
 				""", """
 				output.screeningSessionDestinationId = 'APPOINTMENT_BOOKING_CONFIRMATION';
-				output.context = { result: 'SUCCESS' };
+				output.context = { result: input.metadata.appointmentBookingTestResult };
 				""", screeningSessionId);
 		database.execute("""
 				UPDATE screening_session
-				SET completed=TRUE,
-				    completed_at=NOW()
+				SET metadata=COALESCE(metadata, '{}'::JSONB)
+				      || JSONB_BUILD_OBJECT('appointmentBookingTestResult', ?),
+				    completed=TRUE,
+				    completed_at=NOW() - (? * INTERVAL '1 minute')
 				WHERE screening_session_id=?
-				""", screeningSessionId);
+				""", result, completedMinutesAgo, screeningSessionId);
 	}
 
 	@Nonnull
@@ -1776,6 +2038,47 @@ public class AppointmentServiceTests {
 			assertTrue(e.getFieldErrors().contains(new FieldError("emailAddress", "Email address is required.")));
 			assertTrue(e.getFieldErrors().contains(new FieldError("phoneNumber", "Phone number is required.")));
 		}
+	}
+
+	@Nonnull
+	protected ScreeningService.ScreeningScoringFunctionOutput executeGeneratedProviderIntakeScoringFunction(
+			int minimumEligibilityScore,
+			@Nonnull List<Map<String, Object>> screeningQuestionsWithAnswerOptions,
+			@Nonnull Map<String, List<String>> screeningAnswerIdsByScreeningQuestionId,
+			@Nonnull Map<String, Map<String, Object>> screeningAnswerOptionsByScreeningAnswerId,
+			@Nonnull Set<String> answeredScreeningQuestionIds) throws Exception {
+		return new JavascriptExecutor().execute(
+				AppointmentService.generatedProviderIntakeScoringFunction(minimumEligibilityScore),
+				Map.of(
+						"screeningQuestionsWithAnswerOptions", screeningQuestionsWithAnswerOptions,
+						"screeningAnswerIdsByScreeningQuestionId", screeningAnswerIdsByScreeningQuestionId,
+						"screeningAnswerOptionsByScreeningAnswerId", screeningAnswerOptionsByScreeningAnswerId,
+						"answeredScreeningQuestionIds", answeredScreeningQuestionIds
+				), ScreeningService.ScreeningScoringFunctionOutput.class);
+	}
+
+	@Nonnull
+	protected Map<String, Object> scoringQuestion(@Nonnull UUID screeningQuestionId,
+																		 int displayOrder,
+																		 int minimumAnswerCount) {
+		return Map.of("screeningQuestion", Map.of(
+				"screeningQuestionId", screeningQuestionId.toString(),
+				"displayOrder", displayOrder,
+				"minimumAnswerCount", minimumAnswerCount
+		));
+	}
+
+	@Nonnull
+	protected Map<String, Object> scoringAnswerOption(@Nonnull UUID screeningAnswerOptionId,
+																			 int score,
+																			 int displayOrder,
+																			 @Nonnull Map<String, Object> metadata) {
+		return Map.of(
+				"screeningAnswerOptionId", screeningAnswerOptionId.toString(),
+				"score", score,
+				"displayOrder", displayOrder,
+				"metadata", metadata
+		);
 	}
 
 	@Nonnull

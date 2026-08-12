@@ -24,6 +24,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.ProviderAvailabilityApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderAvailabilityApiResponse.AppointmentModalityAvailabilityApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.api.response.ProviderSearchResultApiResponse.FirstAvailableAppointmentApiResponse;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.Clinic;
@@ -217,6 +218,27 @@ public class ProviderAvailabilityResourceTests {
 		assertEquals(screeningFlowId, firstAvailableAppointment.getScreeningFlowId());
 		assertEquals(epicDepartmentId, firstAvailableAppointment.getEpicDepartmentId());
 		assertEquals(epicAppointmentFhirId, firstAvailableAppointment.getEpicAppointmentFhirId());
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED,
+				response.getAppointmentSelectionTypeId());
+	}
+
+	@Test
+	public void providerAvailabilityUsesBackendPhoneOnlySelectionContract() {
+		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+		UUID appointmentTypeId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+		LocalDate date = LocalDate.of(2026, 1, 1);
+		Provider provider = provider(providerId, "Test Provider", VideoconferencePlatformId.TELEPHONE);
+		provider.setPhoneNumber("+12155550100");
+		AppointmentType appointmentType = appointmentType(appointmentTypeId, "Alpha Visit", "Alpha appointment description");
+		ProviderFind providerFind = providerFind(providerId, "Test Provider", availabilityDate(date, List.of(
+				availabilityTime(LocalTime.of(9, 0), AvailabilityStatus.AVAILABLE, List.of(appointmentTypeId))
+		)));
+
+		ProviderAvailabilityApiResponse response = new ProviderAvailabilityApiResponse(currentContextProvider(), formatter(), provider,
+				List.of(providerFind), Map.of(appointmentTypeId, appointmentType), date, date.plusDays(90), Set.of());
+
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE,
+				response.getAppointmentSelectionTypeId());
 	}
 
 	@Test

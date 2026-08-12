@@ -108,28 +108,46 @@ public class ClinicApiResponse {
 		private final Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId;
 		@Nonnull
 		private final Map<UUID, Address> addressesByAddressId;
+		@Nonnull
+		private final Map<UUID, List<Provider>> providersByClinicId;
 		private final boolean clinicLocationsPreloaded;
 		private final boolean addressesPreloaded;
+		private final boolean providersPreloaded;
 
 		@Nonnull
 		public static ClinicApiResponseBatchContext empty() {
-			return new ClinicApiResponseBatchContext(Map.of(), Map.of(), false, false);
+			return new ClinicApiResponseBatchContext(Map.of(), Map.of(), Map.of(), false, false, false);
 		}
 
 		public ClinicApiResponseBatchContext(@Nonnull Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId,
 																				 @Nonnull Map<UUID, Address> addressesByAddressId,
 																				 boolean clinicLocationsPreloaded,
 																				 boolean addressesPreloaded) {
+			this(clinicLocationsByClinicId, addressesByAddressId, Map.of(), clinicLocationsPreloaded, addressesPreloaded, false);
+		}
+
+		public ClinicApiResponseBatchContext(@Nonnull Map<UUID, List<ClinicLocation>> clinicLocationsByClinicId,
+																				 @Nonnull Map<UUID, Address> addressesByAddressId,
+																				 @Nonnull Map<UUID, List<Provider>> providersByClinicId,
+																				 boolean clinicLocationsPreloaded,
+																				 boolean addressesPreloaded,
+																				 boolean providersPreloaded) {
 			requireNonNull(clinicLocationsByClinicId);
 			requireNonNull(addressesByAddressId);
+			requireNonNull(providersByClinicId);
 
 			this.clinicLocationsByClinicId = new HashMap<>();
 			this.addressesByAddressId = new HashMap<>(addressesByAddressId);
+			this.providersByClinicId = new HashMap<>();
 			this.clinicLocationsPreloaded = clinicLocationsPreloaded;
 			this.addressesPreloaded = addressesPreloaded;
+			this.providersPreloaded = providersPreloaded;
 
 			for (Map.Entry<UUID, List<ClinicLocation>> entry : clinicLocationsByClinicId.entrySet())
 				this.clinicLocationsByClinicId.put(entry.getKey(), List.copyOf(entry.getValue()));
+
+			for (Map.Entry<UUID, List<Provider>> entry : providersByClinicId.entrySet())
+				this.providersByClinicId.put(entry.getKey(), List.copyOf(entry.getValue()));
 		}
 
 		@Nonnull
@@ -151,6 +169,18 @@ public class ClinicApiResponse {
 
 		public boolean isAddressesPreloaded() {
 			return this.addressesPreloaded;
+		}
+
+		@Nonnull
+		public List<Provider> getProvidersByClinicId(@Nullable UUID clinicId) {
+			if (clinicId == null)
+				return List.of();
+
+			return this.providersByClinicId.getOrDefault(clinicId, List.of());
+		}
+
+		public boolean isProvidersPreloaded() {
+			return this.providersPreloaded;
 		}
 	}
 
@@ -258,7 +288,10 @@ public class ClinicApiResponse {
 		this.emailAddress = clinic.getEmailAddress();
 		this.imageUrl = clinic.getImageUrl();
 		this.websiteUrl = clinic.getWebsiteUrl();
-		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(providerService.findProvidersByClinicId(clinic.getClinicId()), strings);
+		List<Provider> clinicProviders = batchContext.isProvidersPreloaded()
+				? batchContext.getProvidersByClinicId(clinic.getClinicId())
+				: providerService.findProvidersByClinicId(clinic.getClinicId());
+		this.supportedAppointmentModalities = supportedAppointmentModalitiesFor(clinicProviders, strings);
 		this.locations = locationApiResponsesFor(clinic, clinicService, providerService, formatter, batchContext);
 		if (!includeBookingContext) {
 			this.appointmentSelectionTypeId = null;
@@ -271,7 +304,7 @@ public class ClinicApiResponse {
 			AvailableAppointment firstAvailableAppointment = availableAppointments.size() == 0 ? null : availableAppointments.get(0);
 
 			this.appointmentSelectionTypeId = ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(providerFinds, providersById,
-					availableAppointments, appointmentTypesById);
+					availableAppointments, appointmentTypesById, clinic.getPhoneNumber());
 			this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
 					appointmentTypesById, completedAppointmentBookingScreeningKeys);
 		}

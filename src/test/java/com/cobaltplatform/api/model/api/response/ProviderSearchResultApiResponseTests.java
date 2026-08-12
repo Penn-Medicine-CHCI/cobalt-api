@@ -97,6 +97,32 @@ public class ProviderSearchResultApiResponseTests {
 	}
 
 	@Test
+	public void clinicPhoneFallbackUsesClinicPhoneRatherThanMemberProviderPhone() {
+		UUID providerId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
+		ProviderFind providerFind = providerFind(providerId, null);
+		Clinic clinic = clinic(clinicId, AppointmentBookingLevelId.CLINIC);
+		clinic.setPhoneNumber("+12155551000");
+
+		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), clinic,
+				List.of(providerFind), Map.of(providerId, provider), Map.of());
+
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE,
+				response.getAppointmentSelectionTypeId());
+		assertEquals("+12155551000", response.getPhoneNumber());
+
+		clinic.setPhoneNumber(null);
+		provider.setPhoneNumber("+12155552000");
+		response = new ProviderSearchResultApiResponse(formatter(), strings(), clinic,
+				List.of(providerFind), Map.of(providerId, provider), Map.of());
+
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED,
+				response.getAppointmentSelectionTypeId());
+		assertNull(response.getPhoneNumber());
+	}
+
+	@Test
 	public void responseDoesNotExposeVirtualModalityForUnsupportedVideoconferencePlatform() {
 		UUID providerId = UUID.randomUUID();
 		UUID appointmentTypeId = UUID.randomUUID();
@@ -264,6 +290,7 @@ public class ProviderSearchResultApiResponseTests {
 		UUID appointmentTypeId = UUID.randomUUID();
 		Provider provider = provider(providerId, VideoconferencePlatformId.SWITCHBOARD);
 		ProviderFind providerFind = providerFind(providerId, Set.of(appointmentTypeId));
+		provider.setPhoneNumber("+12155551000");
 
 		ProviderAppointmentSelectionTypeId appointmentSelectionTypeId =
 				ProviderSearchResultApiResponse.appointmentSelectionTypeIdFor(List.of(providerFind),
@@ -330,6 +357,8 @@ public class ProviderSearchResultApiResponseTests {
 		UUID appointmentTypeId = UUID.randomUUID();
 		Provider firstProvider = provider(firstProviderId, VideoconferencePlatformId.TELEPHONE);
 		Provider secondProvider = provider(secondProviderId, VideoconferencePlatformId.TELEPHONE);
+		firstProvider.setPhoneNumber("+12155551000");
+		secondProvider.setPhoneNumber("+12155551001");
 		List<ProviderFind> providerFinds = List.of(
 				providerFind(firstProviderId, Set.of(appointmentTypeId)),
 				providerFind(secondProviderId, Set.of(appointmentTypeId)));
@@ -420,7 +449,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
 
-		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, response.getAppointmentSelectionTypeId());
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED, response.getAppointmentSelectionTypeId());
 		assertNull(response.getScreeningRequirement());
 	}
 
@@ -438,7 +467,7 @@ public class ProviderSearchResultApiResponseTests {
 
 		ProviderSearchResultApiResponse response = new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult);
 
-		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_BY_PHONE, response.getAppointmentSelectionTypeId());
+		assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_UNDETERMINED, response.getAppointmentSelectionTypeId());
 		assertNull(response.getScreeningRequirement());
 	}
 

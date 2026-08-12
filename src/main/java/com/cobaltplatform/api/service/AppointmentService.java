@@ -347,6 +347,15 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	protected Optional<Appointment> findAppointmentByIdForUpdate(@Nullable UUID appointmentId) {
+		if (appointmentId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM appointment WHERE appointment_id=? FOR UPDATE",
+				Appointment.class, appointmentId);
+	}
+
+	@Nonnull
 	public Optional<Appointment> findAppointmentByEpicFhirId(@Nullable String appointmentEpicFhirId,
 																													 @Nullable InstitutionId institutionId) {
 		if (institutionId == null)
@@ -870,54 +879,66 @@ public class AppointmentService {
 		parameters.addAll(providerIds);
 		parameters.addAll(screeningFlowIds);
 
-		Map<UUID, Set<UUID>> completedScreeningFlowIdsByProviderId = new HashMap<>();
-		Set<UUID> providerAgnosticCompletedScreeningFlowIds = new HashSet<>();
+		Set<AppointmentBookingScreeningKey> unresolvedScreeningKeys = new HashSet<>(appointmentBookingScreeningKeys);
+		Set<AppointmentBookingScreeningKey> completedScreeningKeys = new HashSet<>();
 
-		getDatabase().queryForList(format("""
-					SELECT DISTINCT
+		List<CompletedAppointmentBookingScreeningKey> completedScreenings = getDatabase().queryForList(format("""
+					SELECT
 					  ss.screening_session_id,
 					  NULLIF(ss.metadata->'appointmentBooking'->>'providerId', '') AS provider_id,
 					  sfv.screening_flow_id
-					FROM screening_session ss, screening_flow_version sfv
-					WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
+					FROM screening_session ss
+					JOIN screening_flow_version sfv
+					  ON ss.screening_flow_version_id=sfv.screening_flow_version_id
+					JOIN screening_flow sf
+					  ON sf.screening_flow_id=sfv.screening_flow_id
+					  AND sf.active_screening_flow_version_id=ss.screening_flow_version_id
+					WHERE TRUE
 					AND ss.target_account_id=?
 					AND ss.completed=TRUE
 					AND ss.skipped=FALSE
+					AND ss.completed_at IS NOT NULL
+					AND (
+					  sfv.recommendation_expiration_minutes IS NULL
+					  OR ss.completed_at >= NOW() - sfv.recommendation_expiration_minutes * INTERVAL '1 minute'
+					)
 					AND (
 					  NULLIF(ss.metadata->'appointmentBooking'->>'providerId', '') IS NULL
 					  OR ss.metadata->'appointmentBooking'->>'providerId' IN %s
 					)
 					AND sfv.screening_flow_id IN %s
-					ORDER BY ss.screening_session_id
+					ORDER BY ss.completed_at DESC, ss.last_updated DESC, ss.screening_session_id DESC
 					""", sqlInListPlaceholders(providerIds), sqlInListPlaceholders(screeningFlowIds)),
-				CompletedAppointmentBookingScreeningKey.class, parameters.toArray(new Object[]{})).forEach(completedAppointmentBookingScreeningKey -> {
-			if (completedAppointmentBookingScreeningKey.getScreeningSessionId() == null
-					|| completedAppointmentBookingScreeningKey.getScreeningFlowId() == null
-					|| !appointmentBookingScreeningSucceeded(completedAppointmentBookingScreeningKey.getScreeningSessionId()))
-				return;
+				CompletedAppointmentBookingScreeningKey.class, parameters.toArray(new Object[]{}));
 
-			if (completedAppointmentBookingScreeningKey.getProviderId() == null) {
-				providerAgnosticCompletedScreeningFlowIds.add(completedAppointmentBookingScreeningKey.getScreeningFlowId());
-				return;
-			}
+		// A newer failure must revoke an older success. Walk newest-first and resolve each requested
+		// provider/flow pair exactly once against its newest applicable (provider-specific or agnostic) session.
+		for (CompletedAppointmentBookingScreeningKey completedScreening : completedScreenings) {
+			if (completedScreening.getScreeningSessionId() == null || completedScreening.getScreeningFlowId() == null)
+				continue;
 
-			UUID providerId = UUID.fromString(completedAppointmentBookingScreeningKey.getProviderId());
-			Set<UUID> completedScreeningFlowIds = completedScreeningFlowIdsByProviderId.get(providerId);
+			UUID completedScreeningProviderId = completedScreening.getProviderId() == null
+					? null
+					: UUID.fromString(completedScreening.getProviderId());
+			Set<AppointmentBookingScreeningKey> matchingUnresolvedKeys = unresolvedScreeningKeys.stream()
+					.filter(screeningKey -> Objects.equals(screeningKey.getScreeningFlowId(), completedScreening.getScreeningFlowId()))
+					.filter(screeningKey -> completedScreeningProviderId == null
+							|| Objects.equals(screeningKey.getProviderId(), completedScreeningProviderId))
+					.collect(Collectors.toSet());
 
-			if (completedScreeningFlowIds == null) {
-				completedScreeningFlowIds = new HashSet<>();
-				completedScreeningFlowIdsByProviderId.put(providerId, completedScreeningFlowIds);
-			}
+			if (matchingUnresolvedKeys.isEmpty())
+				continue;
 
-			completedScreeningFlowIds.add(completedAppointmentBookingScreeningKey.getScreeningFlowId());
-		});
+			unresolvedScreeningKeys.removeAll(matchingUnresolvedKeys);
 
-		return appointmentBookingScreeningKeys.stream()
-				.filter(appointmentBookingScreeningKey -> completedScreeningFlowIdsByProviderId
-						.getOrDefault(appointmentBookingScreeningKey.getProviderId(), Set.of())
-						.contains(appointmentBookingScreeningKey.getScreeningFlowId())
-						|| providerAgnosticCompletedScreeningFlowIds.contains(appointmentBookingScreeningKey.getScreeningFlowId()))
-				.collect(Collectors.toSet());
+			if (appointmentBookingScreeningSucceeded(completedScreening.getScreeningSessionId()))
+				completedScreeningKeys.addAll(matchingUnresolvedKeys);
+
+			if (unresolvedScreeningKeys.isEmpty())
+				break;
+		}
+
+		return completedScreeningKeys;
 	}
 
 	@Nonnull
@@ -928,19 +949,34 @@ public class AppointmentService {
 		requireNonNull(providerId);
 		requireNonNull(screeningFlowId);
 
-		return getDatabase().queryForList("""
+		ScreeningSession mostRecentCompletedScreeningSession = getDatabase().queryForObject("""
 				SELECT ss.*
-				FROM screening_session ss, screening_flow_version sfv
-				WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
+				FROM screening_session ss
+				JOIN screening_flow_version sfv
+				  ON ss.screening_flow_version_id=sfv.screening_flow_version_id
+				JOIN screening_flow sf
+				  ON sf.screening_flow_id=sfv.screening_flow_id
+				  AND sf.active_screening_flow_version_id=ss.screening_flow_version_id
+				WHERE TRUE
 				AND sfv.screening_flow_id=?
 				AND ss.target_account_id=?
 				AND ss.completed=TRUE
 				AND ss.skipped=FALSE
+				AND ss.completed_at IS NOT NULL
+				AND (
+				  sfv.recommendation_expiration_minutes IS NULL
+				  OR ss.completed_at >= NOW() - sfv.recommendation_expiration_minutes * INTERVAL '1 minute'
+				)
 				AND COALESCE(NULLIF(ss.metadata->'appointmentBooking'->>'providerId', ''), ?)=?
-				ORDER BY ss.last_updated DESC
-				""", ScreeningSession.class, screeningFlowId, accountId, providerId.toString(), providerId.toString()).stream()
-				.filter(screeningSession -> appointmentBookingScreeningSucceeded(screeningSession.getScreeningSessionId()))
-				.findFirst();
+				ORDER BY ss.completed_at DESC, ss.last_updated DESC, ss.screening_session_id DESC
+				LIMIT 1
+				""", ScreeningSession.class, screeningFlowId, accountId, providerId.toString(), providerId.toString()).orElse(null);
+
+		if (mostRecentCompletedScreeningSession == null
+				|| !appointmentBookingScreeningSucceeded(mostRecentCompletedScreeningSession.getScreeningSessionId()))
+			return Optional.empty();
+
+		return Optional.of(mostRecentCompletedScreeningSession);
 	}
 
 	protected boolean appointmentBookingScreeningSucceeded(@Nonnull UUID screeningSessionId) {
@@ -968,8 +1004,13 @@ public class AppointmentService {
 
 		return getDatabase().queryForObject("""
 				SELECT ss.*
-				FROM screening_session ss, screening_flow_version sfv
-				WHERE ss.screening_flow_version_id=sfv.screening_flow_version_id
+				FROM screening_session ss
+				JOIN screening_flow_version sfv
+				  ON ss.screening_flow_version_id=sfv.screening_flow_version_id
+				JOIN screening_flow sf
+				  ON sf.screening_flow_id=sfv.screening_flow_id
+				  AND sf.active_screening_flow_version_id=ss.screening_flow_version_id
+				WHERE TRUE
 				AND sfv.screening_flow_id=?
 				AND ss.target_account_id=?
 				AND ss.completed=?
@@ -1129,7 +1170,9 @@ public class AppointmentService {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
-		Optional<Appointment> appointment = findAppointmentById(request.getAppointmentId());
+		// Serialize reschedules of the same source appointment. Without a row lock, two requests can both
+		// observe the original as active and create separate replacements before either marks it canceled.
+		Optional<Appointment> appointment = findAppointmentByIdForUpdate(request.getAppointmentId());
 
 		if (!appointment.isPresent())
 			validationException.add(new FieldError("appointmentId", "Not a valid appointment"));
@@ -1147,6 +1190,20 @@ public class AppointmentService {
 		boolean carryForwardLastName = trimToNull(request.getLastName()) == null;
 		boolean carryForwardEmailAddress = trimToNull(request.getEmailAddress()) == null;
 		boolean carryForwardPhoneNumber = trimToNull(request.getPhoneNumber()) == null;
+		boolean preserveExistingScreeningEligibility = Objects.equals(existingAppointment.getProviderId(), request.getProviderId())
+				&& Objects.equals(existingAppointment.getAppointmentTypeId(), request.getAppointmentTypeId());
+		AppointmentType replacementAppointmentType = request.getAppointmentTypeId() == null
+				? null
+				: findAppointmentTypeById(request.getAppointmentTypeId()).orElse(null);
+		LocalDateTime replacementStartTime = request.getDate() == null || request.getTime() == null
+				? null
+				: LocalDateTime.of(request.getDate(), request.getTime());
+		boolean cancelNativeAppointmentBeforeSameStartReplacement =
+				existingAppointment.getSchedulingSystemId() == SchedulingSystemId.COBALT
+						&& replacementAppointmentType != null
+						&& replacementAppointmentType.getSchedulingSystemId() == SchedulingSystemId.COBALT
+						&& Objects.equals(existingAppointment.getProviderId(), request.getProviderId())
+						&& Objects.equals(existingAppointment.getStartTime(), replacementStartTime);
 
 		if (carryForwardFirstName)
 			request.setFirstName(existingAppointment.getFirstName());
@@ -1164,32 +1221,47 @@ public class AppointmentService {
 					? existingAppointmentAccount.getPhoneNumber()
 					: existingAppointmentContactPhoneNumber);
 
-		UUID newAppointmentId = createAppointment(request, carryForwardFirstName, carryForwardLastName,
-				carryForwardEmailAddress, carryForwardPhoneNumber);
-
 		CancelAppointmentRequest cancelRequest = new CancelAppointmentRequest();
 		cancelRequest.setAppointmentId(request.getAppointmentId());
 		cancelRequest.setAccountId(request.getAccountId());
 		cancelRequest.setCanceledByWebhook(false);
 		cancelRequest.setCanceledForReschedule(true);
-		cancelRequest.setRescheduleAppointmentId(newAppointmentId);
 
-		cancelAppointment(cancelRequest);
+		// The active native provider/start partial index cannot contain both the source and replacement at
+		// the same key. Native cancellation has no external scheduling-system side effect, and every HTTP
+		// request is transactional, so canceling first is safe: a failed replacement rolls the cancellation
+		// and its post-commit notifications back with the request.
+		if (cancelNativeAppointmentBeforeSameStartReplacement)
+			cancelAppointment(cancelRequest);
+
+		UUID newAppointmentId = createAppointment(request, carryForwardFirstName, carryForwardLastName,
+				carryForwardEmailAddress, carryForwardPhoneNumber, existingAppointment.getAppointmentId(),
+				preserveExistingScreeningEligibility);
+
+		if (cancelNativeAppointmentBeforeSameStartReplacement) {
+			getDatabase().execute("UPDATE appointment SET rescheduled_appointment_id=? WHERE appointment_id=?",
+					newAppointmentId, existingAppointment.getAppointmentId());
+		} else {
+			cancelRequest.setRescheduleAppointmentId(newAppointmentId);
+			cancelAppointment(cancelRequest);
+		}
 
 		return newAppointmentId;
 	}
 
 	@Nonnull
 	public UUID createAppointment(@Nonnull CreateAppointmentRequest request) {
-		return createAppointment(request, false, false, false, false);
+		return createAppointment(request, false, false, false, false, null, false);
 	}
 
 	@Nonnull
 	protected UUID createAppointment(@Nonnull CreateAppointmentRequest request,
-																						 boolean carryForwardFirstName,
-																						 boolean carryForwardLastName,
-																						 boolean carryForwardEmailAddress,
-																						 boolean carryForwardPhoneNumber) {
+															 boolean carryForwardFirstName,
+															 boolean carryForwardLastName,
+															 boolean carryForwardEmailAddress,
+															 boolean carryForwardPhoneNumber,
+															 @Nullable UUID excludedAppointmentId,
+															 boolean preserveExistingScreeningEligibility) {
 		requireNonNull(request);
 
 		UUID accountId = request.getAccountId();
@@ -1299,18 +1371,22 @@ public class AppointmentService {
 			if (time == null)
 				validationException.add(new FieldError("time", getStrings().get("Time is required.")));
 
-		if (bookingV2Enabled && emailAddress != null && !isValidEmailAddress(emailAddress))
-			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
+			if (bookingV2Enabled && emailAddress != null && !isValidEmailAddress(emailAddress))
+				validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 
-		// If account has no email address and none was passed in, force user to provide one (unless they are IC users...then it's optional)
-		if (!bookingV2Enabled && emailAddress == null && account != null && account.getEmailAddress() == null && !institution.getIntegratedCareEnabled()) {
-			validationException.add(new FieldError("emailAddress", getStrings().get("An email address is required to book an appointment.")));
+			if (bookingV2Enabled && emailAddress != null && account != null
+					&& !getAccountService().isEmailAddressVerifiedForAccountId(emailAddress, accountId))
+				validationException.add(getStrings().get("Sorry, you must validate your email address before booking an appointment."));
 
-			Map<String, Object> metadata = new HashMap<>();
-			metadata.put("accountEmailAddressRequired", true);
+			// If account has no email address and none was passed in, force user to provide one (unless they are IC users...then it's optional)
+			if (!bookingV2Enabled && emailAddress == null && account != null && account.getEmailAddress() == null && !institution.getIntegratedCareEnabled()) {
+				validationException.add(new FieldError("emailAddress", getStrings().get("An email address is required to book an appointment.")));
 
-			validationException.setMetadata(metadata);
-		}
+				Map<String, Object> metadata = new HashMap<>();
+				metadata.put("accountEmailAddressRequired", true);
+
+				validationException.setMetadata(metadata);
+			}
 
 		if (providerId == null) {
 			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
@@ -1347,7 +1423,8 @@ public class AppointmentService {
 				validationException.add(getStrings().get("You did not answer the necessary intake questions to book with this provider."));
 		}
 
-		if (bookingV2Enabled && providerId != null && appointmentType != null && appointmentType.getScreeningFlowId() != null) {
+		if (bookingV2Enabled && !preserveExistingScreeningEligibility && providerId != null
+				&& appointmentType != null && appointmentType.getScreeningFlowId() != null) {
 			ScreeningSession completedAppointmentBookingScreeningSession =
 					findMostRecentSuccessfulAppointmentBookingScreeningSession(accountId, providerId,
 							appointmentType.getScreeningFlowId()).orElse(null);
@@ -1390,7 +1467,7 @@ public class AppointmentService {
 			if (!appointmentStartTime.isAfter(LocalDateTime.now(provider.getTimeZone())))
 				throw appointmentTimeslotUnavailableValidationException();
 
-			if (!acquireNativeAppointmentTimeslotLock(providerId, appointmentStartTime))
+			if (!acquireNativeAppointmentProviderLock(providerId))
 				throw appointmentTimeslotUnavailableValidationException();
 
 			ProviderFindRequest providerFindRequest = new ProviderFindRequest();
@@ -1400,6 +1477,7 @@ public class AppointmentService {
 			providerFindRequest.setEndTime(time);
 			providerFindRequest.setInstitutionId(institution.getInstitutionId());
 			providerFindRequest.setProviderId(providerId);
+			providerFindRequest.setExcludedAppointmentId(excludedAppointmentId);
 			providerFindRequest.setAvailability(ProviderFindRequest.ProviderFindAvailability.ONLY_AVAILABLE);
 			providerFindRequest.setIncludePastAvailability(false);
 
@@ -1512,9 +1590,21 @@ public class AppointmentService {
 
 			LocalDateTime appointmentStartTime = LocalDateTime.of(date, time);
 
+			LocalDateTime appointmentEndTime = nativeV2Booking
+					? appointmentStartTime.plusMinutes(appointmentType.getDurationInMinutes())
+					: appointmentStartTime;
+
 			for (Appointment existingAppointmentForDate : existingAppointmentsForDate) {
-				if (existingAppointmentForDate.getStartTime().equals(appointmentStartTime)) {
-					getLogger().info("Attempted to book an appointment with provider ID {} at {} but existing appointment ID {} already is at that time", provider.getProviderId(), appointmentStartTime, existingAppointmentForDate.getAppointmentId());
+				if (Objects.equals(existingAppointmentForDate.getAppointmentId(), excludedAppointmentId))
+					continue;
+
+				boolean conflictsWithExistingAppointment = nativeV2Booking
+						? appointmentTimeRangesOverlap(appointmentStartTime, appointmentEndTime,
+						existingAppointmentForDate.getStartTime(), existingAppointmentForDate.getEndTime())
+						: existingAppointmentForDate.getStartTime().equals(appointmentStartTime);
+
+				if (conflictsWithExistingAppointment) {
+					getLogger().info("Attempted to book an appointment with provider ID {} from {} to {} but existing appointment ID {} overlaps", provider.getProviderId(), appointmentStartTime, appointmentEndTime, existingAppointmentForDate.getAppointmentId());
 					throw appointmentTimeslotUnavailableValidationException();
 				}
 			}
@@ -1957,14 +2047,33 @@ public class AppointmentService {
 		}
 	}
 
-	protected boolean acquireNativeAppointmentTimeslotLock(@Nonnull UUID providerId,
-																							 @Nonnull LocalDateTime appointmentStartTime) {
+	protected boolean acquireNativeAppointmentProviderLock(@Nonnull UUID providerId) {
 		requireNonNull(providerId);
-		requireNonNull(appointmentStartTime);
 
-		String lockKey = format("appointment|%s|%s", providerId, appointmentStartTime);
-		return getDatabase().queryForObject("SELECT pg_try_advisory_xact_lock(hashtextextended(?, 0))",
-				Boolean.class, lockKey).orElse(false);
+		String lockKey = format("appointment|%s", providerId);
+
+		// Serialize all native bookings for a provider, not just bookings with identical starts. A blocking
+		// transaction lock lets a non-overlapping concurrent request wait and re-check availability instead of
+		// failing spuriously, while preventing overlapping requests with different starts from both committing.
+		return getDatabase().queryForObject("""
+				WITH provider_booking_lock AS (
+				  SELECT pg_advisory_xact_lock(hashtextextended(?, 0))
+				)
+				SELECT TRUE
+				FROM provider_booking_lock
+				""", Boolean.class, lockKey).orElse(false);
+	}
+
+	protected static boolean appointmentTimeRangesOverlap(@Nonnull LocalDateTime firstStart,
+																							 @Nonnull LocalDateTime firstEnd,
+																							 @Nonnull LocalDateTime secondStart,
+																							 @Nonnull LocalDateTime secondEnd) {
+		requireNonNull(firstStart);
+		requireNonNull(firstEnd);
+		requireNonNull(secondStart);
+		requireNonNull(secondEnd);
+
+		return firstStart.isBefore(secondEnd) && secondStart.isBefore(firstEnd);
 	}
 
 	@Nonnull
@@ -2482,8 +2591,16 @@ public class AppointmentService {
 					: existingScreeningFlowId;
 		}
 
-		if (bookingV2Enabled && hasScreeningQuestions(screeningQuestions))
-			screeningFlowId = null;
+		if (provider != null && bookingV2Enabled && screeningFlowId == null && existingAppointmentType != null) {
+			UUID existingScreeningFlowId = existingAppointmentType.getScreeningFlowId();
+
+			// A reusable flow is configured outside this appointment-type editor. Treat a missing/null flow ID
+			// as an omitted field so a routine edit cannot silently remove the eligibility gate. Generated flows
+			// remain editable through their inline questions and can still be cleared by removing those questions.
+			if (!canVersionProviderIntakeScreeningFlow(existingScreeningFlowId, appointmentTypeId,
+					provider.getInstitutionId()))
+				screeningFlowId = existingScreeningFlowId;
+		}
 
 		validateAppointmentTypeScreeningFlowId(screeningFlowId, provider, validationException);
 
@@ -2573,16 +2690,26 @@ public class AppointmentService {
 				.collect(Collectors.toList());
 
 		UUID appointmentTypeScreeningFlowId = screeningFlowId;
+		boolean reusableScreeningFlowSelected = bookingV2Enabled
+				&& appointmentTypeScreeningFlowId != null
+				&& !canVersionProviderIntakeScreeningFlow(appointmentTypeScreeningFlowId, appointmentTypeId,
+				provider.getInstitutionId());
+
+		if (reusableScreeningFlowSelected)
+			// The V2 response can include a read-only projection of reusable flow questions for display. Do not
+			// persist that projection as an appointment-owned generated flow or legacy assessment on save.
+			screeningQuestions = Collections.emptyList();
 
 		if (screeningQuestions.size() > 0) {
 			UUID existingScreeningFlowId = existingAppointmentType.getScreeningFlowId();
-			boolean canReplaceScreeningFlow = bookingV2Enabled
-					|| existingScreeningFlowId == null
-					|| canVersionProviderIntakeScreeningFlow(existingScreeningFlowId, appointmentTypeId,
-					provider.getInstitutionId());
+			boolean existingScreeningFlowIsGeneratedForAppointmentType = canVersionProviderIntakeScreeningFlow(
+					existingScreeningFlowId, appointmentTypeId, provider.getInstitutionId());
+			boolean canReplaceScreeningFlow = (existingScreeningFlowId == null && screeningFlowId == null)
+					|| (existingScreeningFlowIsGeneratedForAppointmentType
+					&& (screeningFlowId == null || Objects.equals(screeningFlowId, existingScreeningFlowId)));
 
-			// A V1 editor cannot see whether a reusable flow was assigned in V2. Preserve that assignment
-			// instead of replacing shared configuration with a generated inline-question flow.
+			// Inline questions may only create/version the appointment type's own generated flow. Never replace
+			// a reusable flow selected for this appointment type with a generated yes/no projection of that flow.
 			if (canReplaceScreeningFlow)
 				appointmentTypeScreeningFlowId = createOrReplaceProviderIntakeScreeningFlowForAppointmentTypeQuestions(
 						provider, appointmentTypeId, name, existingScreeningFlowId, screeningQuestions);
@@ -2861,7 +2988,7 @@ public class AppointmentService {
 	}
 
 	@Nonnull
-	protected String generatedProviderIntakeScoringFunction(int minimumEligibilityScore) {
+	protected static String generatedProviderIntakeScoringFunction(int minimumEligibilityScore) {
 		return format("""
 				const minimumEligibilityScore = %d;
 				const questions = (input.screeningQuestionsWithAnswerOptions || [])
@@ -2883,7 +3010,18 @@ public class AppointmentService {
 
 				  return answerIds
 				    .map((answerId) => input.screeningAnswerOptionsByScreeningAnswerId[answerId])
-				    .filter((answerOption) => answerOption);
+				    .filter((answerOption) => answerOption)
+				    .sort((first, second) => {
+				      const displayOrderDifference = Number(first.displayOrder || 0) - Number(second.displayOrder || 0);
+
+				      if (displayOrderDifference !== 0) {
+				        return displayOrderDifference;
+				      }
+
+				      return String(first.screeningAnswerOptionId || '').localeCompare(
+				        String(second.screeningAnswerOptionId || '')
+				      );
+				    });
 				}
 
 				function nextQuestionAfter(question) {
@@ -2917,23 +3055,33 @@ public class AppointmentService {
 
 				  visitedQuestionIds.add(questionId);
 
-				  if (!answeredQuestionIds.has(questionId)) {
-				    firstUnansweredQuestionId = questionId;
-				    break;
+				  const selectedAnswerOptions = answerOptionsForQuestionId(questionId);
+				  const questionIsRequired = Number(currentQuestion.minimumAnswerCount || 0) > 0;
+
+				  if (!answeredQuestionIds.has(questionId) || selectedAnswerOptions.length === 0) {
+				    if (questionIsRequired) {
+				      firstUnansweredQuestionId = questionId;
+				      break;
+				    }
+
+				    currentQuestion = nextQuestionAfter(currentQuestion);
+				    continue;
 				  }
 
-				  const selectedAnswerOption = answerOptionsForQuestionId(questionId)[0];
-
-				  if (!selectedAnswerOption || Number(selectedAnswerOption.score || 0) <= 0) {
+				  if (selectedAnswerOptions.some((answerOption) => {
+				    return answerOption.metadata && answerOption.metadata.terminal === true;
+				  })) {
 				    terminalFailure = true;
 				    break;
 				  }
 
-				  if (selectedAnswerOption.metadata && selectedAnswerOption.metadata.nextScreeningQuestionId) {
-				    currentQuestion = questionsById[String(selectedAnswerOption.metadata.nextScreeningQuestionId)] || null;
-				  } else {
-				    currentQuestion = nextQuestionAfter(currentQuestion);
-				  }
+				  const nextAnswerOption = selectedAnswerOptions.find((answerOption) => {
+				    return answerOption.metadata && answerOption.metadata.nextScreeningQuestionId;
+				  });
+
+				  currentQuestion = nextAnswerOption
+				    ? (questionsById[String(nextAnswerOption.metadata.nextScreeningQuestionId)] || null)
+				    : nextQuestionAfter(currentQuestion);
 				}
 
 				output.completed = firstUnansweredQuestionId === null;

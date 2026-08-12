@@ -1,6 +1,103 @@
 BEGIN;
 SELECT _v.register_patch('259-provider-booking-database', NULL, NULL);
 
+-- Fail before taking schema locks or writing migration data when production
+-- records require deliberate remediation. Never auto-cancel or delete clinical
+-- appointments to make a constraint fit.
+DO $$
+DECLARE
+	v_conflict_count BIGINT;
+BEGIN
+	SELECT COUNT(*)
+	INTO v_conflict_count
+	FROM (
+		SELECT provider_id, start_time
+		FROM appointment
+		WHERE canceled=FALSE
+		AND scheduling_system_id='COBALT'
+		GROUP BY provider_id, start_time
+		HAVING COUNT(*)>1
+	) duplicate_native_appointments;
+
+	IF v_conflict_count>0 THEN
+		RAISE EXCEPTION 'Provider Booking V2 preflight failed: % active native provider/start-time duplicate group(s) require manual reconciliation.',
+			v_conflict_count;
+	END IF;
+
+	SELECT COUNT(*)
+	INTO v_conflict_count
+	FROM (
+		SELECT ata.appointment_type_id, ata.assessment_id
+		FROM appointment_type_assessment ata
+		JOIN appointment_type app_type
+			ON app_type.appointment_type_id=ata.appointment_type_id
+		JOIN provider_appointment_type pat
+			ON pat.appointment_type_id=ata.appointment_type_id
+		JOIN provider
+			ON provider.provider_id=pat.provider_id
+		WHERE ata.active=TRUE
+		AND COALESCE(app_type.deleted, FALSE)=FALSE
+		AND NOT EXISTS (
+			SELECT 1
+			FROM provider_appointment_type assessed_pat
+			JOIN provider assessed_provider
+				ON assessed_provider.provider_id=assessed_pat.provider_id
+			JOIN institution assessed_institution
+				ON assessed_institution.institution_id=assessed_provider.institution_id
+			WHERE assessed_pat.appointment_type_id=ata.appointment_type_id
+			AND assessed_institution.integrated_care_enabled=TRUE
+		)
+		GROUP BY ata.appointment_type_id, ata.assessment_id
+		HAVING COUNT(DISTINCT provider.institution_id)>1
+	) multi_institution_appointment_types;
+
+	IF v_conflict_count>0 THEN
+		RAISE EXCEPTION 'Provider Booking V2 preflight failed: % appointment assessment assignment(s) span multiple institutions.',
+			v_conflict_count;
+	END IF;
+
+	WITH migration_candidates AS (
+		SELECT
+			ata.appointment_type_id,
+			ata.assessment_id,
+			MIN(provider.institution_id) AS institution_id
+		FROM appointment_type_assessment ata
+		JOIN appointment_type app_type
+			ON app_type.appointment_type_id=ata.appointment_type_id
+		JOIN provider_appointment_type pat
+			ON pat.appointment_type_id=ata.appointment_type_id
+		JOIN provider
+			ON provider.provider_id=pat.provider_id
+		WHERE ata.active=TRUE
+		AND COALESCE(app_type.deleted, FALSE)=FALSE
+		AND NOT EXISTS (
+			SELECT 1
+			FROM provider_appointment_type assessed_pat
+			JOIN provider assessed_provider
+				ON assessed_provider.provider_id=assessed_pat.provider_id
+			JOIN institution assessed_institution
+				ON assessed_institution.institution_id=assessed_provider.institution_id
+			WHERE assessed_pat.appointment_type_id=ata.appointment_type_id
+			AND assessed_institution.integrated_care_enabled=TRUE
+		)
+		GROUP BY ata.appointment_type_id, ata.assessment_id
+		HAVING COUNT(DISTINCT provider.institution_id)=1
+	)
+	SELECT COUNT(*)
+	INTO v_conflict_count
+	FROM migration_candidates candidate
+	WHERE NOT EXISTS (
+		SELECT 1
+		FROM account
+		WHERE account.institution_id=candidate.institution_id
+	);
+
+	IF v_conflict_count>0 THEN
+		RAISE EXCEPTION 'Provider Booking V2 preflight failed: % appointment assessment assignment(s) have no institution account to own generated screening records.',
+			v_conflict_count;
+	END IF;
+END $$;
+
 -- Environment-agnostic schema and data migrations for provider search and
 -- booking v2. Tenant rollout configuration and local fixture data live in
 -- separate dependent scripts.
@@ -465,7 +562,18 @@ function answerOptionsForQuestionId(questionId) {
 
   return answerIds
     .map((answerId) => input.screeningAnswerOptionsByScreeningAnswerId[answerId])
-    .filter((answerOption) => answerOption);
+    .filter((answerOption) => answerOption)
+    .sort((first, second) => {
+      const displayOrderDifference = Number(first.displayOrder || 0) - Number(second.displayOrder || 0);
+
+      if (displayOrderDifference !== 0) {
+        return displayOrderDifference;
+      }
+
+      return String(first.screeningAnswerOptionId || '').localeCompare(
+        String(second.screeningAnswerOptionId || '')
+      );
+    });
 }
 
 function nextQuestionAfter(question) {
@@ -500,23 +608,33 @@ while (currentQuestion) {
 
   visitedQuestionIds.add(questionId);
 
-  if (!answeredQuestionIds.has(questionId)) {
-    firstUnansweredQuestionId = questionId;
-    break;
+  const selectedAnswerOptions = answerOptionsForQuestionId(questionId);
+  const questionIsRequired = Number(currentQuestion.minimumAnswerCount || 0) > 0;
+
+  if (!answeredQuestionIds.has(questionId) || selectedAnswerOptions.length === 0) {
+    if (questionIsRequired) {
+      firstUnansweredQuestionId = questionId;
+      break;
+    }
+
+    currentQuestion = nextQuestionAfter(currentQuestion);
+    continue;
   }
 
-  const selectedAnswerOption = answerOptionsForQuestionId(questionId)[0];
-
-  if (!selectedAnswerOption || Number(selectedAnswerOption.score || 0) <= 0) {
+  if (selectedAnswerOptions.some((answerOption) => {
+    return answerOption.metadata && answerOption.metadata.terminal === true;
+  })) {
     terminalFailure = true;
     break;
   }
 
-  if (selectedAnswerOption && selectedAnswerOption.metadata.nextScreeningQuestionId) {
-    currentQuestion = questionsById[String(selectedAnswerOption.metadata.nextScreeningQuestionId)] || null;
-  } else {
-    currentQuestion = nextQuestionAfter(currentQuestion);
-  }
+  const nextAnswerOption = selectedAnswerOptions.find((answerOption) => {
+    return answerOption.metadata && answerOption.metadata.nextScreeningQuestionId;
+  });
+
+  currentQuestion = nextAnswerOption
+    ? (questionsById[String(nextAnswerOption.metadata.nextScreeningQuestionId)] || null)
+    : nextQuestionAfter(currentQuestion);
 }
 
 output.completed = firstUnansweredQuestionId === null;

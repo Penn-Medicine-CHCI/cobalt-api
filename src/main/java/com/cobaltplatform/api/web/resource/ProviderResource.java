@@ -363,6 +363,12 @@ public class ProviderResource {
 			throw new ValidationException(new ValidationException.FieldError("institutionLocationId", getStrings().get("Institution Location ID is invalid.")));
 		}
 
+		if (parsedInstitutionLocationId != null && getInstitutionService().findLocationById(parsedInstitutionLocationId)
+				.filter(location -> Objects.equals(location.getInstitutionId(), account.getInstitutionId()))
+				.isEmpty())
+			throw new ValidationException(new ValidationException.FieldError("institutionLocationId",
+					getStrings().get("Institution Location ID is invalid.")));
+
 		List<ProviderSearchResultApiResponse> providerSearchResults = getProviderService().findProviderSearchResults(featureId.get(), parsedInstitutionLocationId, account).stream()
 				.map(providerSearchResult -> getProviderSearchResultApiResponseFactory().create(providerSearchResult))
 				.collect(Collectors.toList());
@@ -427,7 +433,11 @@ public class ProviderResource {
 		ProviderFindRequest request = getRequestBodyParser().parse(requestBody, ProviderFindRequest.class);
 		request.setInstitutionId(institution.getInstitutionId());
 		request.setIncludePastAvailability(false);
-		normalizeAndValidateProviderFindDateRange(request, account.getTimeZone());
+
+		if (bookingV2Enabled)
+			normalizeAndValidateProviderFindDateRange(request, account.getTimeZone());
+		else
+			applyLegacyProviderFindDateDefaults(request);
 
 		// Prevent non-IC institutions from specifying order information
 		if (!institution.getIntegratedCareEnabled())
@@ -537,8 +547,8 @@ public class ProviderResource {
 		// 4. Insert empty lists for each missing date to fill in "holes" where there are no
 		// results for that date (UI prefers to show "no providers available for this date" kind of message in that scenario)
 		if (institution.getFeaturesEnabled()) {
-			LocalDate startDate = request.getStartDate();
-			LocalDate endDate = request.getEndDate();
+			LocalDate startDate = request.getStartDate() == null ? LocalDate.now(account.getTimeZone()) : request.getStartDate();
+			LocalDate endDate = request.getEndDate() == null ? startDate.plusDays(MAX_PROVIDER_FIND_RANGE_IN_DAYS) : request.getEndDate();
 
 			for (LocalDate currentDate = startDate;
 					 currentDate.isBefore(endDate) || currentDate.isEqual(endDate);
@@ -949,6 +959,15 @@ public class ProviderResource {
 		request.setEndDate(endDate);
 	}
 
+	protected static void applyLegacyProviderFindDateDefaults(@Nonnull ProviderFindRequest request) {
+		requireNonNull(request);
+
+		// Preserve the pre-V2 contract: only synthesize an end date when the caller supplied a start date.
+		// Reversed and long ranges were historically handled as empty/limited availability, not request errors.
+		if (request.getStartDate() != null && request.getEndDate() == null)
+			request.setEndDate(request.getStartDate().plusDays(MAX_PROVIDER_FIND_RANGE_IN_DAYS));
+	}
+
 	protected static class ProviderFindSection {
 		@Nullable
 		private LocalDate date;
@@ -1027,8 +1046,17 @@ public class ProviderResource {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 		Map<UUID, Address> addressesByAddressId = getAddressService().findAddressesByIds(addressIds);
+		Set<InstitutionId> institutionIds = providers.stream()
+				.map(Provider::getInstitutionId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		boolean bookingV2EnabledPreloaded = institutionIds.size() == 1;
+		Boolean bookingV2Enabled = bookingV2EnabledPreloaded
+				? getInstitutionService().isBookingV2Enabled(institutionIds.iterator().next())
+				: null;
 
-		return new ProviderApiResponseBatchContext(providerLocationsByProviderId, addressesByAddressId, true, true);
+		return new ProviderApiResponseBatchContext(providerLocationsByProviderId, addressesByAddressId, true, true,
+				bookingV2Enabled, bookingV2EnabledPreloaded);
 	}
 
 	@Nonnull
@@ -1041,7 +1069,7 @@ public class ProviderResource {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setProviderId(providerId);
 		request.setClinicIds(clinicId == null ? Collections.emptySet() : Set.of(clinicId));
-		request.setAvailability(ProviderFindAvailability.ONLY_AVAILABLE);
+		request.setAvailability(ProviderFindAvailability.ALL);
 		request.setIncludePastAvailability(false);
 
 		return request;
@@ -1061,12 +1089,12 @@ public class ProviderResource {
 		requireNonNull(providerFinds);
 		requireNonNull(account);
 
-		return providerFinds.stream()
+		Set<UUID> providerIds = providerFinds.stream()
 				.map(ProviderFind::getProviderId)
 				.filter(Objects::nonNull)
-				.distinct()
-				.map(providerId -> getProviderService().findProviderById(providerId).orElse(null))
-				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		return getProviderService().findProvidersByIds(providerIds).stream()
 				.filter(provider -> Boolean.TRUE.equals(provider.getActive()))
 				.filter(provider -> Objects.equals(provider.getInstitutionId(), account.getInstitutionId()))
 				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
@@ -1092,8 +1120,10 @@ public class ProviderResource {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 		Map<UUID, Address> addressesByAddressId = getAddressService().findAddressesByIds(addressIds);
+		Map<UUID, List<Provider>> providersByClinicId = getProviderService().findProvidersByClinicIds(clinicIds);
 
-		return new ClinicApiResponseBatchContext(clinicLocationsByClinicId, addressesByAddressId, true, true);
+		return new ClinicApiResponseBatchContext(clinicLocationsByClinicId, addressesByAddressId, providersByClinicId,
+				true, true, true);
 	}
 
 	@Nonnull
@@ -1142,7 +1172,7 @@ public class ProviderResource {
 
 		ClinicApiResponseBatchContext batchContext = clinicApiResponseBatchContextFor(List.of(clinic));
 		Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
-		List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequestForBookingContext(account, null, clinic.getClinicId()), account);
+		List<ProviderFind> providerFinds = getProviderService().findProviders(providerFindRequestForBookingContext(account, null, clinic.getClinicId()), account, false);
 		Map<UUID, Provider> providersById = providersByIdFor(providerFinds, account);
 		List<ProviderFind> activeProviderFinds = providerFinds.stream()
 				.filter(providerFind -> providersById.containsKey(providerFind.getProviderId()))
@@ -1430,7 +1460,7 @@ public class ProviderResource {
 
 		if (bookingV2Enabled) {
 			Map<UUID, AppointmentType> appointmentTypesById = appointmentTypesByIdFor(account);
-			ProviderFind providerFind = getProviderService().findProviders(providerFindRequestForBookingContext(account, provider.getProviderId(), null), account)
+			ProviderFind providerFind = getProviderService().findProviders(providerFindRequestForBookingContext(account, provider.getProviderId(), null), account, false)
 					.stream()
 					.filter(providerFindResult -> provider.getProviderId().equals(providerFindResult.getProviderId()))
 					.findFirst()

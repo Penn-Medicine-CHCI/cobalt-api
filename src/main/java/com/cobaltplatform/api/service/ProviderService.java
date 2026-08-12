@@ -329,6 +329,45 @@ public class ProviderService {
 	}
 
 	@Nonnull
+	public List<Provider> findProvidersByIds(@Nullable Set<UUID> providerIds) {
+		if (providerIds == null || providerIds.isEmpty())
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM provider
+				WHERE provider_id = ANY (CAST(? AS UUID[]))
+				ORDER BY name, provider_id
+				""", Provider.class, (Object) providerIds.toArray(new UUID[0]));
+	}
+
+	@Nonnull
+	public Map<UUID, List<Provider>> findProvidersByClinicIds(@Nullable Set<UUID> clinicIds) {
+		if (clinicIds == null || clinicIds.isEmpty())
+			return Collections.emptyMap();
+
+		List<ProviderWithClinicId> providers = getDatabase().queryForList("""
+				SELECT p.*, pc.clinic_id
+				FROM provider p, provider_clinic pc
+				WHERE p.provider_id=pc.provider_id
+				AND pc.clinic_id = ANY (CAST(? AS UUID[]))
+				AND p.active=TRUE
+				ORDER BY pc.clinic_id, p.name, p.provider_id
+				""", ProviderWithClinicId.class, (Object) clinicIds.toArray(new UUID[0]));
+
+		Map<UUID, List<Provider>> providersByClinicId = new HashMap<>();
+
+		for (ProviderWithClinicId provider : providers) {
+			if (provider.getClinicId() == null)
+				continue;
+
+			providersByClinicId.computeIfAbsent(provider.getClinicId(), ignored -> new ArrayList<>()).add(provider);
+		}
+
+		return providersByClinicId;
+	}
+
+	@Nonnull
 	public List<ProviderLocation> findProviderLocationsByProviderId(@Nullable UUID providerId) {
 		if (providerId == null)
 			return Collections.emptyList();
@@ -588,9 +627,11 @@ public class ProviderService {
 
 		ProviderFindRequest providerFindRequest = copyProviderFindRequest(request);
 		providerFindRequest.setIncludePastAvailability(false);
-		providerFindRequest.setAvailability(ProviderFindAvailability.ONLY_AVAILABLE);
+		// The non-native availability reconciler only lets a locally-booked slot override a stale AVAILABLE row
+		// when ALL statuses are requested.  Response construction filters BOOKED slots after reconciliation.
+		providerFindRequest.setAvailability(ProviderFindAvailability.ALL);
 
-		List<ProviderFind> providerFinds = findProviders(providerFindRequest, account);
+		List<ProviderFind> providerFinds = findProviders(providerFindRequest, account, false);
 
 		if (providerFinds.size() == 0)
 			return List.of();
@@ -605,9 +646,9 @@ public class ProviderService {
 
 		Map<UUID, AppointmentType> appointmentTypesById = getAppointmentService().findAppointmentTypesByInstitutionId(account.getInstitutionId()).stream()
 				.collect(Collectors.toMap(AppointmentType::getAppointmentTypeId, Function.identity()));
-		Map<UUID, Provider> providersById = providerIds.stream()
-				.map(providerId -> findProviderById(providerId).orElse(null))
-				.filter(Objects::nonNull)
+		Map<UUID, Provider> providersById = findProvidersByIds(providerIds).stream()
+				.filter(provider -> Boolean.TRUE.equals(provider.getActive()))
+				.filter(provider -> Objects.equals(provider.getInstitutionId(), account.getInstitutionId()))
 				.collect(Collectors.toMap(Provider::getProviderId, Function.identity()));
 		Map<UUID, List<Clinic>> clinicsByProviderId = getClinicService().findClinicsByProviderIds(providerIds);
 		Set<AppointmentBookingScreeningKey> completedAppointmentBookingScreeningKeys =
@@ -834,6 +875,7 @@ public class ProviderService {
 		ProviderFindRequest copiedRequest = new ProviderFindRequest();
 		copiedRequest.setInstitutionId(request.getInstitutionId());
 		copiedRequest.setProviderId(request.getProviderId());
+		copiedRequest.setExcludedAppointmentId(request.getExcludedAppointmentId());
 		copiedRequest.setStartDate(request.getStartDate());
 		copiedRequest.setEndDate(request.getEndDate());
 		copiedRequest.setDaysOfWeek(request.getDaysOfWeek());
@@ -865,7 +907,14 @@ public class ProviderService {
 
 	@Nonnull
 	public List<ProviderFind> findProviders(@Nonnull ProviderFindRequest request,
-																					@Nonnull Account account) {
+																				@Nonnull Account account) {
+		return findProviders(request, account, true);
+	}
+
+	@Nonnull
+	public List<ProviderFind> findProviders(@Nonnull ProviderFindRequest request,
+																				@Nonnull Account account,
+																				boolean failIfEpicPatientFhirIdMissing) {
 		requireNonNull(request);
 		requireNonNull(account);
 
@@ -920,27 +969,52 @@ public class ProviderService {
 
 		// If provider ID is specified or clinic IDs are specified, ignore the rest of the filters
 		if (providerId != null) {
-			providers = getDatabase().queryForList("""
-					SELECT *
-					FROM provider
-					WHERE provider_id=?
-					AND institution_id=?
-					AND active=TRUE
-					""", Provider.class, providerId, institutionId);
+			if (institutionLocationId == null) {
+				providers = getDatabase().queryForList("""
+						SELECT *
+						FROM provider
+						WHERE provider_id=?
+						AND institution_id=?
+						AND active=TRUE
+						""", Provider.class, providerId, institutionId);
+			} else {
+				providers = getDatabase().queryForList("""
+						SELECT p.*
+						FROM provider p
+						WHERE p.provider_id=?
+						AND p.institution_id=?
+						AND p.active=TRUE
+						AND (p.provider_id IN (
+						  SELECT pil1.provider_id
+						  FROM provider_institution_location pil1
+						  WHERE pil1.institution_location_id=?
+						) OR p.provider_id NOT IN (
+						  SELECT pil2.provider_id
+						  FROM provider_institution_location pil2
+						))
+						""", Provider.class, providerId, institutionId, institutionLocationId);
+			}
 		} else if (clinicIds.size() > 0) {
 			// For now - clinics also trump other filter types
 			List<Object> parameters = new ArrayList<>();
 			parameters.add(institutionId);
 			parameters.addAll(clinicIds);
+			StringBuilder query = new StringBuilder(format("""
+					SELECT DISTINCT p.* FROM provider p, provider_clinic pc
+					WHERE p.provider_id=pc.provider_id
+					AND p.institution_id=?
+					AND p.active=TRUE
+					AND pc.clinic_id IN %s
+					""", sqlInListPlaceholders(clinicIds)));
 
-			providers = getDatabase().queryForList(format("""
-						SELECT DISTINCT p.* FROM provider p, provider_clinic pc
-						WHERE p.provider_id=pc.provider_id
-						AND p.institution_id=?
-						AND p.active=TRUE
-						AND pc.clinic_id IN %s
-						ORDER BY p.name  
-					""", sqlInListPlaceholders(clinicIds)), Provider.class, parameters.toArray(new Object[]{}));
+			if (institutionLocationId != null) {
+				query.append(" AND (p.provider_id IN (SELECT pil1.provider_id FROM provider_institution_location pil1 WHERE pil1.institution_location_id = ?)");
+				query.append(" OR p.provider_id NOT IN (SELECT pil2.provider_id FROM provider_institution_location pil2))");
+				parameters.add(institutionLocationId);
+			}
+
+			query.append(" ORDER BY p.name");
+			providers = getDatabase().queryForList(query.toString(), Provider.class, parameters.toArray(new Object[]{}));
 		} else {
 			StringBuilder query = new StringBuilder();
 			List<Object> parameters = new ArrayList<>();
@@ -1183,7 +1257,7 @@ public class ProviderService {
 
 		// Slightly different flow to pull availablity if we have Epic FHIR providers
 		Map<UUID, List<AvailabilityDate>> availabilityDatesByEpicFhirProviderId = determineAvailabilityDatesByEpicFhirProviderIds(
-				account, institution, providers, new AvailabilityDatesCommand() {{
+				account, institution, providers, failIfEpicPatientFhirIdMissing, new AvailabilityDatesCommand() {{
 					setVisitTypeIds(visitTypeIds);
 					setStartDate(startDate);
 					setStartTime(startTime);
@@ -1222,6 +1296,7 @@ public class ProviderService {
 			datesCommand.setDaysOfWeek(daysOfWeek);
 			datesCommand.setAvailability(availability);
 			datesCommand.setEpicDepartmentIds(Set.of());
+			datesCommand.setExcludedAppointmentId(request.getExcludedAppointmentId());
 
 			// For IC, we discard any availability slots that are not relevant for the order's scheduling Epic department
 			if (patientOrderId != null) {
@@ -1529,9 +1604,10 @@ public class ProviderService {
 
 	@Nonnull
 	protected Map<UUID, List<AvailabilityDate>> determineAvailabilityDatesByEpicFhirProviderIds(@Nonnull Account account,
-																																															@Nonnull Institution institution,
-																																															@Nonnull List<Provider> providers,
-																																															@Nonnull AvailabilityDatesCommand command) {
+																													@Nonnull Institution institution,
+																													@Nonnull List<Provider> providers,
+																													boolean failIfEpicPatientFhirIdMissing,
+																													@Nonnull AvailabilityDatesCommand command) {
 		requireNonNull(account);
 		requireNonNull(institution);
 		requireNonNull(providers);
@@ -1555,13 +1631,19 @@ public class ProviderService {
 			// If an institution has FHIR providers that match the search criteria and the requesting account doesn't have
 			// a patient FHIR ID, then bubble out an error indicating that via special metadata.
 			// This way FE can take action (route through MyChart flow etc.)
-			if (account.getEpicPatientFhirId() == null) {
+			if (account.getEpicPatientFhirId() == null && failIfEpicPatientFhirIdMissing) {
 				ValidationException myChartValidationException = new ValidationException();
 				myChartValidationException.add(getStrings().get("You need to connect to {{myChartName}} before accessing these healthcare providers.",
 						Map.of("myChartName", institution.getMyChartName())));
 				myChartValidationException.setMetadata(Map.of("patientFhirIdRequired", true));
 				throw myChartValidationException;
 			}
+
+			// V2 discovery and profile endpoints must remain usable before MyChart is linked.  They return these
+			// providers without FHIR availability; the legacy provider-find flow retains its validation/redirect contract.
+			if (account.getEpicPatientFhirId() == null)
+				return availabilityDatesByDateByProviderId.entrySet().stream()
+						.collect(Collectors.toMap(Entry::getKey, entry -> new ArrayList<>(entry.getValue().values())));
 
 			Map<String, Provider> providersByEpicPractitionerFhirId = providersThatUseEpicFhir.stream()
 					.collect(Collectors.toMap(Provider::getEpicPractitionerFhirId, Function.identity()));
@@ -1982,7 +2064,9 @@ public class ProviderService {
 		LocalDate endDate = endDateTime.toLocalDate();
 
 		List<LogicalAvailability> logicalAvailabilities = requiredValues(nativeSchedulingAvailabilityData.getLogicalAvailabilitiesByProviderId(), command.getProvider().getProviderId());
-		List<Appointment> appointments = requiredValues(nativeSchedulingAvailabilityData.getActiveAppointmentsByProviderId(), command.getProvider().getProviderId());
+		List<Appointment> appointments = appointmentsExcluding(
+				requiredValues(nativeSchedulingAvailabilityData.getActiveAppointmentsByProviderId(), command.getProvider().getProviderId()),
+				command.getExcludedAppointmentId());
 		List<AppointmentTypeWithProviderId> allActiveAppointmentTypes = requiredValues(nativeSchedulingAvailabilityData.getAllActiveAppointmentTypesByProviderId(), command.getProvider().getProviderId());
 
 		// First, break everything out by date - start with appointments...
@@ -2287,6 +2371,16 @@ public class ProviderService {
 		}
 
 		return dates;
+	}
+
+	@Nonnull
+	protected static List<Appointment> appointmentsExcluding(@Nonnull List<Appointment> appointments,
+																							 @Nullable UUID excludedAppointmentId) {
+		requireNonNull(appointments);
+
+		return appointments.stream()
+				.filter(appointment -> !Objects.equals(appointment.getAppointmentId(), excludedAppointmentId))
+				.collect(Collectors.toList());
 	}
 
 	@ThreadSafe
@@ -2674,6 +2768,8 @@ public class ProviderService {
 		private Set<UUID> epicDepartmentIds;
 		@Nullable
 		private ProviderFindAvailability availability;
+		@Nullable
+		private UUID excludedAppointmentId;
 
 		@Override
 		@Nonnull
@@ -2769,6 +2865,15 @@ public class ProviderService {
 
 		public void setAvailability(@Nullable ProviderFindAvailability availability) {
 			this.availability = availability;
+		}
+
+		@Nullable
+		public UUID getExcludedAppointmentId() {
+			return this.excludedAppointmentId;
+		}
+
+		public void setExcludedAppointmentId(@Nullable UUID excludedAppointmentId) {
+			this.excludedAppointmentId = excludedAppointmentId;
 		}
 	}
 
@@ -3310,6 +3415,20 @@ public class ProviderService {
 
 		public void setProviderId(@Nullable UUID providerId) {
 			this.providerId = providerId;
+		}
+	}
+
+	protected static class ProviderWithClinicId extends Provider {
+		@Nullable
+		private UUID clinicId;
+
+		@Nullable
+		public UUID getClinicId() {
+			return this.clinicId;
+		}
+
+		public void setClinicId(@Nullable UUID clinicId) {
+			this.clinicId = clinicId;
 		}
 	}
 }

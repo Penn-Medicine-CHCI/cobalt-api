@@ -44,6 +44,21 @@ import java.util.stream.Collectors;
 @ThreadSafe
 public class InstitutionServiceTests {
 	@Test
+	public void recommendedSelfHelpUrlIsIndependentOfProviderBookingVersion() {
+		Institution institution = new Institution();
+		institution.setBookingV2Enabled(true);
+		institution.setRecommendedContentEnabled(true);
+		FeatureForInstitution feature = new FeatureForInstitution();
+		feature.setFeatureId(FeatureId.SELF_HELP_RESOURCES);
+		feature.setUrlName("/resource-library");
+		feature.setRecommended(true);
+
+		InstitutionService.applyRecommendedContentUrlName(feature, institution);
+
+		Assert.assertEquals("/resource-library?recommended=true", feature.getUrlName());
+	}
+
+	@Test
 	public void findLocationById() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);

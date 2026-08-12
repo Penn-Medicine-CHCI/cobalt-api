@@ -13,7 +13,8 @@ SELECT _v.register_patch(
 -- This script depends on bootstrap fixture rows, the environment-agnostic
 -- provider-booking database migration, and the Cobalt tenant configuration. It
 -- is intentionally run only by local/bootstrap database recreation scripts.
--- Do not run this as a production functional migration.
+-- This file intentionally lives outside sql/updates. Do not run it as a
+-- production functional migration.
 
 -- Local and bootstrap databases opt in so QA exercises booking v2 by default.
 -- Production remains disabled until an institution is explicitly activated.
