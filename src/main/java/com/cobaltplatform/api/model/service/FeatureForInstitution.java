@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * @author Transmogrify, LLC.
@@ -71,6 +72,8 @@ public class FeatureForInstitution {
 	private String recommendationBookingTitleOverride;
 	@Nullable
 	private String recommendationBookingUrlOverride;
+	@Nullable
+	private UUID providerId;
 
 	@Nullable
 	public FeatureId getFeatureId() {
@@ -241,5 +244,14 @@ public class FeatureForInstitution {
 
 	public void setRecommendationBookingUrlOverride(@Nullable String recommendationBookingUrlOverride) {
 		this.recommendationBookingUrlOverride = recommendationBookingUrlOverride;
+	}
+
+	@Nullable
+	public UUID getProviderId() {
+		return this.providerId;
+	}
+
+	public void setProviderId(@Nullable UUID providerId) {
+		this.providerId = providerId;
 	}
 }

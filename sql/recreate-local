@@ -278,3 +278,5 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-autism-cli
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/259-provider-booking-database.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/259-cobalt-provider-booking-configuration.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/259-provider-booking-seed.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/260-care-navigator.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/260-care-navigator-seed.sql

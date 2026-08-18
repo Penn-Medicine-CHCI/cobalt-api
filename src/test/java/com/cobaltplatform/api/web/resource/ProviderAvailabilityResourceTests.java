@@ -149,6 +149,16 @@ public class ProviderAvailabilityResourceTests {
 	}
 
 	@Test
+	public void resourceNavigatorFeatureMatchesCareNavigatorOnly() {
+		List<SupportRoleId> resourceNavigatorSupportRoles = List.of(SupportRoleId.CARE_NAVIGATOR);
+
+		assertTrue(ProviderAvailabilityResource.providerSupportRolesMatchFeature(resourceNavigatorSupportRoles,
+				List.of(SupportRoleId.CARE_NAVIGATOR)));
+		assertFalse(ProviderAvailabilityResource.providerSupportRolesMatchFeature(resourceNavigatorSupportRoles,
+				List.of(SupportRoleId.CARE_MANAGER, SupportRoleId.CLINICIAN)));
+	}
+
+	@Test
 	public void appointmentTypeFilterResolvesClinicSlotAppointmentDescription() {
 		UUID providerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
 		UUID clinicId = UUID.fromString("00000000-0000-0000-0000-000000000002");
