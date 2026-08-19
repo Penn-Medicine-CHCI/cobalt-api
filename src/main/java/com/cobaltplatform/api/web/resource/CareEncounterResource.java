@@ -46,6 +46,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -111,7 +112,7 @@ public class CareEncounterResource {
 
 		Account account = requireCareNavigatorAccount();
 		FindCareEncountersRequest request = new FindCareEncountersRequest();
-		request.setProviderId(account.getProviderId());
+		request.setInstitutionId(account.getInstitutionId());
 		request.setPageNumber(pageNumber.orElse(null));
 		request.setPageSize(pageSize.orElse(null));
 		request.setStartDate(startDate.orElse(null));
@@ -140,10 +141,20 @@ public class CareEncounterResource {
 
 		Account account = requireCareNavigatorAccount();
 		CareEncounter careEncounter = getCareEncounterService()
-				.findCareEncounterByIdForProviderId(careEncounterId, account.getProviderId())
+				.findCareEncounterByIdForInstitutionId(careEncounterId, account.getInstitutionId())
 				.orElseThrow(NotFoundException::new);
+		List<CareEncounter> otherCareEncounters = getCareEncounterService()
+				.findOtherCareEncountersByAccountId(careEncounter.getAccountId(), careEncounter.getCareEncounterId(),
+						account.getInstitutionId());
 
-		return new ApiResponse(Map.of("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter)));
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter));
+			put("otherCareEncounters", otherCareEncounters.stream()
+					.map(getCareEncounterApiResponseFactory()::create)
+					.collect(Collectors.toList()));
+			put("otherCareEncountersTotalCount", otherCareEncounters.size());
+			put("otherCareEncountersTotalCountDescription", getFormatter().formatNumber(otherCareEncounters.size()));
+		}});
 	}
 
 	@Nonnull
@@ -154,7 +165,7 @@ public class CareEncounterResource {
 
 		Account account = requireCareNavigatorAccount();
 		CreateCareEncounterRequest request = getRequestBodyParser().parse(requestBody, CreateCareEncounterRequest.class);
-		request.setProviderId(account.getProviderId());
+		request.setInstitutionId(account.getInstitutionId());
 		request.setAccountId(account.getAccountId());
 		CareEncounter careEncounter = getCareEncounterService().createCareEncounter(request);
 
@@ -172,7 +183,7 @@ public class CareEncounterResource {
 		Account account = requireCareNavigatorAccount();
 		UpdateCareEncounterRequest request = getRequestBodyParser().parse(requestBody, UpdateCareEncounterRequest.class);
 		request.setCareEncounterId(careEncounterId);
-		request.setProviderId(account.getProviderId());
+		request.setInstitutionId(account.getInstitutionId());
 		request.setAccountId(account.getAccountId());
 		CareEncounter careEncounter = getCareEncounterService().updateCareEncounter(request);
 
@@ -191,7 +202,7 @@ public class CareEncounterResource {
 		CancelAppointmentRequest request = getRequestBodyParser().parse(requestBody, CancelAppointmentRequest.class);
 		CareEncounter careEncounter = getCareEncounterService().cancelCareEncounter(
 				careEncounterId,
-				account.getProviderId(),
+				account.getInstitutionId(),
 				account.getAccountId(),
 				request);
 
@@ -206,10 +217,10 @@ public class CareEncounterResource {
 
 		Account account = requireCareNavigatorAccount();
 		CareEncounter careEncounter = getCareEncounterService()
-				.findCareEncounterByIdForProviderId(careEncounterId, account.getProviderId())
+				.findCareEncounterByIdForInstitutionId(careEncounterId, account.getInstitutionId())
 				.orElseThrow(NotFoundException::new);
 
-		getCareEncounterService().deleteCareEncounter(careEncounter.getCareEncounterId(), account.getProviderId(), account.getAccountId());
+		getCareEncounterService().deleteCareEncounter(careEncounter.getCareEncounterId(), account.getInstitutionId(), account.getAccountId());
 		return new ApiResponse();
 	}
 

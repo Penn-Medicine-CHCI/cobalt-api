@@ -11,16 +11,16 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
-import java.util.UUID;
 
 @NotThreadSafe
 public class FindCareEncountersRequest {
 	@Nullable
-	private UUID providerId;
+	private InstitutionId institutionId;
 	@Nullable
 	private Integer pageNumber;
 	@Nullable
@@ -43,17 +43,19 @@ public class FindCareEncountersRequest {
 		PATIENT_NAME_DESC,
 		STATUS_ASC,
 		STATUS_DESC,
+		CREATED_ASC,
+		CREATED_DESC,
 		LAST_UPDATED_ASC,
 		LAST_UPDATED_DESC
 	}
 
 	@Nullable
-	public UUID getProviderId() {
-		return this.providerId;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setProviderId(@Nullable UUID providerId) {
-		this.providerId = providerId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable

@@ -10,6 +10,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.UUID;
@@ -21,7 +23,7 @@ public class CreateCareEncounterRequest {
 	@Nullable
 	private String notes;
 	@Nullable
-	private UUID providerId;
+	private InstitutionId institutionId;
 	@Nullable
 	private UUID accountId;
 
@@ -44,12 +46,12 @@ public class CreateCareEncounterRequest {
 	}
 
 	@Nullable
-	public UUID getProviderId() {
-		return this.providerId;
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
 	}
 
-	public void setProviderId(@Nullable UUID providerId) {
-		this.providerId = providerId;
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
 	}
 
 	@Nullable

@@ -49,6 +49,7 @@ import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Normalizer;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import java.util.List;
@@ -84,6 +85,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<CourseService> courseServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -96,6 +99,7 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 															@Nonnull javax.inject.Provider<StudyService> studyServiceProvider,
 															@Nonnull javax.inject.Provider<CourseService> courseServiceProvider,
+															@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
@@ -106,6 +110,7 @@ public class AuthorizationService {
 		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(studyServiceProvider);
 		requireNonNull(courseServiceProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
@@ -117,6 +122,7 @@ public class AuthorizationService {
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.studyServiceProvider = studyServiceProvider;
 		this.courseServiceProvider = courseServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -214,8 +220,12 @@ public class AuthorizationService {
 	public Boolean canManageCareEncounters(@Nonnull Account account) {
 		requireNonNull(account);
 
-		return account.getProviderId() != null
-				&& determineAccountCapabilityFlagsForAccount(account).isCareNavigator();
+		return determineAccountCapabilityFlagsForAccount(account).isCareNavigator()
+				&& institutionHasCareNavigatorBookingProvider(account.getInstitutionId());
+	}
+
+	protected boolean institutionHasCareNavigatorBookingProvider(@Nullable InstitutionId institutionId) {
+		return getInstitutionService().findCareNavigatorBookingProviderIdForInstitutionId(institutionId).isPresent();
 	}
 
 	@Nonnull
@@ -896,6 +906,11 @@ public class AuthorizationService {
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull

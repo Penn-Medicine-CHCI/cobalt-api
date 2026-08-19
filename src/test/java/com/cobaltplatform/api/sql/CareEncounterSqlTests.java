@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class CareEncounterSqlTests {
@@ -77,19 +78,33 @@ public class CareEncounterSqlTests {
 		String responseJava = readSql("src/main/java/com/cobaltplatform/api/model/api/response/CareEncounterApiResponse.java");
 
 		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounters\")"));
+		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounters/{careEncounterId}\")"));
 		assertTrue(resourceJava.contains("Optional<Integer> pageNumber"));
 		assertTrue(resourceJava.contains("Optional<Integer> pageSize"));
 		assertTrue(resourceJava.contains("Optional<String> searchQuery"));
 		assertTrue(resourceJava.contains("Optional<CareEncounterStatusId> careEncounterStatusId"));
 		assertTrue(resourceJava.contains("Optional<OrderBy> orderBy"));
 		assertTrue(resourceJava.contains("put(\"totalCountDescription\""));
+		assertTrue(resourceJava.contains("put(\"otherCareEncounters\""));
+		assertTrue(resourceJava.contains("put(\"otherCareEncountersTotalCount\""));
 		assertTrue(requestJava.contains("APPOINTMENT_START_TIME_DESC"));
 		assertTrue(requestJava.contains("PATIENT_NAME_ASC"));
 		assertTrue(requestJava.contains("STATUS_ASC"));
+		assertTrue(requestJava.contains("CREATED_ASC"));
+		assertTrue(requestJava.contains("CREATED_DESC"));
 		assertTrue(requestJava.contains("LAST_UPDATED_DESC"));
+		assertTrue(requestJava.contains("private InstitutionId institutionId"));
+		assertTrue(resourceJava.contains("request.setInstitutionId(account.getInstitutionId())"));
+		assertFalse(resourceJava.contains("account.getProviderId()"));
 		assertTrue(serviceJava.contains("COUNT(*) OVER() AS total_count"));
+		assertTrue(serviceJava.contains("provider.institution_id=?"));
 		assertTrue(serviceJava.contains("LIMIT ? OFFSET ?"));
 		assertTrue(serviceJava.contains("care_encounter.notes ILIKE ?"));
+		assertTrue(serviceJava.contains("CONCAT_WS(' ', appointment.first_name, appointment.last_name) ILIKE ?"));
+		assertTrue(serviceJava.contains("care_encounter.created ASC"));
+		assertTrue(serviceJava.contains("care_encounter.created DESC"));
+		assertTrue(serviceJava.contains("findOtherCareEncountersByAccountId"));
+		assertTrue(serviceJava.contains("care_encounter.care_encounter_id<>?"));
 		assertTrue(serviceJava.contains("care_encounter.care_encounter_status_id<>'OPEN'"));
 		assertTrue(serviceJava.contains("CASE WHEN care_encounter.care_encounter_status_id='OPEN' THEN 1 ELSE 0 END"));
 		assertTrue(resourceJava.contains("@PUT(\"/admin/care-encounters/{careEncounterId}/cancel\")"));
@@ -102,6 +117,12 @@ public class CareEncounterSqlTests {
 		assertTrue(responseJava.contains("getCareEncounterStatusId()"));
 		assertTrue(responseJava.contains("getCareEncounterStatusDisplayLabel()"));
 		assertTrue(responseJava.contains("getCareEncounterStatusId().getDisplayLabel()"));
+		assertTrue(responseJava.contains("private final AppointmentApiResponse appointment"));
+		assertTrue(responseJava.contains("private final String patientFullName"));
+		assertTrue(responseJava.contains("private final LocalDate appointmentDate"));
+		assertTrue(responseJava.contains("private final String appointmentDateDescription"));
+		assertTrue(responseJava.contains("private final LocalDate createdDate"));
+		assertTrue(responseJava.contains("private final String createdDateDescription"));
 		assertTrue(responseJava.contains("getCanceledByAccountId()"));
 	}
 

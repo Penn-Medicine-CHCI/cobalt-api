@@ -30,6 +30,7 @@ public class CareNavigatorSqlTests {
 	@Test
 	public void productionMigrationDefinesNavigatorLookupsWithoutFixtureData() throws IOException {
 		String migrationSql = readSql("sql/updates/260-care-navigator.sql");
+		String institutionServiceJava = readSql("src/main/java/com/cobaltplatform/api/service/InstitutionService.java");
 
 		assertTrue(migrationSql.contains("'CARE_NAVIGATOR', 'Care Navigator', 12"));
 		assertTrue(migrationSql.contains("'NAVIGATOR', 'Care Navigator'"));
@@ -39,6 +40,13 @@ public class CareNavigatorSqlTests {
 		assertTrue(migrationSql.contains("ON CONFLICT (support_role_id) DO UPDATE"));
 		assertTrue(migrationSql.contains("ON CONFLICT (account_capability_type_id) DO UPDATE"));
 		assertTrue(migrationSql.contains("ON CONFLICT (feature_id, support_role_id) DO NOTHING"));
+		assertTrue(migrationSql.contains("CREATE OR REPLACE FUNCTION validate_care_navigator_booking_provider()"));
+		assertTrue(migrationSql.contains("NEW.provider_id IS NULL"));
+		assertTrue(migrationSql.contains("provider.institution_id=NEW.institution_id"));
+		assertTrue(migrationSql.contains("provider.active=TRUE"));
+		assertTrue(migrationSql.contains("provider_support_role.support_role_id='CARE_NAVIGATOR'"));
+		assertTrue(institutionServiceJava.contains("findCareNavigatorBookingProviderIdForInstitutionId"));
+		assertTrue(institutionServiceJava.contains("removeUnavailableCareNavigatorFeature"));
 		assertFalse(migrationSql.contains("care-navigator@cobaltinnovations.org"));
 		assertFalse(migrationSql.contains("Care Navigation Consultation"));
 	}

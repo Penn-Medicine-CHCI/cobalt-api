@@ -51,4 +51,39 @@ WHERE EXISTS (
 )
 ON CONFLICT (feature_id, support_role_id) DO NOTHING;
 
+-- An institution only has the Care Navigator capability when its feature is
+-- connected to an active Care Navigator provider in the same institution.
+-- The provider is the booking entity; Navigator staff accounts remain
+-- independently assignable through the NAVIGATOR account capability.
+CREATE OR REPLACE FUNCTION validate_care_navigator_booking_provider()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF NEW.feature_id='RESOURCE_NAVIGATOR' THEN
+		IF NEW.provider_id IS NULL THEN
+			RAISE EXCEPTION 'Care Navigator feature requires a booking provider.';
+		END IF;
+
+		IF NOT EXISTS (
+			SELECT 1
+			FROM provider
+			JOIN provider_support_role
+				ON provider_support_role.provider_id=provider.provider_id
+				AND provider_support_role.support_role_id='CARE_NAVIGATOR'
+			WHERE provider.provider_id=NEW.provider_id
+			AND provider.institution_id=NEW.institution_id
+			AND provider.active=TRUE
+		) THEN
+			RAISE EXCEPTION 'Care Navigator booking provider must be active, belong to the institution, and have the Care Navigator support role.';
+		END IF;
+	END IF;
+
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER validate_care_navigator_booking_provider
+BEFORE INSERT OR UPDATE OF feature_id, institution_id, provider_id ON institution_feature
+FOR EACH ROW
+EXECUTE FUNCTION validate_care_navigator_booking_provider();
+
 COMMIT;

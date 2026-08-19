@@ -10,6 +10,7 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Appointment;
@@ -24,6 +25,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.FormatStyle;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,6 +44,12 @@ public class CareEncounterApiResponse {
 	private final CareEncounterStatusId careEncounterStatusId;
 	@Nonnull
 	private final String careEncounterStatusDisplayLabel;
+	@Nonnull
+	private final String patientFullName;
+	@Nonnull
+	private final LocalDate appointmentDate;
+	@Nonnull
+	private final String appointmentDateDescription;
 	@Nullable
 	private final String notes;
 	@Nullable
@@ -57,6 +66,10 @@ public class CareEncounterApiResponse {
 	private final Instant created;
 	@Nonnull
 	private final String createdDescription;
+	@Nonnull
+	private final LocalDate createdDate;
+	@Nonnull
+	private final String createdDateDescription;
 	@Nonnull
 	private final Instant lastUpdated;
 	@Nonnull
@@ -75,10 +88,12 @@ public class CareEncounterApiResponse {
 	public CareEncounterApiResponse(@Nonnull AppointmentService appointmentService,
 																 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 																 @Nonnull Formatter formatter,
+																 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 																 @Assisted @Nonnull CareEncounter careEncounter) {
 		requireNonNull(appointmentService);
 		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(formatter);
+		requireNonNull(currentContextProvider);
 		requireNonNull(careEncounter);
 
 		Appointment appointment = appointmentService.findAppointmentById(careEncounter.getAppointmentId()).get();
@@ -88,6 +103,11 @@ public class CareEncounterApiResponse {
 		this.accountId = careEncounter.getAccountId();
 		this.careEncounterStatusId = careEncounter.getCareEncounterStatusId();
 		this.careEncounterStatusDisplayLabel = careEncounter.getCareEncounterStatusId().getDisplayLabel();
+		this.patientFullName = String.format("%s %s",
+				appointment.getFirstName() == null ? "" : appointment.getFirstName(),
+				appointment.getLastName() == null ? "" : appointment.getLastName()).trim();
+		this.appointmentDate = appointment.getStartTime().toLocalDate();
+		this.appointmentDateDescription = formatter.formatDate(this.appointmentDate, FormatStyle.MEDIUM);
 		this.notes = careEncounter.getNotes();
 		this.closedAt = careEncounter.getClosedAt();
 		this.closedAtDescription = careEncounter.getClosedAt() == null ? null : formatter.formatTimestamp(careEncounter.getClosedAt());
@@ -96,6 +116,8 @@ public class CareEncounterApiResponse {
 		this.lastUpdatedByAccountId = careEncounter.getLastUpdatedByAccountId();
 		this.created = careEncounter.getCreated();
 		this.createdDescription = formatter.formatTimestamp(careEncounter.getCreated());
+		this.createdDate = LocalDate.ofInstant(careEncounter.getCreated(), currentContextProvider.get().getTimeZone());
+		this.createdDateDescription = formatter.formatDate(this.createdDate, FormatStyle.MEDIUM);
 		this.lastUpdated = careEncounter.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(careEncounter.getLastUpdated());
 		this.appointment = appointmentApiResponseFactory.create(appointment, Set.of(
@@ -128,6 +150,21 @@ public class CareEncounterApiResponse {
 	@Nonnull
 	public String getCareEncounterStatusDisplayLabel() {
 		return this.careEncounterStatusDisplayLabel;
+	}
+
+	@Nonnull
+	public String getPatientFullName() {
+		return this.patientFullName;
+	}
+
+	@Nonnull
+	public LocalDate getAppointmentDate() {
+		return this.appointmentDate;
+	}
+
+	@Nonnull
+	public String getAppointmentDateDescription() {
+		return this.appointmentDateDescription;
 	}
 
 	@Nullable
@@ -168,6 +205,16 @@ public class CareEncounterApiResponse {
 	@Nonnull
 	public String getCreatedDescription() {
 		return this.createdDescription;
+	}
+
+	@Nonnull
+	public LocalDate getCreatedDate() {
+		return this.createdDate;
+	}
+
+	@Nonnull
+	public String getCreatedDateDescription() {
+		return this.createdDateDescription;
 	}
 
 	@Nonnull

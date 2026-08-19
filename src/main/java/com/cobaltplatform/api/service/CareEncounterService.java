@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
@@ -83,7 +84,7 @@ public class CareEncounterService {
 	public FindResult<CareEncounter> findCareEncounters(@Nonnull FindCareEncountersRequest request) {
 		requireNonNull(request);
 
-		UUID providerId = request.getProviderId();
+		InstitutionId institutionId = request.getInstitutionId();
 		Integer pageNumber = request.getPageNumber();
 		Integer pageSize = request.getPageSize();
 		LocalDate startDate = request.getStartDate();
@@ -93,8 +94,8 @@ public class CareEncounterService {
 		OrderBy orderBy = request.getOrderBy() == null ? OrderBy.APPOINTMENT_START_TIME_DESC : request.getOrderBy();
 		ValidationException validationException = new ValidationException();
 
-		if (providerId == null)
-			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
 		if (startDate != null && endDate != null && startDate.isAfter(endDate))
 			validationException.add(new FieldError("date", getStrings().get("Start date must be on or before end date.")));
@@ -114,11 +115,12 @@ public class CareEncounterService {
 				SELECT care_encounter.*, COUNT(*) OVER() AS total_count
 				FROM care_encounter
 				JOIN appointment ON appointment.appointment_id=care_encounter.appointment_id
+				JOIN provider ON provider.provider_id=appointment.provider_id
 				WHERE care_encounter.deleted=FALSE
-				AND appointment.provider_id=?
+				AND provider.institution_id=?
 				""");
 		List<Object> parameters = new ArrayList<>();
-		parameters.add(providerId);
+		parameters.add(institutionId);
 
 		if (startDate != null) {
 			query.append("AND appointment.start_time >= ? ");
@@ -134,6 +136,7 @@ public class CareEncounterService {
 			query.append("""
 					AND (
 						CONCAT_WS(' ', appointment.first_name, appointment.last_name) ILIKE ?
+						OR CONCAT_WS(' ', appointment.last_name, appointment.first_name) ILIKE ?
 						OR appointment.email_address ILIKE ?
 						OR appointment.contact_phone_number ILIKE ?
 						OR appointment.title ILIKE ?
@@ -141,6 +144,7 @@ public class CareEncounterService {
 					)
 					""");
 			String searchPattern = String.format("%%%s%%", searchQuery);
+			parameters.add(searchPattern);
 			parameters.add(searchPattern);
 			parameters.add(searchPattern);
 			parameters.add(searchPattern);
@@ -171,6 +175,10 @@ public class CareEncounterService {
 			query.append("CASE WHEN care_encounter.care_encounter_status_id='OPEN' THEN 1 ELSE 0 END ASC, care_encounter.care_encounter_status_id ASC ");
 		else if (orderBy == OrderBy.STATUS_DESC)
 			query.append("CASE WHEN care_encounter.care_encounter_status_id='OPEN' THEN 1 ELSE 0 END DESC, care_encounter.care_encounter_status_id DESC ");
+		else if (orderBy == OrderBy.CREATED_ASC)
+			query.append("care_encounter.created ASC ");
+		else if (orderBy == OrderBy.CREATED_DESC)
+			query.append("care_encounter.created DESC ");
 		else if (orderBy == OrderBy.LAST_UPDATED_ASC)
 			query.append("care_encounter.last_updated ASC ");
 		else if (orderBy == OrderBy.LAST_UPDATED_DESC)
@@ -191,19 +199,40 @@ public class CareEncounterService {
 	}
 
 	@Nonnull
-	public Optional<CareEncounter> findCareEncounterByIdForProviderId(@Nullable UUID careEncounterId,
-																												 @Nullable UUID providerId) {
-		if (careEncounterId == null || providerId == null)
+	public Optional<CareEncounter> findCareEncounterByIdForInstitutionId(@Nullable UUID careEncounterId,
+																							@Nullable InstitutionId institutionId) {
+		if (careEncounterId == null || institutionId == null)
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT care_encounter.*
 				FROM care_encounter
 				JOIN appointment ON appointment.appointment_id=care_encounter.appointment_id
+				JOIN provider ON provider.provider_id=appointment.provider_id
 				WHERE care_encounter.care_encounter_id=?
 				AND care_encounter.deleted=FALSE
-				AND appointment.provider_id=?
-				""", CareEncounter.class, careEncounterId, providerId);
+				AND provider.institution_id=?
+				""", CareEncounter.class, careEncounterId, institutionId);
+	}
+
+	@Nonnull
+	public List<CareEncounter> findOtherCareEncountersByAccountId(@Nullable UUID accountId,
+																	 @Nullable UUID excludedCareEncounterId,
+																	 @Nullable InstitutionId institutionId) {
+		if (accountId == null || excludedCareEncounterId == null || institutionId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT care_encounter.*
+				FROM care_encounter
+				JOIN appointment ON appointment.appointment_id=care_encounter.appointment_id
+				JOIN provider ON provider.provider_id=appointment.provider_id
+				WHERE care_encounter.account_id=?
+				AND care_encounter.care_encounter_id<>?
+				AND care_encounter.deleted=FALSE
+				AND provider.institution_id=?
+				ORDER BY appointment.start_time DESC, care_encounter.care_encounter_id ASC
+				""", CareEncounter.class, accountId, excludedCareEncounterId, institutionId);
 	}
 
 	@Nonnull
@@ -211,22 +240,22 @@ public class CareEncounterService {
 		requireNonNull(request);
 
 		UUID appointmentId = request.getAppointmentId();
-		UUID providerId = request.getProviderId();
+		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
 		String notes = normalizeNotes(request.getNotes());
 		Appointment appointment = null;
 		ValidationException validationException = new ValidationException();
 
-		if (providerId == null)
-			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (appointmentId == null) {
 			validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is required.")));
-		} else if (providerId != null) {
-			appointment = findCareNavigatorAppointmentByIdAndProviderId(appointmentId, providerId).orElse(null);
+		} else if (institutionId != null) {
+			appointment = findCareNavigatorAppointmentByIdAndInstitutionId(appointmentId, institutionId).orElse(null);
 
 			if (appointment == null)
 				validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is invalid.")));
@@ -253,7 +282,7 @@ public class CareEncounterService {
 					last_updated_by_account_id=EXCLUDED.last_updated_by_account_id
 				""", careEncounterId, appointmentId, appointment.getAccountId(), notes, accountId, accountId);
 
-		return findCareEncounterByAppointmentIdForProviderId(appointmentId, providerId).get();
+		return findCareEncounterByAppointmentIdForInstitutionId(appointmentId, institutionId).get();
 	}
 
 	@Nonnull
@@ -261,22 +290,22 @@ public class CareEncounterService {
 		requireNonNull(request);
 
 		UUID careEncounterId = request.getCareEncounterId();
-		UUID providerId = request.getProviderId();
+		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
 		String notes = normalizeNotes(request.getNotes());
 		CareEncounter careEncounter = null;
 		ValidationException validationException = new ValidationException();
 
-		if (providerId == null)
-			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (careEncounterId == null) {
 			validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is required.")));
-		} else if (providerId != null) {
-			careEncounter = findCareEncounterByIdForProviderId(careEncounterId, providerId).orElse(null);
+		} else if (institutionId != null) {
+			careEncounter = findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).orElse(null);
 
 			if (careEncounter == null)
 				validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is invalid.")));
@@ -293,22 +322,22 @@ public class CareEncounterService {
 				WHERE care_encounter_id=?
 				""", notes, accountId, careEncounterId);
 
-		return findCareEncounterByIdForProviderId(careEncounterId, providerId).get();
+		return findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).get();
 	}
 
 	public boolean deleteCareEncounter(@Nullable UUID careEncounterId,
-																			 @Nullable UUID providerId,
-																			 @Nullable UUID accountId) {
+															 @Nullable InstitutionId institutionId,
+															 @Nullable UUID accountId) {
 		ValidationException validationException = new ValidationException();
 
-		if (providerId == null)
-			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
-		if (careEncounterId == null || providerId == null
-				|| findCareEncounterByIdForProviderId(careEncounterId, providerId).isEmpty())
+		if (careEncounterId == null || institutionId == null
+				|| findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).isEmpty())
 			validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is invalid.")));
 
 		if (validationException.hasErrors())
@@ -323,7 +352,7 @@ public class CareEncounterService {
 
 	@Nonnull
 	public CareEncounter cancelCareEncounter(@Nullable UUID careEncounterId,
-																	 @Nullable UUID providerId,
+																		 @Nullable InstitutionId institutionId,
 																	 @Nullable UUID accountId,
 																	 @Nonnull CancelAppointmentRequest request) {
 		requireNonNull(request);
@@ -332,16 +361,16 @@ public class CareEncounterService {
 		CareEncounter careEncounter = null;
 		Appointment appointment = null;
 
-		if (providerId == null)
-			validationException.add(new FieldError("providerId", getStrings().get("Provider ID is required.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
 
 		if (accountId == null)
 			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
 
 		if (careEncounterId == null) {
 			validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is required.")));
-		} else if (providerId != null) {
-			careEncounter = findCareEncounterByIdForProviderIdForUpdate(careEncounterId, providerId).orElse(null);
+		} else if (institutionId != null) {
+			careEncounter = findCareEncounterByIdForInstitutionIdForUpdate(careEncounterId, institutionId).orElse(null);
 
 			if (careEncounter == null)
 				validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is invalid.")));
@@ -349,7 +378,7 @@ public class CareEncounterService {
 				if (careEncounter.getCareEncounterStatusId() != CareEncounterStatusId.OPEN)
 					validationException.add(new FieldError("careEncounterStatusId", getStrings().get("Only open Care Encounters can be canceled.")));
 
-				appointment = findCareNavigatorAppointmentByIdAndProviderId(careEncounter.getAppointmentId(), providerId).orElse(null);
+				appointment = findCareNavigatorAppointmentByIdAndInstitutionId(careEncounter.getAppointmentId(), institutionId).orElse(null);
 
 				if (appointment == null || appointment.getCanceled())
 					validationException.add(new FieldError("appointmentId", getStrings().get("Appointment cannot be canceled.")));
@@ -381,57 +410,60 @@ public class CareEncounterService {
 				AND care_encounter_status_id IN ('OPEN', 'CLOSED')
 				""", accountId, accountId, careEncounterId);
 
-		return findCareEncounterByIdForProviderId(careEncounterId, providerId).get();
+		return findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).get();
 	}
 
 	@Nonnull
-	protected Optional<CareEncounter> findCareEncounterByAppointmentIdForProviderId(@Nullable UUID appointmentId,
-																																	 @Nullable UUID providerId) {
-		if (appointmentId == null || providerId == null)
+	protected Optional<CareEncounter> findCareEncounterByAppointmentIdForInstitutionId(@Nullable UUID appointmentId,
+																												@Nullable InstitutionId institutionId) {
+		if (appointmentId == null || institutionId == null)
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT care_encounter.*
 				FROM care_encounter
 				JOIN appointment ON appointment.appointment_id=care_encounter.appointment_id
+				JOIN provider ON provider.provider_id=appointment.provider_id
 				WHERE care_encounter.appointment_id=?
 				AND care_encounter.deleted=FALSE
-				AND appointment.provider_id=?
-				""", CareEncounter.class, appointmentId, providerId);
+				AND provider.institution_id=?
+				""", CareEncounter.class, appointmentId, institutionId);
 	}
 
 	@Nonnull
-	protected Optional<CareEncounter> findCareEncounterByIdForProviderIdForUpdate(@Nullable UUID careEncounterId,
-																								 @Nullable UUID providerId) {
-		if (careEncounterId == null || providerId == null)
+	protected Optional<CareEncounter> findCareEncounterByIdForInstitutionIdForUpdate(@Nullable UUID careEncounterId,
+																											@Nullable InstitutionId institutionId) {
+		if (careEncounterId == null || institutionId == null)
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT care_encounter.*
 				FROM care_encounter
 				JOIN appointment ON appointment.appointment_id=care_encounter.appointment_id
+				JOIN provider ON provider.provider_id=appointment.provider_id
 				WHERE care_encounter.care_encounter_id=?
 				AND care_encounter.deleted=FALSE
-				AND appointment.provider_id=?
+				AND provider.institution_id=?
 				FOR UPDATE OF care_encounter, appointment
-				""", CareEncounter.class, careEncounterId, providerId);
+				""", CareEncounter.class, careEncounterId, institutionId);
 	}
 
 	@Nonnull
-	protected Optional<Appointment> findCareNavigatorAppointmentByIdAndProviderId(@Nullable UUID appointmentId,
-																																 @Nullable UUID providerId) {
-		if (appointmentId == null || providerId == null)
+	protected Optional<Appointment> findCareNavigatorAppointmentByIdAndInstitutionId(@Nullable UUID appointmentId,
+																												@Nullable InstitutionId institutionId) {
+		if (appointmentId == null || institutionId == null)
 			return Optional.empty();
 
 		return getDatabase().queryForObject("""
 				SELECT appointment.*
 				FROM appointment
+				JOIN provider ON provider.provider_id=appointment.provider_id
 				JOIN provider_support_role
 					ON provider_support_role.provider_id=appointment.provider_id
 					AND provider_support_role.support_role_id='CARE_NAVIGATOR'
 				WHERE appointment.appointment_id=?
-				AND appointment.provider_id=?
-				""", Appointment.class, appointmentId, providerId);
+				AND provider.institution_id=?
+				""", Appointment.class, appointmentId, institutionId);
 	}
 
 	@Nullable

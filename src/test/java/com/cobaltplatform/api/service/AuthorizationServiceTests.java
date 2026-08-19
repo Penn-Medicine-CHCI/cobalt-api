@@ -17,6 +17,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Normalizer;
@@ -24,8 +25,6 @@ import com.google.gson.Gson;
 import org.junit.Test;
 
 import javax.inject.Provider;
-
-import java.util.UUID;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -52,29 +51,43 @@ public class AuthorizationServiceTests {
 	}
 
 	@Test
-	public void careEncounterManagementRequiresNavigatorProviderAccount() {
-		AuthorizationService authorizationService = authorizationService();
+	public void careEncounterManagementRequiresNavigatorRoleButNotProviderIdentity() {
+		AuthorizationService authorizationService = authorizationService(true);
 		Account providerNavigator = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
-		providerNavigator.setProviderId(UUID.randomUUID());
-		Account navigatorWithoutProvider = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
 		Account providerWithoutCapability = account(RoleId.PROVIDER, null);
-		providerWithoutCapability.setProviderId(UUID.randomUUID());
 
 		assertTrue(authorizationService.canManageCareEncounters(providerNavigator));
-		assertFalse(authorizationService.canManageCareEncounters(navigatorWithoutProvider));
 		assertFalse(authorizationService.canManageCareEncounters(providerWithoutCapability));
+	}
+
+	@Test
+	public void careEncounterManagementRequiresOrganizationBookingProvider() {
+		Account providerNavigator = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
+
+		assertTrue(authorizationService(true).canManageCareEncounters(providerNavigator));
+		assertFalse(authorizationService(false).canManageCareEncounters(providerNavigator));
 	}
 
 	protected Account account(RoleId roleId, String accountCapabilityTypeIdsAsString) {
 		Account account = new Account();
 		account.setRoleId(roleId);
+		account.setInstitutionId(InstitutionId.COBALT);
 		account.setAccountCapabilityTypeIdsAsString(accountCapabilityTypeIdsAsString);
 		return account;
 	}
 
 	protected AuthorizationService authorizationService() {
+		return authorizationService(true);
+	}
+
+	protected AuthorizationService authorizationService(boolean institutionHasCareNavigatorBookingProvider) {
 		return new AuthorizationService(unavailable(), unavailable(), unavailable(), unavailable(), unavailable(), unavailable(),
-				unavailable(), unavailable(), unavailable(), new Normalizer());
+				unavailable(), unavailable(), unavailable(), unavailable(), new Normalizer()) {
+			@Override
+			protected boolean institutionHasCareNavigatorBookingProvider(InstitutionId institutionId) {
+				return institutionHasCareNavigatorBookingProvider;
+			}
+		};
 	}
 
 	protected <T> Provider<T> unavailable() {

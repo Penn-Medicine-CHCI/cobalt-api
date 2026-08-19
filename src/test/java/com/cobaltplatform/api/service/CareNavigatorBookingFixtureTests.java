@@ -76,8 +76,11 @@ public class CareNavigatorBookingFixtureTests {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AccountResource accountResource = app.getInjector().getInstance(AccountResource.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
 			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
 			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			assertEquals(CARE_NAVIGATOR_PROVIDER_ID,
+					institutionService.findCareNavigatorBookingProviderIdForInstitutionId(InstitutionId.COBALT).get());
 
 			currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US, ZoneId.of("America/New_York")).build(), () -> {
 				ApiResponse response = accountResource.account(account.getAccountId(), Optional.empty());
