@@ -15,6 +15,7 @@ import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.Appointm
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.CareEncounter;
+import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.util.Formatter;
@@ -58,6 +59,10 @@ public class CareEncounterApiResponse {
 	private final String closedAtDescription;
 	@Nullable
 	private final UUID canceledByAccountId;
+	@Nullable
+	private final CareEncounterCancellationReasonId careEncounterCancellationReasonId;
+	@Nullable
+	private final String careEncounterCancellationReasonOtherText;
 	@Nonnull
 	private final UUID createdByAccountId;
 	@Nonnull
@@ -112,6 +117,8 @@ public class CareEncounterApiResponse {
 		this.closedAt = careEncounter.getClosedAt();
 		this.closedAtDescription = careEncounter.getClosedAt() == null ? null : formatter.formatTimestamp(careEncounter.getClosedAt());
 		this.canceledByAccountId = careEncounter.getCanceledByAccountId();
+		this.careEncounterCancellationReasonId = careEncounter.getCareEncounterCancellationReasonId();
+		this.careEncounterCancellationReasonOtherText = careEncounter.getCareEncounterCancellationReasonOtherText();
 		this.createdByAccountId = careEncounter.getCreatedByAccountId();
 		this.lastUpdatedByAccountId = careEncounter.getLastUpdatedByAccountId();
 		this.created = careEncounter.getCreated();
@@ -185,6 +192,16 @@ public class CareEncounterApiResponse {
 	@Nullable
 	public UUID getCanceledByAccountId() {
 		return this.canceledByAccountId;
+	}
+
+	@Nullable
+	public CareEncounterCancellationReasonId getCareEncounterCancellationReasonId() {
+		return this.careEncounterCancellationReasonId;
+	}
+
+	@Nullable
+	public String getCareEncounterCancellationReasonOtherText() {
+		return this.careEncounterCancellationReasonOtherText;
 	}
 
 	@Nonnull

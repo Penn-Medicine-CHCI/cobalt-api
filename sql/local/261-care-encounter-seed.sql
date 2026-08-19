@@ -133,6 +133,11 @@ BEGIN
 			WHEN appointment_id=v_canceled_appointment_id THEN v_navigator_account_id
 			ELSE NULL
 		END,
+		care_encounter_cancellation_reason_id=CASE
+			WHEN appointment_id=v_canceled_appointment_id THEN 'PATIENT_REQUESTED'
+			ELSE NULL
+		END,
+		care_encounter_cancellation_reason_other_text=NULL,
 		deleted=FALSE,
 		last_updated_by_account_id=v_navigator_account_id
 	WHERE appointment_id IN (

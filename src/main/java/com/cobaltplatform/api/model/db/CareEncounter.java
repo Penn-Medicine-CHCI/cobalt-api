@@ -16,6 +16,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 
 import javax.annotation.Nullable;
@@ -44,6 +45,10 @@ public class CareEncounter {
 	private Instant closedAt;
 	@Nullable
 	private UUID canceledByAccountId;
+	@Nullable
+	private CareEncounterCancellationReasonId careEncounterCancellationReasonId;
+	@Nullable
+	private String careEncounterCancellationReasonOtherText;
 	@Nullable
 	private Boolean deleted;
 	@Nullable
@@ -118,6 +123,24 @@ public class CareEncounter {
 
 	public void setCanceledByAccountId(@Nullable UUID canceledByAccountId) {
 		this.canceledByAccountId = canceledByAccountId;
+	}
+
+	@Nullable
+	public CareEncounterCancellationReasonId getCareEncounterCancellationReasonId() {
+		return this.careEncounterCancellationReasonId;
+	}
+
+	public void setCareEncounterCancellationReasonId(@Nullable CareEncounterCancellationReasonId careEncounterCancellationReasonId) {
+		this.careEncounterCancellationReasonId = careEncounterCancellationReasonId;
+	}
+
+	@Nullable
+	public String getCareEncounterCancellationReasonOtherText() {
+		return this.careEncounterCancellationReasonOtherText;
+	}
+
+	public void setCareEncounterCancellationReasonOtherText(@Nullable String careEncounterCancellationReasonOtherText) {
+		this.careEncounterCancellationReasonOtherText = careEncounterCancellationReasonOtherText;
 	}
 
 	@Nullable

@@ -31,6 +31,21 @@ INSERT INTO care_encounter_status VALUES ('OPEN', 'Open', FALSE);
 INSERT INTO care_encounter_status VALUES ('CLOSED', 'Closed', TRUE);
 INSERT INTO care_encounter_status VALUES ('CANCELED', 'Canceled by Care Navigator', TRUE);
 
+CREATE TABLE care_encounter_cancellation_reason (
+	care_encounter_cancellation_reason_id TEXT PRIMARY KEY,
+	description TEXT NOT NULL,
+	display_order INTEGER NOT NULL,
+	freeform_text_required BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+INSERT INTO care_encounter_cancellation_reason VALUES
+	('PATIENT_REQUESTED', 'Patient requested cancellation', 1, FALSE),
+	('NO_LONGER_NEEDED', 'Care navigation is no longer needed', 2, FALSE),
+	('UNABLE_TO_REACH_PATIENT', 'Unable to reach patient', 3, FALSE),
+	('SCHEDULING_CONFLICT', 'Scheduling conflict', 4, FALSE),
+	('DUPLICATE_BOOKING', 'Duplicate booking', 5, FALSE),
+	('OTHER', 'Other', 6, TRUE);
+
 CREATE TABLE care_encounter (
 	care_encounter_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	appointment_id UUID NOT NULL UNIQUE REFERENCES appointment(appointment_id),
@@ -39,11 +54,23 @@ CREATE TABLE care_encounter (
 	notes TEXT,
 	closed_at TIMESTAMPTZ,
 	canceled_by_account_id UUID REFERENCES account(account_id),
+	care_encounter_cancellation_reason_id TEXT REFERENCES care_encounter_cancellation_reason(care_encounter_cancellation_reason_id),
+	care_encounter_cancellation_reason_other_text TEXT,
 	deleted BOOLEAN NOT NULL DEFAULT FALSE,
 	created_by_account_id UUID NOT NULL REFERENCES account(account_id),
 	last_updated_by_account_id UUID NOT NULL REFERENCES account(account_id),
 	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	CONSTRAINT care_encounter_cancellation_reason_required_check CHECK (
+		care_encounter_status_id<>'CANCELED'
+		OR care_encounter_cancellation_reason_id IS NOT NULL
+	),
+	CONSTRAINT care_encounter_cancellation_reason_other_text_check CHECK (
+		(care_encounter_cancellation_reason_id='OTHER'
+			AND NULLIF(BTRIM(care_encounter_cancellation_reason_other_text), '') IS NOT NULL)
+		OR (care_encounter_cancellation_reason_id IS DISTINCT FROM 'OTHER'
+			AND care_encounter_cancellation_reason_other_text IS NULL)
+	)
 );
 
 CREATE TRIGGER set_last_updated

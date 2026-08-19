@@ -33,6 +33,13 @@ public class CareEncounterSqlTests {
 		assertTrue(migrationSql.contains("'OPEN', 'Open', FALSE"));
 		assertTrue(migrationSql.contains("'CLOSED', 'Closed', TRUE"));
 		assertTrue(migrationSql.contains("'CANCELED', 'Canceled by Care Navigator', TRUE"));
+		assertTrue(migrationSql.contains("CREATE TABLE care_encounter_cancellation_reason"));
+		assertTrue(migrationSql.contains("'PATIENT_REQUESTED', 'Patient requested cancellation', 1, FALSE"));
+		assertTrue(migrationSql.contains("'NO_LONGER_NEEDED', 'Care navigation is no longer needed', 2, FALSE"));
+		assertTrue(migrationSql.contains("'UNABLE_TO_REACH_PATIENT', 'Unable to reach patient', 3, FALSE"));
+		assertTrue(migrationSql.contains("'SCHEDULING_CONFLICT', 'Scheduling conflict', 4, FALSE"));
+		assertTrue(migrationSql.contains("'DUPLICATE_BOOKING', 'Duplicate booking', 5, FALSE"));
+		assertTrue(migrationSql.contains("'OTHER', 'Other', 6, TRUE"));
 		assertTrue(migrationSql.contains("appointment_id UUID NOT NULL UNIQUE REFERENCES appointment(appointment_id)"));
 		assertTrue(migrationSql.contains("account_id UUID NOT NULL REFERENCES account(account_id)"));
 		assertTrue(migrationSql.contains("CREATE UNIQUE INDEX care_encounter_one_open_per_account_idx"));
@@ -42,6 +49,10 @@ public class CareEncounterSqlTests {
 		assertTrue(migrationSql.contains("notes TEXT"));
 		assertTrue(migrationSql.contains("closed_at TIMESTAMPTZ"));
 		assertTrue(migrationSql.contains("canceled_by_account_id UUID REFERENCES account(account_id)"));
+		assertTrue(migrationSql.contains("care_encounter_cancellation_reason_id TEXT REFERENCES care_encounter_cancellation_reason"));
+		assertTrue(migrationSql.contains("care_encounter_cancellation_reason_other_text TEXT"));
+		assertTrue(migrationSql.contains("care_encounter_cancellation_reason_required_check"));
+		assertTrue(migrationSql.contains("care_encounter_cancellation_reason_other_text_check"));
 		assertTrue(migrationSql.contains("deleted BOOLEAN NOT NULL DEFAULT FALSE"));
 		assertTrue(migrationSql.contains("CREATE TRIGGER create_care_encounter_for_appointment"));
 		assertTrue(migrationSql.contains("AFTER INSERT OR UPDATE OF provider_id, account_id ON appointment"));
@@ -67,6 +78,8 @@ public class CareEncounterSqlTests {
 		assertTrue(fixtureSql.contains("UPDATE care_encounter"));
 		assertTrue(fixtureSql.contains("care_encounter_status_id=CASE appointment_id"));
 		assertTrue(fixtureSql.contains("canceled_by_account_id=CASE"));
+		assertTrue(fixtureSql.contains("care_encounter_cancellation_reason_id=CASE"));
+		assertTrue(fixtureSql.contains("THEN 'PATIENT_REQUESTED'"));
 	}
 
 	@Test
@@ -111,9 +124,17 @@ public class CareEncounterSqlTests {
 		assertTrue(serviceJava.contains("care_encounter.care_encounter_status_id<>'OPEN'"));
 		assertTrue(serviceJava.contains("CASE WHEN care_encounter.care_encounter_status_id='OPEN' THEN 1 ELSE 0 END"));
 		assertTrue(resourceJava.contains("@PUT(\"/admin/care-encounters/{careEncounterId}/cancel\")"));
-		assertTrue(serviceJava.contains("getAppointmentService().cancelAppointment(request)"));
+		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounter-cancellation-reasons\")"));
+		assertTrue(resourceJava.contains("CancelCareEncounterRequest.class"));
+		assertTrue(resourceJava.contains("Map.of(\"careEncounterCancellationReasons\""));
+		assertTrue(resourceJava.contains("\"freeformTextRequired\""));
+		assertTrue(serviceJava.contains("findCareEncounterCancellationReasons"));
+		assertTrue(serviceJava.contains("CareEncounterCancellationReasonId.OTHER"));
+		assertTrue(serviceJava.contains("getAppointmentService().cancelAppointment(cancelAppointmentRequest)"));
 		assertTrue(serviceJava.contains("FOR UPDATE OF care_encounter, appointment"));
 		assertTrue(serviceJava.contains("SET care_encounter_status_id='CANCELED'"));
+		assertTrue(serviceJava.contains("care_encounter_cancellation_reason_id=?"));
+		assertTrue(serviceJava.contains("care_encounter_cancellation_reason_other_text=?"));
 		assertTrue(appointmentServiceJava.contains("hasOpenCareEncounterForAccountId(accountId)"));
 		assertTrue(appointmentServiceJava.contains("careNavigatorOpenAppointmentExists"));
 		assertTrue(appointmentServiceJava.contains("closeOpenCareEncounterForReschedule"));
@@ -126,6 +147,8 @@ public class CareEncounterSqlTests {
 		assertTrue(responseJava.contains("private final String appointmentDateDescription"));
 		assertTrue(responseJava.contains("private final LocalDate createdDate"));
 		assertTrue(responseJava.contains("private final String createdDateDescription"));
+		assertTrue(responseJava.contains("private final CareEncounterCancellationReasonId careEncounterCancellationReasonId"));
+		assertTrue(responseJava.contains("private final String careEncounterCancellationReasonOtherText"));
 		assertTrue(responseJava.contains("getCanceledByAccountId()"));
 	}
 

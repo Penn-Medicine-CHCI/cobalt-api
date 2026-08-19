@@ -17,12 +17,15 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.CareEncounter;
+import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
+import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -60,6 +63,7 @@ public class CareEncounterService {
 	protected static final int DEFAULT_PAGE_SIZE = 25;
 	protected static final int MAXIMUM_PAGE_SIZE = 100;
 	protected static final int MAXIMUM_NOTES_LENGTH = 20_000;
+	protected static final int MAXIMUM_CANCELLATION_REASON_OTHER_TEXT_LENGTH = 2_000;
 
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
@@ -351,15 +355,43 @@ public class CareEncounterService {
 	}
 
 	@Nonnull
+	public List<CareEncounterCancellationReason> findCareEncounterCancellationReasons() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM care_encounter_cancellation_reason
+				ORDER BY display_order, description
+				""", CareEncounterCancellationReason.class);
+	}
+
+	@Nonnull
 	public CareEncounter cancelCareEncounter(@Nullable UUID careEncounterId,
 																		 @Nullable InstitutionId institutionId,
 																	 @Nullable UUID accountId,
-																	 @Nonnull CancelAppointmentRequest request) {
+																	 @Nonnull CancelCareEncounterRequest request) {
 		requireNonNull(request);
 
 		ValidationException validationException = new ValidationException();
 		CareEncounter careEncounter = null;
 		Appointment appointment = null;
+		CareEncounterCancellationReasonId cancellationReasonId = request.getCareEncounterCancellationReasonId();
+		String cancellationReasonOtherText = trimToNull(request.getCareEncounterCancellationReasonOtherText());
+
+		if (cancellationReasonId == null) {
+			validationException.add(new FieldError("careEncounterCancellationReasonId",
+					getStrings().get("Cancellation reason is required.")));
+		} else if (cancellationReasonId == CareEncounterCancellationReasonId.OTHER) {
+			if (cancellationReasonOtherText == null)
+				validationException.add(new FieldError("careEncounterCancellationReasonOtherText",
+						getStrings().get("Please provide a cancellation reason.")));
+		} else if (cancellationReasonOtherText != null) {
+			validationException.add(new FieldError("careEncounterCancellationReasonOtherText",
+					getStrings().get("Other cancellation reason text is only permitted when Other is selected.")));
+		}
+
+		if (cancellationReasonOtherText != null
+				&& cancellationReasonOtherText.length() > MAXIMUM_CANCELLATION_REASON_OTHER_TEXT_LENGTH)
+			validationException.add(new FieldError("careEncounterCancellationReasonOtherText",
+					getStrings().get("Cancellation reason is too long.")));
 
 		if (institutionId == null)
 			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
@@ -388,11 +420,12 @@ public class CareEncounterService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		request.setAppointmentId(appointment.getAppointmentId());
-		request.setAccountId(appointment.getAccountId());
-		request.setCanceledByWebhook(false);
-		request.setCanceledForReschedule(false);
-		Boolean appointmentCanceled = getAppointmentService().cancelAppointment(request);
+		CancelAppointmentRequest cancelAppointmentRequest = new CancelAppointmentRequest();
+		cancelAppointmentRequest.setAppointmentId(appointment.getAppointmentId());
+		cancelAppointmentRequest.setAccountId(appointment.getAccountId());
+		cancelAppointmentRequest.setCanceledByWebhook(false);
+		cancelAppointmentRequest.setCanceledForReschedule(false);
+		Boolean appointmentCanceled = getAppointmentService().cancelAppointment(cancelAppointmentRequest);
 
 		if (!Boolean.TRUE.equals(appointmentCanceled)) {
 			ValidationException cancellationException = new ValidationException();
@@ -405,10 +438,12 @@ public class CareEncounterService {
 				SET care_encounter_status_id='CANCELED',
 					closed_at=NOW(),
 					canceled_by_account_id=?,
+					care_encounter_cancellation_reason_id=?,
+					care_encounter_cancellation_reason_other_text=?,
 					last_updated_by_account_id=?
 				WHERE care_encounter_id=?
 				AND care_encounter_status_id IN ('OPEN', 'CLOSED')
-				""", accountId, accountId, careEncounterId);
+				""", accountId, cancellationReasonId, cancellationReasonOtherText, accountId, careEncounterId);
 
 		return findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).get();
 	}

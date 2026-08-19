@@ -12,13 +12,14 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
-import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.response.CareEncounterApiResponse.CareEncounterApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.CareEncounter;
+import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -195,6 +196,24 @@ public class CareEncounterResource {
 	}
 
 	@Nonnull
+	@GET("/admin/care-encounter-cancellation-reasons")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse careEncounterCancellationReasons() {
+		requireCareNavigatorAccount();
+		List<CareEncounterCancellationReason> cancellationReasons =
+				getCareEncounterService().findCareEncounterCancellationReasons();
+
+		return new ApiResponse(Map.of("careEncounterCancellationReasons", cancellationReasons.stream()
+				.map(cancellationReason -> Map.of(
+						"careEncounterCancellationReasonId", cancellationReason.getCareEncounterCancellationReasonId(),
+						"description", cancellationReason.getDescription(),
+						"displayOrder", cancellationReason.getDisplayOrder(),
+						"freeformTextRequired", cancellationReason.getFreeformTextRequired()))
+				.collect(Collectors.toList())));
+	}
+
+	@Nonnull
 	@PUT("/admin/care-encounters/{careEncounterId}/cancel")
 	@AuthenticationRequired
 	public ApiResponse cancelCareEncounter(@Nonnull @PathParameter UUID careEncounterId,
@@ -203,7 +222,7 @@ public class CareEncounterResource {
 		requireNonNull(requestBody);
 
 		Account account = requireCareNavigatorAccount();
-		CancelAppointmentRequest request = getRequestBodyParser().parse(requestBody, CancelAppointmentRequest.class);
+		CancelCareEncounterRequest request = getRequestBodyParser().parse(requestBody, CancelCareEncounterRequest.class);
 		CareEncounter careEncounter = getCareEncounterService().cancelCareEncounter(
 				careEncounterId,
 				account.getInstitutionId(),
