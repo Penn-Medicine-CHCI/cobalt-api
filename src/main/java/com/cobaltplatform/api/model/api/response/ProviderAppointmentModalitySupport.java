@@ -100,7 +100,8 @@ public final class ProviderAppointmentModalitySupport {
 		if (providerSupportsVirtual(provider))
 			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.VIRTUAL);
 
-		if (providerAppointmentModalityIds.size() == 0 && videoconferencePlatformId == null)
+		if (providerAppointmentModalityIds.size() == 0 && videoconferencePlatformId == null
+				&& !Boolean.TRUE.equals(provider.getVirtualAppointmentsOnly()))
 			providerAppointmentModalityIds.add(ProviderAppointmentModalityId.IN_PERSON);
 
 		return providerAppointmentModalityIds;
@@ -127,6 +128,9 @@ public final class ProviderAppointmentModalitySupport {
 
 	public static boolean providerSupportsPhone(@Nonnull Provider provider) {
 		requireNonNull(provider);
+
+		if (Boolean.TRUE.equals(provider.getVirtualAppointmentsOnly()))
+			return false;
 
 		return provider.getVideoconferencePlatformId() == VideoconferencePlatformId.TELEPHONE
 				|| (trimToNull(provider.getPhoneNumber()) != null && !Boolean.TRUE.equals(provider.getDisplayPhoneNumberOnlyForBooking()));

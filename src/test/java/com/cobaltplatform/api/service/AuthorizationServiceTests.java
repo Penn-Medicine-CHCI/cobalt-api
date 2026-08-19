@@ -25,6 +25,8 @@ import org.junit.Test;
 
 import javax.inject.Provider;
 
+import java.util.UUID;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -47,6 +49,20 @@ public class AuthorizationServiceTests {
 		flags.setCareNavigator(true);
 
 		assertTrue(new Gson().toJson(flags).contains("\"isCareNavigator\":true"));
+	}
+
+	@Test
+	public void careEncounterManagementRequiresNavigatorProviderAccount() {
+		AuthorizationService authorizationService = authorizationService();
+		Account providerNavigator = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
+		providerNavigator.setProviderId(UUID.randomUUID());
+		Account navigatorWithoutProvider = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
+		Account providerWithoutCapability = account(RoleId.PROVIDER, null);
+		providerWithoutCapability.setProviderId(UUID.randomUUID());
+
+		assertTrue(authorizationService.canManageCareEncounters(providerNavigator));
+		assertFalse(authorizationService.canManageCareEncounters(navigatorWithoutProvider));
+		assertFalse(authorizationService.canManageCareEncounters(providerWithoutCapability));
 	}
 
 	protected Account account(RoleId roleId, String accountCapabilityTypeIdsAsString) {

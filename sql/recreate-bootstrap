@@ -280,3 +280,5 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/259-coba
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/259-provider-booking-seed.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/260-care-navigator.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/260-care-navigator-seed.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/261-care-encounters.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/261-care-encounter-seed.sql

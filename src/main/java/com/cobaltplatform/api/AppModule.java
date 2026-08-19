@@ -77,6 +77,7 @@ import com.cobaltplatform.api.model.api.response.AssessmentFormApiResponse.Asses
 import com.cobaltplatform.api.model.api.response.AvailabilityTimeApiResponse.AvailabilityTimeApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.BetaFeatureAlertApiResponse.BetaFeatureAlertApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CallToActionApiResponse.CallToActionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareEncounterApiResponse.CareEncounterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceApiResponse.CareResourceApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceLocationApiResponse.CareResourceLocationApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareResourceTagApiResponse.CareResourceTagApiResponseFactory;
@@ -328,6 +329,7 @@ public class AppModule extends AbstractModule {
 		install((new FactoryModuleBuilder().build(VisitTypeApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(ScreeningFlowVersionApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(CallToActionApiResponseFactory.class)));
+		install((new FactoryModuleBuilder().build(CareEncounterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(PinboardNoteApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterApiResponseFactory.class)));
 		install((new FactoryModuleBuilder().build(TopicCenterRowApiResponseFactory.class)));

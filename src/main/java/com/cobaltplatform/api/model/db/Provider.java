@@ -99,6 +99,8 @@ public class Provider {
 	@Nullable
 	private Boolean displayPhoneNumberOnlyForBooking;
 	@Nullable
+	private Boolean virtualAppointmentsOnly;
+	@Nullable
 	private String description;
 	@Nullable
 	private String detailsHtml;
@@ -402,6 +404,15 @@ public class Provider {
 
 	public void setDisplayPhoneNumberOnlyForBooking(@Nullable Boolean displayPhoneNumberOnlyForBooking) {
 		this.displayPhoneNumberOnlyForBooking = displayPhoneNumberOnlyForBooking;
+	}
+
+	@Nullable
+	public Boolean getVirtualAppointmentsOnly() {
+		return this.virtualAppointmentsOnly;
+	}
+
+	public void setVirtualAppointmentsOnly(@Nullable Boolean virtualAppointmentsOnly) {
+		this.virtualAppointmentsOnly = virtualAppointmentsOnly;
 	}
 
 	@Nullable

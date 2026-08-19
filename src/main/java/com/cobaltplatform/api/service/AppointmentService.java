@@ -1227,6 +1227,11 @@ public class AppointmentService {
 		cancelRequest.setCanceledByWebhook(false);
 		cancelRequest.setCanceledForReschedule(true);
 
+		// A reschedule replaces the source encounter. Close it before inserting the
+		// replacement so the account-level one-open-encounter constraint remains
+		// true throughout this transaction. Any later failure rolls this back.
+		closeOpenCareEncounterForReschedule(existingAppointment.getAppointmentId(), request.getCreatedByAcountId());
+
 		// The active native provider/start partial index cannot contain both the source and replacement at
 		// the same key. Native cancellation has no external scheduling-system side effect, and every HTTP
 		// request is transactional, so canceling first is safe: a failed replacement rolls the cancellation
@@ -1431,6 +1436,16 @@ public class AppointmentService {
 
 			if (completedAppointmentBookingScreeningSession == null)
 				validationException.add(getStrings().get("You did not complete the necessary screening questions to book this appointment."));
+		}
+
+		if (!validationException.hasErrors() && isCareNavigatorProvider(providerId)) {
+			acquireCareNavigatorAccountBookingLock(accountId);
+
+			if (hasOpenCareEncounterForAccountId(accountId)) {
+				validationException.add(new FieldError("providerId", getStrings().get(
+						"You already have an open appointment with a Care Navigator. Please cancel or complete it before booking another.")));
+				validationException.setMetadata(Map.of("careNavigatorOpenAppointmentExists", true));
+			}
 		}
 
 		if (validationException.hasErrors())
@@ -2062,6 +2077,59 @@ public class AppointmentService {
 				SELECT TRUE
 				FROM provider_booking_lock
 				""", Boolean.class, lockKey).orElse(false);
+	}
+
+	protected void acquireCareNavigatorAccountBookingLock(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		String lockKey = format("care-navigator-appointment|%s", accountId);
+		getDatabase().queryForObject("""
+				WITH care_navigator_account_booking_lock AS (
+				  SELECT pg_advisory_xact_lock(hashtextextended(?, 0))
+				)
+				SELECT TRUE
+				FROM care_navigator_account_booking_lock
+				""", Boolean.class, lockKey);
+	}
+
+	protected boolean isCareNavigatorProvider(@Nonnull UUID providerId) {
+		requireNonNull(providerId);
+
+		return getDatabase().queryForObject("""
+				SELECT EXISTS (
+					SELECT 1
+					FROM provider_support_role
+					WHERE provider_id=?
+					AND support_role_id='CARE_NAVIGATOR'
+				)
+				""", Boolean.class, providerId).orElse(false);
+	}
+
+	protected boolean hasOpenCareEncounterForAccountId(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		return getDatabase().queryForObject("""
+				SELECT EXISTS (
+					SELECT 1
+					FROM care_encounter
+					WHERE account_id=?
+					AND care_encounter_status_id='OPEN'
+				)
+				""", Boolean.class, accountId).orElse(false);
+	}
+
+	protected void closeOpenCareEncounterForReschedule(@Nonnull UUID appointmentId,
+																							 @Nullable UUID updatedByAccountId) {
+		requireNonNull(appointmentId);
+
+		getDatabase().execute("""
+				UPDATE care_encounter
+				SET care_encounter_status_id='CLOSED',
+					closed_at=COALESCE(closed_at, NOW()),
+					last_updated_by_account_id=COALESCE(?, last_updated_by_account_id)
+				WHERE appointment_id=?
+				AND care_encounter_status_id='OPEN'
+				""", updatedByAccountId, appointmentId);
 	}
 
 	protected static boolean appointmentTimeRangesOverlap(@Nonnull LocalDateTime firstStart,

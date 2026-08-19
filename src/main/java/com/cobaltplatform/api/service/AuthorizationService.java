@@ -211,6 +211,14 @@ public class AuthorizationService {
 	}
 
 	@Nonnull
+	public Boolean canManageCareEncounters(@Nonnull Account account) {
+		requireNonNull(account);
+
+		return account.getProviderId() != null
+				&& determineAccountCapabilityFlagsForAccount(account).isCareNavigator();
+	}
+
+	@Nonnull
 	public boolean canEditGroupSession(@Nonnull GroupSession groupSession,
 																		 @Nonnull Account account) {
 		requireNonNull(groupSession);
