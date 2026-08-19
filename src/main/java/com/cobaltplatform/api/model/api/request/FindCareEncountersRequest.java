@@ -12,6 +12,7 @@ package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.service.SortDirectionId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -34,19 +35,16 @@ public class FindCareEncountersRequest {
 	@Nullable
 	private CareEncounterStatusId careEncounterStatusId;
 	@Nullable
-	private OrderBy orderBy;
+	private CareEncounterSortColumnId careEncounterSortColumnId;
+	@Nullable
+	private SortDirectionId sortDirectionId;
 
-	public enum OrderBy {
-		APPOINTMENT_START_TIME_ASC,
-		APPOINTMENT_START_TIME_DESC,
-		PATIENT_NAME_ASC,
-		PATIENT_NAME_DESC,
-		STATUS_ASC,
-		STATUS_DESC,
-		CREATED_ASC,
-		CREATED_DESC,
-		LAST_UPDATED_ASC,
-		LAST_UPDATED_DESC
+	public enum CareEncounterSortColumnId {
+		APPOINTMENT_DATE,
+		PATIENT_NAME,
+		STATUS,
+		CREATED,
+		LAST_UPDATED
 	}
 
 	@Nullable
@@ -113,11 +111,20 @@ public class FindCareEncountersRequest {
 	}
 
 	@Nullable
-	public OrderBy getOrderBy() {
-		return this.orderBy;
+	public CareEncounterSortColumnId getCareEncounterSortColumnId() {
+		return this.careEncounterSortColumnId;
 	}
 
-	public void setOrderBy(@Nullable OrderBy orderBy) {
-		this.orderBy = orderBy;
+	public void setCareEncounterSortColumnId(@Nullable CareEncounterSortColumnId careEncounterSortColumnId) {
+		this.careEncounterSortColumnId = careEncounterSortColumnId;
+	}
+
+	@Nullable
+	public SortDirectionId getSortDirectionId() {
+		return this.sortDirectionId;
+	}
+
+	public void setSortDirectionId(@Nullable SortDirectionId sortDirectionId) {
+		this.sortDirectionId = sortDirectionId;
 	}
 }

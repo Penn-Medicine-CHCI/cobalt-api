@@ -19,13 +19,14 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
-import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.OrderBy;
+import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -91,7 +92,13 @@ public class CareEncounterService {
 		LocalDate endDate = request.getEndDate();
 		String searchQuery = trimToNull(request.getSearchQuery());
 		CareEncounterStatusId careEncounterStatusId = request.getCareEncounterStatusId();
-		OrderBy orderBy = request.getOrderBy() == null ? OrderBy.APPOINTMENT_START_TIME_DESC : request.getOrderBy();
+		CareEncounterSortColumnId careEncounterSortColumnId = request.getCareEncounterSortColumnId();
+		SortDirectionId sortDirectionId = request.getSortDirectionId();
+
+		if (careEncounterSortColumnId == null || sortDirectionId == null) {
+			careEncounterSortColumnId = CareEncounterSortColumnId.APPOINTMENT_DATE;
+			sortDirectionId = SortDirectionId.DESCENDING;
+		}
 		ValidationException validationException = new ValidationException();
 
 		if (institutionId == null)
@@ -161,28 +168,21 @@ public class CareEncounterService {
 			}
 		}
 
+		String sortDirection = sortDirectionId == SortDirectionId.ASCENDING ? "ASC" : "DESC";
 		query.append("ORDER BY ");
 
-		if (orderBy == OrderBy.APPOINTMENT_START_TIME_ASC)
-			query.append("appointment.start_time ASC ");
-		else if (orderBy == OrderBy.APPOINTMENT_START_TIME_DESC)
-			query.append("appointment.start_time DESC ");
-		else if (orderBy == OrderBy.PATIENT_NAME_ASC)
-			query.append("LOWER(appointment.last_name) ASC, LOWER(appointment.first_name) ASC ");
-		else if (orderBy == OrderBy.PATIENT_NAME_DESC)
-			query.append("LOWER(appointment.last_name) DESC, LOWER(appointment.first_name) DESC ");
-		else if (orderBy == OrderBy.STATUS_ASC)
-			query.append("CASE WHEN care_encounter.care_encounter_status_id='OPEN' THEN 1 ELSE 0 END ASC, care_encounter.care_encounter_status_id ASC ");
-		else if (orderBy == OrderBy.STATUS_DESC)
-			query.append("CASE WHEN care_encounter.care_encounter_status_id='OPEN' THEN 1 ELSE 0 END DESC, care_encounter.care_encounter_status_id DESC ");
-		else if (orderBy == OrderBy.CREATED_ASC)
-			query.append("care_encounter.created ASC ");
-		else if (orderBy == OrderBy.CREATED_DESC)
-			query.append("care_encounter.created DESC ");
-		else if (orderBy == OrderBy.LAST_UPDATED_ASC)
-			query.append("care_encounter.last_updated ASC ");
-		else if (orderBy == OrderBy.LAST_UPDATED_DESC)
-			query.append("care_encounter.last_updated DESC ");
+		if (careEncounterSortColumnId == CareEncounterSortColumnId.APPOINTMENT_DATE)
+			query.append("appointment.start_time ").append(sortDirection).append(" ");
+		else if (careEncounterSortColumnId == CareEncounterSortColumnId.PATIENT_NAME)
+			query.append("LOWER(appointment.last_name) ").append(sortDirection)
+					.append(", LOWER(appointment.first_name) ").append(sortDirection).append(" ");
+		else if (careEncounterSortColumnId == CareEncounterSortColumnId.STATUS)
+			query.append("CASE WHEN care_encounter.care_encounter_status_id='OPEN' THEN 1 ELSE 0 END ")
+					.append(sortDirection).append(", care_encounter.care_encounter_status_id ").append(sortDirection).append(" ");
+		else if (careEncounterSortColumnId == CareEncounterSortColumnId.CREATED)
+			query.append("care_encounter.created ").append(sortDirection).append(" ");
+		else if (careEncounterSortColumnId == CareEncounterSortColumnId.LAST_UPDATED)
+			query.append("care_encounter.last_updated ").append(sortDirection).append(" ");
 
 		query.append(", care_encounter.care_encounter_id ASC ");
 		query.append("LIMIT ? OFFSET ?");

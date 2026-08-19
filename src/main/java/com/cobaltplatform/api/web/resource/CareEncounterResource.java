@@ -14,7 +14,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
-import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.OrderBy;
+import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.response.CareEncounterApiResponse.CareEncounterApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
@@ -22,6 +22,7 @@ import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
+import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CareEncounterService;
 import com.cobaltplatform.api.util.Formatter;
@@ -99,16 +100,18 @@ public class CareEncounterResource {
 															 @Nonnull @QueryParameter Optional<Integer> pageSize,
 															 @Nonnull @QueryParameter Optional<LocalDate> startDate,
 															 @Nonnull @QueryParameter Optional<LocalDate> endDate,
-															 @Nonnull @QueryParameter Optional<String> searchQuery,
-															 @Nonnull @QueryParameter Optional<CareEncounterStatusId> careEncounterStatusId,
-															 @Nonnull @QueryParameter Optional<OrderBy> orderBy) {
+																 @Nonnull @QueryParameter Optional<String> searchQuery,
+																 @Nonnull @QueryParameter Optional<CareEncounterStatusId> careEncounterStatusId,
+																 @Nonnull @QueryParameter Optional<CareEncounterSortColumnId> careEncounterSortColumnId,
+																 @Nonnull @QueryParameter Optional<SortDirectionId> sortDirectionId) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		requireNonNull(startDate);
 		requireNonNull(endDate);
 		requireNonNull(searchQuery);
 		requireNonNull(careEncounterStatusId);
-		requireNonNull(orderBy);
+		requireNonNull(careEncounterSortColumnId);
+		requireNonNull(sortDirectionId);
 
 		Account account = requireCareNavigatorAccount();
 		FindCareEncountersRequest request = new FindCareEncountersRequest();
@@ -119,7 +122,8 @@ public class CareEncounterResource {
 		request.setEndDate(endDate.orElse(null));
 		request.setSearchQuery(searchQuery.orElse(null));
 		request.setCareEncounterStatusId(careEncounterStatusId.orElse(null));
-		request.setOrderBy(orderBy.orElse(null));
+		request.setCareEncounterSortColumnId(careEncounterSortColumnId.orElse(null));
+		request.setSortDirectionId(sortDirectionId.orElse(null));
 
 		FindResult<CareEncounter> result = getCareEncounterService().findCareEncounters(request);
 
