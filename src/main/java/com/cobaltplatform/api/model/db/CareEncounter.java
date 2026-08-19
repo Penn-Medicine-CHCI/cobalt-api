@@ -38,6 +38,8 @@ public class CareEncounter {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private UUID screeningSessionId;
+	@Nullable
 	private CareEncounterStatusId careEncounterStatusId;
 	@Nullable
 	private String notes;
@@ -87,6 +89,15 @@ public class CareEncounter {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public UUID getScreeningSessionId() {
+		return this.screeningSessionId;
+	}
+
+	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
+		this.screeningSessionId = screeningSessionId;
 	}
 
 	@Nullable

@@ -26,6 +26,7 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.CareEncounterService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -68,6 +69,8 @@ public class CareEncounterResource {
 	@Nonnull
 	private final CareEncounterService careEncounterService;
 	@Nonnull
+	private final ScreeningService screeningService;
+	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
 	private final RequestBodyParser requestBodyParser;
@@ -80,12 +83,14 @@ public class CareEncounterResource {
 
 	@Inject
 	public CareEncounterResource(@Nonnull CareEncounterService careEncounterService,
-															 @Nonnull AuthorizationService authorizationService,
+														 @Nonnull ScreeningService screeningService,
+														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull RequestBodyParser requestBodyParser,
 														 @Nonnull Provider<CurrentContext> currentContextProvider,
 														 @Nonnull CareEncounterApiResponseFactory careEncounterApiResponseFactory,
 														 @Nonnull Formatter formatter) {
 		this.careEncounterService = careEncounterService;
+		this.screeningService = screeningService;
 		this.authorizationService = authorizationService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
@@ -154,6 +159,9 @@ public class CareEncounterResource {
 
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
 			put("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter));
+			put("screeningSessionResult", getScreeningService()
+					.findScreeningSessionResult(careEncounter.getScreeningSessionId())
+					.orElse(null));
 			put("otherCareEncounters", otherCareEncounters.stream()
 					.map(getCareEncounterApiResponseFactory()::create)
 					.collect(Collectors.toList()));
@@ -265,6 +273,11 @@ public class CareEncounterResource {
 	@Nonnull
 	protected CareEncounterService getCareEncounterService() {
 		return this.careEncounterService;
+	}
+
+	@Nonnull
+	protected ScreeningService getScreeningService() {
+		return this.screeningService;
 	}
 
 	@Nonnull

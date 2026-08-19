@@ -42,6 +42,7 @@ public class CareEncounterSqlTests {
 		assertTrue(migrationSql.contains("'OTHER', 'Other', 6, TRUE"));
 		assertTrue(migrationSql.contains("appointment_id UUID NOT NULL UNIQUE REFERENCES appointment(appointment_id)"));
 		assertTrue(migrationSql.contains("account_id UUID NOT NULL REFERENCES account(account_id)"));
+		assertTrue(migrationSql.contains("screening_session_id UUID REFERENCES screening_session(screening_session_id)"));
 		assertTrue(migrationSql.contains("CREATE UNIQUE INDEX care_encounter_one_open_per_account_idx"));
 		assertTrue(migrationSql.contains("ON care_encounter(account_id)"));
 		assertTrue(migrationSql.contains("WHERE care_encounter_status_id='OPEN'"));
@@ -89,6 +90,9 @@ public class CareEncounterSqlTests {
 		String serviceJava = readSql("src/main/java/com/cobaltplatform/api/service/CareEncounterService.java");
 		String appointmentServiceJava = readSql("src/main/java/com/cobaltplatform/api/service/AppointmentService.java");
 		String responseJava = readSql("src/main/java/com/cobaltplatform/api/model/api/response/CareEncounterApiResponse.java");
+		String modelJava = readSql("src/main/java/com/cobaltplatform/api/model/db/CareEncounter.java");
+		String createRequestJava = readSql("src/main/java/com/cobaltplatform/api/model/api/request/CreateCareEncounterRequest.java");
+		String updateRequestJava = readSql("src/main/java/com/cobaltplatform/api/model/api/request/UpdateCareEncounterRequest.java");
 
 		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounters\")"));
 		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounters/{careEncounterId}\")"));
@@ -102,6 +106,8 @@ public class CareEncounterSqlTests {
 		assertTrue(resourceJava.contains("put(\"totalCountDescription\""));
 		assertTrue(resourceJava.contains("put(\"otherCareEncounters\""));
 		assertTrue(resourceJava.contains("put(\"otherCareEncountersTotalCount\""));
+		assertTrue(resourceJava.contains("put(\"screeningSessionResult\""));
+		assertTrue(resourceJava.contains("findScreeningSessionResult(careEncounter.getScreeningSessionId())"));
 		assertTrue(requestJava.contains("APPOINTMENT_DATE"));
 		assertTrue(requestJava.contains("PATIENT_NAME"));
 		assertTrue(requestJava.contains("STATUS"));
@@ -138,6 +144,8 @@ public class CareEncounterSqlTests {
 		assertTrue(appointmentServiceJava.contains("hasOpenCareEncounterForAccountId(accountId)"));
 		assertTrue(appointmentServiceJava.contains("careNavigatorOpenAppointmentExists"));
 		assertTrue(appointmentServiceJava.contains("closeOpenCareEncounterForReschedule"));
+		assertTrue(appointmentServiceJava.contains("SET screening_session_id=?"));
+		assertTrue(appointmentServiceJava.contains("preserveExistingScreeningEligibility && excludedAppointmentId != null"));
 		assertTrue(responseJava.contains("getCareEncounterStatusId()"));
 		assertTrue(responseJava.contains("getCareEncounterStatusDisplayLabel()"));
 		assertTrue(responseJava.contains("getCareEncounterStatusId().getDisplayLabel()"));
@@ -150,6 +158,13 @@ public class CareEncounterSqlTests {
 		assertTrue(responseJava.contains("private final CareEncounterCancellationReasonId careEncounterCancellationReasonId"));
 		assertTrue(responseJava.contains("private final String careEncounterCancellationReasonOtherText"));
 		assertTrue(responseJava.contains("getCanceledByAccountId()"));
+		assertTrue(responseJava.contains("getScreeningSessionId()"));
+		assertTrue(responseJava.contains("private final String notes"));
+		assertTrue(modelJava.contains("private String notes"));
+		assertTrue(modelJava.contains("getNotes()"));
+		assertTrue(modelJava.contains("setNotes(@Nullable String notes)"));
+		assertTrue(createRequestJava.contains("private String notes"));
+		assertTrue(updateRequestJava.contains("private String notes"));
 	}
 
 	@Test

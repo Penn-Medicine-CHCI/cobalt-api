@@ -41,6 +41,8 @@ public class CareEncounterApiResponse {
 	private final UUID appointmentId;
 	@Nonnull
 	private final UUID accountId;
+	@Nullable
+	private final UUID screeningSessionId;
 	@Nonnull
 	private final CareEncounterStatusId careEncounterStatusId;
 	@Nonnull
@@ -106,6 +108,7 @@ public class CareEncounterApiResponse {
 		this.careEncounterId = careEncounter.getCareEncounterId();
 		this.appointmentId = careEncounter.getAppointmentId();
 		this.accountId = careEncounter.getAccountId();
+		this.screeningSessionId = careEncounter.getScreeningSessionId();
 		this.careEncounterStatusId = careEncounter.getCareEncounterStatusId();
 		this.careEncounterStatusDisplayLabel = careEncounter.getCareEncounterStatusId().getDisplayLabel();
 		this.patientFullName = String.format("%s %s",
@@ -147,6 +150,11 @@ public class CareEncounterApiResponse {
 	@Nonnull
 	public UUID getAccountId() {
 		return this.accountId;
+	}
+
+	@Nullable
+	public UUID getScreeningSessionId() {
+		return this.screeningSessionId;
 	}
 
 	@Nonnull

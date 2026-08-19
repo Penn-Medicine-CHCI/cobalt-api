@@ -50,6 +50,7 @@ CREATE TABLE care_encounter (
 	care_encounter_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	appointment_id UUID NOT NULL UNIQUE REFERENCES appointment(appointment_id),
 	account_id UUID NOT NULL REFERENCES account(account_id),
+	screening_session_id UUID REFERENCES screening_session(screening_session_id),
 	care_encounter_status_id TEXT NOT NULL REFERENCES care_encounter_status(care_encounter_status_id) DEFAULT 'OPEN',
 	notes TEXT,
 	closed_at TIMESTAMPTZ,

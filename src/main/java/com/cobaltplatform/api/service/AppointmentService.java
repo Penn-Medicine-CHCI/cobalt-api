@@ -1298,6 +1298,7 @@ public class AppointmentService {
 		AppointmentType appointmentType = null;
 		Provider provider = null;
 		MicrosoftTeamsMeeting microsoftTeamsMeeting = null;
+		ScreeningSession completedAppointmentBookingScreeningSession = null;
 		UUID appointmentId = UUID.randomUUID();
 		boolean bookingV2Enabled = false;
 
@@ -1430,9 +1431,8 @@ public class AppointmentService {
 
 		if (bookingV2Enabled && !preserveExistingScreeningEligibility && providerId != null
 				&& appointmentType != null && appointmentType.getScreeningFlowId() != null) {
-			ScreeningSession completedAppointmentBookingScreeningSession =
-					findMostRecentSuccessfulAppointmentBookingScreeningSession(accountId, providerId,
-							appointmentType.getScreeningFlowId()).orElse(null);
+			completedAppointmentBookingScreeningSession = findMostRecentSuccessfulAppointmentBookingScreeningSession(
+					accountId, providerId, appointmentType.getScreeningFlowId()).orElse(null);
 
 			if (completedAppointmentBookingScreeningSession == null)
 				validationException.add(getStrings().get("You did not complete the necessary screening questions to book this appointment."));
@@ -1963,6 +1963,26 @@ public class AppointmentService {
 
 		if (createdAppointmentCount == 0)
 			throw appointmentTimeslotUnavailableValidationException();
+
+		UUID associatedScreeningSessionId = completedAppointmentBookingScreeningSession == null
+				? null
+				: completedAppointmentBookingScreeningSession.getScreeningSessionId();
+
+		if (associatedScreeningSessionId == null && preserveExistingScreeningEligibility && excludedAppointmentId != null) {
+			associatedScreeningSessionId = getDatabase().queryForObject("""
+					SELECT screening_session_id
+					FROM care_encounter
+					WHERE appointment_id=?
+					""", UUID.class, excludedAppointmentId).orElse(null);
+		}
+
+		if (associatedScreeningSessionId != null) {
+			getDatabase().execute("""
+					UPDATE care_encounter
+					SET screening_session_id=?
+					WHERE appointment_id=?
+					""", associatedScreeningSessionId, appointmentId);
+		}
 
 		sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
 				getFormatter().formatDate(meetingStartTime.toLocalDate()),

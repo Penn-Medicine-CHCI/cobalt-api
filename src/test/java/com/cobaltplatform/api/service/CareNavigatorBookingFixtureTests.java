@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestinationResultId;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.cobaltplatform.api.web.resource.AccountResource;
@@ -228,6 +229,25 @@ public class CareNavigatorBookingFixtureTests {
 			UUID appointmentId = appointmentService.createAppointment(appointmentRequest);
 			assertNotNull(appointmentId);
 			assertTrue(appointmentService.findAppointmentById(appointmentId).isPresent());
+			assertEquals(screeningSessionId, database.queryForObject("""
+					SELECT screening_session_id
+					FROM care_encounter
+					WHERE appointment_id=?
+					""", UUID.class, appointmentId).get());
+
+			ScreeningSessionResult screeningSessionResult = screeningService
+					.findScreeningSessionResult(screeningSessionId)
+					.get();
+			assertEquals(1, screeningSessionResult.getScreeningSessionScreeningResults().size());
+			assertEquals(1, screeningSessionResult.getScreeningSessionScreeningResults().get(0)
+					.getScreeningQuestionResults().size());
+			assertEquals(questionContext.getScreeningQuestion().getQuestionText(),
+					screeningSessionResult.getScreeningSessionScreeningResults().get(0)
+							.getScreeningQuestionResults().get(0).getScreeningQuestionText());
+			assertEquals(questionContext.getScreeningAnswerOptions().get(0).getAnswerOptionText(),
+					screeningSessionResult.getScreeningSessionScreeningResults().get(0)
+							.getScreeningQuestionResults().get(0).getScreeningAnswerResults().get(0)
+							.getAnswerOptionText());
 		});
 	}
 
