@@ -216,7 +216,7 @@ BEGIN
 			test_account
 		) VALUES (
 			v_account_id,
-			'PROVIDER',
+			'ADMINISTRATOR',
 			v_institution_id,
 			'EMAIL_PASSWORD',
 			v_account_email_address,
@@ -233,7 +233,7 @@ BEGIN
 		ON CONFLICT (account_id) DO NOTHING;
 	ELSE
 		UPDATE account
-		SET role_id='PROVIDER',
+		SET role_id='ADMINISTRATOR',
 			provider_id=v_provider_id,
 			password=v_account_password_hash,
 			first_name='Cobalt',

@@ -33,6 +33,22 @@ VALUES ('NAVIGATOR', 'Care Navigator')
 ON CONFLICT (account_capability_type_id) DO UPDATE
 SET description=EXCLUDED.description;
 
+-- The Cobalt Innovations administrator also participates in organization-wide
+-- Care Navigator administration. The NAVIGATOR capability is additive to the
+-- account's existing ADMINISTRATOR role.
+INSERT INTO account_capability (
+	account_id,
+	account_capability_type_id
+)
+SELECT
+	account.account_id,
+	'NAVIGATOR'
+FROM account
+WHERE account.institution_id='COBALT'
+AND account.role_id='ADMINISTRATOR'
+AND LOWER(account.email_address)=LOWER('admin@cobaltinnovations.org')
+ON CONFLICT (account_id, account_capability_type_id) DO NOTHING;
+
 -- RESOURCE_NAVIGATOR already exists as a global feature. Connect it to the new
 -- provider support role without changing its route or tenant visibility.
 INSERT INTO feature_support_role (

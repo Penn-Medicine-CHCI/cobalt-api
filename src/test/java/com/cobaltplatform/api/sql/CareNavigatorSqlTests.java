@@ -39,6 +39,9 @@ public class CareNavigatorSqlTests {
 		assertTrue(migrationSql.contains("ADD COLUMN IF NOT EXISTS provider_id UUID REFERENCES provider(provider_id)"));
 		assertTrue(migrationSql.contains("ON CONFLICT (support_role_id) DO UPDATE"));
 		assertTrue(migrationSql.contains("ON CONFLICT (account_capability_type_id) DO UPDATE"));
+		assertTrue(migrationSql.contains("LOWER('admin@cobaltinnovations.org')"));
+		assertTrue(migrationSql.contains("account.role_id='ADMINISTRATOR'"));
+		assertTrue(migrationSql.contains("ON CONFLICT (account_id, account_capability_type_id) DO NOTHING"));
 		assertTrue(migrationSql.contains("ON CONFLICT (feature_id, support_role_id) DO NOTHING"));
 		assertTrue(migrationSql.contains("CREATE OR REPLACE FUNCTION validate_care_navigator_booking_provider()"));
 		assertTrue(migrationSql.contains("NEW.provider_id IS NULL"));
@@ -58,7 +61,7 @@ public class CareNavigatorSqlTests {
 		assertTrue(fixtureSql.contains("'259-local-only-provider-booking-seed'"));
 		assertTrue(fixtureSql.contains("'260-care-navigator'"));
 		assertTrue(fixtureSql.contains("care-navigator@cobaltinnovations.org"));
-		assertTrue(fixtureSql.contains("'PROVIDER'"));
+		assertTrue(fixtureSql.contains("'ADMINISTRATOR'"));
 		assertTrue(fixtureSql.contains("'CARE_NAVIGATOR'"));
 		assertTrue(fixtureSql.contains("'NAVIGATOR'"));
 		assertTrue(fixtureSql.contains("'RESOURCE_NAVIGATOR'"));

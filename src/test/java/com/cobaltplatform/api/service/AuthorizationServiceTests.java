@@ -31,12 +31,14 @@ import static org.junit.Assert.assertTrue;
 
 public class AuthorizationServiceTests {
 	@Test
-	public void careNavigatorFlagRequiresProviderRoleAndNavigatorCapability() {
+	public void careNavigatorFlagSupportsAdministratorAndProviderAccountsWithNavigatorCapability() {
 		AuthorizationService authorizationService = authorizationService();
+		Account administratorNavigator = account(RoleId.ADMINISTRATOR, "[\"NAVIGATOR\"]");
 		Account providerNavigator = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
 		Account providerWithoutCapability = account(RoleId.PROVIDER, null);
 		Account patientWithCapability = account(RoleId.PATIENT, "[\"NAVIGATOR\"]");
 
+		assertTrue(authorizationService.determineAccountCapabilityFlagsForAccount(administratorNavigator).isCareNavigator());
 		assertTrue(authorizationService.determineAccountCapabilityFlagsForAccount(providerNavigator).isCareNavigator());
 		assertFalse(authorizationService.determineAccountCapabilityFlagsForAccount(providerWithoutCapability).isCareNavigator());
 		assertFalse(authorizationService.determineAccountCapabilityFlagsForAccount(patientWithCapability).isCareNavigator());
@@ -53,19 +55,19 @@ public class AuthorizationServiceTests {
 	@Test
 	public void careEncounterManagementRequiresNavigatorRoleButNotProviderIdentity() {
 		AuthorizationService authorizationService = authorizationService(true);
-		Account providerNavigator = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
-		Account providerWithoutCapability = account(RoleId.PROVIDER, null);
+		Account administratorNavigator = account(RoleId.ADMINISTRATOR, "[\"NAVIGATOR\"]");
+		Account administratorWithoutCapability = account(RoleId.ADMINISTRATOR, null);
 
-		assertTrue(authorizationService.canManageCareEncounters(providerNavigator));
-		assertFalse(authorizationService.canManageCareEncounters(providerWithoutCapability));
+		assertTrue(authorizationService.canManageCareEncounters(administratorNavigator));
+		assertFalse(authorizationService.canManageCareEncounters(administratorWithoutCapability));
 	}
 
 	@Test
 	public void careEncounterManagementRequiresOrganizationBookingProvider() {
-		Account providerNavigator = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
+		Account administratorNavigator = account(RoleId.ADMINISTRATOR, "[\"NAVIGATOR\"]");
 
-		assertTrue(authorizationService(true).canManageCareEncounters(providerNavigator));
-		assertFalse(authorizationService(false).canManageCareEncounters(providerNavigator));
+		assertTrue(authorizationService(true).canManageCareEncounters(administratorNavigator));
+		assertFalse(authorizationService(false).canManageCareEncounters(administratorNavigator));
 	}
 
 	protected Account account(RoleId roleId, String accountCapabilityTypeIdsAsString) {

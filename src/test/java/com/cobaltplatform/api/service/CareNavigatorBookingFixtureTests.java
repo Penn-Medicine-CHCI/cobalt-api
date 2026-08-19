@@ -237,7 +237,7 @@ public class CareNavigatorBookingFixtureTests {
 				FROM account
 				WHERE account_id=?
 				AND email_address='care-navigator@cobaltinnovations.org'
-				AND role_id='PROVIDER'
+				AND role_id='ADMINISTRATOR'
 				""", UUID.class, CARE_NAVIGATOR_ACCOUNT_ID).get());
 		assertEquals(Long.valueOf(1L), database.queryForObject("""
 				SELECT COUNT(*)
@@ -245,6 +245,15 @@ public class CareNavigatorBookingFixtureTests {
 				WHERE account_id=?
 				AND account_capability_type_id='NAVIGATOR'
 				""", Long.class, CARE_NAVIGATOR_ACCOUNT_ID).get());
+		assertEquals(Long.valueOf(1L), database.queryForObject("""
+				SELECT COUNT(*)
+				FROM account
+				JOIN account_capability ON account_capability.account_id=account.account_id
+				WHERE account.institution_id='COBALT'
+				AND account.role_id='ADMINISTRATOR'
+				AND LOWER(account.email_address)=LOWER('admin@cobaltinnovations.org')
+				AND account_capability.account_capability_type_id='NAVIGATOR'
+				""", Long.class).get());
 		assertEquals(Long.valueOf(1L), database.queryForObject("""
 				SELECT COUNT(*)
 				FROM provider_support_role

@@ -210,7 +210,8 @@ public class AuthorizationService {
 		accountCapabilityFlags.setCanViewStudyInsights(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.STUDY_ADMIN));
 		accountCapabilityFlags.setCanManageCareResources(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_RESOURCE_MANAGER));
 		accountCapabilityFlags.setCanCreatePages((accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PAGE_CREATOR)));
-		accountCapabilityFlags.setCareNavigator(account.getRoleId() == RoleId.PROVIDER
+		accountCapabilityFlags.setCareNavigator((account.getRoleId() == RoleId.ADMINISTRATOR
+				|| account.getRoleId() == RoleId.PROVIDER)
 				&& accountCapabilityTypeIds.contains(AccountCapabilityTypeId.NAVIGATOR));
 
 		return accountCapabilityFlags;
