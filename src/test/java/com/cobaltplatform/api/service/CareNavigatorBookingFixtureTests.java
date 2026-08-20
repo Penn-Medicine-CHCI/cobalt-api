@@ -27,6 +27,7 @@ import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
+import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.response.LocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse;
@@ -443,6 +444,47 @@ public class CareNavigatorBookingFixtureTests {
 	}
 
 	@Test
+	public void navigatorCanUpdateEncounterEmailWithoutChangingAppointmentEmail() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CareEncounterService careEncounterService = app.getInjector().getInstance(CareEncounterService.class);
+			UUID careEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
+			String appointmentEmailAddress = database.queryForObject("""
+					SELECT email_address
+					FROM appointment
+					WHERE appointment_id=?
+					""", String.class, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
+
+			CareEncounter originalCareEncounter = careEncounterService.findCareEncounterByIdForInstitutionId(
+					careEncounterId, InstitutionId.COBALT).get();
+			assertEquals(appointmentEmailAddress, originalCareEncounter.getEmailAddress());
+
+			UpdateCareEncounterRequest request = new UpdateCareEncounterRequest();
+			request.setCareEncounterId(careEncounterId);
+			request.setInstitutionId(InstitutionId.COBALT);
+			request.setAccountId(CARE_NAVIGATOR_ACCOUNT_ID);
+			request.setEmailAddress("  Navigator.Contact@Example.com  ");
+			request.setNotes(originalCareEncounter.getNotes());
+
+			CareEncounter updatedCareEncounter = careEncounterService.updateCareEncounter(request);
+			assertEquals("navigator.contact@example.com", updatedCareEncounter.getEmailAddress());
+			assertEquals(appointmentEmailAddress, database.queryForObject("""
+					SELECT email_address
+					FROM appointment
+					WHERE appointment_id=?
+					""", String.class, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get());
+
+			request.setEmailAddress("invalid-email-address");
+			assertThrows(ValidationException.class, () -> careEncounterService.updateCareEncounter(request));
+			assertEquals("navigator.contact@example.com", database.queryForObject("""
+					SELECT email_address
+					FROM care_encounter
+					WHERE care_encounter_id=?
+					""", String.class, careEncounterId).get());
+		});
+	}
+
+	@Test
 	public void encounterResponsesUseLatestAppointmentAndExcludeItFromHistory() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
@@ -470,9 +512,11 @@ public class CareNavigatorBookingFixtureTests {
 				assertEquals(activeCareEncounterId, response.getAppointment().getCareEncounterId());
 				assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, response.getCareNavigatorAccountId());
 				assertNotNull(response.getCareNavigatorDisplayName());
+				assertEquals(activeCareEncounter.getEmailAddress(), response.getEmailAddress());
 				Map<String, Object> serializedDetail = new JsonMapper().toMap(response);
 				assertTrue(serializedDetail.containsKey("appointment"));
 				assertTrue(serializedDetail.containsKey("appointmentHistory"));
+				assertTrue(serializedDetail.containsKey("emailAddress"));
 				assertFalse(serializedDetail.containsKey("activeAppointment"));
 				assertFalse(serializedDetail.containsKey("activeAppointmentId"));
 				assertFalse(serializedDetail.containsKey("appointments"));

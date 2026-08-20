@@ -21,6 +21,8 @@ public class UpdateCareEncounterRequest {
 	@Nullable
 	private UUID careEncounterId;
 	@Nullable
+	private String emailAddress;
+	@Nullable
 	private String notes;
 	@Nullable
 	private InstitutionId institutionId;
@@ -34,6 +36,15 @@ public class UpdateCareEncounterRequest {
 
 	public void setCareEncounterId(@Nullable UUID careEncounterId) {
 		this.careEncounterId = careEncounterId;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
 	}
 
 	@Nullable

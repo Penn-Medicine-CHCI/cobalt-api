@@ -42,6 +42,8 @@ public class CareEncounter {
 	@Nullable
 	private CareEncounterStatusId careEncounterStatusId;
 	@Nullable
+	private String emailAddress;
+	@Nullable
 	private String notes;
 	@Nullable
 	private Instant closedAt;
@@ -109,6 +111,15 @@ public class CareEncounter {
 
 	public void setCareEncounterStatusId(@Nullable CareEncounterStatusId careEncounterStatusId) {
 		this.careEncounterStatusId = careEncounterStatusId;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
 	}
 
 	@Nullable

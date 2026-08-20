@@ -64,6 +64,8 @@ public class CareEncounterApiResponse {
 	@Nonnull
 	private final String appointmentDateDescription;
 	@Nullable
+	private final String emailAddress;
+	@Nullable
 	private final String notes;
 	@Nullable
 	private final Instant closedAt;
@@ -145,6 +147,7 @@ public class CareEncounterApiResponse {
 				latestAppointment.getLastName() == null ? "" : latestAppointment.getLastName()).trim();
 		this.appointmentDate = latestAppointment.getStartTime().toLocalDate();
 		this.appointmentDateDescription = formatter.formatDate(this.appointmentDate, FormatStyle.MEDIUM);
+		this.emailAddress = careEncounter.getEmailAddress();
 		this.notes = careEncounter.getNotes();
 		this.closedAt = careEncounter.getClosedAt();
 		this.closedAtDescription = careEncounter.getClosedAt() == null ? null : formatter.formatTimestamp(careEncounter.getClosedAt());
@@ -196,6 +199,7 @@ public class CareEncounterApiResponse {
 	@Nonnull public String getPatientFullName() { return this.patientFullName; }
 	@Nonnull public LocalDate getAppointmentDate() { return this.appointmentDate; }
 	@Nonnull public String getAppointmentDateDescription() { return this.appointmentDateDescription; }
+	@Nullable public String getEmailAddress() { return this.emailAddress; }
 	@Nullable public String getNotes() { return this.notes; }
 	@Nullable public Instant getClosedAt() { return this.closedAt; }
 	@Nullable public String getClosedAtDescription() { return this.closedAtDescription; }

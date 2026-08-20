@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.SortDirectionId;
+import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
@@ -49,6 +50,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.cobaltplatform.api.util.DatabaseUtility.sqlVaragsParameters;
+import static com.cobaltplatform.api.util.ValidationUtility.isValidEmailAddress;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -68,15 +70,20 @@ public class CareEncounterService {
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
 	@Nonnull
+	private final Normalizer normalizer;
+	@Nonnull
 	private final Strings strings;
 
 	@Inject
 	public CareEncounterService(@Nonnull DatabaseProvider databaseProvider,
-														@Nonnull Strings strings) {
+												@Nonnull Normalizer normalizer,
+												@Nonnull Strings strings) {
 		requireNonNull(databaseProvider);
+		requireNonNull(normalizer);
 		requireNonNull(strings);
 
 		this.databaseProvider = databaseProvider;
+		this.normalizer = normalizer;
 		this.strings = strings;
 	}
 
@@ -336,6 +343,7 @@ public class CareEncounterService {
 		UUID careEncounterId = request.getCareEncounterId();
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
+		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
 		String notes = normalizeNotes(request.getNotes());
 		CareEncounter careEncounter = null;
 		ValidationException validationException = new ValidationException();
@@ -357,14 +365,17 @@ public class CareEncounterService {
 
 		validateNotes(notes, validationException);
 
+		if (emailAddress != null && !isValidEmailAddress(emailAddress))
+			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
+
 		if (validationException.hasErrors())
 			throw validationException;
 
 		getDatabase().execute("""
 				UPDATE care_encounter
-				SET notes=?, last_updated_by_account_id=?
+				SET email_address=?, notes=?, last_updated_by_account_id=?
 				WHERE care_encounter_id=?
-				""", notes, accountId, careEncounterId);
+				""", emailAddress, notes, accountId, careEncounterId);
 
 		return findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).get();
 	}
@@ -738,6 +749,11 @@ public class CareEncounterService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	@Nonnull
+	protected Normalizer getNormalizer() {
+		return this.normalizer;
 	}
 
 	@Nonnull

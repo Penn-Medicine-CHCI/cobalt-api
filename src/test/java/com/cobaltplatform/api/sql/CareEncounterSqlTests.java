@@ -50,6 +50,7 @@ public class CareEncounterSqlTests {
 		assertTrue(migrationSql.contains("ON care_encounter(account_id)"));
 		assertTrue(migrationSql.contains("WHERE care_encounter_status_id='OPEN'"));
 		assertTrue(migrationSql.contains("care_encounter_status_id TEXT NOT NULL REFERENCES care_encounter_status"));
+		assertTrue(migrationSql.contains("email_address TEXT"));
 		assertTrue(migrationSql.contains("notes TEXT"));
 		assertTrue(migrationSql.contains("closed_at TIMESTAMPTZ"));
 		assertTrue(migrationSql.contains("closed_by_account_id UUID REFERENCES account(account_id)"));
@@ -64,6 +65,7 @@ public class CareEncounterSqlTests {
 		assertTrue(migrationSql.contains("AND attendance_status_id='UNKNOWN'"));
 		assertTrue(migrationSql.contains("CREATE TRIGGER attach_care_navigator_appointment_to_encounter"));
 		assertTrue(migrationSql.contains("AFTER INSERT OR UPDATE OF provider_id, account_id, care_encounter_id ON appointment"));
+		assertTrue(migrationSql.contains("NEW.email_address"));
 		assertTrue(migrationSql.contains("v_new_appointment_is_active"));
 		assertTrue(migrationSql.contains("New Care Navigator appointments cannot be attached to a terminal encounter."));
 		assertTrue(migrationSql.contains("CREATE TRIGGER close_care_encounter_for_patient_cancellation"));
@@ -198,13 +200,18 @@ public class CareEncounterSqlTests {
 		assertTrue(responseJava.contains("getCanceledByAccountId()"));
 		assertTrue(responseJava.contains("getScreeningSessionId()"));
 		assertTrue(responseJava.contains("private final String notes"));
+		assertTrue(responseJava.contains("private final String emailAddress"));
+		assertTrue(responseJava.contains("careEncounter.getEmailAddress()"));
 		assertTrue(modelJava.contains("private String notes"));
+		assertTrue(modelJava.contains("private String emailAddress"));
 		assertTrue(modelJava.contains("private UUID careNavigatorAccountId"));
 		assertTrue(modelJava.contains("private UUID closedByAccountId"));
 		assertTrue(modelJava.contains("getNotes()"));
 		assertTrue(modelJava.contains("setNotes(@Nullable String notes)"));
 		assertTrue(createRequestJava.contains("private String notes"));
 		assertTrue(updateRequestJava.contains("private String notes"));
+		assertTrue(updateRequestJava.contains("private String emailAddress"));
+		assertTrue(serviceJava.contains("SET email_address=?, notes=?, last_updated_by_account_id=?"));
 	}
 
 	@Test

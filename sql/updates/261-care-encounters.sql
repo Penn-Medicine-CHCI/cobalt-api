@@ -48,6 +48,7 @@ CREATE TABLE care_encounter (
 	care_navigator_account_id UUID REFERENCES account(account_id),
 	screening_session_id UUID REFERENCES screening_session(screening_session_id),
 	care_encounter_status_id TEXT NOT NULL REFERENCES care_encounter_status(care_encounter_status_id) DEFAULT 'OPEN',
+	email_address TEXT,
 	notes TEXT,
 	closed_at TIMESTAMPTZ,
 	closed_by_account_id UUID REFERENCES account(account_id),
@@ -263,11 +264,13 @@ BEGIN
 		INSERT INTO care_encounter (
 			account_id,
 			care_navigator_account_id,
+			email_address,
 			created_by_account_id,
 			last_updated_by_account_id
 		) VALUES (
 			NEW.account_id,
 			first_care_navigator_account_for_provider(NEW.provider_id),
+			NEW.email_address,
 			NEW.created_by_account_id,
 			NEW.created_by_account_id
 		)
