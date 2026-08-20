@@ -44,6 +44,8 @@ public class CancelAppointmentRequest {
 	private UUID rescheduleAppointmentId;
 	@Nullable
 	private AppointmentCancelationReasonId appointmentCancelationReasonId;
+	@Nullable
+	private String cancellationReason;
 	private boolean force;
 
 	@Nullable
@@ -107,6 +109,15 @@ public class CancelAppointmentRequest {
 
 	public void setAppointmentCancelationReasonId(@Nullable AppointmentCancelationReasonId appointmentCancelationReasonId) {
 		this.appointmentCancelationReasonId = appointmentCancelationReasonId;
+	}
+
+	@Nullable
+	public String getCancellationReason() {
+		return this.cancellationReason;
+	}
+
+	public void setCancellationReason(@Nullable String cancellationReason) {
+		this.cancellationReason = cancellationReason;
 	}
 
 	public boolean isForce() {

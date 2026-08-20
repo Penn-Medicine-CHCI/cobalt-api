@@ -281,4 +281,5 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/259-provider-boo
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/260-care-navigator.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/260-care-navigator-seed.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/261-care-encounters.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/262-care-navigator-appointment-cancellation.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/261-care-encounter-seed.sql

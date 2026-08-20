@@ -44,8 +44,6 @@ public class CareEncounterListApiResponse {
 	private final UUID careNavigatorAccountId;
 	@Nullable
 	private final String careNavigatorDisplayName;
-	@Nullable
-	private final UUID screeningSessionId;
 	@Nonnull
 	private final CareEncounterStatusId careEncounterStatusId;
 	@Nonnull
@@ -118,7 +116,6 @@ public class CareEncounterListApiResponse {
 		this.careNavigatorAccountId = careEncounter.getCareNavigatorAccountId();
 		this.careNavigatorDisplayName = CareEncounterApiResponse
 				.displayNameForAccountId(accountService, this.careNavigatorAccountId);
-		this.screeningSessionId = careEncounter.getScreeningSessionId();
 		this.careEncounterStatusId = careEncounter.getCareEncounterStatusId();
 		this.careEncounterStatusDisplayLabel = careEncounter.getCareEncounterStatusId().getDisplayLabel();
 		this.patientFullName = String.format("%s %s",
@@ -151,7 +148,6 @@ public class CareEncounterListApiResponse {
 	@Nonnull public UUID getAccountId() { return this.accountId; }
 	@Nullable public UUID getCareNavigatorAccountId() { return this.careNavigatorAccountId; }
 	@Nullable public String getCareNavigatorDisplayName() { return this.careNavigatorDisplayName; }
-	@Nullable public UUID getScreeningSessionId() { return this.screeningSessionId; }
 	@Nonnull public CareEncounterStatusId getCareEncounterStatusId() { return this.careEncounterStatusId; }
 	@Nonnull public String getCareEncounterStatusDisplayLabel() { return this.careEncounterStatusDisplayLabel; }
 	@Nonnull public String getPatientFullName() { return this.patientFullName; }

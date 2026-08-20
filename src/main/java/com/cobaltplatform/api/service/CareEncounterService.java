@@ -16,6 +16,8 @@
 
 package com.cobaltplatform.api.service;
 
+import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
@@ -23,6 +25,7 @@ import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEn
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
@@ -66,9 +69,12 @@ public class CareEncounterService {
 	protected static final int MAXIMUM_PAGE_SIZE = 100;
 	protected static final int MAXIMUM_NOTES_LENGTH = 20_000;
 	protected static final int MAXIMUM_CANCELLATION_REASON_OTHER_TEXT_LENGTH = 2_000;
+	protected static final int MAXIMUM_APPOINTMENT_CANCELLATION_REASON_LENGTH = 2_000;
 
 	@Nonnull
 	private final DatabaseProvider databaseProvider;
+	@Nonnull
+	private final AppointmentService appointmentService;
 	@Nonnull
 	private final Normalizer normalizer;
 	@Nonnull
@@ -76,13 +82,16 @@ public class CareEncounterService {
 
 	@Inject
 	public CareEncounterService(@Nonnull DatabaseProvider databaseProvider,
-												@Nonnull Normalizer normalizer,
-												@Nonnull Strings strings) {
+											 @Nonnull AppointmentService appointmentService,
+											 @Nonnull Normalizer normalizer,
+											 @Nonnull Strings strings) {
 		requireNonNull(databaseProvider);
+		requireNonNull(appointmentService);
 		requireNonNull(normalizer);
 		requireNonNull(strings);
 
 		this.databaseProvider = databaseProvider;
+		this.appointmentService = appointmentService;
 		this.normalizer = normalizer;
 		this.strings = strings;
 	}
@@ -553,6 +562,82 @@ public class CareEncounterService {
 	}
 
 	@Nonnull
+	public CareEncounter cancelCareEncounterAppointment(@Nullable UUID careEncounterId,
+																	 @Nullable UUID appointmentId,
+																	 @Nullable InstitutionId institutionId,
+																	 @Nullable UUID canceledByAccountId,
+																	 @Nonnull CancelCareEncounterAppointmentRequest request) {
+		requireNonNull(request);
+
+		ValidationException validationException = new ValidationException();
+		CareEncounter careEncounter = null;
+		Appointment appointment = null;
+		String cancellationReason = trimToNull(request.getCancellationReason());
+
+		if (cancellationReason == null)
+			validationException.add(new FieldError("cancellationReason",
+					getStrings().get("Cancellation reason is required.")));
+		else if (cancellationReason.length() > MAXIMUM_APPOINTMENT_CANCELLATION_REASON_LENGTH)
+			validationException.add(new FieldError("cancellationReason",
+					getStrings().get("Cancellation reason is too long.")));
+
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
+		if (canceledByAccountId == null)
+			validationException.add(new FieldError("canceledByAccountId",
+					getStrings().get("Canceled By Account ID is required.")));
+
+		if (careEncounterId == null) {
+			validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is required.")));
+		} else if (institutionId != null) {
+			careEncounter = findCareEncounterByIdForInstitutionIdForUpdate(careEncounterId, institutionId).orElse(null);
+
+			if (careEncounter == null)
+				validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is invalid.")));
+			else if (careEncounter.getCareEncounterStatusId() != CareEncounterStatusId.OPEN)
+				validationException.add(new FieldError("careEncounterStatusId",
+						getStrings().get("Appointments can only be canceled for open Care Encounters.")));
+		}
+
+		if (appointmentId == null) {
+			validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is required.")));
+		} else if (careEncounter != null && institutionId != null) {
+			appointment = findCareNavigatorAppointmentByIdAndCareEncounterIdForInstitutionId(
+					appointmentId, careEncounterId, institutionId).orElse(null);
+
+			if (appointment == null) {
+				validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is invalid.")));
+			} else if (Boolean.TRUE.equals(appointment.getCanceled())
+					|| Boolean.TRUE.equals(appointment.getCanceledForReschedule())
+					|| appointment.getAttendanceStatusId() != AttendanceStatusId.UNKNOWN) {
+				validationException.add(new FieldError("appointmentId",
+						getStrings().get("Only an active appointment can be canceled.")));
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		CancelAppointmentRequest cancelAppointmentRequest = new CancelAppointmentRequest();
+		cancelAppointmentRequest.setAppointmentId(appointmentId);
+		cancelAppointmentRequest.setAccountId(appointment.getAccountId());
+		cancelAppointmentRequest.setCanceledByAccountId(canceledByAccountId);
+		cancelAppointmentRequest.setCanceledByWebhook(false);
+		cancelAppointmentRequest.setCanceledForReschedule(false);
+		cancelAppointmentRequest.setCancellationReason(cancellationReason);
+		getAppointmentService().cancelAppointment(cancelAppointmentRequest);
+
+		getDatabase().execute("""
+				UPDATE care_encounter
+				SET last_updated_by_account_id=?
+				WHERE care_encounter_id=?
+				""", canceledByAccountId, careEncounterId);
+
+		return findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).get();
+	}
+
+	@Nonnull
 	public CareEncounter cancelCareEncounter(@Nullable UUID careEncounterId,
 																		 @Nullable InstitutionId institutionId,
 																	 @Nullable UUID accountId,
@@ -733,6 +818,28 @@ public class CareEncounterService {
 				""", Appointment.class, appointmentId, institutionId);
 	}
 
+	@Nonnull
+	protected Optional<Appointment> findCareNavigatorAppointmentByIdAndCareEncounterIdForInstitutionId(
+			@Nullable UUID appointmentId,
+			@Nullable UUID careEncounterId,
+			@Nullable InstitutionId institutionId) {
+		if (appointmentId == null || careEncounterId == null || institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT appointment.*
+				FROM appointment
+				JOIN provider ON provider.provider_id=appointment.provider_id
+				JOIN provider_support_role
+					ON provider_support_role.provider_id=appointment.provider_id
+					AND provider_support_role.support_role_id='CARE_NAVIGATOR'
+				WHERE appointment.appointment_id=?
+				AND appointment.care_encounter_id=?
+				AND provider.institution_id=?
+				FOR UPDATE OF appointment
+				""", Appointment.class, appointmentId, careEncounterId, institutionId);
+	}
+
 	@Nullable
 	protected static String normalizeNotes(@Nullable String notes) {
 		return trimToNull(notes);
@@ -749,6 +856,11 @@ public class CareEncounterService {
 	@Nonnull
 	protected Database getDatabase() {
 		return this.databaseProvider.get();
+	}
+
+	@Nonnull
+	protected AppointmentService getAppointmentService() {
+		return this.appointmentService;
 	}
 
 	@Nonnull

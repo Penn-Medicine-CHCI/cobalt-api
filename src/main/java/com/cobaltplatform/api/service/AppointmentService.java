@@ -1975,22 +1975,17 @@ public class AppointmentService {
 
 		if (associatedScreeningSessionId == null && preserveExistingScreeningEligibility && excludedAppointmentId != null) {
 			associatedScreeningSessionId = getDatabase().queryForObject("""
-					SELECT care_encounter.screening_session_id
+					SELECT screening_session_id
 					FROM appointment
-					JOIN care_encounter ON care_encounter.care_encounter_id=appointment.care_encounter_id
-					WHERE appointment.appointment_id=?
+					WHERE appointment_id=?
 					""", UUID.class, excludedAppointmentId).orElse(null);
 		}
 
 		if (associatedScreeningSessionId != null) {
 			getDatabase().execute("""
-					UPDATE care_encounter
+					UPDATE appointment
 					SET screening_session_id=?
-					WHERE care_encounter_id=(
-						SELECT care_encounter_id
-						FROM appointment
-						WHERE appointment_id=?
-					)
+					WHERE appointment_id=?
 					""", associatedScreeningSessionId, appointmentId);
 		}
 
@@ -3584,6 +3579,7 @@ public class AppointmentService {
 		UUID accountId = request.getAccountId();
 		Boolean canceledByWebhook = request.getCanceledByWebhook() == null ? false : request.getCanceledByWebhook();
 		AppointmentCancelationReasonId appointmentCancelationReasonId = request.getAppointmentCancelationReasonId() == null ? AppointmentCancelationReasonId.UNSPECIFIED : request.getAppointmentCancelationReasonId();
+		String cancellationReason = trimToNull(request.getCancellationReason());
 		Appointment appointment = null;
 		Account account = null;
 		ValidationException validationException = new ValidationException();
@@ -3668,9 +3664,10 @@ public class AppointmentService {
 		}
 
 		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
-						"canceled_by_account_id=?, canceled_for_reschedule=?, rescheduled_appointment_id=?, appointment_cancelation_reason_id=? WHERE appointment_id=?",
+						"canceled_by_account_id=?, canceled_for_reschedule=?, rescheduled_appointment_id=?, appointment_cancelation_reason_id=?, " +
+						"cancellation_reason=? WHERE appointment_id=?",
 				AttendanceStatusId.CANCELED, request.getCanceledByAccountId(), request.getCanceledForReschedule(),
-				request.getRescheduleAppointmentId(), appointmentCancelationReasonId, appointmentId) > 0;
+				request.getRescheduleAppointmentId(), appointmentCancelationReasonId, cancellationReason, appointmentId) > 0;
 
 		// Cancel any interaction instances that are scheduled for this appointment
 		getInteractionService().cancelInteractionInstancesForAppointment(appointmentId);

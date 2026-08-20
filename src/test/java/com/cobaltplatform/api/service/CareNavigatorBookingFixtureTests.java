@@ -21,12 +21,14 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest.BookingExperienceId;
+import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
+import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.response.LocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse;
@@ -38,6 +40,7 @@ import com.cobaltplatform.api.model.api.response.CareEncounterListApiResponse.Ca
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
@@ -82,6 +85,8 @@ import static org.junit.Assert.assertTrue;
 
 @ThreadSafe
 public class CareNavigatorBookingFixtureTests {
+	protected static final String NAVIGATOR_CONTEXT_FIXTURE_TEXT =
+			"I would like help finding an in-network therapist with evening availability.";
 	protected static final UUID CARE_NAVIGATOR_ACCOUNT_ID = UUID.fromString("ca4e0000-0000-4000-8000-000000000001");
 	protected static final UUID CARE_NAVIGATOR_PROVIDER_ID = UUID.fromString("ca4e0000-0000-4000-8000-000000000002");
 	protected static final UUID CARE_NAVIGATOR_APPOINTMENT_TYPE_ID = UUID.fromString("ca4e0000-0000-4000-8000-000000000003");
@@ -96,6 +101,7 @@ public class CareNavigatorBookingFixtureTests {
 	protected static final UUID CARE_NAVIGATOR_CANCELED_APPOINTMENT_ID = UUID.fromString("ca4e2000-0000-4000-8000-000000000003");
 	protected static final UUID CARE_NAVIGATOR_REBOOKED_APPOINTMENT_ID = UUID.fromString("ca4e2000-0000-4000-8000-000000000004");
 	protected static final UUID CARE_NAVIGATOR_PATIENT_CANCELED_APPOINTMENT_ID = UUID.fromString("ca4e2000-0000-4000-8000-000000000005");
+	protected static final UUID CARE_NAVIGATOR_UPCOMING_SCREENING_SESSION_ID = UUID.fromString("ca4e3000-0000-4000-8000-000000000001");
 
 	@Test
 	public void careNavigatorFixturePopulatesHomepageFeatureResponse() {
@@ -176,7 +182,9 @@ public class CareNavigatorBookingFixtureTests {
 	public void careNavigatorFixtureCompletesAssessmentAndAllowsNativeBooking() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			CareEncounterService careEncounterService = app.getInjector().getInstance(CareEncounterService.class);
 			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			CareEncounterApiResponseFactory responseFactory = app.getInjector().getInstance(CareEncounterApiResponseFactory.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
@@ -199,20 +207,51 @@ public class CareNavigatorBookingFixtureTests {
 			assertNotNull(initialRequirements.getScreeningSession());
 
 			UUID screeningSessionId = initialRequirements.getScreeningSession().getScreeningSessionId();
-			ScreeningQuestionContext questionContext = screeningService
-					.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId)
-					.get();
+			List<String> expectedQuestionTexts = List.of(
+					"What would you like help navigating?",
+					"What type of support would be most useful right now?",
+					"How would you prefer your Care Navigator to follow up?",
+					"Is there anything else you would like your Care Navigator to know?"
+			);
+			int questionIndex = 0;
+			Optional<ScreeningQuestionContext> questionContext;
 
-			assertEquals("What would you like help navigating?", questionContext.getScreeningQuestion().getQuestionText());
-			assertEquals(3, questionContext.getScreeningAnswerOptions().size());
+			while ((questionContext = screeningService
+					.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId)).isPresent()) {
+				ScreeningQuestionContext currentQuestionContext = questionContext.get();
+				assertEquals(expectedQuestionTexts.get(questionIndex),
+						currentQuestionContext.getScreeningQuestion().getQuestionText());
 
-			CreateAnswerRequest answer = new CreateAnswerRequest();
-			answer.setScreeningAnswerOptionId(questionContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId());
-			CreateScreeningAnswersRequest answerRequest = new CreateScreeningAnswersRequest();
-			answerRequest.setScreeningQuestionContextId(questionContext.getScreeningQuestionContextId());
-			answerRequest.setCreatedByAccountId(account.getAccountId());
-			answerRequest.setAnswers(List.of(answer));
-			screeningService.createScreeningAnswers(answerRequest);
+				List<CreateAnswerRequest> answers;
+				if (questionIndex == 1) {
+					assertEquals(3, currentQuestionContext.getScreeningAnswerOptions().size());
+					CreateAnswerRequest providerSupportAnswer = new CreateAnswerRequest();
+					providerSupportAnswer.setScreeningAnswerOptionId(
+							currentQuestionContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId());
+					CreateAnswerRequest benefitsSupportAnswer = new CreateAnswerRequest();
+					benefitsSupportAnswer.setScreeningAnswerOptionId(
+							currentQuestionContext.getScreeningAnswerOptions().get(1).getScreeningAnswerOptionId());
+					answers = List.of(providerSupportAnswer, benefitsSupportAnswer);
+				} else {
+					CreateAnswerRequest answer = new CreateAnswerRequest();
+					answer.setScreeningAnswerOptionId(
+							currentQuestionContext.getScreeningAnswerOptions().get(0).getScreeningAnswerOptionId());
+
+					if (questionIndex == 3)
+						answer.setText(NAVIGATOR_CONTEXT_FIXTURE_TEXT);
+
+					answers = List.of(answer);
+				}
+
+				CreateScreeningAnswersRequest answerRequest = new CreateScreeningAnswersRequest();
+				answerRequest.setScreeningQuestionContextId(currentQuestionContext.getScreeningQuestionContextId());
+				answerRequest.setCreatedByAccountId(account.getAccountId());
+				answerRequest.setAnswers(answers);
+				screeningService.createScreeningAnswers(answerRequest);
+				++questionIndex;
+			}
+
+			assertEquals(expectedQuestionTexts.size(), questionIndex);
 
 			assertNull(screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId)
 					.orElse(null));
@@ -253,13 +292,8 @@ public class CareNavigatorBookingFixtureTests {
 
 			UUID appointmentId = appointmentService.createAppointment(appointmentRequest);
 			assertNotNull(appointmentId);
-			assertTrue(appointmentService.findAppointmentById(appointmentId).isPresent());
-			assertEquals(screeningSessionId, database.queryForObject("""
-					SELECT care_encounter.screening_session_id
-					FROM appointment
-					JOIN care_encounter ON care_encounter.care_encounter_id=appointment.care_encounter_id
-					WHERE appointment.appointment_id=?
-					""", UUID.class, appointmentId).get());
+			Appointment appointment = appointmentService.findAppointmentById(appointmentId).get();
+			assertEquals(screeningSessionId, appointment.getScreeningSessionId());
 			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, database.queryForObject("""
 					SELECT care_encounter.care_navigator_account_id
 					FROM appointment
@@ -267,19 +301,61 @@ public class CareNavigatorBookingFixtureTests {
 					WHERE appointment.appointment_id=?
 					""", UUID.class, appointmentId).get());
 
-			ScreeningSessionResult screeningSessionResult = screeningService
-					.findScreeningSessionResult(screeningSessionId)
-					.get();
+			CareEncounter careEncounter = careEncounterService.findCareEncounterByIdForInstitutionId(
+					appointment.getCareEncounterId(), InstitutionId.COBALT).get();
+			CareEncounterApiResponse encounterResponse = responseFactory.create(careEncounter);
+			assertEquals(appointmentId, encounterResponse.getAppointment().getAppointmentId());
+			assertEquals(screeningSessionId, encounterResponse.getAppointment().getScreeningSessionId());
+			ScreeningSessionResult screeningSessionResult = encounterResponse.getAppointment().getScreeningSessionResult();
+			assertNotNull(screeningSessionResult);
 			assertEquals(1, screeningSessionResult.getScreeningSessionScreeningResults().size());
-			assertEquals(1, screeningSessionResult.getScreeningSessionScreeningResults().get(0)
-					.getScreeningQuestionResults().size());
-			assertEquals(questionContext.getScreeningQuestion().getQuestionText(),
-					screeningSessionResult.getScreeningSessionScreeningResults().get(0)
-							.getScreeningQuestionResults().get(0).getScreeningQuestionText());
-			assertEquals(questionContext.getScreeningAnswerOptions().get(0).getAnswerOptionText(),
-					screeningSessionResult.getScreeningSessionScreeningResults().get(0)
-							.getScreeningQuestionResults().get(0).getScreeningAnswerResults().get(0)
-							.getAnswerOptionText());
+			List<ScreeningSessionResult.ScreeningQuestionResult> questionResults = screeningSessionResult
+					.getScreeningSessionScreeningResults().get(0).getScreeningQuestionResults();
+			assertEquals(expectedQuestionTexts,
+					questionResults.stream().map(ScreeningSessionResult.ScreeningQuestionResult::getScreeningQuestionText)
+							.toList());
+			assertEquals(List.of("Finding a mental health provider"), questionResults.get(0)
+					.getScreeningAnswerResults().stream()
+					.map(ScreeningSessionResult.ScreeningAnswerResult::getAnswerOptionText).toList());
+			assertEquals(List.of("Finding an in-network provider", "Understanding costs and benefits"),
+					questionResults.get(1).getScreeningAnswerResults().stream()
+							.map(ScreeningSessionResult.ScreeningAnswerResult::getAnswerOptionText).toList());
+			assertEquals("Email", questionResults.get(2).getScreeningAnswerResults().get(0).getAnswerOptionText());
+			assertEquals(NAVIGATOR_CONTEXT_FIXTURE_TEXT,
+					questionResults.get(3).getScreeningAnswerResults().get(0).getText());
+			Map<String, Object> serializedEncounter = new JsonMapper().toMap(encounterResponse);
+			Map<?, ?> serializedAppointment = (Map<?, ?>) serializedEncounter.get("appointment");
+			assertTrue(serializedAppointment.containsKey("screeningSessionId"));
+			assertTrue(serializedAppointment.containsKey("screeningSessionResult"));
+
+			UpdateAppointmentRequest updateAppointmentRequest = new UpdateAppointmentRequest();
+			updateAppointmentRequest.setBookingExperienceId(BookingExperienceId.V2);
+			updateAppointmentRequest.setAppointmentId(appointmentId);
+			updateAppointmentRequest.setAccountId(account.getAccountId());
+			updateAppointmentRequest.setCreatedByAcountId(account.getAccountId());
+			updateAppointmentRequest.setProviderId(CARE_NAVIGATOR_PROVIDER_ID);
+			updateAppointmentRequest.setAppointmentTypeId(CARE_NAVIGATOR_APPOINTMENT_TYPE_ID);
+			updateAppointmentRequest.setDate(nextWeekday(bookingDate.plusDays(1)));
+			updateAppointmentRequest.setTime(bookingTime);
+			UUID replacementAppointmentId = appointmentService.rescheduleAppointment(updateAppointmentRequest);
+			assertEquals(screeningSessionId,
+					appointmentService.findAppointmentById(replacementAppointmentId).get().getScreeningSessionId());
+
+			database.execute("UPDATE appointment SET screening_session_id=NULL WHERE appointment_id=?",
+					replacementAppointmentId);
+			database.execute("UPDATE appointment SET created=created + INTERVAL '1 second' WHERE appointment_id=?",
+					replacementAppointmentId);
+
+			CareEncounterApiResponse appointmentScopedResponse = responseFactory.create(careEncounterService
+					.findCareEncounterByIdForInstitutionId(appointment.getCareEncounterId(), InstitutionId.COBALT).get());
+			assertEquals(replacementAppointmentId, appointmentScopedResponse.getAppointment().getAppointmentId());
+			assertNull(appointmentScopedResponse.getAppointment().getScreeningSessionId());
+			assertNull(appointmentScopedResponse.getAppointment().getScreeningSessionResult());
+			assertEquals(1, appointmentScopedResponse.getAppointmentHistory().size());
+			assertEquals(appointmentId, appointmentScopedResponse.getAppointmentHistory().get(0).getAppointmentId());
+			assertEquals(screeningSessionId,
+					appointmentScopedResponse.getAppointmentHistory().get(0).getScreeningSessionId());
+			assertNotNull(appointmentScopedResponse.getAppointmentHistory().get(0).getScreeningSessionResult());
 		});
 	}
 
@@ -342,6 +418,40 @@ public class CareNavigatorBookingFixtureTests {
 					FROM care_encounter
 					WHERE care_encounter_id=?
 					""", UUID.class, careEncounterId).get());
+		});
+	}
+
+	@Test
+	public void navigatorCanCancelActiveAppointmentWithUserSubmittedReason() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CareEncounterService careEncounterService = app.getInjector().getInstance(CareEncounterService.class);
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			UUID careEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
+			CancelCareEncounterAppointmentRequest request = new CancelCareEncounterAppointmentRequest();
+
+			request.setCancellationReason("   ");
+			assertThrows(ValidationException.class, () -> careEncounterService.cancelCareEncounterAppointment(
+					careEncounterId, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID, InstitutionId.COBALT,
+					CARE_NAVIGATOR_ACCOUNT_ID, request));
+			assertFalse(appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get().getCanceled());
+
+			request.setCancellationReason("x".repeat(2_001));
+			assertThrows(ValidationException.class, () -> careEncounterService.cancelCareEncounterAppointment(
+					careEncounterId, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID, InstitutionId.COBALT,
+					CARE_NAVIGATOR_ACCOUNT_ID, request));
+
+			request.setCancellationReason("  Patient requested a different appointment time.  ");
+			CareEncounter careEncounter = careEncounterService.cancelCareEncounterAppointment(
+					careEncounterId, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID, InstitutionId.COBALT,
+					CARE_NAVIGATOR_ACCOUNT_ID, request);
+			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
+
+			assertTrue(appointment.getCanceled());
+			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, appointment.getCanceledByAccountId());
+			assertEquals("Patient requested a different appointment time.", appointment.getCancellationReason());
+			assertEquals(CareEncounterStatusId.OPEN, careEncounter.getCareEncounterStatusId());
+			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, careEncounter.getLastUpdatedByAccountId());
 		});
 	}
 
@@ -529,9 +639,11 @@ public class CareNavigatorBookingFixtureTests {
 				Map<String, Object> serializedListItem = new JsonMapper().toMap(listResponse);
 				Map<?, ?> serializedListAppointment = (Map<?, ?>) serializedListItem.get("appointment");
 				assertFalse(serializedListItem.containsKey("appointmentHistory"));
+				assertFalse(serializedListItem.containsKey("screeningSessionResult"));
 				assertFalse(serializedListAppointment.containsKey("account"));
 				assertFalse(serializedListAppointment.containsKey("appointmentReason"));
 				assertFalse(serializedListAppointment.containsKey("emailAddress"));
+				assertFalse(serializedListAppointment.containsKey("screeningSessionResult"));
 			});
 
 			UUID attendedCareEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID);
@@ -544,6 +656,28 @@ public class CareNavigatorBookingFixtureTests {
 				assertEquals(CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID,
 						response.getAppointment().getAppointmentId());
 				assertTrue(response.getAppointmentHistory().isEmpty());
+			});
+
+			UUID upcomingCareEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
+			CareEncounter upcomingCareEncounter = careEncounterService.findCareEncounterByIdForInstitutionId(
+					upcomingCareEncounterId, InstitutionId.COBALT).get();
+			currentContextExecutor.execute(new CurrentContext.Builder(navigator, Locale.US,
+					ZoneId.of("America/New_York")).build(), () -> {
+				CareEncounterApiResponse response = responseFactory.create(upcomingCareEncounter);
+				assertEquals(CARE_NAVIGATOR_UPCOMING_SCREENING_SESSION_ID,
+						response.getAppointment().getScreeningSessionId());
+				List<ScreeningSessionResult.ScreeningQuestionResult> questionResults = response.getAppointment()
+						.getScreeningSessionResult().getScreeningSessionScreeningResults().get(0)
+						.getScreeningQuestionResults();
+				assertEquals(4, questionResults.size());
+				assertEquals(NAVIGATOR_CONTEXT_FIXTURE_TEXT,
+						questionResults.get(3).getScreeningAnswerResults().get(0).getText());
+
+				CareEncounterListApiResponse listResponse = listResponseFactory.create(upcomingCareEncounter);
+				Map<String, Object> serializedListItem = new JsonMapper().toMap(listResponse);
+				assertFalse(serializedListItem.containsKey("screeningSessionResult"));
+				assertFalse(((Map<?, ?>) serializedListItem.get("appointment"))
+						.containsKey("screeningSessionResult"));
 			});
 		});
 	}
@@ -700,6 +834,7 @@ public class CareNavigatorBookingFixtureTests {
 					provider_id,
 					account_id,
 					care_encounter_id,
+					screening_session_id,
 					created_by_account_id,
 					first_name,
 					last_name,
@@ -727,6 +862,7 @@ public class CareNavigatorBookingFixtureTests {
 					provider_id,
 					account_id,
 					?,
+					screening_session_id,
 					created_by_account_id,
 					first_name,
 					last_name,

@@ -87,6 +87,17 @@ public class CareNavigatorSqlTests {
 		assertTrue(fixtureSql.contains("Finding a mental health provider"));
 		assertTrue(fixtureSql.contains("Understanding care options"));
 		assertTrue(fixtureSql.contains("Something else"));
+		assertTrue(fixtureSql.contains("What type of support would be most useful right now?"));
+		assertTrue(fixtureSql.contains("Finding an in-network provider"));
+		assertTrue(fixtureSql.contains("Understanding costs and benefits"));
+		assertTrue(fixtureSql.contains("Preparing for a first appointment"));
+		assertTrue(fixtureSql.contains("How would you prefer your Care Navigator to follow up?"));
+		assertTrue(fixtureSql.contains("'Email'"));
+		assertTrue(fixtureSql.contains("'Phone'"));
+		assertTrue(fixtureSql.contains("'No preference'"));
+		assertTrue(fixtureSql.contains("Is there anything else you would like your Care Navigator to know?"));
+		assertTrue(fixtureSql.contains("'FREEFORM_TEXT'"));
+		assertTrue(fixtureSql.contains("Share any context that would be helpful."));
 		assertTrue(fixtureSql.contains("'PROVIDER_INTAKE'"));
 		assertTrue(fixtureSql.contains("'APPOINTMENT_BOOKING_CONFIRMATION'"));
 		assertTrue(fixtureSql.contains("output.context.result = belowScoringThreshold ? 'FAILURE' : 'SUCCESS';"));

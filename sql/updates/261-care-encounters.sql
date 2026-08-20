@@ -46,7 +46,6 @@ CREATE TABLE care_encounter (
 	care_encounter_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 	account_id UUID NOT NULL REFERENCES account(account_id),
 	care_navigator_account_id UUID REFERENCES account(account_id),
-	screening_session_id UUID REFERENCES screening_session(screening_session_id),
 	care_encounter_status_id TEXT NOT NULL REFERENCES care_encounter_status(care_encounter_status_id) DEFAULT 'OPEN',
 	email_address TEXT,
 	notes TEXT,
@@ -81,7 +80,8 @@ FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
 
 ALTER TABLE appointment
 ADD COLUMN IF NOT EXISTS care_encounter_id UUID REFERENCES care_encounter(care_encounter_id),
-ADD COLUMN IF NOT EXISTS canceled_by_account_id UUID REFERENCES account(account_id);
+ADD COLUMN IF NOT EXISTS canceled_by_account_id UUID REFERENCES account(account_id),
+ADD COLUMN IF NOT EXISTS screening_session_id UUID REFERENCES screening_session(screening_session_id);
 
 CREATE UNIQUE INDEX care_encounter_one_open_per_account_idx
 ON care_encounter(account_id)

@@ -498,7 +498,7 @@ public class AppointmentServiceTests {
 					new AppointmentBookingScreeningKey(testData.getProviderId(), testData.getAppointmentTypeId(), screeningFlowId);
 
 			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
-			createCompletedScreeningSession(screeningService, database, account, screeningFlowId);
+			UUID screeningSessionId = createCompletedScreeningSession(screeningService, database, account, screeningFlowId);
 
 			assertTrue(appointmentService.findCompletedAppointmentBookingScreeningKeys(account.getAccountId(),
 					Set.of(expectedScreeningKey)).contains(expectedScreeningKey));
@@ -506,6 +506,8 @@ public class AppointmentServiceTests {
 			UUID appointmentId = appointmentService.createAppointment(requestForAcuityAppointment(testData));
 
 			assertNotNull(appointmentId);
+			assertEquals(screeningSessionId,
+					appointmentService.findAppointmentById(appointmentId).get().getScreeningSessionId());
 		}, new AbstractModule() {
 			@Override
 			protected void configure() {
@@ -528,11 +530,14 @@ public class AppointmentServiceTests {
 			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
 
 			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
-			createCompletedAppointmentBookingScreeningSession(appointmentService, database, account, pairFor(testData));
+			UUID screeningSessionId = createCompletedAppointmentBookingScreeningSession(
+					appointmentService, database, account, pairFor(testData));
 
 			UUID appointmentId = appointmentService.createAppointment(requestForAcuityAppointment(testData));
 
 			assertNotNull(appointmentId);
+			assertEquals(screeningSessionId,
+					appointmentService.findAppointmentById(appointmentId).get().getScreeningSessionId());
 		}, new AbstractModule() {
 			@Override
 			protected void configure() {

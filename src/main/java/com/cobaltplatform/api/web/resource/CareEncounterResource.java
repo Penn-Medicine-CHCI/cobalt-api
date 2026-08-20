@@ -12,6 +12,7 @@ package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.AssignCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
@@ -21,15 +22,19 @@ import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.response.CareEncounterApiResponse.CareEncounterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareEncounterListApiResponse.CareEncounterListApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AuditLog;
+import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
+import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.SortDirectionId;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.CareEncounterService;
-import com.cobaltplatform.api.service.ScreeningService;
+import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.db.ReadReplica;
 import com.cobaltplatform.api.web.request.RequestBodyParser;
@@ -72,7 +77,9 @@ public class CareEncounterResource {
 	@Nonnull
 	private final CareEncounterService careEncounterService;
 	@Nonnull
-	private final ScreeningService screeningService;
+	private final AuditLogService auditLogService;
+	@Nonnull
+	private final SystemService systemService;
 	@Nonnull
 	private final AuthorizationService authorizationService;
 	@Nonnull
@@ -88,15 +95,17 @@ public class CareEncounterResource {
 
 	@Inject
 	public CareEncounterResource(@Nonnull CareEncounterService careEncounterService,
-														 @Nonnull ScreeningService screeningService,
-														 @Nonnull AuthorizationService authorizationService,
-														 @Nonnull RequestBodyParser requestBodyParser,
-																				 @Nonnull Provider<CurrentContext> currentContextProvider,
-																				 @Nonnull CareEncounterApiResponseFactory careEncounterApiResponseFactory,
-																				 @Nonnull CareEncounterListApiResponseFactory careEncounterListApiResponseFactory,
-																				 @Nonnull Formatter formatter) {
+													 @Nonnull AuditLogService auditLogService,
+													 @Nonnull SystemService systemService,
+													 @Nonnull AuthorizationService authorizationService,
+													 @Nonnull RequestBodyParser requestBodyParser,
+													 @Nonnull Provider<CurrentContext> currentContextProvider,
+													 @Nonnull CareEncounterApiResponseFactory careEncounterApiResponseFactory,
+													 @Nonnull CareEncounterListApiResponseFactory careEncounterListApiResponseFactory,
+													 @Nonnull Formatter formatter) {
 		this.careEncounterService = careEncounterService;
-		this.screeningService = screeningService;
+		this.auditLogService = auditLogService;
+		this.systemService = systemService;
 		this.authorizationService = authorizationService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
@@ -170,9 +179,6 @@ public class CareEncounterResource {
 
 		return new ApiResponse(new LinkedHashMap<String, Object>() {{
 			put("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter));
-			put("screeningSessionResult", getScreeningService()
-					.findScreeningSessionResult(careEncounter.getScreeningSessionId())
-					.orElse(null));
 			put("otherCareEncounters", otherCareEncounters.stream()
 					.map(getCareEncounterListApiResponseFactory()::create)
 					.collect(Collectors.toList()));
@@ -267,6 +273,40 @@ public class CareEncounterResource {
 	}
 
 	@Nonnull
+	@PUT("/admin/care-encounters/{careEncounterId}/appointments/{appointmentId}/cancel")
+	@AuthenticationRequired
+	public ApiResponse cancelCareEncounterAppointment(@Nonnull @PathParameter UUID careEncounterId,
+																						 @Nonnull @PathParameter UUID appointmentId,
+																						 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(careEncounterId);
+		requireNonNull(appointmentId);
+		requireNonNull(requestBody);
+
+		Account account = requireCareNavigatorAccount();
+		CancelCareEncounterAppointmentRequest request = getRequestBodyParser().parse(
+				requestBody, CancelCareEncounterAppointmentRequest.class);
+
+		getSystemService().applyFootprintEventGroupToCurrentTransaction(FootprintEventGroupTypeId.APPOINTMENT_CANCEL);
+
+		AuditLog auditLog = new AuditLog();
+		auditLog.setAccountId(account.getAccountId());
+		auditLog.setAuditLogEventId(AuditLogEventId.APPOINTMENT_CANCEL);
+		auditLog.setMessage(String.format("Cancel Care Navigator appointment_id %s for care_encounter_id %s",
+				appointmentId, careEncounterId));
+		auditLog.setPayload(requestBody);
+		getAuditLogService().audit(auditLog);
+
+		CareEncounter careEncounter = getCareEncounterService().cancelCareEncounterAppointment(
+				careEncounterId,
+				appointmentId,
+				account.getInstitutionId(),
+				account.getAccountId(),
+				request);
+
+		return new ApiResponse(Map.of("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter)));
+	}
+
+	@Nonnull
 	@PUT("/admin/care-encounters/{careEncounterId}/cancel")
 	@AuthenticationRequired
 	public ApiResponse cancelCareEncounter(@Nonnull @PathParameter UUID careEncounterId,
@@ -321,8 +361,13 @@ public class CareEncounterResource {
 	}
 
 	@Nonnull
-	protected ScreeningService getScreeningService() {
-		return this.screeningService;
+	protected AuditLogService getAuditLogService() {
+		return this.auditLogService;
+	}
+
+	@Nonnull
+	protected SystemService getSystemService() {
+		return this.systemService;
 	}
 
 	@Nonnull

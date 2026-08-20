@@ -21,7 +21,10 @@ DECLARE
 	v_appointment_type_name CONSTANT TEXT := 'Care Navigation Consultation';
 	v_screening_name CONSTANT TEXT := 'Care Navigator Booking Assessment';
 	v_screening_flow_name CONSTANT TEXT := 'Care Navigator Booking Intake';
-	v_question_text CONSTANT TEXT := 'What would you like help navigating?';
+	v_navigation_question_text CONSTANT TEXT := 'What would you like help navigating?';
+	v_support_question_text CONSTANT TEXT := 'What type of support would be most useful right now?';
+	v_follow_up_question_text CONSTANT TEXT := 'How would you prefer your Care Navigator to follow up?';
+	v_context_question_text CONSTANT TEXT := 'Is there anything else you would like your Care Navigator to know?';
 	v_provider_details_html CONSTANT TEXT := $details_html$
 <section class="mb-8">
   <h2 class="mb-4">About</h2>
@@ -55,6 +58,16 @@ $details_html$;
 	v_screening_flow_version_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-00000000000c';
 	v_institution_feature_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-00000000000d';
 	v_provider_location_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-00000000000e';
+	v_support_question_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-00000000000f';
+	v_support_provider_option_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000010';
+	v_support_benefits_option_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000011';
+	v_support_preparation_option_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000012';
+	v_follow_up_question_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000013';
+	v_follow_up_email_option_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000014';
+	v_follow_up_phone_option_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000015';
+	v_follow_up_either_option_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000016';
+	v_context_question_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000017';
+	v_context_answer_option_id CONSTANT UUID := 'ca4e0000-0000-4000-8000-000000000018';
 
 	v_account_id UUID;
 	v_provider_id UUID;
@@ -348,14 +361,17 @@ BEGIN
 		provider_id=EXCLUDED.provider_id;
 
 	v_scoring_function := FORMAT($scoring$
-const questionId = '%s';
-const selectedAnswerIds = input.screeningAnswerIdsByScreeningQuestionId[questionId] || [];
+const questionIds = ['%s', '%s', '%s', '%s'];
+const nextUnansweredQuestionId = questionIds.find((questionId) => {
+  const selectedAnswerIds = input.screeningAnswerIdsByScreeningQuestionId[questionId] || [];
+  return selectedAnswerIds.length === 0;
+});
 
-output.completed = selectedAnswerIds.length > 0;
+output.completed = nextUnansweredQuestionId === undefined;
 output.score = { overallScore: output.completed ? 1 : 0 };
 output.belowScoringThreshold = !output.completed;
-output.nextScreeningQuestionId = output.completed ? null : questionId;
-$scoring$, v_screening_question_id);
+output.nextScreeningQuestionId = output.completed ? null : nextUnansweredQuestionId;
+$scoring$, v_screening_question_id, v_support_question_id, v_follow_up_question_id, v_context_question_id);
 
 	INSERT INTO screening (
 		screening_id,
@@ -413,18 +429,15 @@ $scoring$, v_screening_question_id);
 		display_order,
 		prefer_autosubmit,
 		screening_question_submission_style_id
-	) VALUES (
-		v_screening_question_id,
-		v_screening_version_id,
-		'SINGLE_SELECT',
-		'NONE',
-		v_question_text,
-		1,
-		1,
-		1,
-		TRUE,
-		'NEXT'
-	)
+	) VALUES
+		(v_screening_question_id, v_screening_version_id, 'SINGLE_SELECT', 'NONE',
+			v_navigation_question_text, 1, 1, 1, TRUE, 'NEXT'),
+		(v_support_question_id, v_screening_version_id, 'MULTI_SELECT', 'NONE',
+			v_support_question_text, 1, 3, 2, FALSE, 'NEXT'),
+		(v_follow_up_question_id, v_screening_version_id, 'SINGLE_SELECT', 'NONE',
+			v_follow_up_question_text, 1, 1, 3, TRUE, 'NEXT'),
+		(v_context_question_id, v_screening_version_id, 'FREEFORM_TEXT', 'NONE',
+			v_context_question_text, 1, 1, 4, FALSE, 'NEXT')
 	ON CONFLICT (screening_question_id) DO UPDATE
 	SET screening_version_id=EXCLUDED.screening_version_id,
 		screening_answer_format_id=EXCLUDED.screening_answer_format_id,
@@ -446,7 +459,14 @@ $scoring$, v_screening_question_id);
 	) VALUES
 		(v_answer_option_provider_id, v_screening_question_id, 'Finding a mental health provider', 1, FALSE, 1),
 		(v_answer_option_options_id, v_screening_question_id, 'Understanding care options', 1, FALSE, 2),
-		(v_answer_option_other_id, v_screening_question_id, 'Something else', 1, FALSE, 3)
+		(v_answer_option_other_id, v_screening_question_id, 'Something else', 1, FALSE, 3),
+		(v_support_provider_option_id, v_support_question_id, 'Finding an in-network provider', 1, FALSE, 1),
+		(v_support_benefits_option_id, v_support_question_id, 'Understanding costs and benefits', 1, FALSE, 2),
+		(v_support_preparation_option_id, v_support_question_id, 'Preparing for a first appointment', 1, FALSE, 3),
+		(v_follow_up_email_option_id, v_follow_up_question_id, 'Email', 1, FALSE, 1),
+		(v_follow_up_phone_option_id, v_follow_up_question_id, 'Phone', 1, FALSE, 2),
+		(v_follow_up_either_option_id, v_follow_up_question_id, 'No preference', 1, FALSE, 3),
+		(v_context_answer_option_id, v_context_question_id, 'Share any context that would be helpful.', 1, FALSE, 1)
 	ON CONFLICT (screening_answer_option_id) DO UPDATE
 	SET screening_question_id=EXCLUDED.screening_question_id,
 		answer_option_text=EXCLUDED.answer_option_text,

@@ -32,9 +32,11 @@ import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.ProviderService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.AppointmentTimeFormatter;
 import com.cobaltplatform.api.util.Formatter;
 
@@ -63,6 +65,10 @@ public class AppointmentApiResponse {
 	private final UUID accountId;
 	@Nullable
 	private final UUID careEncounterId;
+	@Nullable
+	private final UUID screeningSessionId;
+	@Nullable
+	private final ScreeningSessionResult screeningSessionResult;
 	@Nonnull
 	private final UUID appointmentReasonId;
 	@Nonnull
@@ -142,6 +148,8 @@ public class AppointmentApiResponse {
 	@Nullable
 	private final UUID canceledByAccountId;
 	@Nullable
+	private final String cancellationReason;
+	@Nullable
 	private final String phoneNumber;
 	@Nullable
 	private final String phoneNumberDescription;
@@ -164,6 +172,7 @@ public class AppointmentApiResponse {
 		APPOINTMENT_REASON,
 		APPOINTMENT_TYPE,
 		PRIVATE_DETAILS,
+		SCREENING_SESSION_RESULT, // Explicit only; screening answers are not implied by ALL.
 
 		ALL // Special status
 	}
@@ -183,19 +192,22 @@ public class AppointmentApiResponse {
 	public AppointmentApiResponse(@Nonnull ProviderService providerService,
 																@Nonnull AccountService accountService,
 																@Nonnull AppointmentService appointmentService,
+																@Nonnull ScreeningService screeningService,
 																@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 																@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																@Nonnull AppointmentTypeApiResponseFactory appointmentTypeApiResponseFactory,
 																@Nonnull Formatter formatter,
 																@Nonnull Strings strings,
 																@Assisted @Nonnull Appointment appointment) {
-		this(providerService, accountService, appointmentService, providerApiResponseFactory, accountApiResponseFactory, appointmentTypeApiResponseFactory, formatter, strings, appointment, null);
+		this(providerService, accountService, appointmentService, screeningService, providerApiResponseFactory,
+				accountApiResponseFactory, appointmentTypeApiResponseFactory, formatter, strings, appointment, null);
 	}
 
 	@AssistedInject
 	public AppointmentApiResponse(@Nonnull ProviderService providerService,
 																@Nonnull AccountService accountService,
 																@Nonnull AppointmentService appointmentService,
+																@Nonnull ScreeningService screeningService,
 																@Nonnull ProviderApiResponseFactory providerApiResponseFactory,
 																@Nonnull AccountApiResponseFactory accountApiResponseFactory,
 																@Nonnull AppointmentTypeApiResponseFactory appointmentTypeApiResponseFactory,
@@ -206,6 +218,7 @@ public class AppointmentApiResponse {
 		requireNonNull(providerService);
 		requireNonNull(accountService);
 		requireNonNull(appointmentService);
+		requireNonNull(screeningService);
 		requireNonNull(providerApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
 		requireNonNull(appointmentTypeApiResponseFactory);
@@ -218,10 +231,16 @@ public class AppointmentApiResponse {
 
 		boolean showPrivateDetails = supplements.contains(AppointmentApiResponseSupplement.ALL)
 				|| supplements.contains(AppointmentApiResponseSupplement.PRIVATE_DETAILS);
+		boolean includeScreeningSessionResult = supplements.contains(
+				AppointmentApiResponseSupplement.SCREENING_SESSION_RESULT);
 
 		this.appointmentId = appointment.getAppointmentId();
 		this.accountId = appointment.getAccountId();
 		this.careEncounterId = showPrivateDetails ? appointment.getCareEncounterId() : null;
+		this.screeningSessionId = includeScreeningSessionResult ? appointment.getScreeningSessionId() : null;
+		this.screeningSessionResult = this.screeningSessionId == null
+				? null
+				: screeningService.findScreeningSessionResult(this.screeningSessionId).orElse(null);
 		this.appointmentReasonId = appointment.getAppointmentReasonId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
 		this.createdByAccountId = appointment.getCreatedByAccountId();
@@ -265,6 +284,7 @@ public class AppointmentApiResponse {
 		this.canceledAt = appointment.getCanceledAt();
 		this.canceledAtDescription = appointment.getCanceledAt() == null ? null : formatter.formatTimestamp(appointment.getCanceledAt());
 		this.canceledByAccountId = showPrivateDetails ? appointment.getCanceledByAccountId() : null;
+		this.cancellationReason = showPrivateDetails ? appointment.getCancellationReason() : null;
 
 		if (supplements.contains(AppointmentApiResponseSupplement.ALL) || supplements.contains(AppointmentApiResponseSupplement.PROVIDER) && appointment.getProviderId() != null)
 			this.provider = providerApiResponseFactory.create(providerService.findProviderById(appointment.getProviderId()).get(), ProviderApiResponseSupplement.PAYMENT_FUNDING);
@@ -315,6 +335,16 @@ public class AppointmentApiResponse {
 	@Nullable
 	public UUID getCareEncounterId() {
 		return this.careEncounterId;
+	}
+
+	@Nullable
+	public UUID getScreeningSessionId() {
+		return this.screeningSessionId;
+	}
+
+	@Nullable
+	public ScreeningSessionResult getScreeningSessionResult() {
+		return this.screeningSessionResult;
 	}
 
 	@Nonnull
@@ -499,6 +529,11 @@ public class AppointmentApiResponse {
 	@Nullable
 	public UUID getCanceledByAccountId() {
 		return this.canceledByAccountId;
+	}
+
+	@Nullable
+	public String getCancellationReason() {
+		return this.cancellationReason;
 	}
 
 	@Nonnull
