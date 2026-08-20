@@ -254,6 +254,18 @@ BEGIN
 	VALUES (v_account_id, 'NAVIGATOR')
 	ON CONFLICT (account_id, account_capability_type_id) DO NOTHING;
 
+	INSERT INTO care_navigator_provider_account (
+		provider_id,
+		account_id,
+		display_order
+	) VALUES (
+		v_provider_id,
+		v_account_id,
+		1
+	)
+	ON CONFLICT (provider_id, account_id) DO UPDATE
+	SET display_order=EXCLUDED.display_order;
+
 	INSERT INTO provider_payment_type (provider_id, payment_type_id)
 	SELECT v_provider_id, 'NO_FEE'
 	WHERE EXISTS (

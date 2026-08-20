@@ -14,9 +14,11 @@ import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.SortDirectionId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @NotThreadSafe
 public class FindCareEncountersRequest {
@@ -34,6 +36,10 @@ public class FindCareEncountersRequest {
 	private String searchQuery;
 	@Nullable
 	private CareEncounterStatusId careEncounterStatusId;
+	@Nonnull
+	private CareEncounterAssignmentScopeId careEncounterAssignmentScopeId = CareEncounterAssignmentScopeId.ALL;
+	@Nullable
+	private UUID careNavigatorAccountId;
 	@Nullable
 	private CareEncounterSortColumnId careEncounterSortColumnId;
 	@Nullable
@@ -45,6 +51,12 @@ public class FindCareEncountersRequest {
 		STATUS,
 		CREATED,
 		LAST_UPDATED
+	}
+
+	public enum CareEncounterAssignmentScopeId {
+		ALL,
+		SELF,
+		UNASSIGNED
 	}
 
 	@Nullable
@@ -108,6 +120,26 @@ public class FindCareEncountersRequest {
 
 	public void setCareEncounterStatusId(@Nullable CareEncounterStatusId careEncounterStatusId) {
 		this.careEncounterStatusId = careEncounterStatusId;
+	}
+
+	@Nonnull
+	public CareEncounterAssignmentScopeId getCareEncounterAssignmentScopeId() {
+		return this.careEncounterAssignmentScopeId;
+	}
+
+	public void setCareEncounterAssignmentScopeId(@Nullable CareEncounterAssignmentScopeId careEncounterAssignmentScopeId) {
+		this.careEncounterAssignmentScopeId = careEncounterAssignmentScopeId == null
+				? CareEncounterAssignmentScopeId.ALL
+				: careEncounterAssignmentScopeId;
+	}
+
+	@Nullable
+	public UUID getCareNavigatorAccountId() {
+		return this.careNavigatorAccountId;
+	}
+
+	public void setCareNavigatorAccountId(@Nullable UUID careNavigatorAccountId) {
+		this.careNavigatorAccountId = careNavigatorAccountId;
 	}
 
 	@Nullable

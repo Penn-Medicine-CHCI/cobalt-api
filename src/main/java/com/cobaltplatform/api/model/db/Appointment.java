@@ -50,6 +50,8 @@ public class Appointment implements Comparable<Appointment> {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private UUID careEncounterId;
+	@Nullable
 	private UUID createdByAccountId;
 	@Nullable
 	private String firstName;
@@ -110,6 +112,8 @@ public class Appointment implements Comparable<Appointment> {
 	@Nullable
 	private Instant canceledAt;
 	@Nullable
+	private UUID canceledByAccountId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -169,6 +173,15 @@ public class Appointment implements Comparable<Appointment> {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public UUID getCareEncounterId() {
+		return this.careEncounterId;
+	}
+
+	public void setCareEncounterId(@Nullable UUID careEncounterId) {
+		this.careEncounterId = careEncounterId;
 	}
 
 	@Nullable
@@ -340,6 +353,15 @@ public class Appointment implements Comparable<Appointment> {
 
 	public void setCanceledAt(@Nullable Instant canceledAt) {
 		this.canceledAt = canceledAt;
+	}
+
+	@Nullable
+	public UUID getCanceledByAccountId() {
+		return this.canceledByAccountId;
+	}
+
+	public void setCanceledByAccountId(@Nullable UUID canceledByAccountId) {
+		this.canceledByAccountId = canceledByAccountId;
 	}
 
 	@Nullable

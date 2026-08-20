@@ -25,7 +25,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Administrative data attached to a Care Navigator appointment.
+ * Patient-level Care Navigator lifecycle containing one or more appointments.
  *
  * @author Transmogrify, LLC.
  */
@@ -34,9 +34,9 @@ public class CareEncounter {
 	@Nullable
 	private UUID careEncounterId;
 	@Nullable
-	private UUID appointmentId;
-	@Nullable
 	private UUID accountId;
+	@Nullable
+	private UUID careNavigatorAccountId;
 	@Nullable
 	private UUID screeningSessionId;
 	@Nullable
@@ -45,6 +45,8 @@ public class CareEncounter {
 	private String notes;
 	@Nullable
 	private Instant closedAt;
+	@Nullable
+	private UUID closedByAccountId;
 	@Nullable
 	private UUID canceledByAccountId;
 	@Nullable
@@ -74,21 +76,21 @@ public class CareEncounter {
 	}
 
 	@Nullable
-	public UUID getAppointmentId() {
-		return this.appointmentId;
-	}
-
-	public void setAppointmentId(@Nullable UUID appointmentId) {
-		this.appointmentId = appointmentId;
-	}
-
-	@Nullable
 	public UUID getAccountId() {
 		return this.accountId;
 	}
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public UUID getCareNavigatorAccountId() {
+		return this.careNavigatorAccountId;
+	}
+
+	public void setCareNavigatorAccountId(@Nullable UUID careNavigatorAccountId) {
+		this.careNavigatorAccountId = careNavigatorAccountId;
 	}
 
 	@Nullable
@@ -125,6 +127,15 @@ public class CareEncounter {
 
 	public void setClosedAt(@Nullable Instant closedAt) {
 		this.closedAt = closedAt;
+	}
+
+	@Nullable
+	public UUID getClosedByAccountId() {
+		return this.closedByAccountId;
+	}
+
+	public void setClosedByAccountId(@Nullable UUID closedByAccountId) {
+		this.closedByAccountId = closedByAccountId;
 	}
 
 	@Nullable

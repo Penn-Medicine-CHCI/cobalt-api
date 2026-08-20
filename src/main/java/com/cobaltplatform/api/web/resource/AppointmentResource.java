@@ -525,6 +525,7 @@ public class AppointmentResource {
 
 		CancelAppointmentRequest request = getRequestBodyParser().parse(requestBody, CancelAppointmentRequest.class);
 		request.setAccountId(appointmentAccount.getAccountId());
+		request.setCanceledByAccountId(account.getAccountId());
 		request.setAppointmentId(appointmentId);
 		request.setCanceledByWebhook(false);
 		request.setCanceledForReschedule(false);

@@ -20,9 +20,12 @@ DECLARE
 	v_patient_one_id CONSTANT UUID := 'ca4e1000-0000-4000-8000-000000000001';
 	v_patient_two_id CONSTANT UUID := 'ca4e1000-0000-4000-8000-000000000002';
 	v_patient_three_id CONSTANT UUID := 'ca4e1000-0000-4000-8000-000000000003';
+	v_patient_four_id CONSTANT UUID := 'ca4e1000-0000-4000-8000-000000000004';
 	v_completed_appointment_id CONSTANT UUID := 'ca4e2000-0000-4000-8000-000000000001';
 	v_upcoming_appointment_id CONSTANT UUID := 'ca4e2000-0000-4000-8000-000000000002';
 	v_canceled_appointment_id CONSTANT UUID := 'ca4e2000-0000-4000-8000-000000000003';
+	v_rebooked_appointment_id CONSTANT UUID := 'ca4e2000-0000-4000-8000-000000000004';
+	v_patient_canceled_appointment_id CONSTANT UUID := 'ca4e2000-0000-4000-8000-000000000005';
 	v_appointment_reason_id UUID;
 	v_today TIMESTAMP := DATE_TRUNC('day', NOW() AT TIME ZONE 'America/New_York');
 BEGIN
@@ -58,7 +61,8 @@ BEGIN
 	) VALUES
 		(v_patient_one_id, 'PATIENT', v_institution_id, 'EMAIL_PASSWORD', 'care-encounter.alex@example.com', 'Alex', 'Morgan', 'Alex Morgan', 'en-US', 'America/New_York', TRUE, TRUE),
 		(v_patient_two_id, 'PATIENT', v_institution_id, 'EMAIL_PASSWORD', 'care-encounter.jordan@example.com', 'Jordan', 'Lee', 'Jordan Lee', 'en-US', 'America/New_York', TRUE, TRUE),
-		(v_patient_three_id, 'PATIENT', v_institution_id, 'EMAIL_PASSWORD', 'care-encounter.taylor@example.com', 'Taylor', 'Rivera', 'Taylor Rivera', 'en-US', 'America/New_York', TRUE, TRUE)
+		(v_patient_three_id, 'PATIENT', v_institution_id, 'EMAIL_PASSWORD', 'care-encounter.taylor@example.com', 'Taylor', 'Rivera', 'Taylor Rivera', 'en-US', 'America/New_York', TRUE, TRUE),
+		(v_patient_four_id, 'PATIENT', v_institution_id, 'EMAIL_PASSWORD', 'care-encounter.casey@example.com', 'Casey', 'Nguyen', 'Casey Nguyen', 'en-US', 'America/New_York', TRUE, TRUE)
 	ON CONFLICT (account_id) DO UPDATE
 	SET first_name=EXCLUDED.first_name,
 		last_name=EXCLUDED.last_name,
@@ -87,11 +91,14 @@ BEGIN
 		appointment_reason_id,
 		attendance_status_id,
 		canceled,
-		canceled_at
+		canceled_at,
+		canceled_by_account_id
 	) VALUES
-		(v_completed_appointment_id, v_provider_id, v_patient_one_id, v_patient_one_id, 'Alex', 'Morgan', 'care-encounter.alex@example.com', '+12155553001', v_appointment_type_id, 'Care Navigation Consultation', v_today - INTERVAL '1 day' + INTERVAL '10 hours', v_today - INTERVAL '1 day' + INTERVAL '10 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/completed', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'ATTENDED', FALSE, NULL),
-		(v_upcoming_appointment_id, v_provider_id, v_patient_two_id, v_patient_two_id, 'Jordan', 'Lee', 'care-encounter.jordan@example.com', '+12155553002', v_appointment_type_id, 'Care Navigation Consultation', v_today + INTERVAL '1 day 11 hours', v_today + INTERVAL '1 day 11 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/upcoming', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'UNKNOWN', FALSE, NULL),
-		(v_canceled_appointment_id, v_provider_id, v_patient_three_id, v_patient_three_id, 'Taylor', 'Rivera', 'care-encounter.taylor@example.com', '+12155553003', v_appointment_type_id, 'Care Navigation Consultation', v_today + INTERVAL '2 days 14 hours', v_today + INTERVAL '2 days 14 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/canceled', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'CANCELED', TRUE, NOW())
+		(v_completed_appointment_id, v_provider_id, v_patient_one_id, v_patient_one_id, 'Alex', 'Morgan', 'care-encounter.alex@example.com', '+12155553001', v_appointment_type_id, 'Care Navigation Consultation', v_today - INTERVAL '1 day' + INTERVAL '10 hours', v_today - INTERVAL '1 day' + INTERVAL '10 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/completed', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'ATTENDED', FALSE, NULL, NULL),
+		(v_upcoming_appointment_id, v_provider_id, v_patient_two_id, v_patient_two_id, 'Jordan', 'Lee', 'care-encounter.jordan@example.com', '+12155553002', v_appointment_type_id, 'Care Navigation Consultation', v_today + INTERVAL '1 day 11 hours', v_today + INTERVAL '1 day 11 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/upcoming', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'UNKNOWN', FALSE, NULL, NULL),
+		(v_canceled_appointment_id, v_provider_id, v_patient_three_id, v_patient_three_id, 'Taylor', 'Rivera', 'care-encounter.taylor@example.com', '+12155553003', v_appointment_type_id, 'Care Navigation Consultation', v_today + INTERVAL '2 days 14 hours', v_today + INTERVAL '2 days 14 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/canceled', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'CANCELED', TRUE, NOW(), v_navigator_account_id),
+		(v_rebooked_appointment_id, v_provider_id, v_patient_three_id, v_patient_three_id, 'Taylor', 'Rivera', 'care-encounter.taylor@example.com', '+12155553003', v_appointment_type_id, 'Care Navigation Consultation', v_today + INTERVAL '4 days 14 hours', v_today + INTERVAL '4 days 14 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/rebooked', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'UNKNOWN', FALSE, NULL, NULL),
+		(v_patient_canceled_appointment_id, v_provider_id, v_patient_four_id, v_patient_four_id, 'Casey', 'Nguyen', 'care-encounter.casey@example.com', '+12155553004', v_appointment_type_id, 'Care Navigation Consultation', v_today + INTERVAL '3 days 9 hours', v_today + INTERVAL '3 days 9 hours 30 minutes', 30, 'America/New_York', 'https://fixtures.cobalt.care/care-encounters/patient-canceled', 'SWITCHBOARD', 'COBALT', v_appointment_reason_id, 'CANCELED', TRUE, NOW(), v_patient_four_id)
 	ON CONFLICT (appointment_id) DO UPDATE
 	SET provider_id=EXCLUDED.provider_id,
 		account_id=EXCLUDED.account_id,
@@ -112,39 +119,34 @@ BEGIN
 		appointment_reason_id=EXCLUDED.appointment_reason_id,
 		attendance_status_id=EXCLUDED.attendance_status_id,
 		canceled=EXCLUDED.canceled,
-		canceled_at=EXCLUDED.canceled_at;
+		canceled_at=EXCLUDED.canceled_at,
+		canceled_by_account_id=EXCLUDED.canceled_by_account_id;
 
 	UPDATE care_encounter
-	SET notes=CASE appointment_id
-			WHEN v_completed_appointment_id THEN 'Discussed provider preferences and shared next-step options.'
-			WHEN v_upcoming_appointment_id THEN 'Review intake goals before the scheduled encounter.'
-			WHEN v_canceled_appointment_id THEN 'Appointment canceled by the Care Navigator.'
-		END,
-		care_encounter_status_id=CASE appointment_id
-			WHEN v_completed_appointment_id THEN 'CLOSED'
-			WHEN v_upcoming_appointment_id THEN 'OPEN'
-			WHEN v_canceled_appointment_id THEN 'CANCELED'
-		END,
-		closed_at=CASE
-			WHEN appointment_id=v_upcoming_appointment_id THEN NULL
-			ELSE COALESCE(closed_at, NOW())
-		END,
-		canceled_by_account_id=CASE
-			WHEN appointment_id=v_canceled_appointment_id THEN v_navigator_account_id
-			ELSE NULL
-		END,
-		care_encounter_cancellation_reason_id=CASE
-			WHEN appointment_id=v_canceled_appointment_id THEN 'PATIENT_REQUESTED'
-			ELSE NULL
-		END,
-		care_encounter_cancellation_reason_other_text=NULL,
-		deleted=FALSE,
+	SET notes='Discussed provider preferences; awaiting navigator closure after the completed appointment.',
+		care_encounter_status_id='OPEN',
+		closed_at=NULL,
+		closed_by_account_id=NULL,
 		last_updated_by_account_id=v_navigator_account_id
-	WHERE appointment_id IN (
-		v_completed_appointment_id,
-		v_upcoming_appointment_id,
-		v_canceled_appointment_id
-	);
+	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_completed_appointment_id);
+
+	UPDATE care_encounter
+	SET notes='Review intake goals before the scheduled encounter.',
+		last_updated_by_account_id=v_navigator_account_id
+	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_upcoming_appointment_id);
+
+	UPDATE care_encounter
+	SET notes='The Care Navigator canceled the original appointment; the replacement remains in the same encounter.',
+		last_updated_by_account_id=v_navigator_account_id
+	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_rebooked_appointment_id);
+
+	UPDATE care_encounter
+	SET notes='The patient canceled their appointment.',
+		care_encounter_status_id='CLOSED',
+		closed_at=COALESCE(closed_at, NOW()),
+		closed_by_account_id=v_patient_four_id,
+		last_updated_by_account_id=v_patient_four_id
+	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_patient_canceled_appointment_id);
 END $$;
 
 COMMIT;

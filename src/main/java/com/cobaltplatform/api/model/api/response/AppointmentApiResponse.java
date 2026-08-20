@@ -61,6 +61,8 @@ public class AppointmentApiResponse {
 	private final UUID appointmentId;
 	@Nonnull
 	private final UUID accountId;
+	@Nullable
+	private final UUID careEncounterId;
 	@Nonnull
 	private final UUID appointmentReasonId;
 	@Nonnull
@@ -137,6 +139,8 @@ public class AppointmentApiResponse {
 	private final Instant canceledAt;
 	@Nullable
 	private final String canceledAtDescription;
+	@Nullable
+	private final UUID canceledByAccountId;
 	@Nullable
 	private final String phoneNumber;
 	@Nullable
@@ -217,6 +221,7 @@ public class AppointmentApiResponse {
 
 		this.appointmentId = appointment.getAppointmentId();
 		this.accountId = appointment.getAccountId();
+		this.careEncounterId = showPrivateDetails ? appointment.getCareEncounterId() : null;
 		this.appointmentReasonId = appointment.getAppointmentReasonId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
 		this.createdByAccountId = appointment.getCreatedByAccountId();
@@ -259,6 +264,7 @@ public class AppointmentApiResponse {
 		this.canceled = appointment.getCanceled();
 		this.canceledAt = appointment.getCanceledAt();
 		this.canceledAtDescription = appointment.getCanceledAt() == null ? null : formatter.formatTimestamp(appointment.getCanceledAt());
+		this.canceledByAccountId = showPrivateDetails ? appointment.getCanceledByAccountId() : null;
 
 		if (supplements.contains(AppointmentApiResponseSupplement.ALL) || supplements.contains(AppointmentApiResponseSupplement.PROVIDER) && appointment.getProviderId() != null)
 			this.provider = providerApiResponseFactory.create(providerService.findProviderById(appointment.getProviderId()).get(), ProviderApiResponseSupplement.PAYMENT_FUNDING);
@@ -304,6 +310,11 @@ public class AppointmentApiResponse {
 	@Nonnull
 	public UUID getAccountId() {
 		return accountId;
+	}
+
+	@Nullable
+	public UUID getCareEncounterId() {
+		return this.careEncounterId;
 	}
 
 	@Nonnull
@@ -483,6 +494,11 @@ public class AppointmentApiResponse {
 	@Nullable
 	public String getCanceledAtDescription() {
 		return canceledAtDescription;
+	}
+
+	@Nullable
+	public UUID getCanceledByAccountId() {
+		return this.canceledByAccountId;
 	}
 
 	@Nonnull

@@ -17,6 +17,7 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
@@ -25,6 +26,7 @@ import com.google.gson.Gson;
 import org.junit.Test;
 
 import javax.inject.Provider;
+import java.util.UUID;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -70,6 +72,24 @@ public class AuthorizationServiceTests {
 		assertFalse(authorizationService(false).canManageCareEncounters(administratorNavigator));
 	}
 
+	@Test
+	public void mappedProviderNavigatorCanCancelAssociatedProviderAppointment() {
+		UUID navigatorAccountId = UUID.randomUUID();
+		UUID patientAccountId = UUID.randomUUID();
+		UUID appointmentProviderId = UUID.randomUUID();
+		Account navigator = account(RoleId.PROVIDER, "[\"NAVIGATOR\"]");
+		navigator.setAccountId(navigatorAccountId);
+		navigator.setProviderId(UUID.randomUUID());
+		Account patient = account(RoleId.PATIENT, null);
+		patient.setAccountId(patientAccountId);
+		Appointment appointment = new Appointment();
+		appointment.setAccountId(patientAccountId);
+		appointment.setProviderId(appointmentProviderId);
+
+		assertTrue(authorizationService(true, true).canCancelAppointment(appointment, navigator, patient));
+		assertFalse(authorizationService(true, false).canCancelAppointment(appointment, navigator, patient));
+	}
+
 	protected Account account(RoleId roleId, String accountCapabilityTypeIdsAsString) {
 		Account account = new Account();
 		account.setRoleId(roleId);
@@ -83,11 +103,21 @@ public class AuthorizationServiceTests {
 	}
 
 	protected AuthorizationService authorizationService(boolean institutionHasCareNavigatorBookingProvider) {
+		return authorizationService(institutionHasCareNavigatorBookingProvider, false);
+	}
+
+	protected AuthorizationService authorizationService(boolean institutionHasCareNavigatorBookingProvider,
+																					 boolean mappedToProvider) {
 		return new AuthorizationService(unavailable(), unavailable(), unavailable(), unavailable(), unavailable(), unavailable(),
 				unavailable(), unavailable(), unavailable(), unavailable(), new Normalizer()) {
 			@Override
 			protected boolean institutionHasCareNavigatorBookingProvider(InstitutionId institutionId) {
 				return institutionHasCareNavigatorBookingProvider;
+			}
+
+			@Override
+			protected boolean isCareNavigatorAccountMappedToProvider(UUID accountId, UUID providerId) {
+				return mappedToProvider;
 			}
 		};
 	}

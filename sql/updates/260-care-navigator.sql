@@ -49,6 +49,61 @@ AND account.role_id='ADMINISTRATOR'
 AND LOWER(account.email_address)=LOWER('admin@cobaltinnovations.org')
 ON CONFLICT (account_id, account_capability_type_id) DO NOTHING;
 
+-- Navigator accounts may serve one or more public Care Navigator booking
+-- providers.  account.provider_id remains the account's primary provider
+-- identity; this mapping is used for encounter routing and appointment access.
+CREATE TABLE care_navigator_provider_account (
+	provider_id UUID NOT NULL REFERENCES provider(provider_id),
+	account_id UUID NOT NULL REFERENCES account(account_id),
+	display_order INTEGER NOT NULL DEFAULT 1 CHECK (display_order > 0),
+	created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (provider_id, account_id)
+);
+
+CREATE INDEX care_navigator_provider_account_account_id_idx
+ON care_navigator_provider_account(account_id);
+
+CREATE TRIGGER set_last_updated
+BEFORE INSERT OR UPDATE ON care_navigator_provider_account
+FOR EACH ROW EXECUTE PROCEDURE set_last_updated();
+
+CREATE OR REPLACE FUNCTION validate_care_navigator_provider_account()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1
+		FROM provider
+		JOIN account ON account.account_id=NEW.account_id
+		WHERE provider.provider_id=NEW.provider_id
+		AND provider.institution_id=account.institution_id
+		AND provider.active=TRUE
+		AND account.active=TRUE
+		AND account.role_id IN ('ADMINISTRATOR', 'PROVIDER')
+		AND EXISTS (
+			SELECT 1
+			FROM provider_support_role
+			WHERE provider_support_role.provider_id=provider.provider_id
+			AND provider_support_role.support_role_id='CARE_NAVIGATOR'
+		)
+		AND EXISTS (
+			SELECT 1
+			FROM account_capability
+			WHERE account_capability.account_id=account.account_id
+			AND account_capability.account_capability_type_id='NAVIGATOR'
+		)
+	) THEN
+		RAISE EXCEPTION 'Care Navigator provider mappings require an active Care Navigator provider and an active Navigator-capable Administrator or Provider account in the same institution.';
+	END IF;
+
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER validate_care_navigator_provider_account
+BEFORE INSERT OR UPDATE OF provider_id, account_id ON care_navigator_provider_account
+FOR EACH ROW EXECUTE FUNCTION validate_care_navigator_provider_account();
+
 -- RESOURCE_NAVIGATOR already exists as a global feature. Connect it to the new
 -- provider support role without changing its route or tenant visibility.
 INSERT INTO feature_support_role (

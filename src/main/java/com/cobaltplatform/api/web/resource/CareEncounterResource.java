@@ -11,12 +11,15 @@
 package com.cobaltplatform.api.web.resource;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.AssignCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
+import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.response.CareEncounterApiResponse.CareEncounterApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareEncounterListApiResponse.CareEncounterListApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
@@ -79,6 +82,8 @@ public class CareEncounterResource {
 	@Nonnull
 	private final CareEncounterApiResponseFactory careEncounterApiResponseFactory;
 	@Nonnull
+	private final CareEncounterListApiResponseFactory careEncounterListApiResponseFactory;
+	@Nonnull
 	private final Formatter formatter;
 
 	@Inject
@@ -86,15 +91,17 @@ public class CareEncounterResource {
 														 @Nonnull ScreeningService screeningService,
 														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull RequestBodyParser requestBodyParser,
-														 @Nonnull Provider<CurrentContext> currentContextProvider,
-														 @Nonnull CareEncounterApiResponseFactory careEncounterApiResponseFactory,
-														 @Nonnull Formatter formatter) {
+																				 @Nonnull Provider<CurrentContext> currentContextProvider,
+																				 @Nonnull CareEncounterApiResponseFactory careEncounterApiResponseFactory,
+																				 @Nonnull CareEncounterListApiResponseFactory careEncounterListApiResponseFactory,
+																				 @Nonnull Formatter formatter) {
 		this.careEncounterService = careEncounterService;
 		this.screeningService = screeningService;
 		this.authorizationService = authorizationService;
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.careEncounterApiResponseFactory = careEncounterApiResponseFactory;
+		this.careEncounterListApiResponseFactory = careEncounterListApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -106,9 +113,10 @@ public class CareEncounterResource {
 															 @Nonnull @QueryParameter Optional<Integer> pageSize,
 															 @Nonnull @QueryParameter Optional<LocalDate> startDate,
 															 @Nonnull @QueryParameter Optional<LocalDate> endDate,
-																 @Nonnull @QueryParameter Optional<String> searchQuery,
-																 @Nonnull @QueryParameter Optional<CareEncounterStatusId> careEncounterStatusId,
-																 @Nonnull @QueryParameter Optional<CareEncounterSortColumnId> careEncounterSortColumnId,
+																				 @Nonnull @QueryParameter Optional<String> searchQuery,
+																				 @Nonnull @QueryParameter Optional<CareEncounterStatusId> careEncounterStatusId,
+																				 @Nonnull @QueryParameter Optional<CareEncounterAssignmentScopeId> careEncounterAssignmentScopeId,
+																				 @Nonnull @QueryParameter Optional<CareEncounterSortColumnId> careEncounterSortColumnId,
 																 @Nonnull @QueryParameter Optional<SortDirectionId> sortDirectionId) {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
@@ -116,6 +124,7 @@ public class CareEncounterResource {
 		requireNonNull(endDate);
 		requireNonNull(searchQuery);
 		requireNonNull(careEncounterStatusId);
+		requireNonNull(careEncounterAssignmentScopeId);
 		requireNonNull(careEncounterSortColumnId);
 		requireNonNull(sortDirectionId);
 
@@ -128,6 +137,8 @@ public class CareEncounterResource {
 		request.setEndDate(endDate.orElse(null));
 		request.setSearchQuery(searchQuery.orElse(null));
 		request.setCareEncounterStatusId(careEncounterStatusId.orElse(null));
+		request.setCareEncounterAssignmentScopeId(careEncounterAssignmentScopeId.orElse(CareEncounterAssignmentScopeId.ALL));
+		request.setCareNavigatorAccountId(account.getAccountId());
 		request.setCareEncounterSortColumnId(careEncounterSortColumnId.orElse(null));
 		request.setSortDirectionId(sortDirectionId.orElse(null));
 
@@ -137,7 +148,7 @@ public class CareEncounterResource {
 			put("totalCount", result.getTotalCount());
 			put("totalCountDescription", getFormatter().formatNumber(result.getTotalCount()));
 			put("careEncounters", result.getResults().stream()
-						.map(getCareEncounterApiResponseFactory()::create)
+						.map(getCareEncounterListApiResponseFactory()::create)
 						.collect(Collectors.toList()));
 		}});
 	}
@@ -163,7 +174,7 @@ public class CareEncounterResource {
 					.findScreeningSessionResult(careEncounter.getScreeningSessionId())
 					.orElse(null));
 			put("otherCareEncounters", otherCareEncounters.stream()
-					.map(getCareEncounterApiResponseFactory()::create)
+					.map(getCareEncounterListApiResponseFactory()::create)
 					.collect(Collectors.toList()));
 			put("otherCareEncountersTotalCount", otherCareEncounters.size());
 			put("otherCareEncountersTotalCountDescription", getFormatter().formatNumber(otherCareEncounters.size()));
@@ -199,6 +210,40 @@ public class CareEncounterResource {
 		request.setInstitutionId(account.getInstitutionId());
 		request.setAccountId(account.getAccountId());
 		CareEncounter careEncounter = getCareEncounterService().updateCareEncounter(request);
+
+		return new ApiResponse(Map.of("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter)));
+	}
+
+	@Nonnull
+	@PUT("/admin/care-encounters/{careEncounterId}/close")
+	@AuthenticationRequired
+	public ApiResponse closeCareEncounter(@Nonnull @PathParameter UUID careEncounterId) {
+		requireNonNull(careEncounterId);
+
+		Account account = requireCareNavigatorAccount();
+		CareEncounter careEncounter = getCareEncounterService().closeCareEncounter(
+				careEncounterId,
+				account.getInstitutionId(),
+				account.getAccountId());
+
+		return new ApiResponse(Map.of("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter)));
+	}
+
+	@Nonnull
+	@PUT("/admin/care-encounters/{careEncounterId}/assignment")
+	@AuthenticationRequired
+	public ApiResponse assignCareEncounter(@Nonnull @PathParameter UUID careEncounterId,
+																				 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(careEncounterId);
+		requireNonNull(requestBody);
+
+		Account account = requireCareNavigatorAccount();
+		AssignCareEncounterRequest request = getRequestBodyParser().parse(requestBody, AssignCareEncounterRequest.class);
+		CareEncounter careEncounter = getCareEncounterService().assignCareEncounter(
+				careEncounterId,
+				account.getInstitutionId(),
+				account.getAccountId(),
+				request.getCareNavigatorAccountId());
 
 		return new ApiResponse(Map.of("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter)));
 	}
@@ -293,6 +338,11 @@ public class CareEncounterResource {
 	@Nonnull
 	protected CareEncounterApiResponseFactory getCareEncounterApiResponseFactory() {
 		return this.careEncounterApiResponseFactory;
+	}
+
+	@Nonnull
+	protected CareEncounterListApiResponseFactory getCareEncounterListApiResponseFactory() {
+		return this.careEncounterListApiResponseFactory;
 	}
 
 	@Nonnull

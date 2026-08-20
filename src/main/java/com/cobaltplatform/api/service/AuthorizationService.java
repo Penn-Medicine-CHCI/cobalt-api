@@ -465,6 +465,10 @@ public class AuthorizationService {
 		if (Objects.equals(appointment.getProviderId(), account.getProviderId()))
 			return true;
 
+		if (canManageCareEncounters(account)
+				&& isCareNavigatorAccountMappedToProvider(account.getAccountId(), appointment.getProviderId()))
+			return true;
+
 		// TODO: probably want more detailed rules here, like if we share calendars across MHICs
 		return Objects.equals(appointment.getCreatedByAccountId(), account.getAccountId());
 	}
@@ -487,12 +491,24 @@ public class AuthorizationService {
 			if (Objects.equals(account.getProviderId(), appointment.getProviderId()))
 				return true;
 
+			if (canManageCareEncounters(account)
+					&& isCareNavigatorAccountMappedToProvider(account.getAccountId(), appointment.getProviderId()))
+				return true;
+
 			// You can cancel your own appointments
 			if (appointmentAccount.getAccountId().equals(account.getAccountId()))
 				return true;
 		}
 
 		return false;
+	}
+
+	protected boolean isCareNavigatorAccountMappedToProvider(@Nullable UUID accountId,
+																			 @Nullable UUID providerId) {
+		if (accountId == null || providerId == null)
+			return false;
+
+		return getAppointmentService().isCareNavigatorAccountMappedToProvider(accountId, providerId);
 	}
 
 	@Nonnull

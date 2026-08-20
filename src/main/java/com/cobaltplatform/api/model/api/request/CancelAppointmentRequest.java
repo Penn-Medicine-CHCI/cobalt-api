@@ -35,6 +35,8 @@ public class CancelAppointmentRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private UUID canceledByAccountId;
+	@Nullable
 	private Boolean canceledByWebhook;
 	@Nullable
 	private Boolean canceledForReschedule;
@@ -51,6 +53,15 @@ public class CancelAppointmentRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public UUID getCanceledByAccountId() {
+		return this.canceledByAccountId;
+	}
+
+	public void setCanceledByAccountId(@Nullable UUID canceledByAccountId) {
+		this.canceledByAccountId = canceledByAccountId;
 	}
 
 	@Nullable

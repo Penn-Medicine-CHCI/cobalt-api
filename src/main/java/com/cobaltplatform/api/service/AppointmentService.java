@@ -1224,13 +1224,14 @@ public class AppointmentService {
 		CancelAppointmentRequest cancelRequest = new CancelAppointmentRequest();
 		cancelRequest.setAppointmentId(request.getAppointmentId());
 		cancelRequest.setAccountId(request.getAccountId());
+		cancelRequest.setCanceledByAccountId(request.getCreatedByAcountId());
 		cancelRequest.setCanceledByWebhook(false);
 		cancelRequest.setCanceledForReschedule(true);
 
-		// A reschedule replaces the source encounter. Close it before inserting the
-		// replacement so the account-level one-open-encounter constraint remains
-		// true throughout this transaction. Any later failure rolls this back.
-		closeOpenCareEncounterForReschedule(existingAppointment.getAppointmentId(), request.getCreatedByAcountId());
+		// A Care Navigator reschedule remains in the same encounter. Marking the
+		// source as pending reschedule removes it from the one-active-appointment
+		// index while the replacement is inserted; any failure rolls this back.
+		markCareNavigatorAppointmentPendingReschedule(existingAppointment.getAppointmentId());
 
 		// The active native provider/start partial index cannot contain both the source and replacement at
 		// the same key. Native cancellation has no external scheduling-system side effect, and every HTTP
@@ -1441,10 +1442,14 @@ public class AppointmentService {
 		if (!validationException.hasErrors() && isCareNavigatorProvider(providerId)) {
 			acquireCareNavigatorAccountBookingLock(accountId);
 
-			if (hasOpenCareEncounterForAccountId(accountId)) {
+			if (hasActiveCareNavigatorAppointmentForAccountId(accountId)) {
 				validationException.add(new FieldError("providerId", getStrings().get(
 						"You already have an open appointment with a Care Navigator. Please cancel or complete it before booking another.")));
 				validationException.setMetadata(Map.of("careNavigatorOpenAppointmentExists", true));
+			} else if (hasAttendedAppointmentInOpenCareEncounterForAccountId(accountId)) {
+				validationException.add(new FieldError("providerId", getStrings().get(
+						"Your completed Care Navigator encounter must be closed before another appointment can be booked.")));
+				validationException.setMetadata(Map.of("careNavigatorEncounterAwaitingClosure", true));
 			}
 		}
 
@@ -1970,9 +1975,10 @@ public class AppointmentService {
 
 		if (associatedScreeningSessionId == null && preserveExistingScreeningEligibility && excludedAppointmentId != null) {
 			associatedScreeningSessionId = getDatabase().queryForObject("""
-					SELECT screening_session_id
-					FROM care_encounter
-					WHERE appointment_id=?
+					SELECT care_encounter.screening_session_id
+					FROM appointment
+					JOIN care_encounter ON care_encounter.care_encounter_id=appointment.care_encounter_id
+					WHERE appointment.appointment_id=?
 					""", UUID.class, excludedAppointmentId).orElse(null);
 		}
 
@@ -1980,7 +1986,11 @@ public class AppointmentService {
 			getDatabase().execute("""
 					UPDATE care_encounter
 					SET screening_session_id=?
-					WHERE appointment_id=?
+					WHERE care_encounter_id=(
+						SELECT care_encounter_id
+						FROM appointment
+						WHERE appointment_id=?
+					)
 					""", associatedScreeningSessionId, appointmentId);
 		}
 
@@ -2125,31 +2135,64 @@ public class AppointmentService {
 				""", Boolean.class, providerId).orElse(false);
 	}
 
-	protected boolean hasOpenCareEncounterForAccountId(@Nonnull UUID accountId) {
+	public boolean isCareNavigatorAccountMappedToProvider(@Nonnull UUID accountId,
+																							 @Nonnull UUID providerId) {
+		requireNonNull(accountId);
+		requireNonNull(providerId);
+
+		return getDatabase().queryForObject("""
+				SELECT EXISTS (
+					SELECT 1
+					FROM care_navigator_provider_account
+					WHERE account_id=?
+					AND provider_id=?
+				)
+				""", Boolean.class, accountId, providerId).orElse(false);
+	}
+
+	protected boolean hasActiveCareNavigatorAppointmentForAccountId(@Nonnull UUID accountId) {
 		requireNonNull(accountId);
 
 		return getDatabase().queryForObject("""
 				SELECT EXISTS (
 					SELECT 1
 					FROM care_encounter
-					WHERE account_id=?
-					AND care_encounter_status_id='OPEN'
+					JOIN appointment ON appointment.care_encounter_id=care_encounter.care_encounter_id
+					WHERE care_encounter.account_id=?
+					AND care_encounter.care_encounter_status_id='OPEN'
+					AND care_encounter.deleted=FALSE
+					AND appointment.canceled=FALSE
+					AND appointment.canceled_for_reschedule=FALSE
+					AND appointment.attendance_status_id='UNKNOWN'
 				)
 				""", Boolean.class, accountId).orElse(false);
 	}
 
-	protected void closeOpenCareEncounterForReschedule(@Nonnull UUID appointmentId,
-																							 @Nullable UUID updatedByAccountId) {
+	protected boolean hasAttendedAppointmentInOpenCareEncounterForAccountId(@Nonnull UUID accountId) {
+		requireNonNull(accountId);
+
+		return getDatabase().queryForObject("""
+				SELECT EXISTS (
+					SELECT 1
+					FROM care_encounter
+					JOIN appointment ON appointment.care_encounter_id=care_encounter.care_encounter_id
+					WHERE care_encounter.account_id=?
+					AND care_encounter.care_encounter_status_id='OPEN'
+					AND care_encounter.deleted=FALSE
+					AND appointment.attendance_status_id='ATTENDED'
+				)
+				""", Boolean.class, accountId).orElse(false);
+	}
+
+	protected void markCareNavigatorAppointmentPendingReschedule(@Nonnull UUID appointmentId) {
 		requireNonNull(appointmentId);
 
 		getDatabase().execute("""
-				UPDATE care_encounter
-				SET care_encounter_status_id='CLOSED',
-					closed_at=COALESCE(closed_at, NOW()),
-					last_updated_by_account_id=COALESCE(?, last_updated_by_account_id)
+				UPDATE appointment
+				SET canceled_for_reschedule=TRUE
 				WHERE appointment_id=?
-				AND care_encounter_status_id='OPEN'
-				""", updatedByAccountId, appointmentId);
+				AND care_encounter_id IS NOT NULL
+				""", appointmentId);
 	}
 
 	protected static boolean appointmentTimeRangesOverlap(@Nonnull LocalDateTime firstStart,
@@ -3625,8 +3668,9 @@ public class AppointmentService {
 		}
 
 		boolean canceled = getDatabase().execute("UPDATE appointment SET canceled=TRUE, attendance_status_id=?, canceled_at=NOW(), " +
-						"canceled_for_reschedule=?, rescheduled_appointment_id=?, appointment_cancelation_reason_id=? WHERE appointment_id=?",
-				AttendanceStatusId.CANCELED, request.getCanceledForReschedule(), request.getRescheduleAppointmentId(), appointmentCancelationReasonId, appointmentId) > 0;
+						"canceled_by_account_id=?, canceled_for_reschedule=?, rescheduled_appointment_id=?, appointment_cancelation_reason_id=? WHERE appointment_id=?",
+				AttendanceStatusId.CANCELED, request.getCanceledByAccountId(), request.getCanceledForReschedule(),
+				request.getRescheduleAppointmentId(), appointmentCancelationReasonId, appointmentId) > 0;
 
 		// Cancel any interaction instances that are scheduled for this appointment
 		getInteractionService().cancelInteractionInstancesForAppointment(appointmentId);

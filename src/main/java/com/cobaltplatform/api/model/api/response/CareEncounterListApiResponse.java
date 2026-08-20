@@ -11,9 +11,6 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
-import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
-import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
-import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
@@ -31,16 +28,12 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.FormatStyle;
-import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @ThreadSafe
-public class CareEncounterApiResponse {
+public class CareEncounterListApiResponse {
 	@Nonnull
 	private final UUID careEncounterId;
 	@Nonnull
@@ -94,60 +87,50 @@ public class CareEncounterApiResponse {
 	@Nonnull
 	private final String lastUpdatedDescription;
 	@Nonnull
-	private final AppointmentApiResponse appointment;
-	@Nonnull
-	private final List<AppointmentApiResponse> appointmentHistory;
+	private final CareEncounterAppointmentApiResponse appointment;
 
 	@ThreadSafe
-	public interface CareEncounterApiResponseFactory {
+	public interface CareEncounterListApiResponseFactory {
 		@Nonnull
-		CareEncounterApiResponse create(@Nonnull CareEncounter careEncounter);
+		CareEncounterListApiResponse create(@Nonnull CareEncounter careEncounter);
 	}
 
 	@AssistedInject
-	public CareEncounterApiResponse(@Nonnull CareEncounterService careEncounterService,
-																 @Nonnull AccountService accountService,
-																 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
-																 @Nonnull Formatter formatter,
-																 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
-																 @Assisted @Nonnull CareEncounter careEncounter) {
+	public CareEncounterListApiResponse(@Nonnull CareEncounterService careEncounterService,
+																			@Nonnull AccountService accountService,
+																			@Nonnull Formatter formatter,
+																			@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+																			@Assisted @Nonnull CareEncounter careEncounter) {
 		requireNonNull(careEncounterService);
 		requireNonNull(accountService);
-		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(currentContextProvider);
 		requireNonNull(careEncounter);
 
 		InstitutionId institutionId = currentContextProvider.get().getInstitutionId();
-		List<Appointment> appointmentModels = careEncounterService
-				.findAppointmentsByCareEncounterIdForInstitutionId(careEncounter.getCareEncounterId(), institutionId);
-
-		if (appointmentModels.isEmpty())
-			throw new IllegalStateException("Care Encounter has no appointments.");
-
-		Appointment latestAppointment = appointmentModels.get(0);
-		Set<AppointmentApiResponseSupplement> supplements = Set.of(
-				AppointmentApiResponseSupplement.ACCOUNT,
-				AppointmentApiResponseSupplement.APPOINTMENT_REASON,
-				AppointmentApiResponseSupplement.APPOINTMENT_TYPE,
-				AppointmentApiResponseSupplement.PRIVATE_DETAILS);
+		Appointment appointmentModel = careEncounterService
+				.findLatestAppointmentByCareEncounterIdForInstitutionId(careEncounter.getCareEncounterId(), institutionId)
+				.orElseThrow(() -> new IllegalStateException("Care Encounter has no appointments."));
 
 		this.careEncounterId = careEncounter.getCareEncounterId();
-		this.appointmentId = latestAppointment.getAppointmentId();
+		this.appointmentId = appointmentModel.getAppointmentId();
 		this.accountId = careEncounter.getAccountId();
 		this.careNavigatorAccountId = careEncounter.getCareNavigatorAccountId();
-		this.careNavigatorDisplayName = displayNameForAccountId(accountService, this.careNavigatorAccountId);
+		this.careNavigatorDisplayName = CareEncounterApiResponse
+				.displayNameForAccountId(accountService, this.careNavigatorAccountId);
 		this.screeningSessionId = careEncounter.getScreeningSessionId();
 		this.careEncounterStatusId = careEncounter.getCareEncounterStatusId();
 		this.careEncounterStatusDisplayLabel = careEncounter.getCareEncounterStatusId().getDisplayLabel();
 		this.patientFullName = String.format("%s %s",
-				latestAppointment.getFirstName() == null ? "" : latestAppointment.getFirstName(),
-				latestAppointment.getLastName() == null ? "" : latestAppointment.getLastName()).trim();
-		this.appointmentDate = latestAppointment.getStartTime().toLocalDate();
+				appointmentModel.getFirstName() == null ? "" : appointmentModel.getFirstName(),
+				appointmentModel.getLastName() == null ? "" : appointmentModel.getLastName()).trim();
+		this.appointmentDate = appointmentModel.getStartTime().toLocalDate();
 		this.appointmentDateDescription = formatter.formatDate(this.appointmentDate, FormatStyle.MEDIUM);
 		this.notes = careEncounter.getNotes();
 		this.closedAt = careEncounter.getClosedAt();
-		this.closedAtDescription = careEncounter.getClosedAt() == null ? null : formatter.formatTimestamp(careEncounter.getClosedAt());
+		this.closedAtDescription = careEncounter.getClosedAt() == null
+				? null
+				: formatter.formatTimestamp(careEncounter.getClosedAt());
 		this.closedByAccountId = careEncounter.getClosedByAccountId();
 		this.canceledByAccountId = careEncounter.getCanceledByAccountId();
 		this.careEncounterCancellationReasonId = careEncounter.getCareEncounterCancellationReasonId();
@@ -160,29 +143,7 @@ public class CareEncounterApiResponse {
 		this.createdDateDescription = formatter.formatDate(this.createdDate, FormatStyle.MEDIUM);
 		this.lastUpdated = careEncounter.getLastUpdated();
 		this.lastUpdatedDescription = formatter.formatTimestamp(careEncounter.getLastUpdated());
-		this.appointment = appointmentApiResponseFactory.create(latestAppointment, supplements);
-		this.appointmentHistory = appointmentModels.stream()
-				.skip(1)
-				.map(appointmentModel -> appointmentApiResponseFactory.create(appointmentModel, supplements))
-				.collect(Collectors.toUnmodifiableList());
-	}
-
-	@Nullable
-	protected static String displayNameForAccountId(@Nonnull AccountService accountService,
-																							 @Nullable UUID accountId) {
-		if (accountId == null)
-			return null;
-
-		Account account = accountService.findAccountById(accountId).orElse(null);
-		if (account == null)
-			return null;
-
-		String displayName = trimToNull(account.getDisplayName());
-		return displayName == null
-				? trimToNull(String.format("%s %s",
-				account.getFirstName() == null ? "" : account.getFirstName(),
-				account.getLastName() == null ? "" : account.getLastName()))
-				: displayName;
+		this.appointment = new CareEncounterAppointmentApiResponse(formatter, appointmentModel);
 	}
 
 	@Nonnull public UUID getCareEncounterId() { return this.careEncounterId; }
@@ -211,6 +172,5 @@ public class CareEncounterApiResponse {
 	@Nonnull public String getCreatedDateDescription() { return this.createdDateDescription; }
 	@Nonnull public Instant getLastUpdated() { return this.lastUpdated; }
 	@Nonnull public String getLastUpdatedDescription() { return this.lastUpdatedDescription; }
-	@Nonnull public AppointmentApiResponse getAppointment() { return this.appointment; }
-	@Nonnull public List<AppointmentApiResponse> getAppointmentHistory() { return this.appointmentHistory; }
+	@Nonnull public CareEncounterAppointmentApiResponse getAppointment() { return this.appointment; }
 }
