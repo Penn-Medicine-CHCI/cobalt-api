@@ -41,6 +41,7 @@ import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
@@ -427,8 +428,14 @@ public class CareNavigatorBookingFixtureTests {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			CareEncounterService careEncounterService = app.getInjector().getInstance(CareEncounterService.class);
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			CareEncounterApiResponseFactory responseFactory = app.getInjector().getInstance(CareEncounterApiResponseFactory.class);
 			UUID careEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
 			CancelCareEncounterAppointmentRequest request = new CancelCareEncounterAppointmentRequest();
+			Account navigator = accountService.findAccountById(CARE_NAVIGATOR_ACCOUNT_ID).get();
+
+			resetAppointmentAsActive(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
 
 			request.setCancellationReason("   ");
 			assertThrows(ValidationException.class, () -> careEncounterService.cancelCareEncounterAppointment(
@@ -448,10 +455,26 @@ public class CareNavigatorBookingFixtureTests {
 			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
 
 			assertTrue(appointment.getCanceled());
+			assertEquals(AttendanceStatusId.CANCELED, appointment.getAttendanceStatusId());
+			assertNotNull(appointment.getCanceledAt());
 			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, appointment.getCanceledByAccountId());
+			assertFalse(appointment.getCanceledForReschedule());
 			assertEquals("Patient requested a different appointment time.", appointment.getCancellationReason());
 			assertEquals(CareEncounterStatusId.OPEN, careEncounter.getCareEncounterStatusId());
 			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, careEncounter.getLastUpdatedByAccountId());
+
+			currentContextExecutor.execute(new CurrentContext.Builder(navigator, Locale.US,
+					ZoneId.of("America/New_York")).build(), () -> {
+				CareEncounterApiResponse response = responseFactory.create(careEncounter);
+				assertEquals(1, response.getAppointmentHistory().size());
+				assertEquals(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID,
+						response.getAppointmentHistory().get(0).getAppointmentId());
+				assertTrue(response.getAppointmentHistory().get(0).getCanceled());
+				assertEquals(AttendanceStatusId.CANCELED,
+						response.getAppointmentHistory().get(0).getAttendanceStatusId());
+				assertEquals("Patient requested a different appointment time.",
+						response.getAppointmentHistory().get(0).getCancellationReason());
+			});
 		});
 	}
 
@@ -595,7 +618,7 @@ public class CareNavigatorBookingFixtureTests {
 	}
 
 	@Test
-	public void encounterResponsesUseLatestAppointmentAndExcludeItFromHistory() {
+	public void encounterResponsesUseLatestAppointmentAndIncludeInactiveAppointmentsInHistory() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			CareEncounterService careEncounterService = app.getInjector().getInstance(CareEncounterService.class);
@@ -605,6 +628,22 @@ public class CareNavigatorBookingFixtureTests {
 			CareEncounterListApiResponseFactory listResponseFactory = app.getInjector()
 					.getInstance(CareEncounterListApiResponseFactory.class);
 			Account navigator = accountService.findAccountById(CARE_NAVIGATOR_ACCOUNT_ID).get();
+			resetAppointmentAsActive(database, CARE_NAVIGATOR_REBOOKED_APPOINTMENT_ID);
+			resetAppointmentAsActive(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
+			assertEquals(1, database.execute("""
+					UPDATE care_encounter
+					SET care_encounter_status_id='OPEN',
+						closed_at=NULL,
+						closed_by_account_id=NULL,
+						canceled_by_account_id=NULL,
+						care_encounter_cancellation_reason_id=NULL,
+						care_encounter_cancellation_reason_other_text=NULL
+					WHERE care_encounter_id=(
+						SELECT care_encounter_id
+						FROM appointment
+						WHERE appointment_id=?
+					)
+					""", CARE_NAVIGATOR_REBOOKED_APPOINTMENT_ID));
 			UUID activeCareEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_REBOOKED_APPOINTMENT_ID);
 			CareEncounter activeCareEncounter = careEncounterService.findCareEncounterByIdForInstitutionId(
 					activeCareEncounterId, InstitutionId.COBALT).get();
@@ -655,7 +694,11 @@ public class CareNavigatorBookingFixtureTests {
 				assertEquals(CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID, response.getAppointmentId());
 				assertEquals(CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID,
 						response.getAppointment().getAppointmentId());
-				assertTrue(response.getAppointmentHistory().isEmpty());
+				assertEquals(1, response.getAppointmentHistory().size());
+				assertEquals(CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID,
+						response.getAppointmentHistory().get(0).getAppointmentId());
+				assertEquals(AttendanceStatusId.ATTENDED,
+						response.getAppointmentHistory().get(0).getAttendanceStatusId());
 			});
 
 			UUID upcomingCareEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
@@ -890,8 +933,8 @@ public class CareNavigatorBookingFixtureTests {
 	}
 
 	protected void cancelAppointment(Database database,
-											 UUID appointmentId,
-											 UUID canceledByAccountId,
+								 UUID appointmentId,
+								 UUID canceledByAccountId,
 											 boolean canceledForReschedule) {
 		assertEquals(1, database.execute("""
 				UPDATE appointment
@@ -902,6 +945,21 @@ public class CareNavigatorBookingFixtureTests {
 					canceled_for_reschedule=?
 				WHERE appointment_id=?
 				""", canceledByAccountId, canceledForReschedule, appointmentId));
+	}
+
+	protected void resetAppointmentAsActive(Database database, UUID appointmentId) {
+		assertEquals(1, database.execute("""
+				UPDATE appointment
+				SET canceled=FALSE,
+					attendance_status_id='UNKNOWN',
+					canceled_at=NULL,
+					canceled_by_account_id=NULL,
+					canceled_for_reschedule=FALSE,
+					rescheduled_appointment_id=NULL,
+					appointment_cancelation_reason_id='UNSPECIFIED',
+					cancellation_reason=NULL
+				WHERE appointment_id=?
+				""", appointmentId));
 	}
 
 	protected UUID careEncounterIdForAppointment(Database database, UUID appointmentId) {

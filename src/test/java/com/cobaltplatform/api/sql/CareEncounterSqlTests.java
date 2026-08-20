@@ -213,6 +213,7 @@ public class CareEncounterSqlTests {
 		assertTrue(responseJava.contains("getCareEncounterStatusId().getDisplayLabel()"));
 		assertTrue(responseJava.contains("private final AppointmentApiResponse appointment"));
 		assertTrue(responseJava.contains("private final List<AppointmentApiResponse> appointmentHistory"));
+		assertTrue(responseJava.contains("filter(appointmentModel -> !isActiveAppointment(appointmentModel))"));
 		assertTrue(responseJava.contains("AppointmentApiResponseSupplement.SCREENING_SESSION_RESULT"));
 		assertFalse(responseJava.contains("private final AppointmentApiResponse activeAppointment"));
 		assertFalse(responseJava.contains("private final List<AppointmentApiResponse> appointments"));

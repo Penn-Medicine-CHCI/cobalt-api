@@ -15,6 +15,7 @@ import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.Appointm
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
@@ -163,9 +164,17 @@ public class CareEncounterApiResponse {
 		this.lastUpdatedDescription = formatter.formatTimestamp(careEncounter.getLastUpdated());
 		this.appointment = appointmentApiResponseFactory.create(latestAppointment, supplements);
 		this.appointmentHistory = appointmentModels.stream()
-				.skip(1)
+				.filter(appointmentModel -> !isActiveAppointment(appointmentModel))
 				.map(appointmentModel -> appointmentApiResponseFactory.create(appointmentModel, supplements))
 				.collect(Collectors.toUnmodifiableList());
+	}
+
+	protected static boolean isActiveAppointment(@Nonnull Appointment appointment) {
+		requireNonNull(appointment);
+
+		return !Boolean.TRUE.equals(appointment.getCanceled())
+				&& !Boolean.TRUE.equals(appointment.getCanceledForReschedule())
+				&& appointment.getAttendanceStatusId() == AttendanceStatusId.UNKNOWN;
 	}
 
 	@Nullable
