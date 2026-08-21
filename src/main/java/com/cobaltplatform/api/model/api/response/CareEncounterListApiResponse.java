@@ -54,9 +54,6 @@ public class CareEncounterListApiResponse {
 	private final LocalDate appointmentDate;
 	@Nonnull
 	private final String appointmentDateDescription;
-	@Nullable
-	private final String notes;
-	@Nullable
 	private final Instant closedAt;
 	@Nullable
 	private final String closedAtDescription;
@@ -123,7 +120,6 @@ public class CareEncounterListApiResponse {
 				appointmentModel.getLastName() == null ? "" : appointmentModel.getLastName()).trim();
 		this.appointmentDate = appointmentModel.getStartTime().toLocalDate();
 		this.appointmentDateDescription = formatter.formatDate(this.appointmentDate, FormatStyle.MEDIUM);
-		this.notes = careEncounter.getNotes();
 		this.closedAt = careEncounter.getClosedAt();
 		this.closedAtDescription = careEncounter.getClosedAt() == null
 				? null
@@ -153,7 +149,6 @@ public class CareEncounterListApiResponse {
 	@Nonnull public String getPatientFullName() { return this.patientFullName; }
 	@Nonnull public LocalDate getAppointmentDate() { return this.appointmentDate; }
 	@Nonnull public String getAppointmentDateDescription() { return this.appointmentDateDescription; }
-	@Nullable public String getNotes() { return this.notes; }
 	@Nullable public Instant getClosedAt() { return this.closedAt; }
 	@Nullable public String getClosedAtDescription() { return this.closedAtDescription; }
 	@Nullable public UUID getClosedByAccountId() { return this.closedByAccountId; }

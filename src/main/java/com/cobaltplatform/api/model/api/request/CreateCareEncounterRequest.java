@@ -20,9 +20,6 @@ import java.util.UUID;
 public class CreateCareEncounterRequest {
 	@Nullable
 	private UUID appointmentId;
-	@Nullable
-	private String notes;
-	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
 	private UUID accountId;
@@ -34,15 +31,6 @@ public class CreateCareEncounterRequest {
 
 	public void setAppointmentId(@Nullable UUID appointmentId) {
 		this.appointmentId = appointmentId;
-	}
-
-	@Nullable
-	public String getNotes() {
-		return this.notes;
-	}
-
-	public void setNotes(@Nullable String notes) {
-		this.notes = notes;
 	}
 
 	@Nullable

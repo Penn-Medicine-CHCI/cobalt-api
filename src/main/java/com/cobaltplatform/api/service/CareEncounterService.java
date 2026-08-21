@@ -20,17 +20,20 @@ import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
+import com.cobaltplatform.api.model.api.request.CreateCareEncounterNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareEncounterNoteRequest;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AttendanceStatus;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
+import com.cobaltplatform.api.model.db.CareEncounterNote;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.service.FindResult;
@@ -70,7 +73,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class CareEncounterService {
 	protected static final int DEFAULT_PAGE_SIZE = 25;
 	protected static final int MAXIMUM_PAGE_SIZE = 100;
-	protected static final int MAXIMUM_NOTES_LENGTH = 20_000;
+	protected static final int MAXIMUM_NOTE_LENGTH = 20_000;
 	protected static final int MAXIMUM_CANCELLATION_REASON_OTHER_TEXT_LENGTH = 2_000;
 	protected static final int MAXIMUM_APPOINTMENT_CANCELLATION_REASON_LENGTH = 2_000;
 
@@ -189,7 +192,12 @@ public class CareEncounterService {
 								OR search_appointment.title ILIKE ?
 							)
 						)
-						OR care_encounter.notes ILIKE ?
+						OR EXISTS (
+							SELECT 1
+							FROM care_encounter_note
+							WHERE care_encounter_note.care_encounter_id=care_encounter.care_encounter_id
+							AND care_encounter_note.note ILIKE ?
+						)
 					)
 					""");
 			String searchPattern = String.format("%%%s%%", searchQuery);
@@ -297,13 +305,129 @@ public class CareEncounterService {
 	}
 
 	@Nonnull
+	public List<CareEncounterNote> findCareEncounterNotesByCareEncounterId(@Nullable UUID careEncounterId) {
+		if (careEncounterId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT care_encounter_note.*,
+					COALESCE(NULLIF(BTRIM(created_by_account.display_name), ''),
+						NULLIF(BTRIM(CONCAT_WS(' ', created_by_account.first_name, created_by_account.last_name)), ''))
+						AS created_by_account_display_name,
+					COALESCE(NULLIF(BTRIM(last_updated_by_account.display_name), ''),
+						NULLIF(BTRIM(CONCAT_WS(' ', last_updated_by_account.first_name, last_updated_by_account.last_name)), ''))
+						AS last_updated_by_account_display_name
+				FROM care_encounter_note
+				JOIN account created_by_account
+					ON created_by_account.account_id=care_encounter_note.created_by_account_id
+				JOIN account last_updated_by_account
+					ON last_updated_by_account.account_id=care_encounter_note.last_updated_by_account_id
+				WHERE care_encounter_note.care_encounter_id=?
+				ORDER BY care_encounter_note.created DESC, care_encounter_note.care_encounter_note_id DESC
+				""", CareEncounterNote.class, careEncounterId);
+	}
+
+	@Nonnull
+	public Optional<CareEncounterNote> findCareEncounterNoteByIdAndCareEncounterId(
+			@Nullable UUID careEncounterNoteId,
+			@Nullable UUID careEncounterId) {
+		if (careEncounterNoteId == null || careEncounterId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT care_encounter_note.*,
+					COALESCE(NULLIF(BTRIM(created_by_account.display_name), ''),
+						NULLIF(BTRIM(CONCAT_WS(' ', created_by_account.first_name, created_by_account.last_name)), ''))
+						AS created_by_account_display_name,
+					COALESCE(NULLIF(BTRIM(last_updated_by_account.display_name), ''),
+						NULLIF(BTRIM(CONCAT_WS(' ', last_updated_by_account.first_name, last_updated_by_account.last_name)), ''))
+						AS last_updated_by_account_display_name
+				FROM care_encounter_note
+				JOIN account created_by_account
+					ON created_by_account.account_id=care_encounter_note.created_by_account_id
+				JOIN account last_updated_by_account
+					ON last_updated_by_account.account_id=care_encounter_note.last_updated_by_account_id
+				WHERE care_encounter_note.care_encounter_note_id=?
+				AND care_encounter_note.care_encounter_id=?
+				""", CareEncounterNote.class, careEncounterNoteId, careEncounterId);
+	}
+
+	@Nonnull
+	public CareEncounterNote createCareEncounterNote(@Nullable UUID careEncounterId,
+																		@Nullable InstitutionId institutionId,
+																		@Nullable UUID accountId,
+																		@Nonnull CreateCareEncounterNoteRequest request) {
+		requireNonNull(request);
+
+		String note = normalizeNote(request.getNote());
+		ValidationException validationException = new ValidationException();
+
+		validateCareEncounterForNote(careEncounterId, institutionId, accountId, validationException);
+		validateNote(note, validationException);
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		UUID careEncounterNoteId = UUID.randomUUID();
+		getDatabase().execute("""
+				INSERT INTO care_encounter_note (
+					care_encounter_note_id,
+					care_encounter_id,
+					note,
+					created_by_account_id,
+					last_updated_by_account_id
+				) VALUES (?,?,?,?,?)
+				""", careEncounterNoteId, careEncounterId, note, accountId, accountId);
+
+		touchCareEncounter(careEncounterId, accountId);
+		return findCareEncounterNoteByIdAndCareEncounterId(careEncounterNoteId, careEncounterId).get();
+	}
+
+	@Nonnull
+	public CareEncounterNote updateCareEncounterNote(@Nullable UUID careEncounterId,
+																		@Nullable UUID careEncounterNoteId,
+																		@Nullable InstitutionId institutionId,
+																		@Nullable UUID accountId,
+																		@Nonnull UpdateCareEncounterNoteRequest request) {
+		requireNonNull(request);
+
+		String note = normalizeNote(request.getNote());
+		ValidationException validationException = new ValidationException();
+
+		validateCareEncounterForNote(careEncounterId, institutionId, accountId, validationException);
+
+		if (careEncounterNoteId == null) {
+			validationException.add(new FieldError("careEncounterNoteId",
+					getStrings().get("Care Encounter Note ID is required.")));
+		} else if (careEncounterId != null
+				&& findCareEncounterNoteByIdAndCareEncounterId(careEncounterNoteId, careEncounterId).isEmpty()) {
+			validationException.add(new FieldError("careEncounterNoteId",
+					getStrings().get("Care Encounter Note ID is invalid.")));
+		}
+
+		validateNote(note, validationException);
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		getDatabase().execute("""
+				UPDATE care_encounter_note
+				SET note=?, last_updated_by_account_id=?
+				WHERE care_encounter_note_id=?
+				AND care_encounter_id=?
+				""", note, accountId, careEncounterNoteId, careEncounterId);
+
+		touchCareEncounter(careEncounterId, accountId);
+		return findCareEncounterNoteByIdAndCareEncounterId(careEncounterNoteId, careEncounterId).get();
+	}
+
+	@Nonnull
 	public CareEncounter createCareEncounter(@Nonnull CreateCareEncounterRequest request) {
 		requireNonNull(request);
 
 		UUID appointmentId = request.getAppointmentId();
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
-		String notes = normalizeNotes(request.getNotes());
 		Appointment appointment = null;
 		ValidationException validationException = new ValidationException();
 
@@ -322,8 +446,6 @@ public class CareEncounterService {
 				validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is invalid.")));
 		}
 
-		validateNotes(notes, validationException);
-
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -339,13 +461,7 @@ public class CareEncounterService {
 		CareEncounter careEncounter = findCareEncounterByAppointmentIdForInstitutionId(appointmentId, institutionId)
 				.orElseThrow(() -> new IllegalStateException("Care Navigator appointment was not attached to an encounter."));
 
-		getDatabase().execute("""
-				UPDATE care_encounter
-				SET notes=?, last_updated_by_account_id=?
-				WHERE care_encounter_id=?
-				""", notes, accountId, careEncounter.getCareEncounterId());
-
-		return findCareEncounterByAppointmentIdForInstitutionId(appointmentId, institutionId).get();
+		return careEncounter;
 	}
 
 	@Nonnull
@@ -356,7 +472,6 @@ public class CareEncounterService {
 		InstitutionId institutionId = request.getInstitutionId();
 		UUID accountId = request.getAccountId();
 		String emailAddress = getNormalizer().normalizeEmailAddress(request.getEmailAddress()).orElse(null);
-		String notes = normalizeNotes(request.getNotes());
 		CareEncounter careEncounter = null;
 		ValidationException validationException = new ValidationException();
 
@@ -375,8 +490,6 @@ public class CareEncounterService {
 				validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is invalid.")));
 		}
 
-		validateNotes(notes, validationException);
-
 		if (emailAddress != null && !isValidEmailAddress(emailAddress))
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
 
@@ -385,9 +498,9 @@ public class CareEncounterService {
 
 		getDatabase().execute("""
 				UPDATE care_encounter
-				SET email_address=?, notes=?, last_updated_by_account_id=?
+				SET email_address=?, last_updated_by_account_id=?
 				WHERE care_encounter_id=?
-				""", emailAddress, notes, accountId, careEncounterId);
+				""", emailAddress, accountId, careEncounterId);
 
 		return findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).get();
 	}
@@ -940,17 +1053,51 @@ public class CareEncounterService {
 				""", Appointment.class, appointmentId, careEncounterId, institutionId);
 	}
 
-	@Nullable
-	protected static String normalizeNotes(@Nullable String notes) {
-		return trimToNull(notes);
-	}
-
-	protected void validateNotes(@Nullable String notes,
-														 @Nonnull ValidationException validationException) {
+	protected void validateCareEncounterForNote(@Nullable UUID careEncounterId,
+																				@Nullable InstitutionId institutionId,
+																				@Nullable UUID accountId,
+																				@Nonnull ValidationException validationException) {
 		requireNonNull(validationException);
 
-		if (notes != null && notes.length() > MAXIMUM_NOTES_LENGTH)
-			validationException.add(new FieldError("notes", getStrings().get("Notes are too long.")));
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (careEncounterId == null) {
+			validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is required.")));
+		} else if (institutionId != null
+				&& findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).isEmpty()) {
+			validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is invalid.")));
+		}
+	}
+
+	protected void touchCareEncounter(@Nonnull UUID careEncounterId,
+															@Nonnull UUID accountId) {
+		requireNonNull(careEncounterId);
+		requireNonNull(accountId);
+
+		getDatabase().execute("""
+				UPDATE care_encounter
+				SET last_updated_by_account_id=?
+				WHERE care_encounter_id=?
+				""", accountId, careEncounterId);
+	}
+
+	@Nullable
+	protected static String normalizeNote(@Nullable String note) {
+		return trimToNull(note);
+	}
+
+	protected void validateNote(@Nullable String note,
+														@Nonnull ValidationException validationException) {
+		requireNonNull(validationException);
+
+		if (note == null)
+			validationException.add(new FieldError("note", getStrings().get("Note is required.")));
+		else if (note.length() > MAXIMUM_NOTE_LENGTH)
+			validationException.add(new FieldError("note", getStrings().get("Note is too long.")));
 	}
 
 	@Nonnull

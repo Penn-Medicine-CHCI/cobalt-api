@@ -13,6 +13,7 @@ package com.cobaltplatform.api.model.api.response;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.CareEncounterNoteApiResponse.CareEncounterNoteApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
@@ -64,8 +65,8 @@ public class CareEncounterApiResponse {
 	private final String appointmentDateDescription;
 	@Nullable
 	private final String emailAddress;
-	@Nullable
-	private final String notes;
+	@Nonnull
+	private final List<CareEncounterNoteApiResponse> careEncounterNotes;
 	@Nullable
 	private final Instant closedAt;
 	@Nullable
@@ -109,12 +110,14 @@ public class CareEncounterApiResponse {
 	public CareEncounterApiResponse(@Nonnull CareEncounterService careEncounterService,
 																 @Nonnull AccountService accountService,
 																 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
+																 @Nonnull CareEncounterNoteApiResponseFactory careEncounterNoteApiResponseFactory,
 																 @Nonnull Formatter formatter,
 																 @Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 																 @Assisted @Nonnull CareEncounter careEncounter) {
 		requireNonNull(careEncounterService);
 		requireNonNull(accountService);
 		requireNonNull(appointmentApiResponseFactory);
+		requireNonNull(careEncounterNoteApiResponseFactory);
 		requireNonNull(formatter);
 		requireNonNull(currentContextProvider);
 		requireNonNull(careEncounter);
@@ -147,7 +150,10 @@ public class CareEncounterApiResponse {
 		this.appointmentDate = latestAppointment.getStartTime().toLocalDate();
 		this.appointmentDateDescription = formatter.formatDate(this.appointmentDate, FormatStyle.MEDIUM);
 		this.emailAddress = careEncounter.getEmailAddress();
-		this.notes = careEncounter.getNotes();
+		this.careEncounterNotes = careEncounterService.findCareEncounterNotesByCareEncounterId(
+				careEncounter.getCareEncounterId()).stream()
+				.map(careEncounterNoteApiResponseFactory::create)
+				.collect(Collectors.toUnmodifiableList());
 		this.closedAt = careEncounter.getClosedAt();
 		this.closedAtDescription = careEncounter.getClosedAt() == null ? null : formatter.formatTimestamp(careEncounter.getClosedAt());
 		this.closedByAccountId = careEncounter.getClosedByAccountId();
@@ -206,7 +212,7 @@ public class CareEncounterApiResponse {
 	@Nonnull public LocalDate getAppointmentDate() { return this.appointmentDate; }
 	@Nonnull public String getAppointmentDateDescription() { return this.appointmentDateDescription; }
 	@Nullable public String getEmailAddress() { return this.emailAddress; }
-	@Nullable public String getNotes() { return this.notes; }
+	@Nonnull public List<CareEncounterNoteApiResponse> getCareEncounterNotes() { return this.careEncounterNotes; }
 	@Nullable public Instant getClosedAt() { return this.closedAt; }
 	@Nullable public String getClosedAtDescription() { return this.closedAtDescription; }
 	@Nullable public UUID getClosedByAccountId() { return this.closedByAccountId; }

@@ -88,11 +88,31 @@ public class CareEncounterSqlTests {
 	}
 
 	@Test
+	public void encounterNotesMigrationPreservesExistingNotesAsEditableRecords() throws IOException {
+		String migrationSql = readSql("sql/updates/263-care-encounter-notes.sql");
+		String recreateBootstrap = readSql("sql/recreate-bootstrap");
+		String recreateLocal = readSql("sql/recreate-local");
+
+		assertTrue(migrationSql.contains("'263-care-encounter-notes'"));
+		assertTrue(migrationSql.contains("ARRAY['262-care-navigator-appointment-cancellation']"));
+		assertTrue(migrationSql.contains("CREATE TABLE care_encounter_note"));
+		assertTrue(migrationSql.contains("care_encounter_id UUID NOT NULL REFERENCES care_encounter(care_encounter_id)"));
+		assertTrue(migrationSql.contains("created_by_account_id UUID NOT NULL REFERENCES account(account_id)"));
+		assertTrue(migrationSql.contains("last_updated_by_account_id UUID NOT NULL REFERENCES account(account_id)"));
+		assertTrue(migrationSql.contains("INSERT INTO care_encounter_note"));
+		assertTrue(migrationSql.contains("FROM care_encounter"));
+		assertTrue(migrationSql.contains("DROP COLUMN notes"));
+		assertTrue(migrationSql.contains("care_encounter_note_footprint"));
+		assertTrue(recreateBootstrap.contains("updates/263-care-encounter-notes.sql"));
+		assertTrue(recreateLocal.contains("updates/263-care-encounter-notes.sql"));
+	}
+
+	@Test
 	public void localFixtureCreatesRepresentativeNavigatorAppointments() throws IOException {
 		String fixtureSql = readSql("sql/local/261-care-encounter-seed.sql");
 
 		assertTrue(fixtureSql.contains("'260-local-only-care-navigator-seed'"));
-		assertTrue(fixtureSql.contains("'261-care-encounters'"));
+		assertTrue(fixtureSql.contains("'263-care-encounter-notes'"));
 		assertTrue(fixtureSql.contains("SET virtual_appointments_only=TRUE"));
 		assertTrue(fixtureSql.contains("care-encounter.alex@example.com"));
 		assertTrue(fixtureSql.contains("care-encounter.jordan@example.com"));
@@ -129,6 +149,8 @@ public class CareEncounterSqlTests {
 		String appointmentResponseJava = readSql("src/main/java/com/cobaltplatform/api/model/api/response/AppointmentApiResponse.java");
 		String createRequestJava = readSql("src/main/java/com/cobaltplatform/api/model/api/request/CreateCareEncounterRequest.java");
 		String updateRequestJava = readSql("src/main/java/com/cobaltplatform/api/model/api/request/UpdateCareEncounterRequest.java");
+		String noteResponseJava = readSql("src/main/java/com/cobaltplatform/api/model/api/response/CareEncounterNoteApiResponse.java");
+		String noteModelJava = readSql("src/main/java/com/cobaltplatform/api/model/db/CareEncounterNote.java");
 		String cancelAppointmentRequestJava = readSql(
 				"src/main/java/com/cobaltplatform/api/model/api/request/CancelCareEncounterAppointmentRequest.java");
 
@@ -163,7 +185,8 @@ public class CareEncounterSqlTests {
 		assertTrue(serviceJava.contains("COUNT(*) OVER() AS total_count"));
 		assertTrue(serviceJava.contains("provider.institution_id=?"));
 		assertTrue(serviceJava.contains("LIMIT ? OFFSET ?"));
-		assertTrue(serviceJava.contains("care_encounter.notes ILIKE ?"));
+		assertTrue(serviceJava.contains("FROM care_encounter_note"));
+		assertTrue(serviceJava.contains("care_encounter_note.note ILIKE ?"));
 		assertTrue(serviceJava.contains("CONCAT_WS(' ', search_appointment.first_name, search_appointment.last_name) ILIKE ?"));
 		assertTrue(serviceJava.contains("SortDirectionId.ASCENDING ? \"ASC\" : \"DESC\""));
 		assertTrue(serviceJava.contains("CareEncounterSortColumnId.CREATED"));
@@ -258,19 +281,29 @@ public class CareEncounterSqlTests {
 		assertTrue(appointmentResponseJava.contains("showPrivateDetails ? appointment.getCancellationReason() : null"));
 		assertTrue(appointmentResponseJava.contains("findScreeningSessionResult(this.screeningSessionId)"));
 		assertTrue(cancelAppointmentRequestJava.contains("private String cancellationReason"));
-		assertTrue(responseJava.contains("private final String notes"));
+		assertTrue(responseJava.contains("private final List<CareEncounterNoteApiResponse> careEncounterNotes"));
+		assertTrue(responseJava.contains("findCareEncounterNotesByCareEncounterId"));
 		assertTrue(responseJava.contains("private final String emailAddress"));
 		assertTrue(responseJava.contains("careEncounter.getEmailAddress()"));
-		assertTrue(modelJava.contains("private String notes"));
+		assertFalse(modelJava.contains("private String notes"));
 		assertTrue(modelJava.contains("private String emailAddress"));
 		assertTrue(modelJava.contains("private UUID careNavigatorAccountId"));
 		assertTrue(modelJava.contains("private UUID closedByAccountId"));
-		assertTrue(modelJava.contains("getNotes()"));
-		assertTrue(modelJava.contains("setNotes(@Nullable String notes)"));
-		assertTrue(createRequestJava.contains("private String notes"));
-		assertTrue(updateRequestJava.contains("private String notes"));
+		assertFalse(modelJava.contains("getNotes()"));
+		assertFalse(createRequestJava.contains("private String notes"));
+		assertFalse(updateRequestJava.contains("private String notes"));
 		assertTrue(updateRequestJava.contains("private String emailAddress"));
-		assertTrue(serviceJava.contains("SET email_address=?, notes=?, last_updated_by_account_id=?"));
+		assertTrue(serviceJava.contains("SET email_address=?, last_updated_by_account_id=?"));
+		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounters/{careEncounterId}/notes\")"));
+		assertTrue(resourceJava.contains("@POST(\"/admin/care-encounters/{careEncounterId}/notes\")"));
+		assertTrue(resourceJava.contains("@PUT(\"/admin/care-encounters/{careEncounterId}/notes/{careEncounterNoteId}\")"));
+		assertTrue(serviceJava.contains("createCareEncounterNote"));
+		assertTrue(serviceJava.contains("updateCareEncounterNote"));
+		assertTrue(noteModelJava.contains("private UUID careEncounterNoteId"));
+		assertTrue(noteModelJava.contains("private UUID createdByAccountId"));
+		assertTrue(noteModelJava.contains("private UUID lastUpdatedByAccountId"));
+		assertTrue(noteResponseJava.contains("private final String note"));
+		assertTrue(noteResponseJava.contains("private final String lastUpdatedByAccountDisplayName"));
 	}
 
 	@Test
@@ -282,11 +315,13 @@ public class CareEncounterSqlTests {
 	protected void assertCareEncounterPatchOrder(String recreateSql) {
 		int navigatorFixtureIndex = recreateSql.indexOf("local/260-care-navigator-seed.sql");
 		int migrationIndex = recreateSql.indexOf("updates/261-care-encounters.sql");
+		int notesMigrationIndex = recreateSql.indexOf("updates/263-care-encounter-notes.sql");
 		int fixtureIndex = recreateSql.indexOf("local/261-care-encounter-seed.sql");
 
 		assertTrue(navigatorFixtureIndex >= 0);
 		assertTrue(migrationIndex > navigatorFixtureIndex);
-		assertTrue(fixtureIndex > migrationIndex);
+		assertTrue(notesMigrationIndex > migrationIndex);
+		assertTrue(fixtureIndex > notesMigrationIndex);
 	}
 
 	protected String readSql(String filename) throws IOException {

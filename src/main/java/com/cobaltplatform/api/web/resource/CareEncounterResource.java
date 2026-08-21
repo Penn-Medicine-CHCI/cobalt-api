@@ -15,19 +15,23 @@ import com.cobaltplatform.api.model.api.request.AssignCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
+import com.cobaltplatform.api.model.api.request.CreateCareEncounterNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareEncounterNoteRequest;
 import com.cobaltplatform.api.model.api.response.CareEncounterApiResponse.CareEncounterApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.CareEncounterListApiResponse.CareEncounterListApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.CareEncounterNoteApiResponse.CareEncounterNoteApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.AttendanceStatus;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
+import com.cobaltplatform.api.model.db.CareEncounterNote;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
@@ -93,6 +97,8 @@ public class CareEncounterResource {
 	@Nonnull
 	private final CareEncounterListApiResponseFactory careEncounterListApiResponseFactory;
 	@Nonnull
+	private final CareEncounterNoteApiResponseFactory careEncounterNoteApiResponseFactory;
+	@Nonnull
 	private final Formatter formatter;
 
 	@Inject
@@ -104,6 +110,7 @@ public class CareEncounterResource {
 													 @Nonnull Provider<CurrentContext> currentContextProvider,
 													 @Nonnull CareEncounterApiResponseFactory careEncounterApiResponseFactory,
 													 @Nonnull CareEncounterListApiResponseFactory careEncounterListApiResponseFactory,
+													 @Nonnull CareEncounterNoteApiResponseFactory careEncounterNoteApiResponseFactory,
 													 @Nonnull Formatter formatter) {
 		this.careEncounterService = careEncounterService;
 		this.auditLogService = auditLogService;
@@ -113,6 +120,7 @@ public class CareEncounterResource {
 		this.currentContextProvider = currentContextProvider;
 		this.careEncounterApiResponseFactory = careEncounterApiResponseFactory;
 		this.careEncounterListApiResponseFactory = careEncounterListApiResponseFactory;
+		this.careEncounterNoteApiResponseFactory = careEncounterNoteApiResponseFactory;
 		this.formatter = formatter;
 	}
 
@@ -220,6 +228,62 @@ public class CareEncounterResource {
 		CareEncounter careEncounter = getCareEncounterService().updateCareEncounter(request);
 
 		return new ApiResponse(Map.of("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter)));
+	}
+
+	@Nonnull
+	@GET("/admin/care-encounters/{careEncounterId}/notes")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse careEncounterNotes(@Nonnull @PathParameter UUID careEncounterId) {
+		requireNonNull(careEncounterId);
+
+		Account account = requireCareNavigatorAccount();
+		getCareEncounterService().findCareEncounterByIdForInstitutionId(careEncounterId, account.getInstitutionId())
+				.orElseThrow(NotFoundException::new);
+		List<CareEncounterNote> careEncounterNotes = getCareEncounterService()
+				.findCareEncounterNotesByCareEncounterId(careEncounterId);
+
+		return new ApiResponse(Map.of("careEncounterNotes", careEncounterNotes.stream()
+				.map(getCareEncounterNoteApiResponseFactory()::create)
+				.collect(Collectors.toList())));
+	}
+
+	@Nonnull
+	@POST("/admin/care-encounters/{careEncounterId}/notes")
+	@AuthenticationRequired
+	public ApiResponse createCareEncounterNote(@Nonnull @PathParameter UUID careEncounterId,
+																			 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(careEncounterId);
+		requireNonNull(requestBody);
+
+		Account account = requireCareNavigatorAccount();
+		CreateCareEncounterNoteRequest request = getRequestBodyParser().parse(
+				requestBody, CreateCareEncounterNoteRequest.class);
+		CareEncounterNote careEncounterNote = getCareEncounterService().createCareEncounterNote(
+				careEncounterId, account.getInstitutionId(), account.getAccountId(), request);
+
+		return new ApiResponse(Map.of("careEncounterNote",
+				getCareEncounterNoteApiResponseFactory().create(careEncounterNote)));
+	}
+
+	@Nonnull
+	@PUT("/admin/care-encounters/{careEncounterId}/notes/{careEncounterNoteId}")
+	@AuthenticationRequired
+	public ApiResponse updateCareEncounterNote(@Nonnull @PathParameter UUID careEncounterId,
+																			 @Nonnull @PathParameter UUID careEncounterNoteId,
+																			 @Nonnull @RequestBody String requestBody) {
+		requireNonNull(careEncounterId);
+		requireNonNull(careEncounterNoteId);
+		requireNonNull(requestBody);
+
+		Account account = requireCareNavigatorAccount();
+		UpdateCareEncounterNoteRequest request = getRequestBodyParser().parse(
+				requestBody, UpdateCareEncounterNoteRequest.class);
+		CareEncounterNote careEncounterNote = getCareEncounterService().updateCareEncounterNote(
+				careEncounterId, careEncounterNoteId, account.getInstitutionId(), account.getAccountId(), request);
+
+		return new ApiResponse(Map.of("careEncounterNote",
+				getCareEncounterNoteApiResponseFactory().create(careEncounterNote)));
 	}
 
 	@Nonnull
@@ -406,6 +470,11 @@ public class CareEncounterResource {
 	@Nonnull
 	protected CareEncounterService getCareEncounterService() {
 		return this.careEncounterService;
+	}
+
+	@Nonnull
+	protected CareEncounterNoteApiResponseFactory getCareEncounterNoteApiResponseFactory() {
+		return this.careEncounterNoteApiResponseFactory;
 	}
 
 	@Nonnull

@@ -22,6 +22,7 @@ import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest.BookingExperienceId;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.CreateCareEncounterNoteRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
@@ -30,6 +31,7 @@ import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.UpdateCareEncounterNoteRequest;
 import com.cobaltplatform.api.model.api.response.LocationApiResponse;
 import com.cobaltplatform.api.model.api.response.InstitutionApiResponse;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse;
@@ -44,6 +46,7 @@ import com.cobaltplatform.api.model.db.Appointment;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
+import com.cobaltplatform.api.model.db.CareEncounterNote;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -603,7 +606,6 @@ public class CareNavigatorBookingFixtureTests {
 			request.setInstitutionId(InstitutionId.COBALT);
 			request.setAccountId(CARE_NAVIGATOR_ACCOUNT_ID);
 			request.setEmailAddress("  Navigator.Contact@Example.com  ");
-			request.setNotes(originalCareEncounter.getNotes());
 
 			CareEncounter updatedCareEncounter = careEncounterService.updateCareEncounter(request);
 			assertEquals("navigator.contact@example.com", updatedCareEncounter.getEmailAddress());
@@ -620,6 +622,48 @@ public class CareNavigatorBookingFixtureTests {
 					FROM care_encounter
 					WHERE care_encounter_id=?
 					""", String.class, careEncounterId).get());
+		});
+	}
+
+	@Test
+	public void navigatorCanCreateMultipleEncounterNotesAndEditAnEarlierNote() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			CareEncounterService careEncounterService = app.getInjector().getInstance(CareEncounterService.class);
+			UUID careEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
+			int originalNoteCount = careEncounterService.findCareEncounterNotesByCareEncounterId(careEncounterId).size();
+
+			CreateCareEncounterNoteRequest firstRequest = new CreateCareEncounterNoteRequest();
+			firstRequest.setNote("  First follow-up note.  ");
+			CareEncounterNote firstNote = careEncounterService.createCareEncounterNote(
+					careEncounterId, InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, firstRequest);
+
+			CreateCareEncounterNoteRequest secondRequest = new CreateCareEncounterNoteRequest();
+			secondRequest.setNote("Second follow-up note.");
+			CareEncounterNote secondNote = careEncounterService.createCareEncounterNote(
+					careEncounterId, InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, secondRequest);
+
+			assertEquals(originalNoteCount + 2,
+					careEncounterService.findCareEncounterNotesByCareEncounterId(careEncounterId).size());
+			assertEquals("First follow-up note.", firstNote.getNote());
+			assertEquals("Second follow-up note.", secondNote.getNote());
+
+			UpdateCareEncounterNoteRequest updateRequest = new UpdateCareEncounterNoteRequest();
+			updateRequest.setNote("Updated first follow-up note.");
+			CareEncounterNote updatedFirstNote = careEncounterService.updateCareEncounterNote(
+					careEncounterId, firstNote.getCareEncounterNoteId(), InstitutionId.COBALT,
+					CARE_NAVIGATOR_ACCOUNT_ID, updateRequest);
+
+			assertEquals("Updated first follow-up note.", updatedFirstNote.getNote());
+			assertEquals("Second follow-up note.", careEncounterService.findCareEncounterNoteByIdAndCareEncounterId(
+					secondNote.getCareEncounterNoteId(), careEncounterId).get().getNote());
+			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, updatedFirstNote.getCreatedByAccountId());
+			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, updatedFirstNote.getLastUpdatedByAccountId());
+
+			CreateCareEncounterNoteRequest blankRequest = new CreateCareEncounterNoteRequest();
+			blankRequest.setNote("   ");
+			assertThrows(ValidationException.class, () -> careEncounterService.createCareEncounterNote(
+					careEncounterId, InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, blankRequest));
 		});
 	}
 
@@ -668,10 +712,12 @@ public class CareNavigatorBookingFixtureTests {
 				assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, response.getCareNavigatorAccountId());
 				assertNotNull(response.getCareNavigatorDisplayName());
 				assertEquals(activeCareEncounter.getEmailAddress(), response.getEmailAddress());
+				assertFalse(response.getCareEncounterNotes().isEmpty());
 				Map<String, Object> serializedDetail = new JsonMapper().toMap(response);
 				assertTrue(serializedDetail.containsKey("appointment"));
 				assertTrue(serializedDetail.containsKey("appointmentHistory"));
 				assertTrue(serializedDetail.containsKey("emailAddress"));
+				assertTrue(serializedDetail.containsKey("careEncounterNotes"));
 				assertFalse(serializedDetail.containsKey("activeAppointment"));
 				assertFalse(serializedDetail.containsKey("activeAppointmentId"));
 				assertFalse(serializedDetail.containsKey("appointments"));

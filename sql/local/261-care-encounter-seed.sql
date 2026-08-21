@@ -3,7 +3,7 @@ SELECT _v.register_patch(
 	'261-local-only-care-encounter-seed',
 	ARRAY[
 		'260-local-only-care-navigator-seed',
-		'261-care-encounters'
+		'263-care-encounter-notes'
 	],
 	NULL
 );
@@ -43,6 +43,11 @@ DECLARE
 	v_upcoming_support_response_id CONSTANT UUID := 'ca4e3000-0000-4000-8000-000000000004';
 	v_upcoming_follow_up_response_id CONSTANT UUID := 'ca4e3000-0000-4000-8000-000000000005';
 	v_upcoming_context_response_id CONSTANT UUID := 'ca4e3000-0000-4000-8000-000000000006';
+	v_completed_note_id CONSTANT UUID := 'ca4e4000-0000-4000-8000-000000000001';
+	v_upcoming_note_one_id CONSTANT UUID := 'ca4e4000-0000-4000-8000-000000000002';
+	v_upcoming_note_two_id CONSTANT UUID := 'ca4e4000-0000-4000-8000-000000000003';
+	v_rebooked_note_id CONSTANT UUID := 'ca4e4000-0000-4000-8000-000000000004';
+	v_patient_canceled_note_id CONSTANT UUID := 'ca4e4000-0000-4000-8000-000000000005';
 	v_upcoming_navigation_answer_id CONSTANT UUID := 'ca4e3000-0000-4000-8000-000000000007';
 	v_upcoming_support_provider_answer_id CONSTANT UUID := 'ca4e3000-0000-4000-8000-000000000008';
 	v_upcoming_support_benefits_answer_id CONSTANT UUID := 'ca4e3000-0000-4000-8000-000000000009';
@@ -233,30 +238,51 @@ BEGIN
 		canceled_by_account_id=EXCLUDED.canceled_by_account_id;
 
 	UPDATE care_encounter
-	SET notes='Discussed provider preferences; awaiting navigator closure after the completed appointment.',
-		care_encounter_status_id='OPEN',
+	SET care_encounter_status_id='OPEN',
 		closed_at=NULL,
 		closed_by_account_id=NULL,
 		last_updated_by_account_id=v_navigator_account_id
 	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_completed_appointment_id);
 
 	UPDATE care_encounter
-	SET notes='Review intake goals before the scheduled encounter.',
-		last_updated_by_account_id=v_navigator_account_id
-	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_upcoming_appointment_id);
-
-	UPDATE care_encounter
-	SET notes='The Care Navigator canceled the original appointment; the replacement remains in the same encounter.',
-		last_updated_by_account_id=v_navigator_account_id
-	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_rebooked_appointment_id);
-
-	UPDATE care_encounter
-	SET notes='The patient canceled their appointment.',
-		care_encounter_status_id='CLOSED',
+	SET care_encounter_status_id='CLOSED',
 		closed_at=COALESCE(closed_at, NOW()),
 		closed_by_account_id=v_patient_four_id,
 		last_updated_by_account_id=v_patient_four_id
 	WHERE care_encounter_id=(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_patient_canceled_appointment_id);
+
+	INSERT INTO care_encounter_note (
+		care_encounter_note_id,
+		care_encounter_id,
+		note,
+		created_by_account_id,
+		last_updated_by_account_id
+	) VALUES
+		(v_completed_note_id,
+			(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_completed_appointment_id),
+			'Discussed provider preferences; awaiting navigator closure after the completed appointment.',
+			v_navigator_account_id, v_navigator_account_id),
+		(v_upcoming_note_one_id,
+			(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_upcoming_appointment_id),
+			'Review intake goals before the scheduled encounter.',
+			v_navigator_account_id, v_navigator_account_id),
+		(v_upcoming_note_two_id,
+			(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_upcoming_appointment_id),
+			'Patient prefers an evening appointment with an in-network therapist.',
+			v_navigator_account_id, v_navigator_account_id),
+		(v_rebooked_note_id,
+			(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_rebooked_appointment_id),
+			'The Care Navigator canceled the original appointment; the replacement remains in the same encounter.',
+			v_navigator_account_id, v_navigator_account_id),
+		(v_patient_canceled_note_id,
+			(SELECT care_encounter_id FROM appointment WHERE appointment_id=v_patient_canceled_appointment_id),
+			'The patient canceled their appointment.',
+			v_patient_four_id, v_patient_four_id)
+	ON CONFLICT (care_encounter_note_id) DO UPDATE
+	SET care_encounter_id=EXCLUDED.care_encounter_id,
+		note=EXCLUDED.note,
+		created_by_account_id=EXCLUDED.created_by_account_id,
+		last_updated_by_account_id=EXCLUDED.last_updated_by_account_id;
 END $$;
 
 COMMIT;

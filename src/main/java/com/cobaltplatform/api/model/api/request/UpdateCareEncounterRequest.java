@@ -22,9 +22,6 @@ public class UpdateCareEncounterRequest {
 	private UUID careEncounterId;
 	@Nullable
 	private String emailAddress;
-	@Nullable
-	private String notes;
-	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
 	private UUID accountId;
@@ -45,15 +42,6 @@ public class UpdateCareEncounterRequest {
 
 	public void setEmailAddress(@Nullable String emailAddress) {
 		this.emailAddress = emailAddress;
-	}
-
-	@Nullable
-	public String getNotes() {
-		return this.notes;
-	}
-
-	public void setNotes(@Nullable String notes) {
-		this.notes = notes;
 	}
 
 	@Nullable
