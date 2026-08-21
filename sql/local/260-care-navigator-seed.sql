@@ -19,7 +19,7 @@ DECLARE
 	v_provider_name CONSTANT TEXT := 'Care Navigator';
 	v_provider_url_name CONSTANT TEXT := 'cobalt-care-navigator';
 	v_appointment_type_name CONSTANT TEXT := 'Care Navigation Consultation';
-	v_provider_bio CONSTANT TEXT := 'Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs. During the conversation on Microsoft Teams, they''ll listen to your concerns, answer questions about available benefits and services, and help connect you with resources.';
+	v_provider_bio CONSTANT TEXT := 'Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs. During the video call, they''ll listen to your concerns, answer questions about available benefits and services, and help connect you with resources.';
 	v_provider_description CONSTANT TEXT := 'Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs.';
 	v_appointment_type_description CONSTANT TEXT := 'Your appointment is a 30 minute video call with a Care Navigator to discuss potential resources.';
 	v_screening_name CONSTANT TEXT := 'Care Navigator Booking Assessment';
@@ -31,7 +31,7 @@ DECLARE
 	v_provider_details_html CONSTANT TEXT := $details_html$
 <section class="mb-8">
   <h2 class="mb-4">What is a Care Navigator</h2>
-  <p class="mb-4 fs-large">Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs. During the conversation on Microsoft Teams, they'll listen to your concerns, answer questions about available benefits and services, and help connect you with resources.</p>
+  <p class="mb-4 fs-large">Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs. During the video call, they'll listen to your concerns, answer questions about available benefits and services, and help connect you with resources.</p>
   <p class="mb-4 fs-large"><strong>Care Navigators are not licensed clinicians and do not provide medical or mental health treatment, diagnoses, therapy, or clinical recommendations.</strong> Their role is to help you understand your options and navigate available resources.</p>
   <p class="mb-2 fs-large">Below are some examples of how a Care Navigator can help:</p>
   <ul class="mb-4 fs-large">
@@ -165,7 +165,7 @@ BEGIN
 			'America/New_York',
 			TRUE,
 			'COBALT',
-			'MICROSOFT_TEAMS',
+			'SWITCHBOARD',
 			'COBALT',
 			v_provider_url_name,
 			v_provider_bio,
@@ -191,7 +191,7 @@ BEGIN
 			time_zone='America/New_York',
 			active=TRUE,
 			scheduling_system_id='COBALT',
-			videoconference_platform_id='MICROSOFT_TEAMS',
+			videoconference_platform_id='SWITCHBOARD',
 			system_affinity_id='COBALT',
 			bio=v_provider_bio,
 			description=v_provider_description,

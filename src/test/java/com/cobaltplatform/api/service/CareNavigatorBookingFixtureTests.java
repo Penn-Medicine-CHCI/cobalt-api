@@ -50,6 +50,7 @@ import com.cobaltplatform.api.model.db.CareEncounterNote;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
 import com.cobaltplatform.api.model.service.FeatureForInstitution;
@@ -162,7 +163,7 @@ public class CareNavigatorBookingFixtureTests {
 				assertEquals(Boolean.FALSE, provider.getDefaultImageUrl());
 				assertEquals("https://fixtures.cobalt.care/providers/cobalt-care-navigator/bio", provider.getBioUrl());
 				assertEquals("https://fixtures.cobalt.care/providers/cobalt-care-navigator", provider.getWebsiteUrl());
-				assertTrue(provider.getBio().contains("During the conversation on Microsoft Teams"));
+				assertTrue(provider.getBio().contains("During the video call"));
 				assertTrue(provider.getDetailsHtml().contains("What is a Care Navigator"));
 				assertTrue(provider.getDetailsHtml().contains("Care Navigators are not licensed clinicians"));
 				assertTrue(provider.getDetailsHtml().contains("please call 911 or 988 immediately"));
@@ -304,6 +305,8 @@ public class CareNavigatorBookingFixtureTests {
 			assertNotNull(appointmentId);
 			Appointment appointment = appointmentService.findAppointmentById(appointmentId).get();
 			assertEquals(screeningSessionId, appointment.getScreeningSessionId());
+			assertEquals(VideoconferencePlatformId.SWITCHBOARD, appointment.getVideoconferencePlatformId());
+			assertNull(appointment.getMicrosoftTeamsMeetingId());
 			assertEquals(CARE_NAVIGATOR_ACCOUNT_ID, database.queryForObject("""
 					SELECT care_encounter.care_navigator_account_id
 					FROM appointment

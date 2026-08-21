@@ -74,7 +74,8 @@ public class CareNavigatorSqlTests {
 		assertTrue(fixtureSql.contains("'Cobalt Care Navigation'"));
 		assertTrue(fixtureSql.contains("'Care Navigation'"));
 		assertTrue(fixtureSql.contains("v_provider_name CONSTANT TEXT := 'Care Navigator'"));
-		assertTrue(fixtureSql.contains("'MICROSOFT_TEAMS'"));
+		assertTrue(fixtureSql.contains("'SWITCHBOARD'"));
+		assertFalse(fixtureSql.contains("'MICROSOFT_TEAMS'"));
 		assertTrue(fixtureSql.contains("Your appointment is a 30 minute video call with a Care Navigator to discuss potential resources."));
 		assertTrue(fixtureSql.contains("What is a Care Navigator"));
 		assertTrue(fixtureSql.contains("Care Navigators are not licensed clinicians"));
