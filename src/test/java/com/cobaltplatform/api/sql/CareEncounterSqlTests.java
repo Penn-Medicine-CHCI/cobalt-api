@@ -255,8 +255,9 @@ public class CareEncounterSqlTests {
 		assertTrue(listResponseJava.contains("private final CareEncounterAppointmentApiResponse appointment"));
 		assertFalse(listResponseJava.contains("private final AppointmentApiResponse appointment"));
 		assertTrue(listAppointmentResponseJava.contains("private final UUID appointmentId"));
-		assertTrue(listAppointmentResponseJava.contains("private final Boolean inSession"));
-		assertTrue(listAppointmentResponseJava.contains("appointment.isInSessionAt(Instant.now())"));
+		assertTrue(listAppointmentResponseJava.contains("private final AppointmentTimeStatusId appointmentTimeStatusId"));
+		assertTrue(listAppointmentResponseJava.contains("appointment.getAppointmentTimeStatusIdAt(Instant.now())"));
+		assertFalse(listAppointmentResponseJava.contains("private final Boolean inSession"));
 		assertFalse(listAppointmentResponseJava.contains("ScreeningSessionResult"));
 		assertFalse(listResponseJava.contains("screeningSessionResult"));
 		assertTrue(resourceJava.contains("getCareEncounterListApiResponseFactory()::create"));
@@ -275,8 +276,9 @@ public class CareEncounterSqlTests {
 		assertTrue(appointmentModelJava.contains("private UUID screeningSessionId"));
 		assertTrue(appointmentModelJava.contains("private String cancellationReason"));
 		assertTrue(appointmentResponseJava.contains("private final ScreeningSessionResult screeningSessionResult"));
-		assertTrue(appointmentResponseJava.contains("private final Boolean inSession"));
-		assertTrue(appointmentResponseJava.contains("appointment.isInSessionAt(Instant.now())"));
+		assertTrue(appointmentResponseJava.contains("private final AppointmentTimeStatusId appointmentTimeStatusId"));
+		assertTrue(appointmentResponseJava.contains("appointment.getAppointmentTimeStatusIdAt(Instant.now())"));
+		assertFalse(appointmentResponseJava.contains("private final Boolean inSession"));
 		assertTrue(appointmentResponseJava.contains("private final String cancellationReason"));
 		assertTrue(appointmentResponseJava.contains("showPrivateDetails ? appointment.getCancellationReason() : null"));
 		assertTrue(appointmentResponseJava.contains("findScreeningSessionResult(this.screeningSessionId)"));

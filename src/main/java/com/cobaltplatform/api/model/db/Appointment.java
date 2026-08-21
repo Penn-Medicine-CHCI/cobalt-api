@@ -43,6 +43,12 @@ public class Appointment implements Comparable<Appointment> {
 	@Nonnull
 	private static final Comparator<Appointment> DEFAULT_COMPARATOR;
 
+	public enum AppointmentTimeStatusId {
+		SCHEDULED,
+		IN_SESSION,
+		PASSED
+	}
+
 	@Nullable
 	private UUID appointmentId;
 	@Nullable
@@ -359,21 +365,20 @@ public class Appointment implements Comparable<Appointment> {
 		this.canceled = canceled;
 	}
 
-	public boolean isInSessionAt(@Nonnull Instant currentTime) {
+	@Nonnull
+	public AppointmentTimeStatusId getAppointmentTimeStatusIdAt(@Nonnull Instant currentTime) {
 		requireNonNull(currentTime);
 
-		if (Boolean.TRUE.equals(getCanceled())
-				|| Boolean.TRUE.equals(getCanceledForReschedule())
-				|| getAttendanceStatusId() == AttendanceStatusId.CANCELED
-				|| getStartTime() == null
-				|| getEndTime() == null
-				|| getTimeZone() == null)
-			return false;
+		Instant startTime = requireNonNull(getStartTime()).atZone(requireNonNull(getTimeZone())).toInstant();
+		Instant endTime = requireNonNull(getEndTime()).atZone(getTimeZone()).toInstant();
 
-		Instant startTime = getStartTime().atZone(getTimeZone()).toInstant();
-		Instant endTime = getEndTime().atZone(getTimeZone()).toInstant();
+		if (currentTime.isBefore(startTime))
+			return AppointmentTimeStatusId.SCHEDULED;
 
-		return !currentTime.isBefore(startTime) && currentTime.isBefore(endTime);
+		if (currentTime.isBefore(endTime))
+			return AppointmentTimeStatusId.IN_SESSION;
+
+		return AppointmentTimeStatusId.PASSED;
 	}
 
 	@Nullable

@@ -29,6 +29,7 @@ import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiRe
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderApiResponse.ProviderApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.Appointment.AppointmentTimeStatusId;
 import com.cobaltplatform.api.model.db.AppointmentReason;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
@@ -74,7 +75,7 @@ public class AppointmentApiResponse {
 	@Nonnull
 	private final AttendanceStatusId attendanceStatusId;
 	@Nonnull
-	private final Boolean inSession;
+	private final AppointmentTimeStatusId appointmentTimeStatusId;
 	@Nonnull
 	private final UUID createdByAccountId;
 	@Nullable
@@ -245,7 +246,7 @@ public class AppointmentApiResponse {
 				: screeningService.findScreeningSessionResult(this.screeningSessionId).orElse(null);
 		this.appointmentReasonId = appointment.getAppointmentReasonId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
-		this.inSession = appointment.isInSessionAt(Instant.now());
+		this.appointmentTimeStatusId = appointment.getAppointmentTimeStatusIdAt(Instant.now());
 		this.createdByAccountId = appointment.getCreatedByAccountId();
 		this.firstName = showPrivateDetails ? appointment.getFirstName() : null;
 		this.lastName = showPrivateDetails ? appointment.getLastName() : null;
@@ -386,8 +387,8 @@ public class AppointmentApiResponse {
 	}
 
 	@Nonnull
-	public Boolean getInSession() {
-		return this.inSession;
+	public AppointmentTimeStatusId getAppointmentTimeStatusId() {
+		return this.appointmentTimeStatusId;
 	}
 
 	@Nonnull

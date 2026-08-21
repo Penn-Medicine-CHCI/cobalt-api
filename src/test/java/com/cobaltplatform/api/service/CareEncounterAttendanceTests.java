@@ -22,6 +22,7 @@ import com.cobaltplatform.api.model.api.response.CareEncounterListApiResponse;
 import com.cobaltplatform.api.model.api.response.CareEncounterListApiResponse.CareEncounterListApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.Appointment.AppointmentTimeStatusId;
 import com.cobaltplatform.api.model.db.AttendanceStatus;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.CareEncounter;
@@ -50,6 +51,7 @@ import static com.cobaltplatform.api.service.CareNavigatorBookingFixtureTests.CA
 import static com.cobaltplatform.api.service.CareNavigatorBookingFixtureTests.CARE_NAVIGATOR_CANCELED_APPOINTMENT_ID;
 import static com.cobaltplatform.api.service.CareNavigatorBookingFixtureTests.CARE_NAVIGATOR_REBOOKED_APPOINTMENT_ID;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -100,7 +102,7 @@ public class CareEncounterAttendanceTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void generalAndCareEncounterAppointmentResponsesExposeInSession() {
+	public void generalAndCareEncounterAppointmentResponsesExposeAppointmentTimeStatus() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
@@ -132,12 +134,20 @@ public class CareEncounterAttendanceTests {
 				CareEncounterListApiResponse careEncounterListResponse =
 						careEncounterListResponseFactory.create(careEncounter);
 
-				assertTrue(appointmentResponse.getInSession());
-				assertTrue(careEncounterResponse.getAppointment().getInSession());
-				assertTrue(careEncounterListResponse.getAppointment().getInSession());
-				assertEquals(Boolean.TRUE, jsonMapper.toMap(appointmentResponse).get("inSession"));
-				assertEquals(Boolean.TRUE, ((Map<String, Object>) jsonMapper.toMap(careEncounterListResponse)
-						.get("appointment")).get("inSession"));
+				assertEquals(AppointmentTimeStatusId.IN_SESSION, appointmentResponse.getAppointmentTimeStatusId());
+				assertEquals(AppointmentTimeStatusId.IN_SESSION,
+						careEncounterResponse.getAppointment().getAppointmentTimeStatusId());
+				assertEquals(AppointmentTimeStatusId.IN_SESSION,
+						careEncounterListResponse.getAppointment().getAppointmentTimeStatusId());
+				Map<String, Object> appointmentResponseMap = jsonMapper.toMap(appointmentResponse);
+				Map<String, Object> listAppointmentResponseMap = (Map<String, Object>) jsonMapper
+						.toMap(careEncounterListResponse).get("appointment");
+				assertEquals(AppointmentTimeStatusId.IN_SESSION.name(),
+						appointmentResponseMap.get("appointmentTimeStatusId"));
+				assertEquals(AppointmentTimeStatusId.IN_SESSION.name(),
+						listAppointmentResponseMap.get("appointmentTimeStatusId"));
+				assertFalse(appointmentResponseMap.containsKey("inSession"));
+				assertFalse(listAppointmentResponseMap.containsKey("inSession"));
 			});
 		});
 	}

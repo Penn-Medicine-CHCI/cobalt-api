@@ -11,6 +11,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.Appointment.AppointmentTimeStatusId;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.util.Formatter;
 
@@ -37,7 +38,7 @@ public class CareEncounterAppointmentApiResponse {
 	@Nonnull
 	private final AttendanceStatusId attendanceStatusId;
 	@Nonnull
-	private final Boolean inSession;
+	private final AppointmentTimeStatusId appointmentTimeStatusId;
 	@Nonnull
 	private final String title;
 	@Nonnull
@@ -64,7 +65,7 @@ public class CareEncounterAppointmentApiResponse {
 		this.providerId = appointment.getProviderId();
 		this.appointmentTypeId = appointment.getAppointmentTypeId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
-		this.inSession = appointment.isInSessionAt(Instant.now());
+		this.appointmentTimeStatusId = appointment.getAppointmentTimeStatusIdAt(Instant.now());
 		this.title = appointment.getTitle();
 		this.startTime = appointment.getStartTime().atZone(appointment.getTimeZone()).toInstant();
 		this.startTimeDescription = formatter.formatTimestamp(this.startTime);
@@ -81,7 +82,7 @@ public class CareEncounterAppointmentApiResponse {
 	@Nonnull public UUID getProviderId() { return this.providerId; }
 	@Nullable public UUID getAppointmentTypeId() { return this.appointmentTypeId; }
 	@Nonnull public AttendanceStatusId getAttendanceStatusId() { return this.attendanceStatusId; }
-	@Nonnull public Boolean getInSession() { return this.inSession; }
+	@Nonnull public AppointmentTimeStatusId getAppointmentTimeStatusId() { return this.appointmentTimeStatusId; }
 	@Nonnull public String getTitle() { return this.title; }
 	@Nonnull public Instant getStartTime() { return this.startTime; }
 	@Nonnull public String getStartTimeDescription() { return this.startTimeDescription; }
