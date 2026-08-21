@@ -74,6 +74,8 @@ public class AppointmentApiResponse {
 	@Nonnull
 	private final AttendanceStatusId attendanceStatusId;
 	@Nonnull
+	private final Boolean inSession;
+	@Nonnull
 	private final UUID createdByAccountId;
 	@Nullable
 	private final String firstName;
@@ -243,6 +245,7 @@ public class AppointmentApiResponse {
 				: screeningService.findScreeningSessionResult(this.screeningSessionId).orElse(null);
 		this.appointmentReasonId = appointment.getAppointmentReasonId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
+		this.inSession = appointment.isInSessionAt(Instant.now());
 		this.createdByAccountId = appointment.getCreatedByAccountId();
 		this.firstName = showPrivateDetails ? appointment.getFirstName() : null;
 		this.lastName = showPrivateDetails ? appointment.getLastName() : null;
@@ -380,6 +383,11 @@ public class AppointmentApiResponse {
 	@Nonnull
 	public AttendanceStatusId getAttendanceStatusId() {
 		return attendanceStatusId;
+	}
+
+	@Nonnull
+	public Boolean getInSession() {
+		return this.inSession;
 	}
 
 	@Nonnull

@@ -19,12 +19,14 @@ package com.cobaltplatform.api.service;
 import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterSortColumnId;
 import com.cobaltplatform.api.model.api.request.UpdateCareEncounterRequest;
 import com.cobaltplatform.api.model.db.Appointment;
+import com.cobaltplatform.api.model.db.AttendanceStatus;
 import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
@@ -45,6 +47,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -559,6 +562,103 @@ public class CareEncounterService {
 				FROM care_encounter_cancellation_reason
 				ORDER BY display_order, description
 				""", CareEncounterCancellationReason.class);
+	}
+
+	@Nonnull
+	public List<AttendanceStatus> findSelectableAttendanceStatuses() {
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM attendance_status
+				WHERE attendance_status_id IN ('ATTENDED', 'MISSED')
+				ORDER BY CASE attendance_status_id
+					WHEN 'ATTENDED' THEN 1
+					WHEN 'MISSED' THEN 2
+				END
+				""", AttendanceStatus.class);
+	}
+
+	@Nonnull
+	public CareEncounter changeCareEncounterAppointmentAttendanceStatus(@Nullable UUID careEncounterId,
+																				 @Nullable InstitutionId institutionId,
+																				 @Nonnull ChangeAppointmentAttendanceStatusRequest request) {
+		requireNonNull(request);
+
+		UUID appointmentId = request.getAppointmentId();
+		UUID accountId = request.getAccountId();
+		AttendanceStatusId attendanceStatusId = request.getAttendanceStatusId();
+		ValidationException validationException = new ValidationException();
+		CareEncounter careEncounter = null;
+		Appointment appointment = null;
+
+		if (institutionId == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution ID is required.")));
+
+		if (accountId == null)
+			validationException.add(new FieldError("accountId", getStrings().get("Account ID is required.")));
+
+		if (attendanceStatusId == null) {
+			validationException.add(new FieldError("attendanceStatusId",
+					getStrings().get("Attendance Status ID is required.")));
+		} else if (attendanceStatusId != AttendanceStatusId.ATTENDED
+				&& attendanceStatusId != AttendanceStatusId.MISSED) {
+			validationException.add(new FieldError("attendanceStatusId",
+					getStrings().get("Attendance Status ID must be Attended or Missed.")));
+		}
+
+		if (careEncounterId == null) {
+			validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is required.")));
+		} else if (institutionId != null) {
+			careEncounter = findCareEncounterByIdForInstitutionIdForUpdate(careEncounterId, institutionId).orElse(null);
+
+			if (careEncounter == null)
+				validationException.add(new FieldError("careEncounterId", getStrings().get("Care Encounter ID is invalid.")));
+			else if (careEncounter.getCareEncounterStatusId() != CareEncounterStatusId.OPEN)
+				validationException.add(new FieldError("careEncounterStatusId",
+						getStrings().get("Attendance can only be updated for open Care Encounters.")));
+		}
+
+		if (appointmentId == null) {
+			validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is required.")));
+		} else if (careEncounter != null && institutionId != null) {
+			appointment = findCareNavigatorAppointmentByIdAndCareEncounterIdForInstitutionId(
+					appointmentId, careEncounterId, institutionId).orElse(null);
+
+			if (appointment == null) {
+				validationException.add(new FieldError("appointmentId", getStrings().get("Appointment ID is invalid.")));
+			} else {
+				Appointment latestAppointment = findLatestAppointmentByCareEncounterIdForInstitutionId(
+						careEncounterId, institutionId).orElse(null);
+
+				if (latestAppointment == null || !appointmentId.equals(latestAppointment.getAppointmentId())) {
+					validationException.add(new FieldError("appointmentId",
+							getStrings().get("Attendance can only be updated for the current appointment.")));
+				} else if (Boolean.TRUE.equals(appointment.getCanceled())
+						|| Boolean.TRUE.equals(appointment.getCanceledForReschedule())
+						|| appointment.getAttendanceStatusId() == AttendanceStatusId.CANCELED) {
+					validationException.add(new FieldError("appointmentId",
+							getStrings().get("Attendance cannot be updated for a canceled appointment.")));
+				} else if (appointment.getStartTime() == null
+						|| appointment.getTimeZone() == null
+						|| Instant.now().isBefore(appointment.getStartTime().atZone(appointment.getTimeZone()).toInstant())) {
+					validationException.add(new FieldError("appointmentId",
+							getStrings().get("Attendance cannot be updated before the appointment starts.")));
+				}
+			}
+		}
+
+		if (validationException.hasErrors())
+			throw validationException;
+
+		boolean changed = getAppointmentService().changeAppointmentAttendanceStatus(request);
+
+		if (changed)
+			getDatabase().execute("""
+					UPDATE care_encounter
+					SET last_updated_by_account_id=?
+					WHERE care_encounter_id=?
+					""", accountId, careEncounterId);
+
+		return findCareEncounterByIdForInstitutionId(careEncounterId, institutionId).get();
 	}
 
 	@Nonnull

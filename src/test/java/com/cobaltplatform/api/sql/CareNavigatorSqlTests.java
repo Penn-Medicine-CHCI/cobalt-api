@@ -73,7 +73,15 @@ public class CareNavigatorSqlTests {
 		assertTrue(fixtureSql.contains("provider_id=EXCLUDED.provider_id"));
 		assertTrue(fixtureSql.contains("'Cobalt Care Navigation'"));
 		assertTrue(fixtureSql.contains("'Care Navigation'"));
-		assertTrue(fixtureSql.contains("How a Care Navigator can help"));
+		assertTrue(fixtureSql.contains("v_provider_name CONSTANT TEXT := 'Care Navigator'"));
+		assertTrue(fixtureSql.contains("'MICROSOFT_TEAMS'"));
+		assertTrue(fixtureSql.contains("Your appointment is a 30 minute video call with a Care Navigator to discuss potential resources."));
+		assertTrue(fixtureSql.contains("What is a Care Navigator"));
+		assertTrue(fixtureSql.contains("Care Navigators are not licensed clinicians"));
+		assertTrue(fixtureSql.contains("please call 911 or 988 immediately"));
+		assertTrue(fixtureSql.contains("Your privacy is important to us"));
+		assertFalse(fixtureSql.contains("Replace with image"));
+		assertFalse(fixtureSql.contains("add number"));
 		assertTrue(fixtureSql.contains("https://placehold.co/320x320/png?text=Care+Navigator"));
 		assertTrue(fixtureSql.contains("https://fixtures.cobalt.care/providers/cobalt-care-navigator"));
 		assertTrue(fixtureSql.contains("'[\"Provider matching\", \"Care options\", \"Mental health navigation\"]'"));

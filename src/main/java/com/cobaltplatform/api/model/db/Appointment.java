@@ -359,6 +359,23 @@ public class Appointment implements Comparable<Appointment> {
 		this.canceled = canceled;
 	}
 
+	public boolean isInSessionAt(@Nonnull Instant currentTime) {
+		requireNonNull(currentTime);
+
+		if (Boolean.TRUE.equals(getCanceled())
+				|| Boolean.TRUE.equals(getCanceledForReschedule())
+				|| getAttendanceStatusId() == AttendanceStatusId.CANCELED
+				|| getStartTime() == null
+				|| getEndTime() == null
+				|| getTimeZone() == null)
+			return false;
+
+		Instant startTime = getStartTime().atZone(getTimeZone()).toInstant();
+		Instant endTime = getEndTime().atZone(getTimeZone()).toInstant();
+
+		return !currentTime.isBefore(startTime) && currentTime.isBefore(endTime);
+	}
+
 	@Nullable
 	public Instant getCanceledAt() {
 		return canceledAt;

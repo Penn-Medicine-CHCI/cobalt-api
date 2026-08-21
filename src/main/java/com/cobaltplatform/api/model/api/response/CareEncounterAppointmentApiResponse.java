@@ -37,6 +37,8 @@ public class CareEncounterAppointmentApiResponse {
 	@Nonnull
 	private final AttendanceStatusId attendanceStatusId;
 	@Nonnull
+	private final Boolean inSession;
+	@Nonnull
 	private final String title;
 	@Nonnull
 	private final Instant startTime;
@@ -62,6 +64,7 @@ public class CareEncounterAppointmentApiResponse {
 		this.providerId = appointment.getProviderId();
 		this.appointmentTypeId = appointment.getAppointmentTypeId();
 		this.attendanceStatusId = appointment.getAttendanceStatusId();
+		this.inSession = appointment.isInSessionAt(Instant.now());
 		this.title = appointment.getTitle();
 		this.startTime = appointment.getStartTime().atZone(appointment.getTimeZone()).toInstant();
 		this.startTimeDescription = formatter.formatTimestamp(this.startTime);
@@ -78,6 +81,7 @@ public class CareEncounterAppointmentApiResponse {
 	@Nonnull public UUID getProviderId() { return this.providerId; }
 	@Nullable public UUID getAppointmentTypeId() { return this.appointmentTypeId; }
 	@Nonnull public AttendanceStatusId getAttendanceStatusId() { return this.attendanceStatusId; }
+	@Nonnull public Boolean getInSession() { return this.inSession; }
 	@Nonnull public String getTitle() { return this.title; }
 	@Nonnull public Instant getStartTime() { return this.startTime; }
 	@Nonnull public String getStartTimeDescription() { return this.startTimeDescription; }

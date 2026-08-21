@@ -16,9 +16,12 @@ DECLARE
 	v_institution_id CONSTANT TEXT := 'COBALT';
 	v_account_email_address CONSTANT TEXT := 'care-navigator@cobaltinnovations.org';
 	v_account_password_hash CONSTANT TEXT := '$2a$10$M2tPoJ8eQr55OW4iOfpbBOpgqFWt0LxnvVBnW1a/1LhKNA6SuUN42';
-	v_provider_name CONSTANT TEXT := 'Cobalt Care Navigator';
+	v_provider_name CONSTANT TEXT := 'Care Navigator';
 	v_provider_url_name CONSTANT TEXT := 'cobalt-care-navigator';
 	v_appointment_type_name CONSTANT TEXT := 'Care Navigation Consultation';
+	v_provider_bio CONSTANT TEXT := 'Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs. During the conversation on Microsoft Teams, they''ll listen to your concerns, answer questions about available benefits and services, and help connect you with resources.';
+	v_provider_description CONSTANT TEXT := 'Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs.';
+	v_appointment_type_description CONSTANT TEXT := 'Your appointment is a 30 minute video call with a Care Navigator to discuss potential resources.';
 	v_screening_name CONSTANT TEXT := 'Care Navigator Booking Assessment';
 	v_screening_flow_name CONSTANT TEXT := 'Care Navigator Booking Intake';
 	v_navigation_question_text CONSTANT TEXT := 'What would you like help navigating?';
@@ -27,20 +30,20 @@ DECLARE
 	v_context_question_text CONSTANT TEXT := 'Is there anything else you would like your Care Navigator to know?';
 	v_provider_details_html CONSTANT TEXT := $details_html$
 <section class="mb-8">
-  <h2 class="mb-4">About</h2>
-  <p class="mb-0 fs-large">Cobalt Care Navigators provide practical, personalized support for understanding mental health care options and finding the right next step.</p>
-</section>
-<section class="mb-8">
-  <h2 class="mb-4">How a Care Navigator can help</h2>
-  <ul class="mb-0 fs-large">
-    <li>Identify mental health providers who fit your needs.</li>
-    <li>Explain available care options and levels of support.</li>
-    <li>Help you prepare for the next step in connecting with care.</li>
+  <h2 class="mb-4">What is a Care Navigator</h2>
+  <p class="mb-4 fs-large">Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs. During the conversation on Microsoft Teams, they'll listen to your concerns, answer questions about available benefits and services, and help connect you with resources.</p>
+  <p class="mb-4 fs-large"><strong>Care Navigators are not licensed clinicians and do not provide medical or mental health treatment, diagnoses, therapy, or clinical recommendations.</strong> Their role is to help you understand your options and navigate available resources.</p>
+  <p class="mb-2 fs-large">Below are some examples of how a Care Navigator can help:</p>
+  <ul class="mb-4 fs-large">
+    <li>Connect you with free, rapid access benefits like your Employee Assistance Program (EAP)</li>
+    <li>Navigate available services for dependents</li>
+    <li>Identify support groups and wellness resources</li>
+    <li>Compare available behavioral health services</li>
+    <li>Assist in navigating Cobalt website</li>
   </ul>
-</section>
-<section>
-  <h2 class="mb-4">Appointment details</h2>
-  <p class="mb-0 fs-large">Care Navigation Consultations are 30-minute virtual appointments offered at no cost in this local fixture.</p>
+  <p class="mb-4 fs-large"><strong>Whether you're looking for care for yourself or someone you care about, a Care Navigator can help you identify resources and determine the next best steps.</strong></p>
+  <p class="mb-4 fs-large">Care Navigator conversations are not intended to address emergency or crisis situations. <strong>If you are experiencing a medical or mental health emergency, or are concerned about your immediate safety or the safety of someone else, please call 911 or 988 immediately.</strong> Penn Medicine employees may also contact the EAP 24/7 Crisis Line.</p>
+  <p class="mb-0 fs-large">Your privacy is important to us. When you schedule with a Care Navigator, we'll ask for your name and email address so we can contact you about your call and provide Care Navigator services. Your information is accessible only to authorized Penn Cobalt personnel and is protected in accordance with applicable privacy laws, including HIPAA when applicable. We only use or share your information as needed to provide services or as required by law. Any information shared is not documented in PennChart or linked to from your electronic health record.</p>
 </section>
 $details_html$;
 
@@ -162,11 +165,11 @@ BEGIN
 			'America/New_York',
 			TRUE,
 			'COBALT',
-			'SWITCHBOARD',
+			'MICROSOFT_TEAMS',
 			'COBALT',
 			v_provider_url_name,
-			'Cobalt Care Navigators help people understand care options, find a mental health provider, and decide on practical next steps.',
-			'Care navigation consultations for provider matching, understanding available care options, and identifying next steps.',
+			v_provider_bio,
+			v_provider_description,
 			'["Provider matching", "Care options", "Mental health navigation"]',
 			'+12155551014',
 			FALSE,
@@ -188,10 +191,10 @@ BEGIN
 			time_zone='America/New_York',
 			active=TRUE,
 			scheduling_system_id='COBALT',
-			videoconference_platform_id='SWITCHBOARD',
+			videoconference_platform_id='MICROSOFT_TEAMS',
 			system_affinity_id='COBALT',
-			bio='Cobalt Care Navigators help people understand care options, find a mental health provider, and decide on practical next steps.',
-			description='Care navigation consultations for provider matching, understanding available care options, and identifying next steps.',
+			bio=v_provider_bio,
+			description=v_provider_description,
 			tags='["Provider matching", "Care options", "Mental health navigation"]',
 			phone_number='+12155551014',
 			display_phone_number_only_for_booking=FALSE,
@@ -548,7 +551,7 @@ $scoring$, v_screening_question_id, v_support_question_id, v_follow_up_question_
 	) VALUES (
 		v_appointment_type_id,
 		v_appointment_type_name,
-		'A 30-minute appointment with a Care Navigator.',
+		v_appointment_type_description,
 		30,
 		FALSE,
 		'COBALT',

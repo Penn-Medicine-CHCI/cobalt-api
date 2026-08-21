@@ -148,24 +148,30 @@ public class CareNavigatorBookingFixtureTests {
 
 				assertEquals(200, response.status());
 				assertEquals(CARE_NAVIGATOR_PROVIDER_ID, provider.getProviderId());
-				assertEquals("Cobalt Care Navigator", provider.getName());
+				assertEquals("Care Navigator", provider.getName());
 				assertEquals("Care Navigator", provider.getTitle());
 				assertEquals("Cobalt", provider.getEntity());
 				assertEquals("Cobalt Care Navigation", provider.getClinic());
 				assertEquals("Care Navigation", provider.getSpecialty());
-				assertEquals("Care navigation consultations for provider matching, understanding available care options, and identifying next steps.",
+				assertEquals("Our Care Navigator is here to help you identify and connect with mental health and wellness resources that best fit your needs.",
 						provider.getDescription());
 				assertEquals("https://placehold.co/320x320/png?text=Care+Navigator", provider.getImageUrl());
 				assertEquals(Boolean.FALSE, provider.getDefaultImageUrl());
 				assertEquals("https://fixtures.cobalt.care/providers/cobalt-care-navigator/bio", provider.getBioUrl());
 				assertEquals("https://fixtures.cobalt.care/providers/cobalt-care-navigator", provider.getWebsiteUrl());
-				assertTrue(provider.getBio().contains("find a mental health provider"));
-				assertTrue(provider.getDetailsHtml().contains("How a Care Navigator can help"));
+				assertTrue(provider.getBio().contains("During the conversation on Microsoft Teams"));
+				assertTrue(provider.getDetailsHtml().contains("What is a Care Navigator"));
+				assertTrue(provider.getDetailsHtml().contains("Care Navigators are not licensed clinicians"));
+				assertTrue(provider.getDetailsHtml().contains("please call 911 or 988 immediately"));
+				assertTrue(provider.getDetailsHtml().contains("Your privacy is important to us"));
 				assertEquals(List.of("Provider matching", "Care options", "Mental health navigation"), provider.getTags());
 				assertEquals("+12155551014", provider.getPhoneNumber());
 				assertEquals("(215) 555-1014", provider.getFormattedPhoneNumber());
 				assertEquals("Care Navigator", provider.getSupportRolesDescription());
 				assertEquals(List.of("No Fee"), provider.getPaymentFundingDescriptions());
+				assertEquals(1, provider.getSupportedAppointmentModalities().size());
+				assertEquals(ProviderAppointmentModalityId.VIRTUAL,
+						provider.getSupportedAppointmentModalities().get(0).getAppointmentModalityId());
 				assertEquals(ProviderAppointmentSelectionTypeId.APPOINTMENT_PREDETERMINED,
 						provider.getAppointmentSelectionTypeId());
 				assertNotNull(provider.getScreeningRequirement());

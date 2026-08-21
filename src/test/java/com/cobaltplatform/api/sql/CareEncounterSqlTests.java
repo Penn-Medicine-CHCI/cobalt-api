@@ -176,6 +176,12 @@ public class CareEncounterSqlTests {
 		assertTrue(serviceJava.contains("care_encounter.care_navigator_account_id IS NULL"));
 		assertTrue(resourceJava.contains("@PUT(\"/admin/care-encounters/{careEncounterId}/cancel\")"));
 		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounter-cancellation-reasons\")"));
+		assertTrue(resourceJava.contains("@GET(\"/admin/care-encounter-attendance-statuses\")"));
+		assertTrue(resourceJava.contains("public ApiResponse careEncounterAttendanceStatuses() {\n\t\trequireCareNavigatorAccount();"));
+		assertTrue(resourceJava.contains("@PUT(\"/admin/care-encounters/{careEncounterId}/appointments/{appointmentId}/attendance-status\")"));
+		assertTrue(resourceJava.contains("ChangeAppointmentAttendanceStatusRequest.class"));
+		assertTrue(resourceJava.contains("Account account = requireCareNavigatorAccount();"));
+		assertTrue(resourceJava.contains("AuditLogEventId.APPOINTMENT_UPDATE"));
 		assertTrue(resourceJava.contains("@PUT(\"/admin/care-encounters/{careEncounterId}/appointments/{appointmentId}/cancel\")"));
 		assertTrue(resourceJava.contains("CancelCareEncounterAppointmentRequest.class"));
 		assertTrue(resourceJava.contains("FootprintEventGroupTypeId.APPOINTMENT_CANCEL"));
@@ -183,6 +189,12 @@ public class CareEncounterSqlTests {
 		assertTrue(resourceJava.contains("Map.of(\"careEncounterCancellationReasons\""));
 		assertTrue(resourceJava.contains("\"freeformTextRequired\""));
 		assertTrue(serviceJava.contains("findCareEncounterCancellationReasons"));
+		assertTrue(serviceJava.contains("findSelectableAttendanceStatuses"));
+		assertTrue(serviceJava.contains("WHEN 'ATTENDED' THEN 1"));
+		assertTrue(serviceJava.contains("WHEN 'MISSED' THEN 2"));
+		assertTrue(serviceJava.contains("changeCareEncounterAppointmentAttendanceStatus"));
+		assertTrue(serviceJava.contains("Attendance Status ID must be Attended or Missed."));
+		assertTrue(serviceJava.contains("Attendance cannot be updated before the appointment starts."));
 		assertTrue(serviceJava.contains("CareEncounterCancellationReasonId.OTHER"));
 		assertTrue(serviceJava.contains("getAppointmentService().cancelAppointment(cancelAppointmentRequest)"));
 		assertTrue(serviceJava.contains("findActiveAppointmentByCareEncounterIdForInstitutionId"));
@@ -220,6 +232,8 @@ public class CareEncounterSqlTests {
 		assertTrue(listResponseJava.contains("private final CareEncounterAppointmentApiResponse appointment"));
 		assertFalse(listResponseJava.contains("private final AppointmentApiResponse appointment"));
 		assertTrue(listAppointmentResponseJava.contains("private final UUID appointmentId"));
+		assertTrue(listAppointmentResponseJava.contains("private final Boolean inSession"));
+		assertTrue(listAppointmentResponseJava.contains("appointment.isInSessionAt(Instant.now())"));
 		assertFalse(listAppointmentResponseJava.contains("ScreeningSessionResult"));
 		assertFalse(listResponseJava.contains("screeningSessionResult"));
 		assertTrue(resourceJava.contains("getCareEncounterListApiResponseFactory()::create"));
@@ -238,6 +252,8 @@ public class CareEncounterSqlTests {
 		assertTrue(appointmentModelJava.contains("private UUID screeningSessionId"));
 		assertTrue(appointmentModelJava.contains("private String cancellationReason"));
 		assertTrue(appointmentResponseJava.contains("private final ScreeningSessionResult screeningSessionResult"));
+		assertTrue(appointmentResponseJava.contains("private final Boolean inSession"));
+		assertTrue(appointmentResponseJava.contains("appointment.isInSessionAt(Instant.now())"));
 		assertTrue(appointmentResponseJava.contains("private final String cancellationReason"));
 		assertTrue(appointmentResponseJava.contains("showPrivateDetails ? appointment.getCancellationReason() : null"));
 		assertTrue(appointmentResponseJava.contains("findScreeningSessionResult(this.screeningSessionId)"));

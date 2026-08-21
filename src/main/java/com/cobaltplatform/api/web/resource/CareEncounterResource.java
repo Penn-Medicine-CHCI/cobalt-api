@@ -14,6 +14,7 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.api.request.AssignCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CancelCareEncounterRequest;
+import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
 import com.cobaltplatform.api.model.api.request.CreateCareEncounterRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest;
 import com.cobaltplatform.api.model.api.request.FindCareEncountersRequest.CareEncounterAssignmentScopeId;
@@ -24,6 +25,7 @@ import com.cobaltplatform.api.model.api.response.CareEncounterListApiResponse.Ca
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
+import com.cobaltplatform.api.model.db.AttendanceStatus;
 import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
@@ -270,6 +272,52 @@ public class CareEncounterResource {
 						"displayOrder", cancellationReason.getDisplayOrder(),
 						"freeformTextRequired", cancellationReason.getFreeformTextRequired()))
 				.collect(Collectors.toList())));
+	}
+
+	@Nonnull
+	@GET("/admin/care-encounter-attendance-statuses")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse careEncounterAttendanceStatuses() {
+		requireCareNavigatorAccount();
+		List<AttendanceStatus> attendanceStatuses = getCareEncounterService().findSelectableAttendanceStatuses();
+
+		return new ApiResponse(Map.of("attendanceStatuses", attendanceStatuses.stream()
+				.map(attendanceStatus -> Map.of(
+						"attendanceStatusId", attendanceStatus.getAttendanceStatusId(),
+						"description", attendanceStatus.getDescription()))
+				.collect(Collectors.toList())));
+	}
+
+	@Nonnull
+	@PUT("/admin/care-encounters/{careEncounterId}/appointments/{appointmentId}/attendance-status")
+	@AuthenticationRequired
+	public ApiResponse changeCareEncounterAppointmentAttendanceStatus(
+			@Nonnull @PathParameter UUID careEncounterId,
+			@Nonnull @PathParameter UUID appointmentId,
+			@Nonnull @RequestBody String requestBody) {
+		requireNonNull(careEncounterId);
+		requireNonNull(appointmentId);
+		requireNonNull(requestBody);
+
+		Account account = requireCareNavigatorAccount();
+		ChangeAppointmentAttendanceStatusRequest request = getRequestBodyParser().parse(
+				requestBody, ChangeAppointmentAttendanceStatusRequest.class);
+		request.setAppointmentId(appointmentId);
+		request.setAccountId(account.getAccountId());
+
+		AuditLog auditLog = new AuditLog();
+		auditLog.setAccountId(account.getAccountId());
+		auditLog.setAuditLogEventId(AuditLogEventId.APPOINTMENT_UPDATE);
+		auditLog.setMessage(String.format("Change attendance status for Care Navigator appointment_id %s "
+				+ "for care_encounter_id %s", appointmentId, careEncounterId));
+		auditLog.setPayload(requestBody);
+		getAuditLogService().audit(auditLog);
+
+		CareEncounter careEncounter = getCareEncounterService().changeCareEncounterAppointmentAttendanceStatus(
+				careEncounterId, account.getInstitutionId(), request);
+
+		return new ApiResponse(Map.of("careEncounter", getCareEncounterApiResponseFactory().create(careEncounter)));
 	}
 
 	@Nonnull
