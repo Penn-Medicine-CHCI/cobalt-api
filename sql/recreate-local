@@ -257,13 +257,11 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/246-course-uni
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/247-account-timeline-report.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/248-ip-geolocation.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/249-institution-referrer-metadata.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/250-autism-clinic-referrer.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/251-ip-geolocation-radius-double.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/252-page-group-table.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/253-account-alert.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/254-group-topic-archived.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/255-account-onboarding-complete-v2-report.sql
-PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-autism-clinic-penn-updates.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/257-page-builder-v2.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/258-page-subscription-email-additional-content.sql
 
@@ -271,3 +269,18 @@ if [ -f "initial/bootstrap.sql" ]; then
   echo "Loading bootstrap data..."
   PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < initial/bootstrap.sql
 fi
+
+# Post-bootstrap patches. The Autism Clinic updates depend on bootstrap fixture
+# institutions/referrers. Provider booking database changes run before tenant
+# rollout configuration and local seed data.
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/250-autism-clinic-referrer.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/256-autism-clinic-penn-updates.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/259-provider-booking-database.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/259-cobalt-provider-booking-configuration.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/259-provider-booking-seed.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/260-care-navigator.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/260-care-navigator-seed.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/261-care-encounters.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/262-care-navigator-appointment-cancellation.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/263-care-encounter-notes.sql
+PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/261-care-encounter-seed.sql

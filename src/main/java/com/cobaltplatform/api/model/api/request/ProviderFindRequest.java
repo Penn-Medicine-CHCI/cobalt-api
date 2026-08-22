@@ -43,6 +43,8 @@ public class ProviderFindRequest {
 	@Nullable
 	private UUID providerId; // If provided, other values are ignored!
 	@Nullable
+	private transient UUID excludedAppointmentId; // Internal-only: omit this appointment while deriving native availability.
+	@Nullable
 	private LocalDate startDate; // Null means "don't limit start"
 	@Nullable
 	private LocalDate endDate; // Null means "don't limit end"
@@ -118,6 +120,15 @@ public class ProviderFindRequest {
 
 	public void setProviderId(@Nullable UUID providerId) {
 		this.providerId = providerId;
+	}
+
+	@Nullable
+	public UUID getExcludedAppointmentId() {
+		return this.excludedAppointmentId;
+	}
+
+	public void setExcludedAppointmentId(@Nullable UUID excludedAppointmentId) {
+		this.excludedAppointmentId = excludedAppointmentId;
 	}
 
 	@Nullable

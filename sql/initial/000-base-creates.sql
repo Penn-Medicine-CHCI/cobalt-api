@@ -370,6 +370,7 @@ CREATE TABLE institution (
 	sso_enabled bool NOT NULL DEFAULT false,
 	anonymous_enabled bool NOT NULL DEFAULT true,
 	email_enabled bool NOT NULL DEFAULT false,
+	booking_v2_enabled bool NOT NULL DEFAULT false,
 	CONSTRAINT institution_pkey PRIMARY KEY (institution_id)
 );
 CREATE UNIQUE INDEX idx_institution_subdomain ON cobalt.institution USING btree (subdomain);
@@ -656,6 +657,7 @@ CREATE TABLE appointment_type (
 	epic_visit_type_id text NULL,
 	epic_visit_type_id_type text NULL,
 	visit_type_id varchar NOT NULL,
+	screening_flow_id uuid NULL,
 	CONSTRAINT appointment_type_pkey PRIMARY KEY (appointment_type_id),
 	CONSTRAINT appointment_type_visit_type_id_fkey FOREIGN KEY (visit_type_id) REFERENCES visit_type(visit_type_id),
 	CONSTRAINT scheduling_system_fk FOREIGN KEY (scheduling_system_id) REFERENCES scheduling_system(scheduling_system_id)
@@ -709,6 +711,19 @@ CREATE TABLE category_mapping (
 CREATE UNIQUE INDEX category_mapping_category_id_loading_category_description_idx ON cobalt.category_mapping USING btree (category_id, loading_category_description);
 
 
+-- cobalt.appointment_booking_level definition
+
+-- Drop table
+
+-- DROP TABLE appointment_booking_level;
+
+CREATE TABLE appointment_booking_level (
+	appointment_booking_level_id text NOT NULL,
+	description text NOT NULL,
+	CONSTRAINT appointment_booking_level_pkey PRIMARY KEY (appointment_booking_level_id)
+);
+
+
 -- cobalt.clinic definition
 
 -- Drop table
@@ -724,7 +739,9 @@ CREATE TABLE clinic (
 	created timestamptz NOT NULL DEFAULT now(),
 	last_updated timestamptz NOT NULL DEFAULT now(),
 	show_intake_assessment_prompt bool NOT NULL DEFAULT true,
+	appointment_booking_level_id text NOT NULL DEFAULT 'PROVIDER',
 	CONSTRAINT clinic_pkey PRIMARY KEY (clinic_id),
+	CONSTRAINT clinic_appointment_booking_level_id_fkey FOREIGN KEY (appointment_booking_level_id) REFERENCES appointment_booking_level(appointment_booking_level_id),
 	CONSTRAINT clinic_institution_id_fkey FOREIGN KEY (institution_id) REFERENCES institution(institution_id),
 	CONSTRAINT clinic_intake_assessment_id_fkey FOREIGN KEY (intake_assessment_id) REFERENCES assessment(assessment_id)
 );
@@ -1480,6 +1497,9 @@ CREATE TABLE appointment (
 	appointment_id uuid NOT NULL,
 	provider_id uuid NULL,
 	account_id uuid NOT NULL,
+	first_name text NULL,
+	last_name text NULL,
+	email_address text NULL,
 	acuity_appointment_id int8 NULL,
 	acuity_appointment_type_id int8 NULL,
 	acuity_class_id int8 NULL,

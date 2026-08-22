@@ -50,19 +50,17 @@ You can specify an alternate port and environment via environment variables, lik
 cobalt-api$ COBALT_API_ENV=local COBALT_API_PORT=4000 ./start-backend
 ```
 
-## Unit and Integration Tests
+## Tests
 
-Run unit tests:
-
-```
-cobalt-api$ mvn test -Dgroups="com.cobaltplatform.api.UnitTest"
-```
-
-Run integration tests (currently requires Localstack/Postgres/Redis to be running):
+Run the complete test suite (requires Localstack/Postgres/Redis to be running):
 
 ```
-cobalt-api$ mvn test -Dgroups="com.cobaltplatform.api.IntegrationTest"
+cobalt-api$ mvn test
 ```
+
+Most database-backed service and resource tests are not assigned JUnit
+categories, so the complete suite is the authoritative verification command.
+Use Maven's `-Dtest=ClassName` option for a focused local run.
 
 ## Development
 

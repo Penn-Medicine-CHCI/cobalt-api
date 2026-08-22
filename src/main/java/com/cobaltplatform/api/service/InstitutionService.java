@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
+import com.cobaltplatform.api.model.db.NavigationHeader.NavigationHeaderId;
 import com.cobaltplatform.api.model.db.PatientOrderReferralSource;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
@@ -140,6 +141,32 @@ public class InstitutionService {
 
 		return getDatabase().queryForObject("SELECT * FROM institution WHERE institution_id=?",
 				Institution.class, institutionId);
+	}
+
+	@Nonnull
+	public Boolean isBookingV2Enabled(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return false;
+
+		return getDatabase().queryForObject("""
+				SELECT booking_v2_enabled, integrated_care_enabled
+				FROM institution
+				WHERE institution_id=?
+				""", Institution.class, institutionId)
+				.map(this::isBookingV2Enabled)
+				.orElse(false);
+	}
+
+	@Nonnull
+	public Boolean isBookingV2Enabled(@Nullable Institution institution) {
+		if (institution == null)
+			return false;
+
+		// Integrated Care currently relies on the legacy patient-order booking flow.
+		// Treat V2 as disabled even if the stored flag is accidentally enabled so all
+		// API behavior and responses fail safe while the two experiences coexist.
+		return Boolean.TRUE.equals(institution.getBookingV2Enabled())
+				&& !Boolean.TRUE.equals(institution.getIntegratedCareEnabled());
 	}
 
 	@Nonnull
@@ -342,6 +369,74 @@ public class InstitutionService {
 	}
 
 	@Nonnull
+	public List<FeatureForInstitution> findCareTypesByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return List.of();
+
+		List<FeatureForInstitution> careTypes = getDatabase().queryForList("""
+				SELECT f.feature_id,
+				       f.url_name,
+				       COALESCE(institution_feature.name_override, f.name) AS name,
+				       COALESCE(institution_feature.subtitle_override, f.subtitle) AS subtitle,
+				       institution_feature.description,
+				       institution_feature.nav_description,
+				       institution_feature.nav_visible,
+				       institution_feature.landing_page_visible,
+				       institution_feature.treatment_description,
+				       FALSE AS recommended,
+				       f.navigation_header_id,
+				       institution_feature.banner_message,
+				       institution_feature.banner_message_display_type_id,
+				       institution_feature.recommendation_title_override,
+				       institution_feature.recommendation_description_override,
+				       institution_feature.recommendation_booking_title_override,
+				       institution_feature.recommendation_booking_url_override,
+				       institution_feature.provider_id
+				FROM institution_feature, feature f
+				WHERE f.feature_id=institution_feature.feature_id
+				AND institution_feature.institution_id=?
+				AND institution_feature.nav_visible=TRUE
+				AND f.navigation_header_id=?
+				AND EXISTS (
+				  SELECT 1
+				  FROM feature_support_role fsr
+				  WHERE fsr.feature_id=f.feature_id
+				)
+				ORDER BY institution_feature.display_order,
+				         COALESCE(institution_feature.name_override, f.name)
+				""", FeatureForInstitution.class, institutionId, NavigationHeaderId.CONNECT_WITH_SUPPORT);
+
+		removeUnavailableCareNavigatorFeature(careTypes, institutionId);
+
+		careTypes.forEach(careType -> {
+			List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(careType.getFeatureId());
+			careType.setSupportRoleIds(supportRoleIds);
+			applyProviderSearchUrlNameForBookingV2(careType, supportRoleIds);
+		});
+
+		return careTypes;
+	}
+
+	@Nonnull
+	public Optional<UUID> findCareNavigatorBookingProviderIdForInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT institution_feature.provider_id
+				FROM institution_feature
+				JOIN provider ON provider.provider_id=institution_feature.provider_id
+				JOIN provider_support_role
+					ON provider_support_role.provider_id=provider.provider_id
+					AND provider_support_role.support_role_id='CARE_NAVIGATOR'
+				WHERE institution_feature.institution_id=?
+				AND institution_feature.feature_id='RESOURCE_NAVIGATOR'
+				AND provider.institution_id=institution_feature.institution_id
+				AND provider.active=TRUE
+				""", UUID.class, institutionId);
+	}
+
+	@Nonnull
 	public List<InstitutionBlurb> findInstitutionBlurbsByInstitutionId(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
@@ -421,7 +516,7 @@ public class InstitutionService {
 					< screeningFlowVersion.getRecommendationExpirationMinutes()))
 				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
 
-		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, COALESCE(if.name_override, f.name) AS name, COALESCE(if.subtitle_override, f.subtitle) AS subtitle, if.description, if.nav_description, if.nav_visible, if.landing_page_visible, if.treatment_description, " +
+		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, COALESCE(if.name_override, f.name) AS name, COALESCE(if.subtitle_override, f.subtitle) AS subtitle, if.description, if.nav_description, if.nav_visible, if.landing_page_visible, if.treatment_description, if.provider_id, " +
 				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, if.banner_message, if.banner_message_display_type_id, if.recommendation_title_override, if.recommendation_description_override, if.recommendation_booking_title_override, if.recommendation_booking_url_override " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
@@ -429,7 +524,11 @@ public class InstitutionService {
 				"AND ss.screening_session_id = ? " +
 				"WHERE f.feature_id = if.feature_id AND if.institution_id = ? ORDER BY if.display_order", FeatureForInstitution.class, screeningSessionId, institution.getInstitutionId());
 
-		features.stream().map(feature -> {
+		removeUnavailableCareNavigatorFeature(features, institution.getInstitutionId());
+
+		boolean bookingV2Enabled = isBookingV2Enabled(institution);
+
+		features.forEach(feature -> {
 			List<SupportRoleId> supportRoleIds = getFeatureService().findSupportRoleByFeatureId(feature.getFeatureId());
 			feature.setSupportRoleIds(supportRoleIds);
 			if (!account.getPromptedForInstitutionLocation() && getFeatureService().featureSupportsLocation(feature.getFeatureId()))
@@ -437,19 +536,70 @@ public class InstitutionService {
 			else
 				feature.setLocationPromptRequired(false);
 
+			if (bookingV2Enabled && supportRoleIds.size() > 0) {
+				applyProviderSearchUrlNameForBookingV2(feature, supportRoleIds);
+				return;
+			}
+
 			// Special case for recommended content - only some institutions support content screening/reqs,
 			// so only include the query param for those institutions.
 			// If no query param, user is sent to regular content landing page
-			if (feature.getFeatureId().equals(FeatureId.SELF_HELP_RESOURCES)
-					&& feature.getRecommended()
-					&& institution.getRecommendedContentEnabled()) {
-				feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
-			}
-
-			return true;
-		}).collect(Collectors.toList());
+			applyRecommendedContentUrlName(feature, institution);
+		});
 
 		return features;
+	}
+
+	protected void removeUnavailableCareNavigatorFeature(@Nonnull List<FeatureForInstitution> features,
+																							 @Nonnull InstitutionId institutionId) {
+		requireNonNull(features);
+		requireNonNull(institutionId);
+
+		if (features.stream().noneMatch(feature -> feature.getFeatureId() == FeatureId.RESOURCE_NAVIGATOR))
+			return;
+
+		UUID bookingProviderId = findCareNavigatorBookingProviderIdForInstitutionId(institutionId).orElse(null);
+		features.removeIf(feature -> feature.getFeatureId() == FeatureId.RESOURCE_NAVIGATOR
+				&& !Objects.equals(feature.getProviderId(), bookingProviderId));
+	}
+
+	protected static void applyRecommendedContentUrlName(@Nonnull FeatureForInstitution feature,
+																								@Nonnull Institution institution) {
+		requireNonNull(feature);
+		requireNonNull(institution);
+
+		if (feature.getFeatureId() == FeatureId.SELF_HELP_RESOURCES
+				&& Boolean.TRUE.equals(feature.getRecommended())
+				&& Boolean.TRUE.equals(institution.getRecommendedContentEnabled()))
+			feature.setUrlName(format("%s?recommended=true", feature.getUrlName()));
+	}
+
+	protected void applyProviderSearchUrlNameForBookingV2(@Nonnull FeatureForInstitution feature,
+																												@Nonnull List<SupportRoleId> supportRoleIds) {
+		requireNonNull(feature);
+		requireNonNull(supportRoleIds);
+
+		if (feature.getFeatureId() == null || supportRoleIds.size() == 0)
+			return;
+
+		String providerSearchUrlName = providerSearchUrlNameFor(feature.getFeatureId());
+		feature.setUrlName(providerSearchUrlName);
+
+		if (isLegacyCareUrlName(feature.getRecommendationBookingUrlOverride()))
+			feature.setRecommendationBookingUrlOverride(providerSearchUrlName);
+	}
+
+	@Nonnull
+	protected static String providerSearchUrlNameFor(@Nonnull FeatureId featureId) {
+		requireNonNull(featureId);
+		return format("/providers?featureId=%s", featureId);
+	}
+
+	protected static boolean isLegacyCareUrlName(@Nullable String urlName) {
+		String normalizedUrlName = trimToNull(urlName);
+		return normalizedUrlName != null
+				&& (normalizedUrlName.startsWith("/connect-with-support/")
+				|| normalizedUrlName.startsWith("/connect-with-care/"));
 	}
 
 	@Nonnull
@@ -463,6 +613,18 @@ public class InstitutionService {
 				WHERE institution_id=?
 				ORDER BY display_order
 				""", InstitutionLocation.class, institutionId);
+	}
+
+	@Nonnull
+	public Optional<InstitutionLocation> findLocationById(@Nullable UUID institutionLocationId) {
+		if (institutionLocationId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM institution_location
+				WHERE institution_location_id=?
+				""", InstitutionLocation.class, institutionLocationId);
 	}
 
 	@Nonnull

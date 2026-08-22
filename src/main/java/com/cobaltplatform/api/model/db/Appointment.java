@@ -43,6 +43,12 @@ public class Appointment implements Comparable<Appointment> {
 	@Nonnull
 	private static final Comparator<Appointment> DEFAULT_COMPARATOR;
 
+	public enum AppointmentTimeStatusId {
+		SCHEDULED,
+		IN_SESSION,
+		PASSED
+	}
+
 	@Nullable
 	private UUID appointmentId;
 	@Nullable
@@ -50,7 +56,19 @@ public class Appointment implements Comparable<Appointment> {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private UUID careEncounterId;
+	@Nullable
+	private UUID screeningSessionId;
+	@Nullable
 	private UUID createdByAccountId;
+	@Nullable
+	private String firstName;
+	@Nullable
+	private String lastName;
+	@Nullable
+	private String emailAddress;
+	@Nullable
+	private String contactPhoneNumber;
 	@Nullable
 	private UUID appointmentTypeId;
 	@Nullable
@@ -101,6 +119,10 @@ public class Appointment implements Comparable<Appointment> {
 	private Boolean canceled;
 	@Nullable
 	private Instant canceledAt;
+	@Nullable
+	private UUID canceledByAccountId;
+	@Nullable
+	private String cancellationReason;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -164,12 +186,66 @@ public class Appointment implements Comparable<Appointment> {
 	}
 
 	@Nullable
+	public UUID getCareEncounterId() {
+		return this.careEncounterId;
+	}
+
+	public void setCareEncounterId(@Nullable UUID careEncounterId) {
+		this.careEncounterId = careEncounterId;
+	}
+
+	@Nullable
+	public UUID getScreeningSessionId() {
+		return this.screeningSessionId;
+	}
+
+	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
+		this.screeningSessionId = screeningSessionId;
+	}
+
+	@Nullable
 	public UUID getCreatedByAccountId() {
 		return createdByAccountId;
 	}
 
 	public void setCreatedByAccountId(@Nullable UUID createdByAccountId) {
 		this.createdByAccountId = createdByAccountId;
+	}
+
+	@Nullable
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(@Nullable String firstName) {
+		this.firstName = firstName;
+	}
+
+	@Nullable
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(@Nullable String lastName) {
+		this.lastName = lastName;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	@Nullable
+	public String getContactPhoneNumber() {
+		return this.contactPhoneNumber;
+	}
+
+	public void setContactPhoneNumber(@Nullable String contactPhoneNumber) {
+		this.contactPhoneNumber = contactPhoneNumber;
 	}
 
 	@Nullable
@@ -289,6 +365,22 @@ public class Appointment implements Comparable<Appointment> {
 		this.canceled = canceled;
 	}
 
+	@Nonnull
+	public AppointmentTimeStatusId getAppointmentTimeStatusIdAt(@Nonnull Instant currentTime) {
+		requireNonNull(currentTime);
+
+		Instant startTime = requireNonNull(getStartTime()).atZone(requireNonNull(getTimeZone())).toInstant();
+		Instant endTime = requireNonNull(getEndTime()).atZone(getTimeZone()).toInstant();
+
+		if (currentTime.isBefore(startTime))
+			return AppointmentTimeStatusId.SCHEDULED;
+
+		if (currentTime.isBefore(endTime))
+			return AppointmentTimeStatusId.IN_SESSION;
+
+		return AppointmentTimeStatusId.PASSED;
+	}
+
 	@Nullable
 	public Instant getCanceledAt() {
 		return canceledAt;
@@ -296,6 +388,24 @@ public class Appointment implements Comparable<Appointment> {
 
 	public void setCanceledAt(@Nullable Instant canceledAt) {
 		this.canceledAt = canceledAt;
+	}
+
+	@Nullable
+	public UUID getCanceledByAccountId() {
+		return this.canceledByAccountId;
+	}
+
+	public void setCanceledByAccountId(@Nullable UUID canceledByAccountId) {
+		this.canceledByAccountId = canceledByAccountId;
+	}
+
+	@Nullable
+	public String getCancellationReason() {
+		return this.cancellationReason;
+	}
+
+	public void setCancellationReason(@Nullable String cancellationReason) {
+		this.cancellationReason = cancellationReason;
 	}
 
 	@Nullable

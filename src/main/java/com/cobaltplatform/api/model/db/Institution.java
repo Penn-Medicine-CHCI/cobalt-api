@@ -124,6 +124,9 @@ public class Institution {
 	@Nullable
 	private Boolean featuresEnabled;
 	@Nullable
+	@DatabaseColumn("booking_v2_enabled")
+	private Boolean bookingV2Enabled;
+	@Nullable
 	private Boolean recommendedContentEnabled;
 	@Nullable
 	private Boolean userSubmittedContentEnabled;
@@ -875,6 +878,15 @@ public class Institution {
 
 	public void setFeaturesEnabled(@Nullable Boolean featuresEnabled) {
 		this.featuresEnabled = featuresEnabled;
+	}
+
+	@Nullable
+	public Boolean getBookingV2Enabled() {
+		return this.bookingV2Enabled;
+	}
+
+	public void setBookingV2Enabled(@Nullable Boolean bookingV2Enabled) {
+		this.bookingV2Enabled = bookingV2Enabled;
 	}
 
 	@Nullable

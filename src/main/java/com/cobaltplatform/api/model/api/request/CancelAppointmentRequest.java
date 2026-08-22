@@ -35,6 +35,8 @@ public class CancelAppointmentRequest {
 	@Nullable
 	private UUID accountId;
 	@Nullable
+	private UUID canceledByAccountId;
+	@Nullable
 	private Boolean canceledByWebhook;
 	@Nullable
 	private Boolean canceledForReschedule;
@@ -42,6 +44,8 @@ public class CancelAppointmentRequest {
 	private UUID rescheduleAppointmentId;
 	@Nullable
 	private AppointmentCancelationReasonId appointmentCancelationReasonId;
+	@Nullable
+	private String cancellationReason;
 	private boolean force;
 
 	@Nullable
@@ -51,6 +55,15 @@ public class CancelAppointmentRequest {
 
 	public void setAccountId(@Nullable UUID accountId) {
 		this.accountId = accountId;
+	}
+
+	@Nullable
+	public UUID getCanceledByAccountId() {
+		return this.canceledByAccountId;
+	}
+
+	public void setCanceledByAccountId(@Nullable UUID canceledByAccountId) {
+		this.canceledByAccountId = canceledByAccountId;
 	}
 
 	@Nullable
@@ -96,6 +109,15 @@ public class CancelAppointmentRequest {
 
 	public void setAppointmentCancelationReasonId(@Nullable AppointmentCancelationReasonId appointmentCancelationReasonId) {
 		this.appointmentCancelationReasonId = appointmentCancelationReasonId;
+	}
+
+	@Nullable
+	public String getCancellationReason() {
+		return this.cancellationReason;
+	}
+
+	public void setCancellationReason(@Nullable String cancellationReason) {
+		this.cancellationReason = cancellationReason;
 	}
 
 	public boolean isForce() {

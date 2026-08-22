@@ -46,6 +46,7 @@ public class SupportRole {
 		MHP,
 		LCSW,
 		MSW,
+		CARE_NAVIGATOR,
 		OTHER
 	}
 

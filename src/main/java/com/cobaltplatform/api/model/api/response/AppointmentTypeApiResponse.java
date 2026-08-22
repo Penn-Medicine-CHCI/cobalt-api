@@ -19,14 +19,19 @@
 
 package com.cobaltplatform.api.model.api.response;
 
+import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.model.db.AppointmentType;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.Question;
+import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
+import com.cobaltplatform.api.model.db.ScreeningQuestion;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.db.VisitType.VisitTypeId;
 import com.cobaltplatform.api.service.AssessmentService;
+import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -74,6 +79,8 @@ public class AppointmentTypeApiResponse {
 	@Nonnull
 	private final String hexColor;
 	@Nullable
+	private final UUID screeningFlowId;
+	@Nullable
 	private final UUID assessmentId;
 	@Nullable
 	private List<PatientIntakeQuestionApiResponse> patientIntakeQuestions;
@@ -97,19 +104,28 @@ public class AppointmentTypeApiResponse {
 
 	@AssistedInject
 	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
-																		@Nonnull Formatter formatter,
-																		@Nonnull Strings strings,
-																		@Assisted @Nonnull AppointmentType appointmentType) {
-		this(assessmentService, formatter, strings, appointmentType, Collections.emptySet());
+																			@Nonnull ScreeningService screeningService,
+																			@Nonnull InstitutionService institutionService,
+																			@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+																			@Nonnull Formatter formatter,
+																			@Nonnull Strings strings,
+																			@Assisted @Nonnull AppointmentType appointmentType) {
+		this(assessmentService, screeningService, institutionService, currentContextProvider, formatter, strings, appointmentType, Collections.emptySet());
 	}
 
 	@AssistedInject
 	public AppointmentTypeApiResponse(@Nonnull AssessmentService assessmentService,
-																		@Nonnull Formatter formatter,
-																		@Nonnull Strings strings,
-																		@Assisted @Nonnull AppointmentType appointmentType,
-																		@Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
+																			@Nonnull ScreeningService screeningService,
+																			@Nonnull InstitutionService institutionService,
+																			@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
+																			@Nonnull Formatter formatter,
+																			@Nonnull Strings strings,
+																			@Assisted @Nonnull AppointmentType appointmentType,
+																			@Assisted @Nonnull Set<AppointmentTypeApiResponseSupplement> supplements) {
 		requireNonNull(assessmentService);
+		requireNonNull(screeningService);
+		requireNonNull(institutionService);
+		requireNonNull(currentContextProvider);
 		requireNonNull(formatter);
 		requireNonNull(strings);
 		requireNonNull(appointmentType);
@@ -128,9 +144,19 @@ public class AppointmentTypeApiResponse {
 			put("duration", appointmentType.getDurationInMinutes());
 		}});
 		this.hexColor = formatter.formatHexColor(appointmentType.getHexColor());
+		boolean bookingV2Enabled = institutionService.isBookingV2Enabled(currentContextProvider.get().getInstitutionId());
+		this.screeningFlowId = bookingV2Enabled ? appointmentType.getScreeningFlowId() : null;
 		this.assessmentId = appointmentType.getAssessmentId();
 
-		if (appointmentType.getAssessmentId() != null && (supplements.contains(AppointmentTypeApiResponseSupplement.ASSESSMENT) || supplements.contains(AppointmentTypeApiResponseSupplement.EVERYTHING))) {
+		if (bookingV2Enabled && appointmentType.getScreeningFlowId() != null && (supplements.contains(AppointmentTypeApiResponseSupplement.ASSESSMENT) || supplements.contains(AppointmentTypeApiResponseSupplement.EVERYTHING))) {
+			this.patientIntakeQuestions = Collections.emptyList();
+			this.screeningQuestions = screeningService.findScreeningFlowById(appointmentType.getScreeningFlowId())
+					.map(screeningFlow -> screeningService.findInitialScreeningQuestionsByScreeningFlowVersionId(screeningFlow.getActiveScreeningFlowVersionId()).stream()
+							.filter(screeningQuestion -> screeningQuestion.getScreeningAnswerFormatId() == ScreeningAnswerFormatId.SINGLE_SELECT)
+							.map(screeningQuestion -> new ScreeningQuestionApiResponse(screeningQuestion))
+							.collect(java.util.stream.Collectors.toList()))
+					.orElse(Collections.emptyList());
+		} else if (appointmentType.getAssessmentId() != null && (supplements.contains(AppointmentTypeApiResponseSupplement.ASSESSMENT) || supplements.contains(AppointmentTypeApiResponseSupplement.EVERYTHING))) {
 			List<Question> questions = assessmentService.findQuestionsForAssessmentId(appointmentType.getAssessmentId());
 			List<PatientIntakeQuestionApiResponse> patientIntakeQuestions = new ArrayList<>(questions.size());
 			List<ScreeningQuestionApiResponse> screeningQuestions = new ArrayList<>(questions.size());
@@ -197,6 +223,12 @@ public class AppointmentTypeApiResponse {
 			this.fontSizeId = question.getFontSizeId();
 		}
 
+		public ScreeningQuestionApiResponse(@Nonnull ScreeningQuestion screeningQuestion) {
+			requireNonNull(screeningQuestion);
+			this.question = screeningQuestion.getQuestionText();
+			this.fontSizeId = FontSizeId.DEFAULT;
+		}
+
 		@Nonnull
 		public String getQuestion() {
 			return question;
@@ -261,6 +293,11 @@ public class AppointmentTypeApiResponse {
 	@Nonnull
 	public String getHexColor() {
 		return hexColor;
+	}
+
+	@Nullable
+	public UUID getScreeningFlowId() {
+		return this.screeningFlowId;
 	}
 
 	@Nullable

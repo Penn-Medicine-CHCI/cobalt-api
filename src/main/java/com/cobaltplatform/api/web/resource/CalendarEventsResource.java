@@ -229,7 +229,9 @@ public class CalendarEventsResource {
 
 		if (calendarEvent.getCalendarEventType() == CalendarEventType.APPOINTMENT) {
 			json.put("calendarEventTypeId", "APPOINTMENT");
-			json.put("appointment", getAppointmentApiResponseFactory().create(calendarEvent.getAppointment().get(), Set.of(AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER)));
+			json.put("appointment", getAppointmentApiResponseFactory().create(calendarEvent.getAppointment().get(), Set.of(
+					AppointmentApiResponse.AppointmentApiResponseSupplement.PROVIDER,
+					AppointmentApiResponse.AppointmentApiResponseSupplement.PRIVATE_DETAILS)));
 		} else if (calendarEvent.getCalendarEventType() == CalendarEventType.GROUP_SESSION_RESERVATION) {
 			json.put("calendarEventTypeId", "GROUP_SESSION_RESERVATION");
 			json.put("groupSession", getGroupSessionApiResponseFactory().create(calendarEvent.getGroupSession().get()));

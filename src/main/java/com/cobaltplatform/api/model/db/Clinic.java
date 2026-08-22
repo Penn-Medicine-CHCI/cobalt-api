@@ -19,6 +19,7 @@
 
 package com.cobaltplatform.api.model.db;
 
+import com.cobaltplatform.api.model.db.AppointmentBookingLevel.AppointmentBookingLevelId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 
 import javax.annotation.Nullable;
@@ -43,9 +44,17 @@ public class Clinic {
 	@Nullable
 	private String treatmentDescription;
 	@Nullable
+	private String detailsHtml;
+	@Nullable
 	private Boolean showIntakeAssessmentPrompt;
 	@Nullable
+	private AppointmentBookingLevelId appointmentBookingLevelId;
+	@Nullable
 	private String imageUrl;
+	@Nullable
+	private String websiteUrl;
+	@Nullable
+	private String emailAddress;
 	@Nullable
 	private String phoneNumber;
 	@Nullable
@@ -101,6 +110,15 @@ public class Clinic {
 	}
 
 	@Nullable
+	public String getDetailsHtml() {
+		return this.detailsHtml;
+	}
+
+	public void setDetailsHtml(@Nullable String detailsHtml) {
+		this.detailsHtml = detailsHtml;
+	}
+
+	@Nullable
 	public Boolean getShowIntakeAssessmentPrompt() {
 		return showIntakeAssessmentPrompt;
 	}
@@ -110,12 +128,39 @@ public class Clinic {
 	}
 
 	@Nullable
+	public AppointmentBookingLevelId getAppointmentBookingLevelId() {
+		return this.appointmentBookingLevelId;
+	}
+
+	public void setAppointmentBookingLevelId(@Nullable AppointmentBookingLevelId appointmentBookingLevelId) {
+		this.appointmentBookingLevelId = appointmentBookingLevelId;
+	}
+
+	@Nullable
 	public String getImageUrl() {
 		return imageUrl;
 	}
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return this.websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
+	}
+
+	@Nullable
+	public String getEmailAddress() {
+		return this.emailAddress;
+	}
+
+	public void setEmailAddress(@Nullable String emailAddress) {
+		this.emailAddress = emailAddress;
 	}
 
 	@Nullable

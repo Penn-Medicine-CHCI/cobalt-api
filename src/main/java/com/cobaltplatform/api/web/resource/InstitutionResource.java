@@ -42,10 +42,12 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
+import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MyChartService;
@@ -320,6 +322,42 @@ public class InstitutionResource {
 
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("locations", institutionLocations);
+		}});
+	}
+
+	@GET("/institution/locations/{institutionLocationId}")
+	public ApiResponse getLocation(@Nonnull @PathParameter UUID institutionLocationId) {
+		requireNonNull(institutionLocationId);
+
+		if (!getInstitutionService().isBookingV2Enabled(getCurrentContext().getInstitutionId()))
+			throw new NotFoundException();
+
+		InstitutionLocation institutionLocation = getInstitutionService().findLocationById(institutionLocationId).orElse(null);
+
+		if (institutionLocation == null)
+			throw new NotFoundException();
+
+		if (!Objects.equals(institutionLocation.getInstitutionId(), getCurrentContext().getInstitutionId()))
+			throw new AuthorizationException();
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("location", getInstitutionLocationApiResponseFactory().create(institutionLocation));
+		}});
+	}
+
+	@Nonnull
+	@GET("/institution/care-types")
+	@AuthenticationRequired
+	public ApiResponse getInstitutionCareTypes() {
+		Account account = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
+		List<FeatureForInstitution> careTypes = getInstitutionService().findCareTypesByInstitutionId(account.getInstitutionId());
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("careTypes", careTypes);
 		}});
 	}
 

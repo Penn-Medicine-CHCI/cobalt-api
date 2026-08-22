@@ -82,7 +82,6 @@ public class InstitutionLocation {
 		this.shortName = shortName;
 	}
 
-	@Nullable
 	public Integer getDisplayOrder() {
 		return this.displayOrder;
 	}

@@ -49,6 +49,7 @@ import com.cobaltplatform.api.model.service.AccountCapabilityFlags;
 import com.cobaltplatform.api.util.Normalizer;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import java.util.List;
@@ -84,6 +85,8 @@ public class AuthorizationService {
 	@Nonnull
 	private final javax.inject.Provider<CourseService> courseServiceProvider;
 	@Nonnull
+	private final javax.inject.Provider<InstitutionService> institutionServiceProvider;
+	@Nonnull
 	private final Normalizer normalizer;
 
 	@Inject
@@ -96,6 +99,7 @@ public class AuthorizationService {
 															@Nonnull javax.inject.Provider<PatientOrderService> patientOrderServiceProvider,
 															@Nonnull javax.inject.Provider<StudyService> studyServiceProvider,
 															@Nonnull javax.inject.Provider<CourseService> courseServiceProvider,
+															@Nonnull javax.inject.Provider<InstitutionService> institutionServiceProvider,
 															@Nonnull Normalizer normalizer) {
 		requireNonNull(availabilityServiceProvider);
 		requireNonNull(groupSessionServiceProvider);
@@ -106,6 +110,7 @@ public class AuthorizationService {
 		requireNonNull(patientOrderServiceProvider);
 		requireNonNull(studyServiceProvider);
 		requireNonNull(courseServiceProvider);
+		requireNonNull(institutionServiceProvider);
 		requireNonNull(normalizer);
 
 		this.availabilityServiceProvider = availabilityServiceProvider;
@@ -117,6 +122,7 @@ public class AuthorizationService {
 		this.patientOrderServiceProvider = patientOrderServiceProvider;
 		this.studyServiceProvider = studyServiceProvider;
 		this.courseServiceProvider = courseServiceProvider;
+		this.institutionServiceProvider = institutionServiceProvider;
 		this.normalizer = normalizer;
 	}
 
@@ -204,8 +210,23 @@ public class AuthorizationService {
 		accountCapabilityFlags.setCanViewStudyInsights(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.STUDY_ADMIN));
 		accountCapabilityFlags.setCanManageCareResources(accountCapabilityTypeIds.contains(AccountCapabilityTypeId.MHIC_RESOURCE_MANAGER));
 		accountCapabilityFlags.setCanCreatePages((accountCapabilityTypeIds.contains(AccountCapabilityTypeId.PAGE_CREATOR)));
+		accountCapabilityFlags.setCareNavigator((account.getRoleId() == RoleId.ADMINISTRATOR
+				|| account.getRoleId() == RoleId.PROVIDER)
+				&& accountCapabilityTypeIds.contains(AccountCapabilityTypeId.NAVIGATOR));
 
 		return accountCapabilityFlags;
+	}
+
+	@Nonnull
+	public Boolean canManageCareEncounters(@Nonnull Account account) {
+		requireNonNull(account);
+
+		return determineAccountCapabilityFlagsForAccount(account).isCareNavigator()
+				&& institutionHasCareNavigatorBookingProvider(account.getInstitutionId());
+	}
+
+	protected boolean institutionHasCareNavigatorBookingProvider(@Nullable InstitutionId institutionId) {
+		return getInstitutionService().findCareNavigatorBookingProviderIdForInstitutionId(institutionId).isPresent();
 	}
 
 	@Nonnull
@@ -444,6 +465,10 @@ public class AuthorizationService {
 		if (Objects.equals(appointment.getProviderId(), account.getProviderId()))
 			return true;
 
+		if (canManageCareEncounters(account)
+				&& isCareNavigatorAccountMappedToProvider(account.getAccountId(), appointment.getProviderId()))
+			return true;
+
 		// TODO: probably want more detailed rules here, like if we share calendars across MHICs
 		return Objects.equals(appointment.getCreatedByAccountId(), account.getAccountId());
 	}
@@ -466,12 +491,24 @@ public class AuthorizationService {
 			if (Objects.equals(account.getProviderId(), appointment.getProviderId()))
 				return true;
 
+			if (canManageCareEncounters(account)
+					&& isCareNavigatorAccountMappedToProvider(account.getAccountId(), appointment.getProviderId()))
+				return true;
+
 			// You can cancel your own appointments
 			if (appointmentAccount.getAccountId().equals(account.getAccountId()))
 				return true;
 		}
 
 		return false;
+	}
+
+	protected boolean isCareNavigatorAccountMappedToProvider(@Nullable UUID accountId,
+																			 @Nullable UUID providerId) {
+		if (accountId == null || providerId == null)
+			return false;
+
+		return getAppointmentService().isCareNavigatorAccountMappedToProvider(accountId, providerId);
 	}
 
 	@Nonnull
@@ -886,6 +923,11 @@ public class AuthorizationService {
 	@Nonnull
 	protected PatientOrderService getPatientOrderService() {
 		return this.patientOrderServiceProvider.get();
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionServiceProvider.get();
 	}
 
 	@Nonnull

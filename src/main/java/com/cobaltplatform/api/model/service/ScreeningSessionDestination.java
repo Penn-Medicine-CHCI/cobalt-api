@@ -55,6 +55,8 @@ public class ScreeningSessionDestination {
 		GROUP_SESSION_DETAIL,
 		INSTITUTION_REFERRAL,
 		INSTITUTION_REFERRER_DETAIL,
+		PROVIDER_APPOINTMENT_BOOKING,
+		APPOINTMENT_BOOKING_CONFIRMATION,
 		NONE
 	}
 
@@ -68,8 +70,8 @@ public class ScreeningSessionDestination {
 
 		this.screeningSessionDestinationId = screeningSessionDestinationId;
 		this.context = context == null ? Collections.emptyMap() : new HashMap<>(context);
-		this.screeningSessionDestinationResultId = context.containsKey("result")
-				? ScreeningSessionDestinationResultId.valueOf((String) context.get("result"))
+		this.screeningSessionDestinationResultId = this.context.containsKey("result")
+				? ScreeningSessionDestinationResultId.valueOf((String) this.context.get("result"))
 				: ScreeningSessionDestinationResultId.UNSPECIFIED;
 	}
 

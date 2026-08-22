@@ -25,10 +25,13 @@ import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.ChangeAppointmentAttendanceStatusRequest;
 import com.cobaltplatform.api.model.api.request.CreateActivityTrackingRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
+import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
 import com.cobaltplatform.api.model.api.request.UpdateAppointmentRequest;
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.AppointmentApiResponse.AppointmentApiResponseSupplement;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.ScreeningSessionApiResponse.ScreeningSessionApiResponseSupplement;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.ActivityAction.ActivityActionId;
 import com.cobaltplatform.api.model.db.ActivityType.ActivityTypeId;
@@ -38,12 +41,15 @@ import com.cobaltplatform.api.model.db.AuditLogEvent;
 import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.Role.RoleId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.security.AuthenticationRequired;
+import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.ActivityTrackingService;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.AuditLogService;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SystemService;
 import com.cobaltplatform.api.util.Formatter;
@@ -107,6 +113,8 @@ public class AppointmentResource {
 	@Nonnull
 	private final AccountApiResponseFactory accountApiResponseFactory;
 	@Nonnull
+	private final ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory;
+	@Nonnull
 	private final RequestBodyParser requestBodyParser;
 	@Nonnull
 	private final Formatter formatter;
@@ -125,6 +133,8 @@ public class AppointmentResource {
 	@Nonnull
 	private final ProviderService providerService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final SystemService systemService;
 	@Nonnull
 	private final JsonMapper jsonMapper;
@@ -134,6 +144,7 @@ public class AppointmentResource {
 														 @Nonnull AccountService accountService,
 														 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 														 @Nonnull AccountApiResponseFactory accountApiResponseFactory,
+														 @Nonnull ScreeningSessionApiResponseFactory screeningSessionApiResponseFactory,
 														 @Nonnull RequestBodyParser requestBodyParser,
 														 @Nonnull Formatter formatter,
 														 @Nonnull Strings strings,
@@ -142,12 +153,14 @@ public class AppointmentResource {
 														 @Nonnull ActivityTrackingService activityTrackingService,
 														 @Nonnull AuthorizationService authorizationService,
 														 @Nonnull ProviderService providerService,
+														 @Nonnull InstitutionService institutionService,
 														 @Nonnull SystemService systemService,
 														 @Nonnull JsonMapper jsonMapper) {
 		requireNonNull(appointmentService);
 		requireNonNull(accountService);
 		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(accountApiResponseFactory);
+		requireNonNull(screeningSessionApiResponseFactory);
 		requireNonNull(requestBodyParser);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -156,6 +169,7 @@ public class AppointmentResource {
 		requireNonNull(activityTrackingService);
 		requireNonNull(authorizationService);
 		requireNonNull(providerService);
+		requireNonNull(institutionService);
 		requireNonNull(systemService);
 		requireNonNull(jsonMapper);
 
@@ -163,6 +177,7 @@ public class AppointmentResource {
 		this.accountService = accountService;
 		this.appointmentApiResponseFactory = appointmentApiResponseFactory;
 		this.accountApiResponseFactory = accountApiResponseFactory;
+		this.screeningSessionApiResponseFactory = screeningSessionApiResponseFactory;
 		this.requestBodyParser = requestBodyParser;
 		this.formatter = formatter;
 		this.strings = strings;
@@ -172,6 +187,7 @@ public class AppointmentResource {
 		this.activityTrackingService = activityTrackingService;
 		this.authorizationService = authorizationService;
 		this.providerService = providerService;
+		this.institutionService = institutionService;
 		this.systemService = systemService;
 		this.jsonMapper = jsonMapper;
 	}
@@ -212,7 +228,8 @@ public class AppointmentResource {
 			throw new AuthorizationException();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+					AppointmentApiResponseSupplement.PRIVATE_DETAILS)));
 		}});
 	}
 
@@ -247,7 +264,8 @@ public class AppointmentResource {
 			List<Appointment> appointments = getAppointmentService().findAppointmentsByProviderId(providerId.get(), startDate.get(), endDate.get());
 			return new ApiResponse(new HashMap<String, Object>() {{
 				put("appointments", appointments.stream()
-						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, null))
+						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment,
+								Set.of(AppointmentApiResponseSupplement.PRIVATE_DETAILS)))
 						.collect(Collectors.toList()));
 			}});
 		}
@@ -257,8 +275,17 @@ public class AppointmentResource {
 		if (account.getRoleId() == RoleId.MHIC
 				|| account.getRoleId() == RoleId.ADMINISTRATOR) {
 			// If an account ID was passed in, use it if we can
-			if (!accountId.isEmpty())
-				account = getAccountService().findAccountById(accountId.get()).orElse(null);
+			if (!accountId.isEmpty()) {
+				Account targetAccount = getAccountService().findAccountById(accountId.get()).orElse(null);
+
+				if (targetAccount == null)
+					throw new NotFoundException();
+
+				if (!getAuthorizationService().canEditAccount(targetAccount, account))
+					throw new AuthorizationException();
+
+				account = targetAccount;
+			}
 		}
 
 		if (account == null)
@@ -297,7 +324,8 @@ public class AppointmentResource {
 				Map<String, Object> dateGroup = new HashMap<>();
 				dateGroup.put("date", date.equals(today) ? getStrings().get("Today") : getFormatter().formatDate(date, FormatStyle.MEDIUM));
 				dateGroup.put("appointments", appointmentsForDate.stream()
-						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_REASON)))
+						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+								AppointmentApiResponseSupplement.APPOINTMENT_REASON, AppointmentApiResponseSupplement.PRIVATE_DETAILS)))
 						.collect(Collectors.toList()));
 
 				dateGroups.add(dateGroup);
@@ -306,7 +334,8 @@ public class AppointmentResource {
 			responseData.put("appointmentGroups", dateGroups);
 		} else {
 			responseData.put("appointments", appointments.stream()
-					.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER, AppointmentApiResponseSupplement.APPOINTMENT_REASON)))
+					.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+							AppointmentApiResponseSupplement.APPOINTMENT_REASON, AppointmentApiResponseSupplement.PRIVATE_DETAILS)))
 					.collect(Collectors.toList()));
 		}
 
@@ -356,7 +385,47 @@ public class AppointmentResource {
 		Appointment appointment = getAppointmentService().findAppointmentById(newAppointmentId).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+					AppointmentApiResponseSupplement.PRIVATE_DETAILS)));
+		}});
+	}
+
+	@Nonnull
+	@POST("/appointments/booking-requirements")
+	@AuthenticationRequired
+	public ApiResponse appointmentBookingRequirements(@Nonnull @RequestBody String requestBody) {
+		requireNonNull(requestBody);
+
+		Account currentAccount = getCurrentContext().getAccount().get();
+
+		if (!getInstitutionService().isBookingV2Enabled(currentAccount.getInstitutionId()))
+			throw new NotFoundException();
+
+		FindAppointmentBookingRequirementsRequest request = getRequestBodyParser().parse(requestBody, FindAppointmentBookingRequirementsRequest.class);
+
+		if (request.getAccountId() == null)
+			request.setAccountId(currentAccount.getAccountId());
+
+		Account targetAccount = getAccountService().findAccountById(request.getAccountId()).orElse(null);
+
+		if (targetAccount == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(targetAccount, currentAccount))
+			throw new AuthorizationException();
+
+		if (request.getProviderId() != null) {
+			Provider provider = getProviderService().findProviderById(request.getProviderId()).orElse(null);
+
+			if (provider != null && !getAuthorizationService().canViewProvider(provider, currentAccount))
+				throw new AuthorizationException();
+		}
+
+		AppointmentBookingRequirements appointmentBookingRequirements =
+				getAppointmentService().findAppointmentBookingRequirements(request, currentAccount);
+
+		return new ApiResponse(new HashMap<String, Object>() {{
+			put("appointmentBookingRequirements", appointmentBookingRequirementsApiResponse(appointmentBookingRequirements));
 		}});
 	}
 
@@ -377,6 +446,7 @@ public class AppointmentResource {
 		getAuditLogService().audit(auditLog);
 
 		CreateAppointmentRequest request = getRequestBodyParser().parse(requestBody, CreateAppointmentRequest.class);
+
 		request.setCreatedByAcountId(account.getAccountId());
 
 		// Some users can book on behalf of other users
@@ -390,6 +460,14 @@ public class AppointmentResource {
 			// If you are not a special role, you can only book for yourself
 			request.setAccountId(account.getAccountId());
 		}
+
+		Account targetAccount = getAccountService().findAccountById(request.getAccountId()).orElse(null);
+
+		if (targetAccount == null)
+			throw new NotFoundException();
+
+		if (!getAuthorizationService().canEditAccount(targetAccount, account))
+			throw new AuthorizationException();
 
 		UUID appointmentId = getAppointmentService().createAppointment(request);
 		Appointment appointment = getAppointmentService().findAppointmentById(appointmentId).get();
@@ -411,7 +489,8 @@ public class AppointmentResource {
 		Account updatedAccount = getAccountService().findAccountById(request.getAccountId()).get();
 
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER)));
+			put("appointment", getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
+					AppointmentApiResponseSupplement.PRIVATE_DETAILS)));
 			put("account", getAccountApiResponseFactory().create(updatedAccount));
 		}});
 	}
@@ -446,6 +525,7 @@ public class AppointmentResource {
 
 		CancelAppointmentRequest request = getRequestBodyParser().parse(requestBody, CancelAppointmentRequest.class);
 		request.setAccountId(appointmentAccount.getAccountId());
+		request.setCanceledByAccountId(account.getAccountId());
 		request.setAppointmentId(appointmentId);
 		request.setCanceledByWebhook(false);
 		request.setCanceledForReschedule(false);
@@ -536,6 +616,29 @@ public class AppointmentResource {
 	}
 
 	@Nonnull
+	protected Map<String, Object> appointmentBookingRequirementsApiResponse(@Nonnull AppointmentBookingRequirements appointmentBookingRequirements) {
+		requireNonNull(appointmentBookingRequirements);
+
+		Map<String, Object> response = new HashMap<>();
+		response.put("appointmentBookingRequirementsDestinationId", appointmentBookingRequirements.getAppointmentBookingRequirementsDestinationId());
+		response.put("accountId", appointmentBookingRequirements.getAccountId());
+		response.put("providerId", appointmentBookingRequirements.getProviderId());
+		response.put("appointmentTypeId", appointmentBookingRequirements.getAppointmentTypeId());
+		response.put("appointmentSelectionTypeId", appointmentBookingRequirements.getAppointmentSelectionTypeId());
+		response.put("screeningFlowId", appointmentBookingRequirements.getScreeningFlowId());
+		response.put("screeningRequired", appointmentBookingRequirements.getScreeningRequired());
+		response.put("screeningSatisfied", appointmentBookingRequirements.getScreeningSatisfied());
+		response.put("context", appointmentBookingRequirements.getContext());
+
+		ScreeningSession screeningSession = appointmentBookingRequirements.getScreeningSession();
+
+		if (screeningSession != null)
+			response.put("screeningSession", getScreeningSessionApiResponseFactory().create(screeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)));
+
+		return response;
+	}
+
+	@Nonnull
 	protected AppointmentService getAppointmentService() {
 		return appointmentService;
 	}
@@ -553,6 +656,11 @@ public class AppointmentResource {
 	@Nonnull
 	protected AccountApiResponseFactory getAccountApiResponseFactory() {
 		return accountApiResponseFactory;
+	}
+
+	@Nonnull
+	protected ScreeningSessionApiResponseFactory getScreeningSessionApiResponseFactory() {
+		return this.screeningSessionApiResponseFactory;
 	}
 
 	@Nonnull
@@ -598,6 +706,11 @@ public class AppointmentResource {
 	@Nonnull
 	protected ProviderService getProviderService() {
 		return providerService;
+	}
+
+	@Nonnull
+	protected InstitutionService getInstitutionService() {
+		return this.institutionService;
 	}
 
 	@Nonnull

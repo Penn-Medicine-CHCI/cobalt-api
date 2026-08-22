@@ -42,8 +42,8 @@ public class AccountCapabilityFlags {
 	private boolean canViewProviderReportAppointmentsEap;
 	private boolean canViewStudyInsights;
 	private boolean canManageCareResources;
-
 	private boolean canCreatePages;
+	private boolean isCareNavigator;
 
 	public boolean isCanServiceIcOrders() {
 		return this.canServiceIcOrders;
@@ -179,5 +179,13 @@ public class AccountCapabilityFlags {
 
 	public void setCanCreatePages(boolean canCreatePages) {
 		this.canCreatePages = canCreatePages;
+	}
+
+	public boolean isCareNavigator() {
+		return this.isCareNavigator;
+	}
+
+	public void setCareNavigator(boolean careNavigator) {
+		this.isCareNavigator = careNavigator;
 	}
 }

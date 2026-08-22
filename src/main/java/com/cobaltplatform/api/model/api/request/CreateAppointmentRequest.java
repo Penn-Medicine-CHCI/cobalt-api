@@ -19,6 +19,8 @@
 
 package com.cobaltplatform.api.model.api.request;
 
+import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.time.LocalDate;
@@ -30,6 +32,11 @@ import java.util.UUID;
  */
 @NotThreadSafe
 public class CreateAppointmentRequest {
+	public enum BookingExperienceId {
+		V1,
+		V2
+	}
+
 	@Nullable
 	private UUID accountId;
 	@Nullable
@@ -49,7 +56,15 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private UUID intakeAssessmentId;
 	@Nullable
-	private String emailAddress; // only required for anon accounts currently
+	private ProviderAppointmentModalityId appointmentModalityId;
+	@Nullable
+	private BookingExperienceId bookingExperienceId;
+	@Nullable
+	private String firstName;
+	@Nullable
+	private String lastName;
+	@Nullable
+	private String emailAddress; // optional appointment-specific contact email; does not update the account
 	@Nullable
 	private String phoneNumber;
 	@Nullable
@@ -127,6 +142,42 @@ public class CreateAppointmentRequest {
 
 	public void setIntakeAssessmentId(@Nullable UUID intakeAssessmentId) {
 		this.intakeAssessmentId = intakeAssessmentId;
+	}
+
+	@Nullable
+	public ProviderAppointmentModalityId getAppointmentModalityId() {
+		return appointmentModalityId;
+	}
+
+	public void setAppointmentModalityId(@Nullable ProviderAppointmentModalityId appointmentModalityId) {
+		this.appointmentModalityId = appointmentModalityId;
+	}
+
+	@Nullable
+	public BookingExperienceId getBookingExperienceId() {
+		return this.bookingExperienceId;
+	}
+
+	public void setBookingExperienceId(@Nullable BookingExperienceId bookingExperienceId) {
+		this.bookingExperienceId = bookingExperienceId;
+	}
+
+	@Nullable
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(@Nullable String firstName) {
+		this.firstName = firstName;
+	}
+
+	@Nullable
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(@Nullable String lastName) {
+		this.lastName = lastName;
 	}
 
 	@Nullable

@@ -63,6 +63,8 @@ public class Provider {
 	@Nullable
 	private String bioUrl;
 	@Nullable
+	private String websiteUrl;
+	@Nullable
 	private String bio;
 	@Nullable
 	private Locale locale;
@@ -97,7 +99,11 @@ public class Provider {
 	@Nullable
 	private Boolean displayPhoneNumberOnlyForBooking;
 	@Nullable
+	private Boolean virtualAppointmentsOnly;
+	@Nullable
 	private String description;
+	@Nullable
+	private String detailsHtml;
 	@Nullable
 	private Instant created;
 	@Nullable
@@ -218,6 +224,15 @@ public class Provider {
 
 	public void setBioUrl(@Nullable String bioUrl) {
 		this.bioUrl = bioUrl;
+	}
+
+	@Nullable
+	public String getWebsiteUrl() {
+		return this.websiteUrl;
+	}
+
+	public void setWebsiteUrl(@Nullable String websiteUrl) {
+		this.websiteUrl = websiteUrl;
 	}
 
 	@Nullable
@@ -392,11 +407,29 @@ public class Provider {
 	}
 
 	@Nullable
+	public Boolean getVirtualAppointmentsOnly() {
+		return this.virtualAppointmentsOnly;
+	}
+
+	public void setVirtualAppointmentsOnly(@Nullable Boolean virtualAppointmentsOnly) {
+		this.virtualAppointmentsOnly = virtualAppointmentsOnly;
+	}
+
+	@Nullable
 	public String getDescription() {
 		return this.description;
 	}
 
 	public void setDescription(@Nullable String description) {
 		this.description = description;
+	}
+
+	@Nullable
+	public String getDetailsHtml() {
+		return this.detailsHtml;
+	}
+
+	public void setDetailsHtml(@Nullable String detailsHtml) {
+		this.detailsHtml = detailsHtml;
 	}
 }

@@ -94,6 +94,7 @@ import com.cobaltplatform.api.model.db.ScreeningVersion;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.service.ProviderSearchResult.ProviderSearchResultTypeId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionWithAnswerOptions;
@@ -114,6 +115,7 @@ import com.cobaltplatform.api.util.JavascriptExecutor;
 import com.cobaltplatform.api.util.Normalizer;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.ValidationException.FieldError;
+import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.lokalized.Strings;
 import com.pyranid.Database;
@@ -149,6 +151,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -2352,6 +2355,18 @@ public class ScreeningService {
 
 		ScreeningSessionDestinationId screeningSessionDestinationId = destinationFunctionOutput.getScreeningSessionDestinationId();
 		Map<String, Object> context = destinationFunctionOutput.getContext() == null ? new HashMap<>() : new HashMap<>(destinationFunctionOutput.getContext());
+		Object appointmentBookingContext = screeningSession.getMetadata().get("appointmentBooking");
+
+		if (getInstitutionService().isBookingV2Enabled(institution.getInstitutionId())) {
+			if (appointmentBookingContext instanceof Map) {
+				applyAppointmentBookingDestinationContext(screeningSessionDestinationId, context, (Map<?, ?>) appointmentBookingContext);
+			} else if (screeningSessionDestinationId == ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION
+					|| screeningSessionDestinationId == ScreeningSessionDestinationId.PROVIDER_APPOINTMENT_BOOKING) {
+				inferProviderAppointmentBookingDestinationContext(screeningSession, screeningFlowVersion, institution)
+						.ifPresent(context::putAll);
+			}
+		}
+
 		ScreeningSessionDestination screeningSessionDestination = new ScreeningSessionDestination(screeningSessionDestinationId, context);
 
 		if (withSideEffects) {
@@ -2416,6 +2431,130 @@ public class ScreeningService {
 		}
 
 		return Optional.of(new ScreeningSessionDestination(screeningSessionDestinationId, context));
+	}
+
+	protected void applyAppointmentBookingDestinationContext(@Nonnull ScreeningSessionDestinationId screeningSessionDestinationId,
+																													@Nonnull Map<String, Object> context,
+																													@Nonnull Map<?, ?> appointmentBookingContext) {
+		requireNonNull(screeningSessionDestinationId);
+		requireNonNull(context);
+		requireNonNull(appointmentBookingContext);
+
+		Map<String, Object> appointmentBooking = stringKeyedContextMap(appointmentBookingContext);
+
+		if (screeningSessionDestinationId == ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION
+				|| screeningSessionDestinationId == ScreeningSessionDestinationId.PROVIDER_APPOINTMENT_BOOKING) {
+			context.putAll(appointmentBooking);
+			return;
+		}
+
+		context.put("appointmentBooking", appointmentBooking);
+		context.put("appointmentBookingCompletionDestinationId", ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION.name());
+
+		if (screeningSessionDestinationId == ScreeningSessionDestinationId.INSTITUTION_REFERRAL) {
+			Object institutionReferralUrl = context.get("institutionReferralUrl");
+
+			if (institutionReferralUrl instanceof String && trimToNull((String) institutionReferralUrl) != null)
+				context.put("institutionReferralUrl", appendQueryParameters((String) institutionReferralUrl,
+						appointmentBookingDestinationQueryParameters(appointmentBooking)));
+		}
+	}
+
+	@Nonnull
+	protected Optional<Map<String, Object>> inferProviderAppointmentBookingDestinationContext(@Nonnull ScreeningSession screeningSession,
+																																													 @Nonnull ScreeningFlowVersion screeningFlowVersion,
+																																													 @Nonnull Institution institution) {
+		requireNonNull(screeningSession);
+		requireNonNull(screeningFlowVersion);
+		requireNonNull(institution);
+
+		if (screeningSession.getTargetAccountId() == null || screeningFlowVersion.getScreeningFlowId() == null)
+			return Optional.empty();
+
+		ProviderAppointmentBookingContext providerAppointmentBookingContext = getDatabase().queryForObject("""
+				SELECT
+				  COUNT(DISTINCT provider.provider_id) AS provider_count,
+				  MIN(provider.provider_id::TEXT)::UUID AS provider_id,
+				  COUNT(DISTINCT appointment_type.appointment_type_id) AS appointment_type_count,
+				  MIN(appointment_type.appointment_type_id::TEXT)::UUID AS appointment_type_id
+				FROM appointment_type
+				JOIN provider_appointment_type
+				  ON provider_appointment_type.appointment_type_id=appointment_type.appointment_type_id
+				JOIN provider
+				  ON provider.provider_id=provider_appointment_type.provider_id
+				WHERE appointment_type.screening_flow_id=?
+				AND COALESCE(appointment_type.deleted, FALSE)=FALSE
+				AND provider.institution_id=?
+				AND COALESCE(provider.active, TRUE)=TRUE
+				""", ProviderAppointmentBookingContext.class, screeningFlowVersion.getScreeningFlowId(),
+				institution.getInstitutionId()).orElse(null);
+
+		if (providerAppointmentBookingContext == null
+				|| providerAppointmentBookingContext.getProviderCount() == null
+				|| providerAppointmentBookingContext.getProviderCount() != 1
+				|| providerAppointmentBookingContext.getProviderId() == null)
+			return Optional.empty();
+
+		Map<String, Object> context = new HashMap<>();
+		context.put("accountId", screeningSession.getTargetAccountId().toString());
+		context.put("providerSearchResultTypeId", ProviderSearchResultTypeId.PROVIDER.name());
+		context.put("providerId", providerAppointmentBookingContext.getProviderId().toString());
+		context.put("screeningFlowId", screeningFlowVersion.getScreeningFlowId().toString());
+
+		if (providerAppointmentBookingContext.getAppointmentTypeCount() != null
+				&& providerAppointmentBookingContext.getAppointmentTypeCount() == 1
+				&& providerAppointmentBookingContext.getAppointmentTypeId() != null)
+			context.put("appointmentTypeId", providerAppointmentBookingContext.getAppointmentTypeId().toString());
+
+		return Optional.of(context);
+	}
+
+	@Nonnull
+	protected Map<String, Object> stringKeyedContextMap(@Nonnull Map<?, ?> source) {
+		requireNonNull(source);
+
+		Map<String, Object> destination = new HashMap<>(source.size());
+
+		for (Map.Entry<?, ?> entry : source.entrySet()) {
+			if (entry.getKey() != null)
+				destination.put(entry.getKey().toString(), entry.getValue());
+		}
+
+		return destination;
+	}
+
+	@Nonnull
+	protected Map<String, String> appointmentBookingDestinationQueryParameters(@Nonnull Map<String, Object> appointmentBooking) {
+		requireNonNull(appointmentBooking);
+
+		Map<String, String> queryParameters = new LinkedHashMap<>(appointmentBooking.size() + 1);
+		queryParameters.put("appointmentBookingCompletionDestinationId", ScreeningSessionDestinationId.APPOINTMENT_BOOKING_CONFIRMATION.name());
+
+		for (Map.Entry<String, Object> entry : appointmentBooking.entrySet()) {
+			if (entry.getValue() != null)
+				queryParameters.put(entry.getKey(), entry.getValue().toString());
+		}
+
+		return queryParameters;
+	}
+
+	@Nonnull
+	protected String appendQueryParameters(@Nonnull String url,
+																				@Nonnull Map<String, String> queryParameters) {
+		requireNonNull(url);
+		requireNonNull(queryParameters);
+
+		if (queryParameters.isEmpty())
+			return url;
+
+		int fragmentIndex = url.indexOf('#');
+		String fragment = fragmentIndex >= 0 ? url.substring(fragmentIndex) : "";
+		String urlWithoutFragment = fragmentIndex >= 0 ? url.substring(0, fragmentIndex) : url;
+		String separator = urlWithoutFragment.contains("?")
+				? (urlWithoutFragment.endsWith("?") || urlWithoutFragment.endsWith("&") ? "" : "&")
+				: "?";
+
+		return format("%s%s%s%s", urlWithoutFragment, separator, WebUtility.urlEncode(queryParameters), fragment);
 	}
 
 	@Nonnull
@@ -2831,6 +2970,54 @@ public class ScreeningService {
 
 		return Objects.equals(screeningSession.getCreatedByAccountId(), screeningSession.getTargetAccountId())
 				|| screeningSession.getTargetAccountId() == null;
+	}
+
+	@NotThreadSafe
+	protected static class ProviderAppointmentBookingContext {
+		@Nullable
+		private Long providerCount;
+		@Nullable
+		private UUID providerId;
+		@Nullable
+		private Long appointmentTypeCount;
+		@Nullable
+		private UUID appointmentTypeId;
+
+		@Nullable
+		public Long getProviderCount() {
+			return this.providerCount;
+		}
+
+		public void setProviderCount(@Nullable Long providerCount) {
+			this.providerCount = providerCount;
+		}
+
+		@Nullable
+		public UUID getProviderId() {
+			return this.providerId;
+		}
+
+		public void setProviderId(@Nullable UUID providerId) {
+			this.providerId = providerId;
+		}
+
+		@Nullable
+		public Long getAppointmentTypeCount() {
+			return this.appointmentTypeCount;
+		}
+
+		public void setAppointmentTypeCount(@Nullable Long appointmentTypeCount) {
+			this.appointmentTypeCount = appointmentTypeCount;
+		}
+
+		@Nullable
+		public UUID getAppointmentTypeId() {
+			return this.appointmentTypeId;
+		}
+
+		public void setAppointmentTypeId(@Nullable UUID appointmentTypeId) {
+			this.appointmentTypeId = appointmentTypeId;
+		}
 	}
 
 	@NotThreadSafe

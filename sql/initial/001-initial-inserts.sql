@@ -39,6 +39,9 @@ INSERT INTO cobalt.appointment_reason_type (appointment_reason_type_id,descripti
 	 ('MHIC_SELF_SCHEDULE_INITIAL','MHIC self-schedule of initial appointment'),
 	 ('MHIC_SELF_SCHEDULE_FOLLOWUP','MHIC self-schedule of followup'),
 	 ('NOT_SPECIFIED','Not specified');
+INSERT INTO cobalt.appointment_booking_level (appointment_booking_level_id,description) VALUES
+	 ('PROVIDER','Provider'),
+	 ('CLINIC','Clinic');
 INSERT INTO cobalt.approval_status (approval_status_id,description,created,last_updated) VALUES
 	 ('PENDING','Pending','2020-12-04 10:58:09.404699-05','2020-12-04 10:58:09.404699-05'),
 	 ('REJECTED','Rejected','2020-12-04 10:58:09.404699-05','2020-12-04 10:58:09.404699-05'),
