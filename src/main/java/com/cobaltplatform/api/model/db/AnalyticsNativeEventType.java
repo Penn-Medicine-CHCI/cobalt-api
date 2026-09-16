@@ -129,6 +129,17 @@ public class AnalyticsNativeEventType {
 		// * institutionLocationId (UUID, if user has chosen an institution location)
 		// * patientOrderId (UUID, if user is viewing providers available for a particular order)
 		// * availabilitySections (Object[], the detailed day-by-day provider availability/timeslots shown to the patient)
+		// Provider Booking V2 records this event after a successful provider-search response is displayed.
+		// Its payload intentionally omits availabilitySections and instead supplies only:
+		// * bookingExperienceId (String, always V2)
+		// * featureId (String, the selected provider-search feature)
+		// * institutionLocationId (String, a location UUID or the sentinel value "na")
+		// * resultCount (Integer, number of search results displayed)
+		// * providerSearchResults (Object[], one ID-only entry per displayed result)
+		//   * providerSearchResultId (String, opaque search-result ID, if supplied by the API)
+		//   * providerSearchResultTypeId (String, PROVIDER or CLINIC)
+		//   * providerId (UUID, only when the result represents a provider)
+		//   * clinicId (UUID, only when the result represents a clinic)
 		PAGE_VIEW_PROVIDERS,
 		// On the web, when a Provider Appointment Confirmation page is rendered.
 		// Additional data:
@@ -139,7 +150,39 @@ public class AnalyticsNativeEventType {
 		// * intakeAssessmentId (UUID, if there was an intake assessment taken prior to booking)
 		// * patientOrderId (UUID, if this appointment is booked for a particular order)
 		// * epicAppointmentFhirId (String, if this appointment is associated with an Epic FHIR slot)
+		// Provider Booking V2 records this event when the final contact-information and booking-confirmation
+		// page is rendered. In addition to date, time, providerId, and appointmentTypeId above, it supplies:
+		// * bookingExperienceId (String, always V2)
+		// * featureId (String, if the booking originated from a feature)
+		// * institutionLocationId (String, a location UUID or the sentinel value "na")
+		// * providerSearchResultId (String, opaque search-result ID, if available)
+		// * providerSearchResultTypeId (String, PROVIDER or CLINIC)
+		// * clinicId (UUID, when the displayed search result was a clinic)
+		// * providerIdToSchedule (UUID, concrete provider whose slot will be booked)
+		// * appointmentSelectionTypeId (String, selection workflow used for the booking)
+		// * appointmentModalityId (String, selected modality such as IN_PERSON, PHONE, or VIRTUAL)
+		// * screeningFlowId (UUID, if a screening flow was used)
+		// * screeningSessionId (UUID, if a screening session was completed)
 		PAGE_VIEW_PROVIDER_APPOINTMENT_CONFIRMATION,
+		// On the web, when the Provider Booking V2 success page is rendered.
+		// This event means the booking workflow reached its success destination; it is distinct from merely
+		// selecting a slot or viewing the final confirmation form.
+		// Additional data:
+		// * bookingExperienceId (String, always V2)
+		// * featureId (String, if the booking originated from a feature)
+		// * institutionLocationId (String, a location UUID or the sentinel value "na")
+		// * providerSearchResultId (String, opaque search-result ID, if available)
+		// * providerSearchResultTypeId (String, PROVIDER or CLINIC)
+		// * providerId (UUID, if the displayed search result was a provider)
+		// * clinicId (UUID, if the displayed search result was a clinic)
+		// * providerIdToSchedule (UUID, the concrete provider that was booked)
+		// * appointmentSelectionTypeId (String, selection workflow used for the booking)
+		// * appointmentTypeId (UUID, booked appointment type)
+		// * appointmentModalityId (String, booked modality)
+		// * screeningFlowId (UUID, if applicable)
+		// * screeningSessionId (UUID, if applicable)
+		// The payload never includes patient contact information, screening answers, free text, or exact date/time.
+		PAGE_VIEW_PROVIDER_BOOKING_COMPLETE,
 		// On the web, when the special "Medication Prescriber" feature page is rendered.
 		// There is no additional data associated with this event type.
 		PAGE_VIEW_MEDICATION_PRESCRIBER,
@@ -358,6 +401,24 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * accountSourceId (String)
 		CLICKTHROUGH_ACCOUNT_SOURCE,
+		// When a user explicitly interacts with a Provider Booking V2 search result on the list or detail view.
+		// Additional data:
+		// * bookingExperienceId (String, always V2)
+		// * action (String)
+		//   * VIEW_DETAILS: Opened the provider or clinic detail view
+		//   * SCHEDULE_APPOINTMENT: Started scheduling from the primary scheduling CTA
+		//   * VIEW_MORE_APPOINTMENTS: Opened the expanded appointment selector
+		//   * CHECK_ELIGIBILITY: Started a referral provider's eligibility screening
+		// * source (String: LIST or DETAIL)
+		// * featureId (String, selected provider-search feature)
+		// * institutionLocationId (String, a location UUID or the sentinel value "na")
+		// * providerSearchResultId (String, opaque search-result ID, if available)
+		// * providerSearchResultTypeId (String, PROVIDER or CLINIC)
+		// * providerId (UUID, if the result represents a provider)
+		// * clinicId (UUID, if the result represents a clinic)
+		// * screeningFlowId (UUID, if the action starts a referral screening)
+		// The payload never includes provider names, patient contact information, screening answers, or free text.
+		CLICKTHROUGH_PROVIDER_SEARCH_RESULT,
 		// When an MHIC clicks on the "Retake Assessment" button on the assessment review page.
 		// Additional data:
 		// * patientOrderId (UUID)
@@ -370,6 +431,45 @@ public class AnalyticsNativeEventType {
 		// Additional data:
 		// * patientOrderId (UUID)
 		CLICKTHROUGH_MHIC_ORDER_ASSESSMENT_RESULTS,
+		// When the Provider Booking V2 appointment selector is presented and ready for interaction.
+		// Additional data:
+		// * bookingExperienceId (String, always V2)
+		// * presentation (String: MODAL for the list/detail overlay, PAGE for the full-page selector)
+		// * featureId (String, if the booking originated from a feature)
+		// * institutionLocationId (String, a location UUID or the sentinel value "na")
+		// * providerSearchResultId (String, opaque search-result ID, if available)
+		// * providerSearchResultTypeId (String, PROVIDER or CLINIC)
+		// * providerId (UUID, if the displayed search result was a provider)
+		// * clinicId (UUID, if the displayed search result was a clinic)
+		// * providerIdToSchedule (UUID, concrete provider selected by default, if one is selected)
+		// * appointmentSelectionTypeId (String, selection workflow in use)
+		// * appointmentTypeId (UUID, default or previously selected appointment type, if available)
+		// * appointmentModalityId (String, default or previously selected modality, if available)
+		// * screeningFlowId (UUID, if a screening flow is associated with the booking)
+		// * screeningSessionId (UUID, if a screening session has already been completed)
+		// The payload deliberately omits appointment date/time, patient contact information, and screening answers.
+		EVENT_PROVIDER_APPOINTMENT_SELECTION_VIEWED,
+		// When a user presses Continue with a complete Provider Booking V2 appointment selection.
+		// This event records slot selection, not successful appointment creation.
+		// Additional data:
+		// * bookingExperienceId (String, always V2)
+		// * presentation (String: MODAL or PAGE)
+		// * featureId (String, if the booking originated from a feature)
+		// * institutionLocationId (String, a location UUID or the sentinel value "na")
+		// * providerSearchResultId (String, opaque search-result ID, if available)
+		// * providerSearchResultTypeId (String, PROVIDER or CLINIC)
+		// * providerId (UUID, if the displayed search result was a provider)
+		// * clinicId (UUID, if the displayed search result was a clinic)
+		// * providerIdToSchedule (UUID, concrete provider whose slot was selected)
+		// * appointmentSelectionTypeId (String, selection workflow in use)
+		// * appointmentTypeId (UUID, selected appointment type)
+		// * appointmentModalityId (String, selected modality)
+		// * screeningFlowId (UUID, if a screening flow is associated with the booking)
+		// * screeningSessionId (UUID, if a screening session has already been completed)
+		// For a clinic result, clinicId identifies the displayed pool while providerIdToSchedule identifies
+		// the concrete provider selected from that pool. The payload deliberately omits appointment date/time,
+		// patient contact information, and screening answers.
+		EVENT_PROVIDER_APPOINTMENT_SELECTED,
 		// When a Topic Center page viewer clicks through on a group session to view its detail page.
 		// Additional data:
 		// * topicCenterId (UUID)

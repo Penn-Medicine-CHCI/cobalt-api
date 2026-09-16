@@ -284,12 +284,16 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/262-provid
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/262-care-navigator.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/263-care-navigator-screening.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/264-provider-institution-referrer.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/265-onboarding-treatment-and-cancellation-reasons.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/265-onboarding-screening-presentation-and-cancellation-reasons.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/266-provider-booking-analytics.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/263-care-navigator-seed.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/264-cobalt-employer-onboarding.sql
 
-# TEAM Clinic is sourced from the optional full bootstrap dataset.
+# These local fixtures are sourced from the optional full bootstrap dataset.
 if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/265-team-clinic-referral-provider-seed.sql
+  PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/268-team-clinic-provider-image.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/269-cobalt-ic-test-provider-department-mapping.sql
 fi
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/266-cobalt-employer-onboarding-single-question.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/267-cobalt-homepage-features.sql

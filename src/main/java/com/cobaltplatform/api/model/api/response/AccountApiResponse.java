@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
@@ -156,7 +157,9 @@ public class AccountApiResponse {
 	@Nullable
 	private final Boolean promptedForInstitutionLocation;
 	@Nonnull
-	private final String onboardingTreatmentId;
+	private final String onboardingScreeningPresentationId;
+	@Nonnull
+	private final Boolean onboardingScreeningFlowAppliesToAccount;
 	@Nullable
 	private final AccountCapabilityFlags accountCapabilityFlags;
 	@Nullable
@@ -171,8 +174,13 @@ public class AccountApiResponse {
 	private final UUID passwordResetToken;
 
 	@Nonnull
-	public String getOnboardingTreatmentId() {
-		return this.onboardingTreatmentId;
+	public String getOnboardingScreeningPresentationId() {
+		return this.onboardingScreeningPresentationId;
+	}
+
+	@Nonnull
+	public Boolean getOnboardingScreeningFlowAppliesToAccount() {
+		return this.onboardingScreeningFlowAppliesToAccount;
 	}
 
 	public enum AccountApiResponseSupplement {
@@ -197,13 +205,14 @@ public class AccountApiResponse {
 														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
 														@Nonnull InstitutionService institutionService,
+														@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Nonnull Provider<CurrentContext> currentContextProvider,
 														@Nonnull AddressApiResponseFactory addressApiResponseFactory,
 														@Assisted @Nonnull Account account) {
-		this(accountService, addressService, sessionService, institutionService, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
+		this(accountService, addressService, sessionService, institutionService, enterprisePluginProvider, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
 	}
 
 	@AssistedInject
@@ -211,6 +220,7 @@ public class AccountApiResponse {
 														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
 														@Nonnull InstitutionService institutionService,
+														@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
@@ -222,6 +232,7 @@ public class AccountApiResponse {
 		requireNonNull(addressService);
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(authorizationService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -231,6 +242,7 @@ public class AccountApiResponse {
 		requireNonNull(supplements);
 
 		CurrentContext currentContext = currentContextProvider.get();
+		Institution institution = institutionService.findInstitutionById(account.getInstitutionId()).get();
 
 		boolean showPrivateDetails = supplements.contains(AccountApiResponseSupplement.EVERYTHING)
 				|| supplements.contains(AccountApiResponseSupplement.PRIVATE_DETAILS)
@@ -240,8 +252,11 @@ public class AccountApiResponse {
 		this.roleId = account.getRoleId();
 		this.institutionId = account.getInstitutionId();
 		this.accountSourceId = account.getAccountSourceId();
-		this.onboardingTreatmentId = accountService.findAccountSourceById(account.getAccountSourceId())
-				.map(source -> source.getOnboardingTreatmentId()).orElse("DEFAULT");
+		this.onboardingScreeningPresentationId = accountService.findAccountSourceById(account.getAccountSourceId())
+				.map(source -> source.getOnboardingScreeningPresentationId()).orElse("LARGE_MODAL");
+		this.onboardingScreeningFlowAppliesToAccount = institution.getOnboardingScreeningFlowId() != null
+				&& enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId())
+						.isAccountEligibleForOnboardingScreeningFlow(account);
 		this.sourceSystemId = account.getSourceSystemId();
 		this.betaStatusId = account.getBetaStatusId();
 		this.username = account.getUsername();
@@ -288,7 +303,6 @@ public class AccountApiResponse {
 			Address address = addressService.findActiveAddressByAccountId(accountId).orElse(null);
 			this.address = address == null ? null : addressApiResponseFactory.create(address);
 
-			Institution institution = institutionService.findInstitutionById(account.getInstitutionId()).get();
 			LoginDestinationId loginDestinationId;
 
 			if (institution.getIntegratedCareEnabled()) {

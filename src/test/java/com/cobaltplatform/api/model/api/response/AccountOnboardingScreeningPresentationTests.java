@@ -12,10 +12,12 @@ import com.pyranid.Database;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-public class AccountOnboardingScreeningTreatmentTests {
+public class AccountOnboardingScreeningPresentationTests {
 	@Test
-	public void treatmentChangesWithAccountSourceConfiguration() {
+	public void presentationChangesWithAccountSourceConfigurationAndEligibilityRemainsSeparate() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback(app -> {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
@@ -25,14 +27,20 @@ public class AccountOnboardingScreeningTreatmentTests {
 			request.setAccountSourceId(AccountSourceId.ANONYMOUS);
 			Account account = accountService.findAccountById(accountService.createAccount(request)).get();
 
-			assertEquals("DEFAULT", factory.create(account).getOnboardingTreatmentId());
-			for (String treatment : new String[]{"MODAL", "FUTURE_TREATMENT", "DEFAULT"}) {
-				database.execute("UPDATE account_source SET onboarding_treatment_id=? WHERE account_source_id=?",
-						treatment, AccountSourceId.ANONYMOUS);
-				assertEquals(treatment, factory.create(account).getOnboardingTreatmentId());
-				assertEquals("DEFAULT", accountService.findAccountSourceById(AccountSourceId.EMAIL_PASSWORD).get()
-						.getOnboardingTreatmentId());
+			assertEquals("LARGE_MODAL", factory.create(account).getOnboardingScreeningPresentationId());
+			assertFalse(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
+
+			for (String presentation : new String[]{"SMALL_MODAL", "FUTURE_PRESENTATION", "LARGE_MODAL"}) {
+				database.execute("UPDATE account_source SET onboarding_screening_presentation_id=? WHERE account_source_id=?",
+						presentation, AccountSourceId.ANONYMOUS);
+				assertEquals(presentation, factory.create(account).getOnboardingScreeningPresentationId());
+				assertEquals("LARGE_MODAL", accountService.findAccountSourceById(AccountSourceId.EMAIL_PASSWORD).get()
+						.getOnboardingScreeningPresentationId());
 			}
+
+			account.setAccountSourceId(AccountSourceId.COBALT_SSO);
+			assertEquals("SMALL_MODAL", factory.create(account).getOnboardingScreeningPresentationId());
+			assertTrue(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
 		});
 	}
 }

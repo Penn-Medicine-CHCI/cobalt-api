@@ -131,6 +131,10 @@ import com.cobaltplatform.api.model.service.ProviderFind.AvailabilityStatus;
 import com.cobaltplatform.api.model.service.ProviderSearchResult.ProviderSearchResultTypeId;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestinationResultId;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
@@ -181,6 +185,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.apache.commons.text.StringEscapeUtils.unescapeHtml4;
 
 /**
  * @author Transmogrify, LLC.
@@ -809,39 +814,24 @@ public class AppointmentService {
 					accountId, providerId, appointmentTypeId, request.getAppointmentSelectionTypeId(), null, false, true, null,
 					appointmentBookingContext);
 
-		ScreeningSession completedScreeningSession = findMostRecentSuccessfulAppointmentBookingScreeningSession(accountId, providerId,
-				screeningFlowId).orElse(null);
+		ScreeningSession completedScreeningSession = request.getScreeningSessionId() == null
+				? findMostRecentSuccessfulAppointmentBookingScreeningSession(accountId, providerId, screeningFlowId).orElse(null)
+				: findSuccessfulAppointmentBookingScreeningSessionById(request.getScreeningSessionId(), accountId, providerId,
+						appointmentTypeId, screeningFlowId).orElse(null);
 
 		if (completedScreeningSession != null)
 			return new AppointmentBookingRequirements(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
 					accountId, providerId, appointmentTypeId, request.getAppointmentSelectionTypeId(), screeningFlowId, true, true, null,
 					appointmentBookingContext);
 
-		ScreeningSession screeningSession = findMostRecentAppointmentBookingScreeningSession(accountId, providerId, appointmentTypeId,
-				screeningFlowId, false).orElse(null);
+		CreateScreeningSessionRequest createScreeningSessionRequest = new CreateScreeningSessionRequest();
+		createScreeningSessionRequest.setScreeningFlowId(screeningFlowId);
+		createScreeningSessionRequest.setTargetAccountId(accountId);
+		createScreeningSessionRequest.setCreatedByAccountId(currentAccount.getAccountId());
+		createScreeningSessionRequest.setMetadata(Map.of("appointmentBooking", appointmentBookingContext));
 
-		if (screeningSession == null) {
-			CreateScreeningSessionRequest createScreeningSessionRequest = new CreateScreeningSessionRequest();
-			createScreeningSessionRequest.setScreeningFlowId(screeningFlowId);
-			createScreeningSessionRequest.setTargetAccountId(accountId);
-			createScreeningSessionRequest.setCreatedByAccountId(currentAccount.getAccountId());
-			createScreeningSessionRequest.setMetadata(Map.of("appointmentBooking", appointmentBookingContext));
-
-			UUID screeningSessionId = getScreeningService().createScreeningSession(createScreeningSessionRequest);
-			screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
-		} else {
-			Map<String, Object> refreshedMetadata = new HashMap<>(screeningSession.getMetadata());
-			refreshedMetadata.put("appointmentBooking", appointmentBookingContext);
-			String refreshedMetadataAsJson = ScreeningSession.metadataToJson(refreshedMetadata).get();
-
-			getDatabase().execute("""
-					UPDATE screening_session
-					SET metadata=CAST(? AS JSONB),
-					    last_updated=NOW()
-					WHERE screening_session_id=?
-					""", refreshedMetadataAsJson, screeningSession.getScreeningSessionId());
-			screeningSession.setMetadataAsJson(refreshedMetadataAsJson);
-		}
+		UUID screeningSessionId = getScreeningService().createScreeningSession(createScreeningSessionRequest);
+		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).get();
 
 		return new AppointmentBookingRequirements(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
 				accountId, providerId, appointmentTypeId, request.getAppointmentSelectionTypeId(), screeningFlowId, true, false, screeningSession,
@@ -917,7 +907,10 @@ public class AppointmentService {
 					AND ss.completed_at IS NOT NULL
 					AND (
 					  sfv.recommendation_expiration_minutes IS NULL
-					  OR ss.completed_at >= NOW() - sfv.recommendation_expiration_minutes * INTERVAL '1 minute'
+					  OR (
+					    sfv.recommendation_expiration_minutes > 0
+					    AND ss.completed_at >= NOW() - sfv.recommendation_expiration_minutes * INTERVAL '1 minute'
+					  )
 					)
 					AND (
 					  NULLIF(ss.metadata->'appointmentBooking'->>'providerId', '') IS NULL
@@ -984,7 +977,10 @@ public class AppointmentService {
 				AND ss.completed_at IS NOT NULL
 				AND (
 				  sfv.recommendation_expiration_minutes IS NULL
-				  OR ss.completed_at >= NOW() - sfv.recommendation_expiration_minutes * INTERVAL '1 minute'
+				  OR (
+				    sfv.recommendation_expiration_minutes > 0
+				    AND ss.completed_at >= NOW() - sfv.recommendation_expiration_minutes * INTERVAL '1 minute'
+				  )
 				)
 				AND COALESCE(NULLIF(ss.metadata->'appointmentBooking'->>'providerId', ''), ?)=?
 				AND (
@@ -1011,6 +1007,51 @@ public class AppointmentService {
 		return Optional.of(mostRecentCompletedScreeningSession);
 	}
 
+	@Nonnull
+	protected Optional<ScreeningSession> findSuccessfulAppointmentBookingScreeningSessionById(@Nonnull UUID screeningSessionId,
+																												 @Nonnull UUID accountId,
+																												 @Nonnull UUID providerId,
+																												 @Nonnull UUID appointmentTypeId,
+																												 @Nonnull UUID screeningFlowId) {
+		requireNonNull(screeningSessionId);
+		requireNonNull(accountId);
+		requireNonNull(providerId);
+		requireNonNull(appointmentTypeId);
+		requireNonNull(screeningFlowId);
+
+		// A zero-minute recommendation is intentionally excluded from implicit reuse above. The booking UI carries
+		// the exact session it just completed so that attempt can continue; the appointment lookup makes the handoff
+		// single-use and prevents the same completion from authorizing a later booking attempt.
+		ScreeningSession screeningSession = getDatabase().queryForObject("""
+				SELECT ss.*
+				FROM screening_session ss
+				JOIN screening_flow_version sfv
+				  ON ss.screening_flow_version_id=sfv.screening_flow_version_id
+				JOIN screening_flow sf
+				  ON sf.screening_flow_id=sfv.screening_flow_id
+				  AND sf.active_screening_flow_version_id=ss.screening_flow_version_id
+				WHERE ss.screening_session_id=?
+				AND sfv.screening_flow_id=?
+				AND ss.target_account_id=?
+				AND ss.completed=TRUE
+				AND ss.skipped=FALSE
+				AND ss.completed_at IS NOT NULL
+				AND ss.metadata->'appointmentBooking'->>'providerId'=?
+				AND ss.metadata->'appointmentBooking'->>'appointmentTypeId'=?
+				AND NOT EXISTS (
+				  SELECT 1
+				  FROM appointment
+				  WHERE appointment.screening_session_id=ss.screening_session_id
+				)
+				""", ScreeningSession.class, screeningSessionId, screeningFlowId, accountId, providerId.toString(),
+				appointmentTypeId.toString()).orElse(null);
+
+		if (screeningSession == null || !appointmentBookingScreeningSucceeded(screeningSessionId))
+			return Optional.empty();
+
+		return Optional.of(screeningSession);
+	}
+
 	protected boolean appointmentBookingScreeningSucceeded(@Nonnull UUID screeningSessionId) {
 		requireNonNull(screeningSessionId);
 
@@ -1021,37 +1062,6 @@ public class AppointmentService {
 	protected static boolean appointmentBookingScreeningSucceeded(@Nullable ScreeningSessionDestination screeningSessionDestination) {
 		return screeningSessionDestination != null
 				&& screeningSessionDestination.getScreeningSessionDestinationResultId() == ScreeningSessionDestinationResultId.SUCCESS;
-	}
-
-	@Nonnull
-	protected Optional<ScreeningSession> findMostRecentAppointmentBookingScreeningSession(@Nonnull UUID accountId,
-																																												 @Nonnull UUID providerId,
-																																												 @Nonnull UUID appointmentTypeId,
-																																												 @Nonnull UUID screeningFlowId,
-																																												 boolean completed) {
-		requireNonNull(accountId);
-		requireNonNull(providerId);
-		requireNonNull(appointmentTypeId);
-		requireNonNull(screeningFlowId);
-
-		return getDatabase().queryForObject("""
-				SELECT ss.*
-				FROM screening_session ss
-				JOIN screening_flow_version sfv
-				  ON ss.screening_flow_version_id=sfv.screening_flow_version_id
-				JOIN screening_flow sf
-				  ON sf.screening_flow_id=sfv.screening_flow_id
-				  AND sf.active_screening_flow_version_id=ss.screening_flow_version_id
-				WHERE TRUE
-				AND sfv.screening_flow_id=?
-				AND ss.target_account_id=?
-				AND ss.completed=?
-				AND ss.skipped=FALSE
-					AND ss.metadata->'appointmentBooking'->>'providerId'=?
-					AND ss.metadata->'appointmentBooking'->>'appointmentTypeId'=?
-					ORDER BY ss.last_updated DESC
-					LIMIT 1
-					""", ScreeningSession.class, screeningFlowId, accountId, completed, providerId.toString(), appointmentTypeId.toString());
 	}
 
 	@NotThreadSafe
@@ -1320,6 +1330,7 @@ public class AppointmentService {
 		LocalDate date = request.getDate();
 		LocalTime time = request.getTime();
 		UUID appointmentTypeId = request.getAppointmentTypeId();
+		UUID screeningSessionId = request.getScreeningSessionId();
 		UUID intakeAssessmentId = request.getIntakeAssessmentId();
 		UUID patientOrderId = request.getPatientOrderId();
 		String firstName = trimToNull(request.getFirstName());
@@ -1475,8 +1486,11 @@ public class AppointmentService {
 
 		if (bookingV2Enabled && !preserveExistingScreeningEligibility && providerId != null
 				&& appointmentType != null && appointmentType.getScreeningFlowId() != null) {
-			completedAppointmentBookingScreeningSession = findMostRecentSuccessfulAppointmentBookingScreeningSession(
-					accountId, providerId, appointmentType.getScreeningFlowId()).orElse(null);
+			completedAppointmentBookingScreeningSession = screeningSessionId == null
+					? findMostRecentSuccessfulAppointmentBookingScreeningSession(
+							accountId, providerId, appointmentType.getScreeningFlowId()).orElse(null)
+					: findSuccessfulAppointmentBookingScreeningSessionById(screeningSessionId, accountId, providerId,
+							appointmentTypeId, appointmentType.getScreeningFlowId()).orElse(null);
 
 			if (completedAppointmentBookingScreeningSession == null)
 				validationException.add(getStrings().get("You did not complete the necessary screening questions to book this appointment."));
@@ -2026,7 +2040,7 @@ public class AppointmentService {
 		sendProviderScoreEmail(provider, account, emailAddress, phoneNumber, videoconferenceUrl,
 				getFormatter().formatDate(meetingStartTime.toLocalDate()),
 				getFormatter().formatTime(meetingStartTime.toLocalTime()),
-				getFormatter().formatTime(meetingEndTime.toLocalTime()), intakeSession);
+				getFormatter().formatTime(meetingEndTime.toLocalTime()), intakeSession, bookingV2Enabled);
 
 		ZoneId pinnedTimeZone = timeZone;
 		SchedulingSystemId schedulingSystemId = appointmentType.getSchedulingSystemId();
@@ -2975,7 +2989,7 @@ public class AppointmentService {
 				FROM screening_flow_version
 				WHERE screening_flow_id=?
 				""", Integer.class, screeningFlowId).get();
-		String screeningName = flowName;
+		String screeningName = "Intake Assessment";
 
 		getDatabase().execute("""
 				INSERT INTO screening (
@@ -3649,7 +3663,19 @@ public class AppointmentService {
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
 		String accountName = getAccountService().determineDisplayName(account);
+		String appointmentPatientName = Stream.of(appointment.getFirstName(), appointment.getLastName())
+				.map(name -> trimToNull(name))
+				.filter(Objects::nonNull)
+				.collect(Collectors.joining(" "));
+
+		if (appointmentPatientName.isEmpty())
+			appointmentPatientName = accountName;
+
 		String appointmentEmailAddress = firstNonNull(appointment.getEmailAddress(), account.getEmailAddress());
+		String appointmentContactPhoneNumber = firstNonNull(appointment.getContactPhoneNumber(), account.getPhoneNumber());
+		String appointmentContactPhoneNumberDescription = appointmentContactPhoneNumber == null
+				? null
+				: getFormatter().formatPhoneNumber(appointmentContactPhoneNumber, account.getLocale());
 		String providerName = provider.getName();
 		String providerEmailAddress = provider.getEmailAddress();
 		String videoconferenceUrl = appointment.getVideoconferenceUrl();
@@ -3721,8 +3747,11 @@ public class AppointmentService {
 		cobaltProviderEmailMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 		cobaltProviderEmailMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
 		cobaltProviderEmailMessageContext.put("providerName", providerName);
-		cobaltProviderEmailMessageContext.put("accountName", accountName);
+		cobaltProviderEmailMessageContext.put("accountName", appointmentPatientName);
 		cobaltProviderEmailMessageContext.put("accountEmailAddress", appointmentEmailAddress);
+		cobaltProviderEmailMessageContext.put("patientName", appointmentPatientName);
+		cobaltProviderEmailMessageContext.put("patientEmailAddress", appointmentEmailAddress);
+		cobaltProviderEmailMessageContext.put("patientPhoneNumber", appointmentContactPhoneNumberDescription);
 		cobaltProviderEmailMessageContext.put("videoconferenceUrl", videoconferenceUrl);
 		cobaltProviderEmailMessageContext.put("icalUrl", format("%s/appointments/%s/ical", webappBaseUrlForStaff, appointmentId));
 		cobaltProviderEmailMessageContext.put("googleCalendarUrl", format("%s/appointments/%s/google-calendar", webappBaseUrlForStaff, appointmentId));
@@ -3731,7 +3760,18 @@ public class AppointmentService {
 		if (appointment.getSchedulingSystemId() == SchedulingSystemId.COBALT)
 			cobaltProviderEmailMessageContext.put("providerSchedulingUrl", format("%s/scheduling/appointments/%s", webappBaseUrlForStaff, appointmentId));
 
-		EmailMessage providerEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(), EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER, provider.getLocale())
+		boolean useV2ProviderIntakeEmail = getInstitutionService().isBookingV2Enabled(provider.getInstitutionId())
+				&& provider.getSchedulingSystemId() == SchedulingSystemId.COBALT
+				&& provider.getVideoconferencePlatformId() == VideoconferencePlatformId.TELEPHONE;
+
+		if (useV2ProviderIntakeEmail)
+			cobaltProviderEmailMessageContext.put("intakeResponses", providerIntakeResponsesForAppointment(appointment));
+
+		EmailMessageTemplate providerEmailMessageTemplate = useV2ProviderIntakeEmail
+				? EmailMessageTemplate.V2_PROVIDER_INTAKE_APPOINTMENT_CREATED_PROVIDER
+				: EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER;
+
+		EmailMessage providerEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(), providerEmailMessageTemplate, provider.getLocale())
 				.toAddresses(List.of(provider.getEmailAddress()))
 				.replyToAddress(replyToAddressForEmailsTargetingProvider(provider))
 				.messageContext(cobaltProviderEmailMessageContext)
@@ -3739,6 +3779,77 @@ public class AppointmentService {
 				.build();
 
 		getMessageService().enqueueMessage(providerEmailMessage);
+	}
+
+	@Nonnull
+	protected List<Map<String, Object>> providerIntakeResponsesForAppointment(@Nonnull Appointment appointment) {
+		requireNonNull(appointment);
+
+		if (appointment.getScreeningSessionId() == null)
+			return List.of();
+
+		ScreeningSessionResult screeningSessionResult = getScreeningService()
+				.findScreeningSessionResult(appointment.getScreeningSessionId())
+				.orElse(null);
+
+		if (screeningSessionResult == null || screeningSessionResult.getScreeningSessionScreeningResults() == null)
+			return List.of();
+
+		List<Map<String, Object>> intakeResponses = new ArrayList<>();
+
+		for (ScreeningSessionScreeningResult screeningResult : screeningSessionResult.getScreeningSessionScreeningResults()) {
+			if (screeningResult.getScreeningQuestionResults() == null)
+				continue;
+
+			for (ScreeningQuestionResult questionResult : screeningResult.getScreeningQuestionResults()) {
+				String question = plainTextForProviderIntakeEmail(questionResult.getScreeningQuestionText());
+
+				if (question == null || questionResult.getScreeningAnswerResults() == null)
+					continue;
+
+				String answer = questionResult.getScreeningAnswerResults().stream()
+						.map(this::providerIntakeAnswerDescription)
+						.filter(Objects::nonNull)
+						.distinct()
+						.collect(Collectors.joining("; "));
+
+				if (answer.isEmpty())
+					continue;
+
+				intakeResponses.add(Map.of(
+						"question", question,
+						"answer", answer
+				));
+			}
+		}
+
+		return intakeResponses;
+	}
+
+	@Nullable
+	protected String providerIntakeAnswerDescription(@Nonnull ScreeningAnswerResult answerResult) {
+		requireNonNull(answerResult);
+
+		String answerOptionText = plainTextForProviderIntakeEmail(answerResult.getAnswerOptionText());
+		String freeformText = trimToNull(answerResult.getText());
+
+		if (answerOptionText == null)
+			return freeformText;
+
+		if (freeformText == null || answerOptionText.equals(freeformText))
+			return answerOptionText;
+
+		return format("%s: %s", answerOptionText, freeformText);
+	}
+
+	@Nullable
+	protected String plainTextForProviderIntakeEmail(@Nullable String html) {
+		String value = trimToNull(html);
+
+		if (value == null)
+			return null;
+
+		return trimToNull(unescapeHtml4(value.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ")));
 	}
 
 	protected void sendPatientAndProviderCobaltAppointmentCanceledEmails(@Nonnull UUID appointmentId) {
@@ -4025,12 +4136,21 @@ public class AppointmentService {
 																			@Nonnull String appointmentDate,
 																			@Nonnull String appointmentStartTime,
 																			@Nonnull String appointmentEndTime,
-																			@Nullable AccountSession intakeSession) {
+																			@Nullable AccountSession intakeSession,
+																			boolean bookingV2Enabled) {
 		requireNonNull(provider);
 		requireNonNull(account);
 
 		if (provider.getVideoconferencePlatformId() == VideoconferencePlatformId.SWITCHBOARD) {
 			getLogger().debug("Provider {} uses Switchboard, do not send a provider score email.", provider.getName());
+			return;
+		}
+
+		if (bookingV2Enabled
+				&& provider.getSchedulingSystemId() == SchedulingSystemId.COBALT
+				&& provider.getVideoconferencePlatformId() == VideoconferencePlatformId.TELEPHONE) {
+			getLogger().debug("Provider {} uses the V2 telephone-intake email, do not send a legacy provider score email.",
+					provider.getName());
 			return;
 		}
 

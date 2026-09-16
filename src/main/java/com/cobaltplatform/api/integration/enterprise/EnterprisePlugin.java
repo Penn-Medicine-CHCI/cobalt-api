@@ -171,6 +171,13 @@ public interface EnterprisePlugin {
 		return Collections.emptyList();
 	}
 
+	// Determines account eligibility only. Callers remain responsible for verifying that the
+	// institution has an onboarding screening flow configured and whether it is already complete.
+	default boolean isAccountEligibleForOnboardingScreeningFlow(@Nonnull Account account) {
+		requireNonNull(account);
+		return true;
+	}
+
 	@Nonnull
 	default GoogleBigQueryClient googleBigQueryClient() {
 		return new MockGoogleBigQueryClient();

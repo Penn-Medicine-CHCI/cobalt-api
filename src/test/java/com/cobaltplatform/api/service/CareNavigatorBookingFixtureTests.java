@@ -366,6 +366,61 @@ public class CareNavigatorBookingFixtureTests {
 	}
 
 	@Test
+	public void telephoneProviderReceivesV2IntakeEmailWithAppointmentContactAndScreeningResponses() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
+			UUID telephoneProviderId = createActiveProvider(database, "CuraLinc Intake Counselor");
+			UUID appointmentId = UUID.randomUUID();
+
+			assertEquals(1, database.execute("""
+					UPDATE provider
+					SET videoconference_platform_id='TELEPHONE',
+						phone_number='+18885032380',
+						videoconference_url=NULL
+					WHERE provider_id=?
+					""", telephoneProviderId));
+
+			cloneAsActiveAppointmentForProviderAndAccount(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID,
+					appointmentId, telephoneProviderId, CARE_NAVIGATOR_ACTIVE_FIXTURE_PATIENT_ID, 72);
+
+			assertEquals(1, database.execute("""
+					UPDATE appointment
+					SET first_name='Booking',
+						last_name='Contact',
+						email_address='booking-contact@example.com',
+						contact_phone_number='+12155550123',
+						screening_session_id=?,
+						videoconference_platform_id='TELEPHONE',
+						videoconference_url='https://cobalt.example/appointments/telephone'
+					WHERE appointment_id=?
+					""", CARE_NAVIGATOR_UPCOMING_SCREENING_SESSION_ID, appointmentId));
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(appointmentId);
+
+			List<EmailMessage> emails = enqueuedEmailsForAppointment(database, emailMessageSerializer, appointmentId);
+			assertEquals(2, emails.size());
+			emailWithTemplate(emails, EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT);
+			EmailMessage providerEmail = emailWithTemplate(emails,
+					EmailMessageTemplate.V2_PROVIDER_INTAKE_APPOINTMENT_CREATED_PROVIDER);
+
+			assertEquals("Booking Contact", providerEmail.getMessageContext().get("patientName"));
+			assertEquals("booking-contact@example.com", providerEmail.getMessageContext().get("patientEmailAddress"));
+			assertEquals("(215) 555-0123", providerEmail.getMessageContext().get("patientPhoneNumber"));
+			assertTrue(providerEmail.getMessageContext().get("providerSchedulingUrl").toString()
+					.endsWith("/scheduling/appointments/" + appointmentId));
+
+			List<?> intakeResponses = (List<?>) providerEmail.getMessageContext().get("intakeResponses");
+			assertNotNull(intakeResponses);
+			assertFalse(intakeResponses.isEmpty());
+			assertTrue(intakeResponses.stream()
+					.map(response -> (Map<?, ?>) response)
+					.anyMatch(response -> response.get("answer").toString().contains(NAVIGATOR_CONTEXT_FIXTURE_TEXT)));
+		});
+	}
+
+	@Test
 	public void careNavigatorFixturePopulatesHomepageFeatureResponse() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AccountResource accountResource = app.getInjector().getInstance(AccountResource.class);

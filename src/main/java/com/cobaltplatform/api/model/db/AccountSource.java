@@ -45,15 +45,15 @@ public class AccountSource {
 	private String prodSsoUrl;
 
 	@Nullable
-	private String onboardingTreatmentId;
+	private String onboardingScreeningPresentationId;
 
 	@Nullable
-	public String getOnboardingTreatmentId() {
-		return this.onboardingTreatmentId;
+	public String getOnboardingScreeningPresentationId() {
+		return this.onboardingScreeningPresentationId;
 	}
 
-	public void setOnboardingTreatmentId(@Nullable String onboardingTreatmentId) {
-		this.onboardingTreatmentId = onboardingTreatmentId;
+	public void setOnboardingScreeningPresentationId(@Nullable String onboardingScreeningPresentationId) {
+		this.onboardingScreeningPresentationId = onboardingScreeningPresentationId;
 	}
 
 	public enum AccountSourceId {

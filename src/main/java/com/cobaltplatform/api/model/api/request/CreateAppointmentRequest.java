@@ -54,6 +54,8 @@ public class CreateAppointmentRequest {
 	@Nullable
 	private UUID appointmentTypeId;
 	@Nullable
+	private UUID screeningSessionId;
+	@Nullable
 	private UUID intakeAssessmentId;
 	@Nullable
 	private ProviderAppointmentModalityId appointmentModalityId;
@@ -133,6 +135,15 @@ public class CreateAppointmentRequest {
 
 	public void setAppointmentTypeId(@Nullable UUID appointmentTypeId) {
 		this.appointmentTypeId = appointmentTypeId;
+	}
+
+	@Nullable
+	public UUID getScreeningSessionId() {
+		return this.screeningSessionId;
+	}
+
+	public void setScreeningSessionId(@Nullable UUID screeningSessionId) {
+		this.screeningSessionId = screeningSessionId;
 	}
 
 	@Nullable

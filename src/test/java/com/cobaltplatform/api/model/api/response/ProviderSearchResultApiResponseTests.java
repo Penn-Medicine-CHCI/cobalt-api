@@ -99,6 +99,30 @@ public class ProviderSearchResultApiResponseTests {
 	}
 
 	@Test
+	public void clinicSearchResultUsesTreatmentDescriptionAsItsListDescription() {
+		UUID providerId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		Provider provider = provider(providerId, null);
+		ProviderFind providerFind = providerFind(providerId, null);
+		Clinic clinic = clinic(clinicId, AppointmentBookingLevelId.CLINIC);
+		clinic.setDescription("EAP Clinician");
+		clinic.setTreatmentDescription("EAP counseling details");
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forClinic(clinic, List.of(providerFind),
+				Map.of(providerId, provider), Map.of());
+
+		List<ProviderSearchResultApiResponse> responses = List.of(
+				new ProviderSearchResultApiResponse(formatter(), strings(), clinic, List.of(providerFind),
+						Map.of(providerId, provider), Map.of()),
+				new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult));
+
+		for (ProviderSearchResultApiResponse response : responses) {
+			assertEquals("EAP Clinician", response.getName());
+			assertEquals("EAP counseling details", response.getDescription());
+			assertEquals("EAP counseling details", response.getTreatmentDescription());
+		}
+	}
+
+	@Test
 	public void clinicPhoneFallbackUsesClinicPhoneRatherThanMemberProviderPhone() {
 		UUID providerId = UUID.randomUUID();
 		UUID clinicId = UUID.randomUUID();

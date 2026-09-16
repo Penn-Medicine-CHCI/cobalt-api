@@ -197,7 +197,7 @@ public class ProviderSearchResultApiResponse {
 			this.institutionId = clinic.getInstitutionId();
 			this.name = clinic.getDescription();
 			this.title = null;
-			this.description = clinic.getDescription();
+			this.description = clinic.getTreatmentDescription();
 			this.treatmentDescription = clinic.getTreatmentDescription();
 			this.imageUrl = clinic.getImageUrl();
 			this.phoneNumber = clinic.getPhoneNumber();
@@ -283,7 +283,7 @@ public class ProviderSearchResultApiResponse {
 		this.institutionId = clinic.getInstitutionId();
 		this.name = clinic.getDescription();
 		this.title = null;
-		this.description = clinic.getDescription();
+		this.description = clinic.getTreatmentDescription();
 		this.treatmentDescription = clinic.getTreatmentDescription();
 		this.imageUrl = clinic.getImageUrl();
 		this.phoneNumber = clinic.getPhoneNumber();

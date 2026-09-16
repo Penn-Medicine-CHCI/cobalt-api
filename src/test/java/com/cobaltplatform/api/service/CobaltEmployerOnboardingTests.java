@@ -80,8 +80,10 @@ public class CobaltEmployerOnboardingTests {
 			assertNull(screeningFlowVersion.getPreCompletionScreeningConfirmationPromptId());
 
 			UUID accountId = createCobaltAccount(accountService);
-			assertEquals("DEFAULT", app.getInjector().getInstance(AccountApiResponseFactory.class)
-					.create(accountService.findAccountById(accountId).get()).getOnboardingTreatmentId());
+			assertEquals("LARGE_MODAL", app.getInjector().getInstance(AccountApiResponseFactory.class)
+					.create(accountService.findAccountById(accountId).get()).getOnboardingScreeningPresentationId());
+			assertFalse(app.getInjector().getInstance(AccountApiResponseFactory.class)
+					.create(accountService.findAccountById(accountId).get()).getOnboardingScreeningFlowAppliesToAccount());
 			UUID screeningSessionId = createOnboardingSession(screeningService, onboardingScreeningFlowId, accountId);
 			ScreeningQuestionContext questionContext = screeningService
 					.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).get();
