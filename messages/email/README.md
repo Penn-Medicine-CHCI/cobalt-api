@@ -6,6 +6,10 @@ Every template whose `EmailMessageTemplate` identifier starts with `V2_` must re
 `layouts/en/v2.hbs`. The shared layout owns the responsive card, organization branding, and footer;
 individual templates own only their correspondence-specific content.
 
+`CARE_ENCOUNTER_FOLLOW_UP` also renders through the V2 layout for compatibility with its existing
+template identifier. Its sanitized Care Navigator-authored HTML is inserted into the `content` block
+before the rendered email is snapshotted as a `FREEFORM` scheduled message.
+
 Each localized V2 `body.hbs` can provide these blocks:
 
 - `preheader`: hidden inbox-preview copy.

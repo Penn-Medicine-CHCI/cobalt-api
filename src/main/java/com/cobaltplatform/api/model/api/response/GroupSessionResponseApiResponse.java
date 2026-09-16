@@ -102,16 +102,16 @@ public class GroupSessionResponseApiResponse {
 		this.respondentPhoneNumber = groupSessionResponse.getRespondentPhoneNumber();
 		this.respondentPhoneNumberDescription = respondentPhoneNumber == null ? null : formatter.formatPhoneNumber(respondentPhoneNumber);
 		this.suggestedDate = groupSessionResponse.getSuggestedDate();
-		this.suggestedDateDescription = groupSessionResponse.getSuggestedDate() == null ? null : formatter.formatDate(groupSessionResponse.getSuggestedDate());
+		this.suggestedDateDescription = groupSessionResponse.getSuggestedDate() == null ? null : formatter.formatDateDescription(groupSessionResponse.getSuggestedDate());
 		this.suggestedTime = groupSessionResponse.getSuggestedTime();
 		this.expectedParticipants = groupSessionResponse.getExpectedParticipants();
 		this.notes = groupSessionResponse.getNotes();
 		this.customAnswer1 = groupSessionResponse.getCustomAnswer1();
 		this.customAnswer2 = groupSessionResponse.getCustomAnswer2();
 		this.created = groupSessionResponse.getCreated();
-		this.createdDescription = formatter.formatTimestamp(groupSessionResponse.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(groupSessionResponse.getCreated());
 		this.lastUpdated = groupSessionResponse.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(groupSessionResponse.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(groupSessionResponse.getLastUpdated());
 	}
 
 	@Nonnull

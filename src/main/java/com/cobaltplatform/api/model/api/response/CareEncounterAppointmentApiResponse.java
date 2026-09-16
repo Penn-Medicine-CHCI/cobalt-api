@@ -81,16 +81,16 @@ public class CareEncounterAppointmentApiResponse {
 		this.appointmentTimeStatusId = appointment.getAppointmentTimeStatusIdAt(Instant.now());
 		this.title = appointment.getTitle();
 		this.startTime = appointment.getStartTime().atZone(appointment.getTimeZone()).toInstant();
-		this.startTimeDescription = formatter.formatTimestamp(this.startTime);
+		this.startTimeDescription = formatter.formatTimestampDescription(this.startTime);
 		this.endTime = appointment.getEndTime().atZone(appointment.getTimeZone()).toInstant();
-		this.endTimeDescription = formatter.formatTimestamp(this.endTime);
+		this.endTimeDescription = formatter.formatTimestampDescription(this.endTime);
 		this.timeZone = appointment.getTimeZone();
 		this.canceledForReschedule = appointment.getCanceledForReschedule() == null
 				? false
 				: appointment.getCanceledForReschedule();
 		this.canceled = appointment.getCanceled();
 		this.canceledAt = appointment.getCanceledAt();
-		this.canceledAtDescription = this.canceledAt == null ? null : formatter.formatTimestamp(this.canceledAt);
+		this.canceledAtDescription = this.canceledAt == null ? null : formatter.formatTimestampDescription(this.canceledAt);
 		this.canceledByAccountId = appointment.getCanceledByAccountId();
 		this.canceledByAccountDisplayName = this.canceledByAccountId == null ? null
 				: accountService.findAccountById(this.canceledByAccountId)

@@ -144,9 +144,9 @@ public class CourseApiResponse {
 		this.imageUrl = course.getImageUrl();
 		this.urlName = course.getUrlName();
 		this.created = course.getCreated();
-		this.createdDescription = formatter.formatTimestamp(course.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(course.getCreated());
 		this.lastUpdated = course.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(course.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(course.getLastUpdated());
 
 		Account account = currentContextProvider.get()
 				.getAccount()

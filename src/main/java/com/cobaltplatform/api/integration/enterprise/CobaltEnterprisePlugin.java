@@ -21,6 +21,7 @@ package com.cobaltplatform.api.integration.enterprise;
 
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.model.db.Account;
+import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Content;
 import com.cobaltplatform.api.model.db.CronJob;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
@@ -92,6 +93,12 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 
 		// Naive implementation for our COBALT institution - return all the content
 		return getContentService().findVisibleContentByAccountId(accountId);
+	}
+
+	@Override
+	public boolean isAccountEligibleForOnboardingScreeningFlow(@Nonnull Account account) {
+		requireNonNull(account);
+		return account.getAccountSourceId() == AccountSourceId.COBALT_SSO;
 	}
 
 	@Nonnull

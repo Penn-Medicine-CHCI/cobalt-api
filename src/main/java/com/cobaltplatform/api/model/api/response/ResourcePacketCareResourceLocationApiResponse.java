@@ -34,7 +34,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -152,7 +151,7 @@ public class ResourcePacketCareResourceLocationApiResponse {
 		this.createdByAccountFirstName = resourcePacketCareResourceLocation.getCreatedByAccountFirstName();
 		this.createdByAccountLastName = resourcePacketCareResourceLocation.getCreatedByAccountLastName();
 		this.careResourceLocationName = resourcePacketCareResourceLocation.getCareResourceLocationName();
-		this.addedDateDescription = formatter.formatDate(updatedDate);
+		this.addedDateDescription = formatter.formatDateDescription(updatedDate);
 		this.addedByDisplayName = Normalizer.normalizeName(resourcePacketCareResourceLocation.getCreatedByAccountFirstName(), resourcePacketCareResourceLocation.getCreatedByAccountLastName()).orElse(null);
 		this.addressId = resourcePacketCareResourceLocation.getAddressId();
 		this.address = batchContext.isAddressesPreloaded()

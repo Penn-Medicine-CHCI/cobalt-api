@@ -83,9 +83,9 @@ public class AccountStudyApiResponse {
 		this.studyStarted = accountStudy.getStudyStarted();
 		this.recordingPreferenceId = accountStudy.getRecordingPreferenceId();
 		this.created = accountStudy.getCreated();
-		this.createdDescription = formatter.formatTimestamp(accountStudy.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(accountStudy.getCreated());
 		this.lastUpdated = accountStudy.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(accountStudy.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(accountStudy.getLastUpdated());
 	}
 
 	@Nonnull

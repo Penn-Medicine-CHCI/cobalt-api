@@ -112,7 +112,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -654,7 +653,7 @@ public class AnalyticsResource {
 
 		if (startDate.isBefore(FIRST_BIGQUERY_DATE))
 			alerts.add(syntheticAlertForMessage(getStrings().get("Overview reports are only valid for dates on or after {{firstDateDescription}}.", Map.of(
-					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+					"firstDateDescription", getFormatter().formatDateDescription(FIRST_BIGQUERY_DATE)
 			))));
 
 		boolean returnExampleJson = false;
@@ -1213,16 +1212,16 @@ public class AnalyticsResource {
 
 		if (startDate.isBefore(FIRST_BIGQUERY_DATE)) {
 			alerts.add(syntheticAlertForMessage(getStrings().get("Crisis 'HP Chiclet' and 'In Crisis Button' reports are only valid for dates on or after {{firstDateDescription}}.", Map.of(
-					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+					"firstDateDescription", getFormatter().formatDateDescription(FIRST_BIGQUERY_DATE)
 			))));
 			alerts.add(syntheticAlertForMessage(getStrings().get("Click-to-call reports are only valid for dates on or after {{firstDateDescription}}.", Map.of(
-					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+					"firstDateDescription", getFormatter().formatDateDescription(FIRST_BIGQUERY_DATE)
 			))));
 		}
 
 		if (startDate.isBefore(FIRST_NATIVE_SCHEDULING_DATE)) {
 			alerts.add(syntheticAlertForMessage(getStrings().get("Provider available appointments are only valid for dates on or after {{firstDateDescription}}.", Map.of(
-					"firstDateDescription", getFormatter().formatDate(FIRST_NATIVE_SCHEDULING_DATE, FormatStyle.MEDIUM)
+					"firstDateDescription", getFormatter().formatDateDescription(FIRST_NATIVE_SCHEDULING_DATE)
 			))));
 		}
 
@@ -1238,7 +1237,7 @@ public class AnalyticsResource {
 			if (startDate.isBefore(createdAt)) {
 				alerts.add(syntheticAlertForMessage(getStrings().get("{{screeningFlowName}} Completion and Severity reports are only valid for dates on or after {{dateDescription}}.", Map.of(
 						"screeningFlowName", screeningFlowName,
-						"dateDescription", getFormatter().formatDate(createdAt, FormatStyle.MEDIUM)
+						"dateDescription", getFormatter().formatDateDescription(createdAt)
 				))));
 			}
 		}
@@ -1494,7 +1493,7 @@ public class AnalyticsResource {
 			row.setData(List.of(
 					groupSessionTitle,
 					groupSessionCount.getFacilitatorName(),
-					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTime(groupSessionCount.getStartDateTime(), FormatStyle.SHORT, FormatStyle.SHORT),
+					groupSessionCount.getStartDateTime() == null ? "--" : getFormatter().formatDateTimeDescription(groupSessionCount.getStartDateTime()),
 					getFormatter().formatNumber(groupSessionCount.getPageViewCount()),
 					getFormatter().formatNumber(groupSessionCount.getRegistrationCount())
 			));
@@ -1527,7 +1526,7 @@ public class AnalyticsResource {
 
 		if (startDate.isBefore(FIRST_BIGQUERY_DATE)) {
 			alerts.add(syntheticAlertForMessage(getStrings().get("Group Session Pageview data is only available for dates on or after {{firstDateDescription}}.", Map.of(
-					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+					"firstDateDescription", getFormatter().formatDateDescription(FIRST_BIGQUERY_DATE)
 			))));
 		}
 
@@ -1891,10 +1890,10 @@ public class AnalyticsResource {
 
 		if (startDate.isBefore(FIRST_BIGQUERY_DATE)) {
 			alerts.add(syntheticAlertForMessage(getStrings().get("Content Pageview data is only available for dates on or after {{firstDateDescription}}.", Map.of(
-					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+					"firstDateDescription", getFormatter().formatDateDescription(FIRST_BIGQUERY_DATE)
 			))));
 			alerts.add(syntheticAlertForMessage(getStrings().get("Topic Center data is only available for dates on or after {{firstDateDescription}}.", Map.of(
-					"firstDateDescription", getFormatter().formatDate(FIRST_BIGQUERY_DATE, FormatStyle.MEDIUM)
+					"firstDateDescription", getFormatter().formatDateDescription(FIRST_BIGQUERY_DATE)
 			))));
 		}
 

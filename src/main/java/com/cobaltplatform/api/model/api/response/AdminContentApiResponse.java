@@ -37,7 +37,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -201,11 +200,11 @@ public class AdminContentApiResponse {
 		this.duration = adminContent.getDurationInMinutes() != null ? adminContent.getDurationInMinutes().toString() : null;
 		this.durationInMinutes = adminContent.getDurationInMinutes();
 		this.publishStartDate = adminContent.getPublishStartDate();
-		this.publishStartDateDescription = adminContent.getPublishStartDate() != null ? formatter.formatDate(adminContent.getPublishStartDate(), FormatStyle.SHORT) : null;
+		this.publishStartDateDescription = adminContent.getPublishStartDate() != null ? formatter.formatDateDescription(adminContent.getPublishStartDate()) : null;
 		this.publishEndDate = adminContent.getPublishEndDate();
-		this.publishEndDateDescription = adminContent.getPublishEndDate() != null ? formatter.formatDate(adminContent.getPublishEndDate(), FormatStyle.SHORT) : "No Expiry";
+		this.publishEndDateDescription = adminContent.getPublishEndDate() != null ? formatter.formatDateDescription(adminContent.getPublishEndDate()) : "No Expiry";
 		this.dateCreated = adminContent.getDateCreated();
-		this.dateCreatedDescription = formatter.formatDate(adminContent.getDateCreated(), FormatStyle.SHORT);
+		this.dateCreatedDescription = formatter.formatDateDescription(adminContent.getDateCreated());
 		this.publishRecurring = adminContent.getPublishRecurring();
 		this.searchTerms = adminContent.getSearchTerms();
 		this.sharedFlag = adminContent.getSharedFlag();
@@ -280,7 +279,7 @@ public class AdminContentApiResponse {
 		this.dateAddedToInstitution = adminContent.getDateAddedToInstitution();
 
 		this.dateAddedToInstitutionDescription = adminContent.getDateAddedToInstitution() != null ?
-				formatter.formatDate(adminContent.getDateAddedToInstitution(), FormatStyle.SHORT) : "N/A";
+				formatter.formatDateDescription(adminContent.getDateAddedToInstitution()) : "N/A";
 
 		this.contentAudienceTypes = contentService.findContentAudienceTypesByContentId(contentId).stream()
 				.map(contentAudienceType -> contentAudienceTypeApiResponseFactory.create(contentAudienceType))

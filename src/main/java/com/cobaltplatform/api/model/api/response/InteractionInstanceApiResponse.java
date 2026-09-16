@@ -32,7 +32,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.FormatStyle;
 import java.util.Map;
 import java.util.UUID;
 
@@ -93,9 +92,9 @@ public class InteractionInstanceApiResponse {
 		this.hipaaCompliantMetadata = interactionInstance.getHipaaCompliantMetadata() == null ? null : jsonMapper.toMapFromRawJson(interactionInstance.getHipaaCompliantMetadata());
 		this.timeZone = interactionInstance.getTimeZone();
 		this.startDateTime = interactionInstance.getStartDateTime();
-		this.startDateTimeDescription = formatter.formatDateTime(interactionInstance.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
+		this.startDateTimeDescription = formatter.formatDateTimeDescription(interactionInstance.getStartDateTime());
 		this.completedDate = interactionInstance.getCompletedDate();
-		this.completedDateDescription = interactionInstance.getCompletedDate() == null ? null : formatter.formatTimestamp(interactionInstance.getCompletedDate(), FormatStyle.LONG, FormatStyle.MEDIUM);
+		this.completedDateDescription = interactionInstance.getCompletedDate() == null ? null : formatter.formatTimestampDescription(interactionInstance.getCompletedDate());
 		this.completedFlag = interactionInstance.getCompletedFlag();
 		this.caseNumber = interactionInstance.getCaseNumber();
 	}

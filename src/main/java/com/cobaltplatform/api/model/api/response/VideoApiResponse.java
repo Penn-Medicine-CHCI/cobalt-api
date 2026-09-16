@@ -89,9 +89,9 @@ public class VideoApiResponse {
 		this.kalturaEntryId = video.getKalturaEntryId();
 		this.kalturaPlaylistId = video.getKalturaPlaylistId();
 		this.created = video.getCreated();
-		this.createdDescription = formatter.formatTimestamp(video.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(video.getCreated());
 		this.lastUpdated = video.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(video.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(video.getLastUpdated());
 	}
 
 	@Nonnull

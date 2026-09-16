@@ -49,6 +49,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.Proxy;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Arrays;
@@ -95,6 +96,30 @@ public class ProviderSearchResultApiResponseTests {
 				List.of(providerFind), Map.of(providerId, provider), Map.of());
 
 		assertEquals(AppointmentBookingLevelId.CLINIC, response.getAppointmentBookingLevelId());
+	}
+
+	@Test
+	public void clinicSearchResultUsesTreatmentDescriptionAsItsListDescription() {
+		UUID providerId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		Provider provider = provider(providerId, null);
+		ProviderFind providerFind = providerFind(providerId, null);
+		Clinic clinic = clinic(clinicId, AppointmentBookingLevelId.CLINIC);
+		clinic.setDescription("EAP Clinician");
+		clinic.setTreatmentDescription("EAP counseling details");
+		ProviderSearchResult providerSearchResult = ProviderSearchResult.forClinic(clinic, List.of(providerFind),
+				Map.of(providerId, provider), Map.of());
+
+		List<ProviderSearchResultApiResponse> responses = List.of(
+				new ProviderSearchResultApiResponse(formatter(), strings(), clinic, List.of(providerFind),
+						Map.of(providerId, provider), Map.of()),
+				new ProviderSearchResultApiResponse(formatter(), strings(), providerSearchResult));
+
+		for (ProviderSearchResultApiResponse response : responses) {
+			assertEquals("EAP Clinician", response.getName());
+			assertEquals("EAP counseling details", response.getDescription());
+			assertEquals("EAP counseling details", response.getTreatmentDescription());
+		}
 	}
 
 	@Test
@@ -317,6 +342,8 @@ public class ProviderSearchResultApiResponseTests {
 		assertNotNull(response.getFirstAvailableAppointment());
 		assertEquals(LocalDate.of(2026, 9, 7), response.getFirstAvailableAppointment().getDate());
 		assertEquals(LocalTime.of(10, 0), response.getFirstAvailableAppointment().getTime());
+		assertEquals(LocalDateTime.of(2026, 9, 7, 10, 0), response.getFirstAvailableAppointment().getDateTime());
+		assertEquals("Mon, Sep 7, 2026 10:00 am", response.getFirstAvailableAppointment().getDateTimeDescription());
 		assertEquals(true, response.getHasMoreAppointments());
 	}
 

@@ -67,7 +67,7 @@ public class ScreeningApiResponse {
 		this.name = screening.getName();
 		this.activeScreeningVersionId = screening.getActiveScreeningVersionId();
 		this.created = screening.getCreated();
-		this.createdDescription = formatter.formatTimestamp(screening.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(screening.getCreated());
 	}
 
 	@Nonnull

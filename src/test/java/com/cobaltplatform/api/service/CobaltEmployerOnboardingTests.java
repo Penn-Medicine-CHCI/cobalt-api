@@ -22,6 +22,7 @@ import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningSessionRequest;
 import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequirementsRequest;
+import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
 import com.cobaltplatform.api.model.db.Account;
@@ -30,11 +31,9 @@ import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
-import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
-import com.cobaltplatform.api.model.db.ScreeningImage.ScreeningImageId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
@@ -63,7 +62,7 @@ import static org.junit.Assert.assertTrue;
 @ThreadSafe
 public class CobaltEmployerOnboardingTests {
 	@Test
-	public void onboardingFlowPublishesCurrentEmployerLocationsAndPrompts() {
+	public void onboardingFlowPublishesSingleEmployerQuestionWithoutPrompts() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
 			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
@@ -78,14 +77,13 @@ public class CobaltEmployerOnboardingTests {
 			assertEquals(ScreeningFlowTypeId.ONBOARDING, screeningFlow.getScreeningFlowTypeId());
 			assertEquals(Boolean.FALSE, screeningFlowVersion.getSkippable());
 
-			ScreeningConfirmationPrompt completionPrompt = screeningService.findScreeningConfirmationPromptById(
-					screeningFlowVersion.getPreCompletionScreeningConfirmationPromptId()).get();
-			assertEquals(ScreeningImageId.SCREENING_COMPLETE, completionPrompt.getScreeningImageId());
-			assertEquals("Thank you!", completionPrompt.getTitleText());
-			assertEquals("You're all set to use Cobalt.", completionPrompt.getText());
-			assertEquals("Done", completionPrompt.getActionText());
+			assertNull(screeningFlowVersion.getPreCompletionScreeningConfirmationPromptId());
 
 			UUID accountId = createCobaltAccount(accountService);
+			assertEquals("LARGE_MODAL", app.getInjector().getInstance(AccountApiResponseFactory.class)
+					.create(accountService.findAccountById(accountId).get()).getOnboardingScreeningPresentationId());
+			assertFalse(app.getInjector().getInstance(AccountApiResponseFactory.class)
+					.create(accountService.findAccountById(accountId).get()).getOnboardingScreeningFlowAppliesToAccount());
 			UUID screeningSessionId = createOnboardingSession(screeningService, onboardingScreeningFlowId, accountId);
 			ScreeningQuestionContext questionContext = screeningService
 					.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).get();
@@ -97,13 +95,7 @@ public class CobaltEmployerOnboardingTests {
 			assertEquals(Boolean.TRUE,
 					questionContext.getScreeningQuestion().getMetadata().get("shouldUpdateAccountInstitutionLocation"));
 
-			ScreeningConfirmationPrompt introPrompt = screeningService.findScreeningConfirmationPromptById(
-					questionContext.getScreeningQuestion().getPreQuestionScreeningConfirmationPromptId()).get();
-			assertEquals(ScreeningImageId.WELCOME, introPrompt.getScreeningImageId());
-			assertEquals("Welcome to Cobalt!", introPrompt.getTitleText());
-			assertEquals("To help connect you with the benefits and resources available to you, please tell us who your employer is.",
-					introPrompt.getText());
-			assertEquals("Continue", introPrompt.getActionText());
+			assertNull(questionContext.getScreeningQuestion().getPreQuestionScreeningConfirmationPromptId());
 
 			List<String> expectedEmployerNames = institutionService.findLocationsByInstitutionId(InstitutionId.COBALT)
 					.stream().map(InstitutionLocation::getName).toList();
@@ -133,6 +125,9 @@ public class CobaltEmployerOnboardingTests {
 			UUID expectedInstitutionLocationId = UUID.fromString((String) namedQuestionContext.getScreeningAnswerOptions()
 					.get(0).getMetadata().get("institutionLocationId"));
 			answer(screeningService, namedQuestionContext, namedAccountId, 0);
+
+			assertFalse(screeningService.findNextUnansweredScreeningQuestionContextByScreeningSessionId(
+					namedQuestionContext.getScreeningSessionScreening().getScreeningSessionId()).isPresent());
 
 			Account namedAccount = accountService.findAccountById(namedAccountId).get();
 			assertEquals(expectedInstitutionLocationId, namedAccount.getInstitutionLocationId());

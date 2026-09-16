@@ -663,7 +663,7 @@ public class ProviderResource {
 
 			ProviderFindSection section = new ProviderFindSection();
 			section.setDate(date);
-			section.setDateDescription(getFormatter().formatDate(date, FormatStyle.FULL));
+			section.setDateDescription(getFormatter().formatDateDescription(date));
 			section.setFullyBooked(allProvidersFullyBooked);
 			section.setProviders(normalizedProviderFinds);
 
@@ -809,7 +809,7 @@ public class ProviderResource {
 							// Range of > 1: make it a range
 							firstEmptySectionInRange.setEndDate(previousDay);
 							firstEmptySectionInRange.setDateDescription(format("%s - %s",
-									getFormatter().formatDate(firstEmptySectionInRange.getDate(), FormatStyle.FULL), getFormatter().formatDate(previousDay, FormatStyle.FULL)));
+									getFormatter().formatDateDescription(firstEmptySectionInRange.getDate()), getFormatter().formatDateDescription(previousDay)));
 							finalSections.add(firstEmptySectionInRange);
 						}
 
@@ -833,7 +833,7 @@ public class ProviderResource {
 					// Range of > 1: make it a range
 					firstEmptySectionInRange.setEndDate(previousDay);
 					firstEmptySectionInRange.setDateDescription(format("%s - %s",
-							getFormatter().formatDate(firstEmptySectionInRange.getDate(), FormatStyle.FULL), getFormatter().formatDate(previousDay, FormatStyle.FULL)));
+							getFormatter().formatDateDescription(firstEmptySectionInRange.getDate()), getFormatter().formatDateDescription(previousDay)));
 					finalSections.add(firstEmptySectionInRange);
 				}
 			}

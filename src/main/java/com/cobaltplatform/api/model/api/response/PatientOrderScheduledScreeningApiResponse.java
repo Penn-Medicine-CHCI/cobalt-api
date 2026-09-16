@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.format.FormatStyle;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -88,15 +87,15 @@ public class PatientOrderScheduledScreeningApiResponse {
 		this.patientOrderId = patientOrderScheduledScreening.getPatientOrderId();
 		this.accountId = patientOrderScheduledScreening.getAccountId();
 		this.scheduledDateTime = patientOrderScheduledScreening.getScheduledDateTime();
-		this.scheduledDateTimeDescription = formatter.formatDateTime(patientOrderScheduledScreening.getScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.scheduledDateTimeDescription = formatter.formatDateTimeDescription(patientOrderScheduledScreening.getScheduledDateTime());
 		this.calendarUrl = patientOrderScheduledScreening.getCalendarUrl();
 		this.canceled = patientOrderScheduledScreening.getCanceled();
 		this.canceledAt = patientOrderScheduledScreening.getCanceledAt();
-		this.canceledAtDescription = patientOrderScheduledScreening.getCanceledAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledScreening.getCanceledAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.canceledAtDescription = patientOrderScheduledScreening.getCanceledAt() == null ? null : formatter.formatTimestampDescription(patientOrderScheduledScreening.getCanceledAt());
 		this.created = patientOrderScheduledScreening.getCreated();
-		this.createdDescription = formatter.formatTimestamp(patientOrderScheduledScreening.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.createdDescription = formatter.formatTimestampDescription(patientOrderScheduledScreening.getCreated());
 		this.lastUpdated = patientOrderScheduledScreening.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(patientOrderScheduledScreening.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(patientOrderScheduledScreening.getLastUpdated());
 	}
 
 	@Nonnull

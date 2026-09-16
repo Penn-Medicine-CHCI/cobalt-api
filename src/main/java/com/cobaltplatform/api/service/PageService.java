@@ -106,7 +106,6 @@ import javax.inject.Singleton;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -683,7 +682,7 @@ public class PageService {
 				Optional<Account> account = getAccountService().findAccountById(livePage.get().getCreatedByAccountId());
 				validationException.add(new FieldError("page", getStrings().get(
 						format("Could not publish this page because there is a more recent version of this page published by %s on %s. Please close this window and re-edit the page.", account.get().getDisplayName(),
-								formatter.formatTimestamp(livePage.get().getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT)))));
+								formatter.formatTimestampDescription(livePage.get().getLastUpdated())))));
 			}
 		}
 

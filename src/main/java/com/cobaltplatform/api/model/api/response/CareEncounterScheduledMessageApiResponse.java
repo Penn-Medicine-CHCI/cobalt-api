@@ -97,7 +97,7 @@ public class CareEncounterScheduledMessageApiResponse {
 		this.scheduledAtTime = model.getScheduledAt().toLocalTime();
 		this.timeZone = model.getTimeZone();
 		this.scheduledAt = model.getScheduledAt().atZone(model.getTimeZone()).toInstant();
-		this.scheduledAtDescription = formatter.formatTimestamp(this.scheduledAt);
+		this.scheduledAtDescription = formatter.formatTimestampDescription(this.scheduledAt);
 		this.processedAt = model.getProcessedAt();
 		this.processedAtDescription = describe(formatter, this.processedAt);
 		this.canceledAt = model.getCanceledAt();
@@ -132,13 +132,13 @@ public class CareEncounterScheduledMessageApiResponse {
 		this.lastUpdatedByAccountId = model.getLastUpdatedByAccountId();
 		this.lastUpdatedByAccountDisplayName = model.getLastUpdatedByAccountDisplayName();
 		this.created = model.getCreated();
-		this.createdDescription = formatter.formatTimestamp(this.created);
+		this.createdDescription = formatter.formatTimestampDescription(this.created);
 		this.lastUpdated = model.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(this.lastUpdated);
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(this.lastUpdated);
 	}
 
 	@Nullable private static String describe(@Nonnull Formatter formatter, @Nullable Instant instant) {
-		return instant == null ? null : formatter.formatTimestamp(instant);
+		return instant == null ? null : formatter.formatTimestampDescription(instant);
 	}
 
 	@Nonnull public UUID getCareEncounterScheduledMessageId() { return careEncounterScheduledMessageId; }

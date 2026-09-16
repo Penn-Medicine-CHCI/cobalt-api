@@ -29,6 +29,7 @@ Never apply any of these local fixture patches to a production database:
 - `sql/local/263-care-navigator-seed.sql`
 - `sql/local/264-cobalt-employer-onboarding.sql`
 - `sql/local/265-team-clinic-referral-provider-seed.sql`
+- `sql/local/266-cobalt-employer-onboarding-single-question.sql`
 
 They live outside the production update directory because they contain test
 accounts, fixed fixture identifiers, synthetic clinical
@@ -43,6 +44,8 @@ it. Nothing in the production chain depends on it.
 
 `264-cobalt-employer-onboarding.sql` creates the COBALT-branded local onboarding
 flow and snapshots the local COBALT institution locations as employer choices.
+`266-cobalt-employer-onboarding-single-question.sql` removes its welcome and
+completion prompts, leaving only the employer question.
 Provision a real tenant, including PENN, with a reviewed enterprise patch using
 tenant-approved copy and employer choices. Do not run the local fixture outside
 local or bootstrap databases.

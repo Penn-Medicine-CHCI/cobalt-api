@@ -20,19 +20,18 @@
 package com.cobaltplatform.api.messaging.email;
 
 import com.cobaltplatform.api.UnitTest;
+import com.cobaltplatform.api.util.HandlebarsTemplater;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * @author Transmogrify, LLC.
@@ -41,47 +40,74 @@ import java.util.Arrays;
 @Category(UnitTest.class)
 public class V2EmailLayoutContractTests {
 	@Nonnull
-	private static final Path V2_LAYOUT_PATH = Paths.get("messages/email/layouts/en/v2.hbs");
+	private static final String PLATFORM_EMAIL_IMAGE_URL = "https://example.com/platform-logo.png";
 
 	@Test
-	public void sharedLayoutOwnsOrganizationBrandingContentSlotAndFooter() throws IOException {
-		String layout = Files.readString(V2_LAYOUT_PATH, StandardCharsets.UTF_8);
-
-		Assert.assertTrue(layout.contains("platformEmailImageUrl"));
-		Assert.assertTrue(layout.contains("institutionId"));
-		Assert.assertTrue(layout.contains("{{#block \"content\"}}"));
-		Assert.assertTrue(layout.contains("{{#if emailFooterText}}"));
-		Assert.assertTrue(layout.contains("{{emailFooterText}}"));
-		Assert.assertTrue(layout.contains("{{#block \"footer\"}}"));
-		Assert.assertTrue(layout.contains("{{#if privacyPolicyUrl}}"));
-	}
-
-	@Test
-	public void everyV2EmailUsesSharedLayoutAndKeepsShellFieldsOutOfItsContent() {
+	public void everyV2EmailRendersTheSharedBrandedShell() {
 		Arrays.stream(EmailMessageTemplate.values())
 				.filter(messageTemplate -> messageTemplate.name().startsWith("V2_"))
-				.forEach(this::assertUsesSharedLayout);
+				.forEach(messageTemplate -> {
+					String body = render(messageTemplate, baseContext());
+
+					Assert.assertTrue(messageTemplate + " should render an HTML document",
+							body.contains("<!DOCTYPE html"));
+					Assert.assertTrue(messageTemplate + " should render the institution logo",
+							body.contains("src=\"" + PLATFORM_EMAIL_IMAGE_URL + "\""));
+					Assert.assertTrue(messageTemplate + " should render the responsive card",
+							body.contains("width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px"));
+					Assert.assertTrue(messageTemplate + " should render institution colors",
+							body.contains("background-color:#F7F8F7"));
+					Assert.assertTrue(messageTemplate + " should render the privacy link",
+							body.contains("href=\"https://example.com/privacy\""));
+					Assert.assertFalse(messageTemplate + " should not render empty color declarations",
+							body.contains("background-color:;"));
+				});
 	}
 
-	protected void assertUsesSharedLayout(@Nonnull EmailMessageTemplate messageTemplate) {
-		Path bodyPath = Paths.get("messages/email/views", messageTemplate.name(), "en/body.hbs");
-		Assert.assertTrue("Expected V2 body template at " + bodyPath, Files.isRegularFile(bodyPath));
+	@Test
+	public void everyV2EmailUsesAnEscapedInstitutionFooterWhenConfigured() {
+		Arrays.stream(EmailMessageTemplate.values())
+				.filter(messageTemplate -> messageTemplate.name().startsWith("V2_"))
+				.forEach(messageTemplate -> {
+					Map<String, Object> context = baseContext();
+					context.put("emailFooterText", "<Institution & footer>");
+					String body = render(messageTemplate, context);
 
-		try {
-			String body = Files.readString(bodyPath, StandardCharsets.UTF_8);
+					Assert.assertTrue(messageTemplate + " should render escaped institution footer text",
+							body.contains("&lt;Institution &amp; footer&gt;"));
+					Assert.assertFalse(messageTemplate + " should not render raw institution footer HTML",
+							body.contains("<Institution & footer>"));
+				});
+	}
 
-			Assert.assertTrue(messageTemplate + " must provide the shared central content block",
-					body.contains("{{#partial \"content\"}}"));
-			Assert.assertTrue(messageTemplate + " must render through the shared V2 layout",
-					body.contains("{{> layouts/en/v2}}"));
-			Assert.assertFalse(messageTemplate + " must leave institution footer handling to the V2 layout",
-					body.contains("emailFooterText"));
-			Assert.assertFalse(messageTemplate + " must leave Privacy Policy handling to the V2 layout",
-					body.contains("privacyPolicyUrl"));
-			Assert.assertFalse(messageTemplate + " must leave organization header handling to the V2 layout",
-					body.contains("platformEmailImageUrl"));
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
+	@Nonnull
+	protected Map<String, Object> baseContext() {
+		Map<String, Object> context = new HashMap<>();
+		context.put("colors", Map.of(
+				"n50", "#F7F8F7",
+				"n900", "#2D3030",
+				"p500", "#2F7F61"
+		));
+		context.put("institutionId", "COBALT");
+		context.put("platformName", "Cobalt");
+		context.put("platformEmailImageUrl", PLATFORM_EMAIL_IMAGE_URL);
+		context.put("privacyPolicyUrl", "https://example.com/privacy");
+		return context;
+	}
+
+	@Nonnull
+	protected String render(@Nonnull EmailMessageTemplate messageTemplate,
+											 @Nonnull Map<String, Object> context) {
+		HandlebarsTemplater handlebarsTemplater = new HandlebarsTemplater.Builder(Paths.get("messages/email"))
+				.viewsDirectoryName("views")
+				.shouldCacheTemplates(false)
+				.build();
+
+		return handlebarsTemplater.mergeTemplate(
+				messageTemplate.name(),
+				"body",
+				Locale.US,
+				context
+		).orElseThrow();
 	}
 }

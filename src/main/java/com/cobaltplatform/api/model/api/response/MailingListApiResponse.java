@@ -33,7 +33,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
-import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -82,9 +81,9 @@ public class MailingListApiResponse {
 		this.mailingListId = mailingList.getMailingListId();
 		this.createdByAccountId = mailingList.getCreatedByAccountId();
 		this.created = mailingList.getCreated();
-		this.createdDescription = formatter.formatTimestamp(mailingList.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.createdDescription = formatter.formatTimestampDescription(mailingList.getCreated());
 		this.lastUpdated = mailingList.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(mailingList.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(mailingList.getLastUpdated());
 		this.mailingListEntries = mailingListService.findMailingListEntriesByMailingListId(mailingList.getMailingListId(), MailingListEntryStatusFilter.SUBSCRIBED).stream()
 				.map(mailingListEntry -> mailingListEntryApiResponseFactory.create(mailingListEntry))
 				.collect(Collectors.toList());

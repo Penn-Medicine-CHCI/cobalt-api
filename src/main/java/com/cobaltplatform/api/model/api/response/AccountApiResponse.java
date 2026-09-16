@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.model.api.response.AddressApiResponse.AddressApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
@@ -57,7 +58,6 @@ import javax.inject.Provider;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.FormatStyle;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
@@ -156,6 +156,10 @@ public class AccountApiResponse {
 	private final UUID institutionLocationId;
 	@Nullable
 	private final Boolean promptedForInstitutionLocation;
+	@Nonnull
+	private final String onboardingScreeningPresentationId;
+	@Nonnull
+	private final Boolean onboardingScreeningFlowAppliesToAccount;
 	@Nullable
 	private final AccountCapabilityFlags accountCapabilityFlags;
 	@Nullable
@@ -168,6 +172,16 @@ public class AccountApiResponse {
 	private final Boolean passwordResetRequired;
 	@Nullable
 	private final UUID passwordResetToken;
+
+	@Nonnull
+	public String getOnboardingScreeningPresentationId() {
+		return this.onboardingScreeningPresentationId;
+	}
+
+	@Nonnull
+	public Boolean getOnboardingScreeningFlowAppliesToAccount() {
+		return this.onboardingScreeningFlowAppliesToAccount;
+	}
 
 	public enum AccountApiResponseSupplement {
 		EVERYTHING,
@@ -191,13 +205,14 @@ public class AccountApiResponse {
 														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
 														@Nonnull InstitutionService institutionService,
+														@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
 														@Nonnull Provider<CurrentContext> currentContextProvider,
 														@Nonnull AddressApiResponseFactory addressApiResponseFactory,
 														@Assisted @Nonnull Account account) {
-		this(accountService, addressService, sessionService, institutionService, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
+		this(accountService, addressService, sessionService, institutionService, enterprisePluginProvider, authorizationService, formatter, strings, currentContextProvider, addressApiResponseFactory, account, Collections.emptySet());
 	}
 
 	@AssistedInject
@@ -205,6 +220,7 @@ public class AccountApiResponse {
 														@Nonnull AddressService addressService,
 														@Nonnull SessionService sessionService,
 														@Nonnull InstitutionService institutionService,
+														@Nonnull EnterprisePluginProvider enterprisePluginProvider,
 														@Nonnull AuthorizationService authorizationService,
 														@Nonnull Formatter formatter,
 														@Nonnull Strings strings,
@@ -216,6 +232,7 @@ public class AccountApiResponse {
 		requireNonNull(addressService);
 		requireNonNull(sessionService);
 		requireNonNull(institutionService);
+		requireNonNull(enterprisePluginProvider);
 		requireNonNull(authorizationService);
 		requireNonNull(formatter);
 		requireNonNull(strings);
@@ -225,6 +242,7 @@ public class AccountApiResponse {
 		requireNonNull(supplements);
 
 		CurrentContext currentContext = currentContextProvider.get();
+		Institution institution = institutionService.findInstitutionById(account.getInstitutionId()).get();
 
 		boolean showPrivateDetails = supplements.contains(AccountApiResponseSupplement.EVERYTHING)
 				|| supplements.contains(AccountApiResponseSupplement.PRIVATE_DETAILS)
@@ -234,6 +252,11 @@ public class AccountApiResponse {
 		this.roleId = account.getRoleId();
 		this.institutionId = account.getInstitutionId();
 		this.accountSourceId = account.getAccountSourceId();
+		this.onboardingScreeningPresentationId = accountService.findAccountSourceById(account.getAccountSourceId())
+				.map(source -> source.getOnboardingScreeningPresentationId()).orElse("LARGE_MODAL");
+		this.onboardingScreeningFlowAppliesToAccount = institution.getOnboardingScreeningFlowId() != null
+				&& enterprisePluginProvider.enterprisePluginForInstitutionId(account.getInstitutionId())
+						.isAccountEligibleForOnboardingScreeningFlow(account);
 		this.sourceSystemId = account.getSourceSystemId();
 		this.betaStatusId = account.getBetaStatusId();
 		this.username = account.getUsername();
@@ -245,7 +268,7 @@ public class AccountApiResponse {
 		this.languageCode = account.getLocale().getLanguage();
 		this.countryCode = account.getLocale().getCountry();
 		this.created = account.getCreated();
-		this.createdDescription = formatter.formatTimestamp(account.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(account.getCreated());
 		this.providerId = account.getProviderId();
 		this.institutionLocationId = account.getInstitutionLocationId();
 		this.promptedForInstitutionLocation = account.getPromptedForInstitutionLocation();
@@ -253,15 +276,15 @@ public class AccountApiResponse {
 		this.passwordResetRequired = account.getPasswordResetRequired();
 		this.passwordResetToken = account.getPasswordResetToken();
 		this.createdDate = LocalDate.ofInstant(account.getCreated(), currentContext.getTimeZone());
-		this.createdDateDescription = formatter.formatDate(this.createdDate, FormatStyle.MEDIUM);
+		this.createdDateDescription = formatter.formatDateDescription(this.createdDate);
 
 		if (showPrivateDetails) {
 			this.emailAddress = account.getEmailAddress();
 			this.lastUpdated = account.getLastUpdated();
 			this.consentFormAccepted = account.getConsentFormAccepted();
 			this.consentFormAcceptedDate = account.getConsentFormAcceptedDate();
-			this.consentFormAcceptedDateDescription = account.getConsentFormAcceptedDate() == null ? null : formatter.formatTimestamp(account.getConsentFormAcceptedDate());
-			this.lastUpdatedDescription = formatter.formatTimestamp(account.getLastUpdated());
+			this.consentFormAcceptedDateDescription = account.getConsentFormAcceptedDate() == null ? null : formatter.formatTimestampDescription(account.getConsentFormAcceptedDate());
+			this.lastUpdatedDescription = formatter.formatTimestampDescription(account.getLastUpdated());
 			this.phoneNumber = account.getPhoneNumber();
 			this.phoneNumberDescription = account.getPhoneNumber() == null ? null : formatter.formatPhoneNumber(account.getPhoneNumber());
 			this.epicPatientMrn = account.getEpicPatientMrn();
@@ -275,12 +298,11 @@ public class AccountApiResponse {
 			this.legalSexId = account.getLegalSexId();
 			this.administrativeGenderId = account.getAdministrativeGenderId();
 			this.birthdate = account.getBirthdate();
-			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDate(account.getBirthdate(), FormatStyle.MEDIUM);
+			this.birthdateDescription = account.getBirthdate() == null ? null : formatter.formatDateDescription(account.getBirthdate());
 
 			Address address = addressService.findActiveAddressByAccountId(accountId).orElse(null);
 			this.address = address == null ? null : addressApiResponseFactory.create(address);
 
-			Institution institution = institutionService.findInstitutionById(account.getInstitutionId()).get();
 			LoginDestinationId loginDestinationId;
 
 			if (institution.getIntegratedCareEnabled()) {

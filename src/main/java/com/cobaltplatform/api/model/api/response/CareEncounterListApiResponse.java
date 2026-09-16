@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -119,11 +118,11 @@ public class CareEncounterListApiResponse {
 				appointmentModel.getFirstName() == null ? "" : appointmentModel.getFirstName(),
 				appointmentModel.getLastName() == null ? "" : appointmentModel.getLastName()).trim();
 		this.appointmentDate = appointmentModel.getStartTime().toLocalDate();
-		this.appointmentDateDescription = formatter.formatDate(this.appointmentDate, FormatStyle.MEDIUM);
+		this.appointmentDateDescription = formatter.formatDateDescription(this.appointmentDate);
 		this.closedAt = careEncounter.getClosedAt();
 		this.closedAtDescription = careEncounter.getClosedAt() == null
 				? null
-				: formatter.formatTimestamp(careEncounter.getClosedAt());
+				: formatter.formatTimestampDescription(careEncounter.getClosedAt());
 		this.closedByAccountId = careEncounter.getClosedByAccountId();
 		this.canceledByAccountId = careEncounter.getCanceledByAccountId();
 		this.careEncounterCancellationReasonId = careEncounter.getCareEncounterCancellationReasonId();
@@ -131,11 +130,11 @@ public class CareEncounterListApiResponse {
 		this.createdByAccountId = careEncounter.getCreatedByAccountId();
 		this.lastUpdatedByAccountId = careEncounter.getLastUpdatedByAccountId();
 		this.created = careEncounter.getCreated();
-		this.createdDescription = formatter.formatTimestamp(careEncounter.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(careEncounter.getCreated());
 		this.createdDate = LocalDate.ofInstant(careEncounter.getCreated(), currentContextProvider.get().getTimeZone());
-		this.createdDateDescription = formatter.formatDate(this.createdDate, FormatStyle.MEDIUM);
+		this.createdDateDescription = formatter.formatDateDescription(this.createdDate);
 		this.lastUpdated = careEncounter.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(careEncounter.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(careEncounter.getLastUpdated());
 		this.appointment = new CareEncounterAppointmentApiResponse(formatter, accountService, appointmentModel);
 	}
 

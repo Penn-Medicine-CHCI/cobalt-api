@@ -1,8 +1,16 @@
 #!/bin/bash
 
+set -e
+
 echo "Bootstrapping Cobalt API..."
 
 docker build -t cobalt-bootstrap -f ./docker/Dockerfile-bootstrap .
 docker run --network localstack_default --rm cobalt-bootstrap:latest
+
+# The production-derived PENN provider bundle is private and deliberately not
+# copied into the bootstrap image. Import it from the host after the shared and
+# local schema/bootstrap SQL has completed. The helper safely skips this step
+# when a developer does not have the private bundle.
+sh ./sql/local/import-penn-provider-mirror
 
 echo "Bootstrap complete."

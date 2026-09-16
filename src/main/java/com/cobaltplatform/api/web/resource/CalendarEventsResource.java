@@ -57,7 +57,6 @@ import javax.inject.Singleton;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -197,7 +196,7 @@ public class CalendarEventsResource {
 				List<CalendarEvent> calendarEventsForDate = entry.getValue();
 
 				Map<String, Object> dateGroup = new HashMap<>();
-				dateGroup.put("date", date.equals(today) ? getStrings().get("Today") : getFormatter().formatDate(date, FormatStyle.MEDIUM));
+				dateGroup.put("date", date.equals(today) ? getStrings().get("Today") : getFormatter().formatDateDescription(date));
 				dateGroup.put("calendarEvents", calendarEventsForDate.stream()
 						.map((calendarEvent) -> toJson(calendarEvent))
 						.collect(Collectors.toList()));

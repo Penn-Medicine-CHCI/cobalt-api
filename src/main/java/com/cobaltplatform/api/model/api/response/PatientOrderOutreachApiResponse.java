@@ -104,15 +104,15 @@ public class PatientOrderOutreachApiResponse {
 		this.accountId = patientOrderOutreach.getAccountId();
 		this.note = patientOrderOutreach.getNote();
 		this.outreachDate = patientOrderOutreach.getOutreachDateTime().toLocalDate();
-		this.outreachDateDescription = formatter.formatDate(getOutreachDate(), FormatStyle.MEDIUM);
+		this.outreachDateDescription = formatter.formatDateDescription(getOutreachDate());
 		this.outreachTime = patientOrderOutreach.getOutreachDateTime().toLocalTime();
 		this.outreachTimeDescription = formatter.formatTime(getOutreachTime(), FormatStyle.SHORT);
 		this.outreachDateTime = patientOrderOutreach.getOutreachDateTime();
-		this.outreachDateTimeDescription = formatter.formatDateTime(patientOrderOutreach.getOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.outreachDateTimeDescription = formatter.formatDateTimeDescription(patientOrderOutreach.getOutreachDateTime());
 		this.created = patientOrderOutreach.getCreated();
-		this.createdDescription = formatter.formatTimestamp(patientOrderOutreach.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(patientOrderOutreach.getCreated());
 		this.lastUpdated = patientOrderOutreach.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(patientOrderOutreach.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(patientOrderOutreach.getLastUpdated());
 		this.account = accountApiResponseFactory.create(accountService.findAccountById(patientOrderOutreach.getAccountId()).get());
 	}
 

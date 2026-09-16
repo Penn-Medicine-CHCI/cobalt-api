@@ -127,17 +127,17 @@ public class PatientOrderScheduledMessageGroupApiResponse {
 		this.scheduledMessageSourceId = arbitraryPatientOrderScheduledMessage.getScheduledMessageSourceId();
 		this.timeZone = arbitraryPatientOrderScheduledMessage.getTimeZone();
 		this.scheduledAtDate = arbitraryPatientOrderScheduledMessage.getScheduledAt().toLocalDate();
-		this.scheduledAtDateDescription = formatter.formatDate(arbitraryPatientOrderScheduledMessage.getScheduledAt().toLocalDate(), FormatStyle.MEDIUM);
+		this.scheduledAtDateDescription = formatter.formatDateDescription(arbitraryPatientOrderScheduledMessage.getScheduledAt().toLocalDate());
 		this.scheduledAtTime = arbitraryPatientOrderScheduledMessage.getScheduledAt().toLocalTime();
 		this.scheduledAtTimeDescription = formatter.formatTime(arbitraryPatientOrderScheduledMessage.getScheduledAt().toLocalTime(), FormatStyle.SHORT);
 		this.scheduledAtDateTime = arbitraryPatientOrderScheduledMessage.getScheduledAt();
-		this.scheduledAtDateTimeDescription = formatter.formatDateTime(arbitraryPatientOrderScheduledMessage.getScheduledAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.scheduledAtDateTimeDescription = formatter.formatDateTimeDescription(arbitraryPatientOrderScheduledMessage.getScheduledAt());
 		this.scheduledAtDateTimeHasPassed = patientOrderScheduledMessageGroup.getScheduledAtDateTimeHasPassed();
 		this.atLeastOneMessageDelivered = patientOrderScheduledMessageGroup.getAtLeastOneMessageDelivered();
 		this.created = arbitraryPatientOrderScheduledMessage.getCreated();
-		this.createdDescription = formatter.formatTimestamp(arbitraryPatientOrderScheduledMessage.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(arbitraryPatientOrderScheduledMessage.getCreated());
 		this.lastUpdated = arbitraryPatientOrderScheduledMessage.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(arbitraryPatientOrderScheduledMessage.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(arbitraryPatientOrderScheduledMessage.getLastUpdated());
 		this.patientOrderScheduledMessages = patientOrderScheduledMessages.stream()
 				.map(patientOrderScheduledMessage -> patientOrderScheduledMessageApiResponseFactory.create(patientOrderScheduledMessage))
 				.collect(Collectors.toList());

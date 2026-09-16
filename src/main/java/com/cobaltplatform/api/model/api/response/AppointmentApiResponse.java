@@ -263,16 +263,16 @@ public class AppointmentApiResponse {
 		this.groupEventId = appointment.getAcuityClassId() == null ? null : String.valueOf(appointment.getAcuityClassId());
 		this.groupEventTypeId = appointment.getAcuityClassId() == null ? null : String.valueOf(appointment.getAppointmentTypeId());
 		this.created = appointment.getCreated();
-		this.createdDescription = formatter.formatTimestamp(appointment.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(appointment.getCreated());
 		this.title = appointment.getTitle();
 		this.subtitle = appointment.getAcuityClassId() == null ? strings.get("1:1 Support") : strings.get("In the Studio");
 		this.appointmentDescription = appointment.getAcuityClassId() == null ? strings.get("Appointment") : strings.get("Reservation");
 		this.startTime = appointment.getStartTime().atZone(appointment.getTimeZone()).toInstant();
-		this.startTimeDescription = formatter.formatTimestamp(getStartTime());
+		this.startTimeDescription = formatter.formatTimestampDescription(getStartTime());
 		this.localStartDate = appointment.getStartTime().toLocalDate();
 		this.localStartTime = appointment.getStartTime().toLocalTime();
 		this.endTime = appointment.getEndTime().atZone(appointment.getTimeZone()).toInstant();
-		this.endTimeDescription = formatter.formatTimestamp(getEndTime());
+		this.endTimeDescription = formatter.formatTimestampDescription(getEndTime());
 		this.localEndDate = appointment.getEndTime().toLocalDate();
 		this.localEndTime = appointment.getEndTime().toLocalTime();
 		this.durationInMinutes = appointment.getDurationInMinutes();
@@ -288,7 +288,7 @@ public class AppointmentApiResponse {
 		this.canceledForReschedule = appointment.getCanceledForReschedule() == null ? false : appointment.getCanceledForReschedule();
 		this.canceled = appointment.getCanceled();
 		this.canceledAt = appointment.getCanceledAt();
-		this.canceledAtDescription = appointment.getCanceledAt() == null ? null : formatter.formatTimestamp(appointment.getCanceledAt());
+		this.canceledAtDescription = appointment.getCanceledAt() == null ? null : formatter.formatTimestampDescription(appointment.getCanceledAt());
 		this.canceledByAccountId = showPrivateDetails ? appointment.getCanceledByAccountId() : null;
 		this.canceledByAccountDisplayName = this.canceledByAccountId == null ? null
 				: accountService.findAccountById(this.canceledByAccountId)

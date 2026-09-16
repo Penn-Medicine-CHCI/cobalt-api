@@ -85,9 +85,9 @@ public class PatientOrderNoteApiResponse {
 		this.accountId = patientOrderNote.getAccountId();
 		this.note = patientOrderNote.getNote();
 		this.created = patientOrderNote.getCreated();
-		this.createdDescription = formatter.formatTimestamp(patientOrderNote.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(patientOrderNote.getCreated());
 		this.lastUpdated = patientOrderNote.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(patientOrderNote.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(patientOrderNote.getLastUpdated());
 		this.account = accountApiResponseFactory.create(accountService.findAccountById(patientOrderNote.getAccountId()).get());
 	}
 

@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -88,9 +87,9 @@ public class EncounterApiResponse {
 		this.firstTypeText = encounter.getFirstTypeText();
 		this.serviceTypeText = encounter.getServiceTypeText();
 		this.periodStart = encounter.getPeriodStart();
-		this.periodStartDescription = encounter.getPeriodStart() == null ? null : formatter.formatDateTime(encounter.getPeriodStart(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.periodStartDescription = encounter.getPeriodStart() == null ? null : formatter.formatDateTimeDescription(encounter.getPeriodStart());
 		this.periodEnd = encounter.getPeriodEnd();
-		this.periodEndDescription = encounter.getPeriodEnd() == null ? null : formatter.formatDateTime(encounter.getPeriodEnd(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.periodEndDescription = encounter.getPeriodEnd() == null ? null : formatter.formatDateTimeDescription(encounter.getPeriodEnd());
 
 		List<String> descriptions = new ArrayList<>();
 

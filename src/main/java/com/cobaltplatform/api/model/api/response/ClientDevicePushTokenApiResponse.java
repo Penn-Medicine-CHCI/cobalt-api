@@ -78,9 +78,9 @@ public class ClientDevicePushTokenApiResponse {
 		this.pushToken = clientDevicePushToken.getPushToken();
 		this.valid = clientDevicePushToken.getValid();
 		this.created = clientDevicePushToken.getCreated();
-		this.createdDescription = formatter.formatTimestamp(clientDevicePushToken.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(clientDevicePushToken.getCreated());
 		this.lastUpdated = clientDevicePushToken.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(clientDevicePushToken.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(clientDevicePushToken.getLastUpdated());
 	}
 
 	@Nonnull

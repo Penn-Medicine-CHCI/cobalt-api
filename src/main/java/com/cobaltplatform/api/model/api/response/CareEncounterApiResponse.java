@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -155,7 +154,7 @@ public class CareEncounterApiResponse {
 				latestAppointment.getFirstName() == null ? "" : latestAppointment.getFirstName(),
 				latestAppointment.getLastName() == null ? "" : latestAppointment.getLastName()).trim();
 		this.appointmentDate = latestAppointment.getStartTime().toLocalDate();
-		this.appointmentDateDescription = formatter.formatDate(this.appointmentDate, FormatStyle.MEDIUM);
+		this.appointmentDateDescription = formatter.formatDateDescription(this.appointmentDate);
 		this.emailAddress = careEncounter.getEmailAddress();
 		this.careEncounterNotes = careEncounterService.findCareEncounterNotesByCareEncounterId(
 				careEncounter.getCareEncounterId()).stream()
@@ -167,7 +166,7 @@ public class CareEncounterApiResponse {
 				.map(message -> new CareEncounterScheduledMessageApiResponse(formatter, message))
 				.collect(Collectors.toUnmodifiableList());
 		this.closedAt = careEncounter.getClosedAt();
-		this.closedAtDescription = careEncounter.getClosedAt() == null ? null : formatter.formatTimestamp(careEncounter.getClosedAt());
+		this.closedAtDescription = careEncounter.getClosedAt() == null ? null : formatter.formatTimestampDescription(careEncounter.getClosedAt());
 		this.closedByAccountId = careEncounter.getClosedByAccountId();
 		this.canceledByAccountId = careEncounter.getCanceledByAccountId();
 		this.careEncounterCancellationReasonId = careEncounter.getCareEncounterCancellationReasonId();
@@ -178,11 +177,11 @@ public class CareEncounterApiResponse {
 				: displayNameForAccountId(accountService, this.createdByAccountId);
 		this.lastUpdatedByAccountId = careEncounter.getLastUpdatedByAccountId();
 		this.created = careEncounter.getCreated();
-		this.createdDescription = formatter.formatTimestamp(careEncounter.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(careEncounter.getCreated());
 		this.createdDate = LocalDate.ofInstant(careEncounter.getCreated(), currentContextProvider.get().getTimeZone());
-		this.createdDateDescription = formatter.formatDate(this.createdDate, FormatStyle.MEDIUM);
+		this.createdDateDescription = formatter.formatDateDescription(this.createdDate);
 		this.lastUpdated = careEncounter.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(careEncounter.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(careEncounter.getLastUpdated());
 		this.appointment = appointmentApiResponseFactory.create(latestAppointment, supplements);
 		this.appointmentHistory = appointmentModels.stream()
 				.filter(appointmentModel -> !isActiveAppointment(appointmentModel))

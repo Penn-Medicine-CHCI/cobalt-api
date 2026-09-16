@@ -74,7 +74,7 @@ public class ScreeningVersionApiResponse {
 		this.versionNumber = screeningVersion.getVersionNumber();
 		this.versionNumberDescription = formatter.formatNumber(screeningVersion.getVersionNumber());
 		this.created = screeningVersion.getCreated();
-		this.createdDescription = formatter.formatTimestamp(screeningVersion.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(screeningVersion.getCreated());
 	}
 
 	@Nonnull

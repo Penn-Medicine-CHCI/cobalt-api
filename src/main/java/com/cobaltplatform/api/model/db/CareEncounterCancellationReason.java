@@ -32,10 +32,11 @@ public class CareEncounterCancellationReason {
 
 	public enum CareEncounterCancellationReasonId {
 		PATIENT_REQUESTED,
-		NO_LONGER_NEEDED,
+		CARE_DELIVERED_DURING_CALL,
 		UNABLE_TO_REACH_PATIENT,
 		SCHEDULING_CONFLICT,
 		DUPLICATE_BOOKING,
+		FOLLOW_UP_COMPLETED,
 		OTHER
 	}
 

@@ -1,0 +1,77 @@
+{{#partial "preheader"}}
+	A telephone intake appointment was booked for {{appointmentStartDateTimeDescription}}.
+{{/partial}}
+
+{{#partial "content"}}
+	<table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation">
+		<tr>
+			<td align="left" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:28px; line-height:36px; font-weight:700; color:{{colors.n900}};">
+				A telephone intake appointment was booked
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:{{colors.n900}};">
+				Hello{{#if providerName}} {{providerName}}{{/if}},<br /><br />
+				A telephone intake appointment was scheduled for <strong>{{appointmentStartDateDescription}}</strong> at <strong>{{appointmentStartTimeDescription}}</strong>.
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:18px; line-height:24px; font-weight:700; color:{{colors.n900}};">
+				Contact information
+			</td>
+		</tr>
+		<tr><td height="8" style="height:8px; line-height:8px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:15px; line-height:23px; color:{{colors.n900}};">
+				<strong>Name:</strong> {{#if patientName}}{{patientName}}{{else}}Not available{{/if}}<br />
+				<strong>Email:</strong> {{#if patientEmailAddress}}{{patientEmailAddress}}{{else}}Not available{{/if}}<br />
+				<strong>Phone:</strong> {{#if patientPhoneNumber}}{{patientPhoneNumber}}{{else}}Not available{{/if}}
+			</td>
+		</tr>
+		{{#if intakeResponses}}
+			<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+			<tr>
+				<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:18px; line-height:24px; font-weight:700; color:{{colors.n900}};">
+					Intake responses
+				</td>
+			</tr>
+			{{#each intakeResponses}}
+				<tr><td height="12" style="height:12px; line-height:12px; font-size:1px;">&nbsp;</td></tr>
+				<tr>
+					<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:15px; line-height:23px; color:{{../colors.n900}};">
+						<strong>{{question}}</strong><br />
+						{{answer}}
+					</td>
+				</tr>
+			{{/each}}
+		{{/if}}
+		{{#if providerSchedulingUrl}}
+			<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+			<tr>
+				<td align="left">
+					<table border="0" cellspacing="0" cellpadding="0" role="presentation">
+						<tr>
+							<td align="center" bgcolor="{{colors.p500}}" style="background-color:{{colors.p500}}; border-radius:999px;">
+								<a href="{{{providerSchedulingUrl}}}" target="_blank" style="display:inline-block; font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; font-weight:600; color:#FFFFFF; text-decoration:none; padding:11px 21px; border-radius:999px;">View appointment</a>
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		{{/if}}
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:{{colors.n900}};">
+				Please do not reply to this email. This mailbox is not monitored.
+			</td>
+		</tr>
+	</table>
+{{/partial}}
+
+{{#partial "footer"}}
+	You are receiving this transactional email because an intake appointment was booked with you through {{platformName}}.
+{{/partial}}
+
+{{> layouts/en/v2}}

@@ -80,9 +80,9 @@ public class ContentFeedbackApiResponse {
 		this.accountId = contentFeedback.getAccountId();
 		this.message = contentFeedback.getMessage();
 		this.created = contentFeedback.getCreated();
-		this.createdDescription = formatter.formatTimestamp(contentFeedback.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(contentFeedback.getCreated());
 		this.lastUpdated = contentFeedback.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(contentFeedback.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(contentFeedback.getLastUpdated());
 	}
 
 	@Nonnull

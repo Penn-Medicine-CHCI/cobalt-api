@@ -144,7 +144,7 @@ public class ProviderAvailabilityApiResponse {
 		this.startDate = startDate;
 		this.endDate = endDate;
 		this.appointmentTypes = appointmentTypesFor(providerFinds, appointmentTypesById);
-		this.appointmentModalities = appointmentModalityAvailabilitiesFor(providerFinds, providersById, appointmentTypesById, locale);
+		this.appointmentModalities = appointmentModalityAvailabilitiesFor(providerFinds, providersById, appointmentTypesById, locale, formatter);
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null
 				: new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter, localeFor(provider, locale));
 		this.screeningRequirement = ProviderSearchResultApiResponse.screeningRequirementFor(firstAvailableAppointment,
@@ -185,7 +185,7 @@ public class ProviderAvailabilityApiResponse {
 		this.startDate = startDate;
 		this.endDate = endDate;
 		this.appointmentTypes = appointmentTypesFor(providerFinds, appointmentTypesById);
-		this.appointmentModalities = appointmentModalityAvailabilitiesFor(providerFinds, providersById, appointmentTypesById, locale);
+		this.appointmentModalities = appointmentModalityAvailabilitiesFor(providerFinds, providersById, appointmentTypesById, locale, formatter);
 		this.firstAvailableAppointment = firstAvailableAppointment == null ? null
 				: new FirstAvailableAppointmentApiResponse(firstAvailableAppointment, formatter,
 				localeFor(firstAvailableAppointment.getProvider(), localeFor(clinic, Locale.US)));
@@ -230,13 +230,15 @@ public class ProviderAvailabilityApiResponse {
 
 	@Nonnull
 	protected static List<AppointmentModalityAvailabilityApiResponse> appointmentModalityAvailabilitiesFor(@Nonnull List<ProviderFind> providerFinds,
-																																																			 @Nonnull Map<UUID, Provider> providersById,
-																																																			 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-																																																			 @Nonnull Locale locale) {
+																																														 @Nonnull Map<UUID, Provider> providersById,
+																																														 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																																														 @Nonnull Locale locale,
+																																														 @Nonnull Formatter formatter) {
 		requireNonNull(providerFinds);
 		requireNonNull(providersById);
 		requireNonNull(appointmentTypesById);
 		requireNonNull(locale);
+		requireNonNull(formatter);
 
 		Map<ProviderAppointmentModalityId, SortedMap<LocalDate, List<TimeApiResponse>>> timesByDateByAppointmentModalityId = new LinkedHashMap<>();
 
@@ -268,7 +270,7 @@ public class ProviderAvailabilityApiResponse {
 						continue;
 
 					TimeApiResponse time = new TimeApiResponse(providerId, providerName, date, availabilityTime,
-							knownAppointmentTypeIds, appointmentTypesById, locale);
+							knownAppointmentTypeIds, appointmentTypesById, locale, formatter);
 
 					for (ProviderAppointmentModalityId providerAppointmentModalityId : providerAppointmentModalityIds) {
 						SortedMap<LocalDate, List<TimeApiResponse>> timesByDate =
@@ -606,6 +608,8 @@ public class ProviderAvailabilityApiResponse {
 		@Nonnull
 		private final LocalDateTime dateTime;
 		@Nonnull
+		private final String dateTimeDescription;
+		@Nonnull
 		private final List<UUID> appointmentTypeIds;
 		@Nullable
 		private final String appointmentTypeDescription;
@@ -618,9 +622,10 @@ public class ProviderAvailabilityApiResponse {
 													 @Nullable String providerName,
 													 @Nonnull LocalDate date,
 													 @Nonnull AvailabilityTime availabilityTime,
-													 @Nonnull List<UUID> appointmentTypeIds,
-													 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
-													 @Nonnull Locale locale) {
+																		 @Nonnull List<UUID> appointmentTypeIds,
+																		 @Nonnull Map<UUID, AppointmentType> appointmentTypesById,
+																		 @Nonnull Locale locale,
+																		 @Nonnull Formatter formatter) {
 			requireNonNull(providerId);
 			requireNonNull(date);
 			requireNonNull(availabilityTime);
@@ -628,6 +633,7 @@ public class ProviderAvailabilityApiResponse {
 			requireNonNull(appointmentTypeIds);
 			requireNonNull(appointmentTypesById);
 			requireNonNull(locale);
+			requireNonNull(formatter);
 
 			this.providerId = providerId;
 			this.providerName = providerName;
@@ -636,6 +642,7 @@ public class ProviderAvailabilityApiResponse {
 					.withLocale(locale)
 					.format(this.time), locale);
 			this.dateTime = LocalDateTime.of(date, this.time);
+			this.dateTimeDescription = formatter.formatDateTimeDescription(this.dateTime);
 			this.appointmentTypeIds = appointmentTypeIds;
 			this.appointmentTypeDescription = appointmentTypeDescriptionFor(appointmentTypeIds, appointmentTypesById);
 			this.epicDepartmentId = availabilityTime.getEpicDepartmentId();
@@ -674,6 +681,11 @@ public class ProviderAvailabilityApiResponse {
 		@Nonnull
 		public LocalDateTime getDateTime() {
 			return dateTime;
+		}
+
+		@Nonnull
+		public String getDateTimeDescription() {
+			return dateTimeDescription;
 		}
 
 		@Nonnull

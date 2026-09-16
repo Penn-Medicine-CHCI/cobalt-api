@@ -1014,17 +1014,17 @@ public class PatientOrderApiResponse {
 		this.patientLanguageCode = patientOrder.getPatientLanguageCode();
 		this.patientEmailAddress = patientOrder.getPatientEmailAddress();
 		this.patientBirthdate = patientOrder.getPatientBirthdate();
-		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDate(patientOrder.getPatientBirthdate(), FormatStyle.MEDIUM);
+		this.patientBirthdateDescription = patientOrder.getPatientBirthdate() == null ? null : formatter.formatDateDescription(patientOrder.getPatientBirthdate());
 		this.patientOrderDemographicsImportStatusId = patientOrder.getPatientOrderDemographicsImportStatusId();
 		this.patientDemographicsImportedAt = patientOrder.getPatientDemographicsImportedAt();
-		this.patientDemographicsImportedAtDescription = patientOrder.getPatientDemographicsImportedAt() == null ? null : formatter.formatTimestamp(patientOrder.getPatientDemographicsImportedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.patientDemographicsImportedAtDescription = patientOrder.getPatientDemographicsImportedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getPatientDemographicsImportedAt());
 		this.patientPhoneNumber = patientOrder.getPatientPhoneNumber();
 		this.patientPhoneNumberDescription = patientOrder.getPatientPhoneNumber() == null ? null : formatter.formatPhoneNumber(patientOrder.getPatientPhoneNumber(), currentContext.getLocale());
 		this.patientAddress = patientAddress;
 		this.patientAccount = patientAccount;
 		this.appointmentId = patientOrder.getAppointmentId();
 		this.appointmentStartTime = patientOrder.getAppointmentStartTime();
-		this.appointmentStartTimeDescription = patientOrder.getAppointmentStartTime() == null ? null : formatter.formatDateTime(patientOrder.getAppointmentStartTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.appointmentStartTimeDescription = patientOrder.getAppointmentStartTime() == null ? null : formatter.formatDateTimeDescription(patientOrder.getAppointmentStartTime());
 		this.providerId = patientOrder.getProviderId();
 		this.providerName = patientOrder.getProviderName();
 		this.patientOrderConsentStatusId = patientOrder.getPatientOrderConsentStatusId();
@@ -1058,26 +1058,26 @@ public class PatientOrderApiResponse {
 		this.patientDemographicsConfirmedAt = patientOrder.getPatientDemographicsConfirmedAt();
 		this.patientDemographicsConfirmedAtDescription = patientOrder.getPatientDemographicsConfirmedAt() == null
 				? null
-				: formatter.formatTimestamp(patientOrder.getPatientDemographicsConfirmedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+				: formatter.formatTimestampDescription(patientOrder.getPatientDemographicsConfirmedAt());
 		this.patientDemographicsConfirmedByAccountId = patientOrder.getPatientDemographicsConfirmedByAccountId();
 
 		this.mostRecentScreeningSessionId = patientOrder.getMostRecentScreeningSessionId();
 		this.mostRecentScreeningSessionCreatedByAccountId = patientOrder.getMostRecentScreeningSessionCreatedByAccountId();
 		this.mostRecentScreeningSessionCreatedAt = patientOrder.getMostRecentScreeningSessionCreatedAt();
-		this.mostRecentScreeningSessionCreatedAtDescription = patientOrder.getMostRecentScreeningSessionCreatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCreatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentScreeningSessionCreatedAtDescription = patientOrder.getMostRecentScreeningSessionCreatedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getMostRecentScreeningSessionCreatedAt());
 		this.mostRecentScreeningSessionCompleted = patientOrder.getMostRecentScreeningSessionCompleted();
 		this.mostRecentScreeningSessionCompletedAt = patientOrder.getMostRecentScreeningSessionCompletedAt();
-		this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentScreeningSessionCompletedAtDescription = patientOrder.getMostRecentScreeningSessionCompletedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getMostRecentScreeningSessionCompletedAt());
 		this.mostRecentScreeningSessionAppearsAbandoned = patientOrder.getMostRecentScreeningSessionAppearsAbandoned();
 
 		this.mostRecentIntakeScreeningSessionId = patientOrder.getMostRecentIntakeScreeningSessionId();
 		this.mostRecentIntakeScreeningSessionCreatedAt = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt();
-		this.mostRecentIntakeScreeningSessionCreatedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentIntakeScreeningSessionCreatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentIntakeScreeningSessionCreatedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCreatedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getMostRecentIntakeScreeningSessionCreatedAt());
 		this.mostRecentIntakeScreeningSessionCreatedByAccountId = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountId();
 		this.mostRecentIntakeScreeningSessionCreatedByAccountRoleId = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountRoleId();
 		this.mostRecentIntakeScreeningSessionCompleted = patientOrder.getMostRecentIntakeScreeningSessionCompleted();
 		this.mostRecentIntakeScreeningSessionCompletedAt = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt();
-		this.mostRecentIntakeScreeningSessionCompletedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentIntakeScreeningSessionCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.mostRecentIntakeScreeningSessionCompletedAtDescription = patientOrder.getMostRecentIntakeScreeningSessionCompletedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getMostRecentIntakeScreeningSessionCompletedAt());
 		this.mostRecentIntakeScreeningSessionByPatient = patientOrder.getMostRecentIntakeScreeningSessionByPatient();
 		this.mostRecentIntakeScreeningSessionAppearsAbandoned = patientOrder.getMostRecentIntakeScreeningSessionAppearsAbandoned();
 		this.patientOrderIntakeScreeningStatusId = patientOrder.getPatientOrderIntakeScreeningStatusId();
@@ -1098,7 +1098,7 @@ public class PatientOrderApiResponse {
 
 		this.patientOrderSafetyPlanningStatusId = patientOrder.getPatientOrderSafetyPlanningStatusId();
 		this.connectedToSafetyPlanningAt = patientOrder.getConnectedToSafetyPlanningAt();
-		this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestamp(patientOrder.getConnectedToSafetyPlanningAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.connectedToSafetyPlanningAtDescription = patientOrder.getConnectedToSafetyPlanningAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getConnectedToSafetyPlanningAt());
 		this.patientOrderClosureReasonId = patientOrder.getPatientOrderClosureReasonId();
 		this.patientOrderClosureReasonDescription = patientOrder.getPatientOrderClosureReasonDescription();
 		this.outreachFollowupNeeded = patientOrder.getOutreachFollowupNeeded();
@@ -1144,7 +1144,7 @@ public class PatientOrderApiResponse {
 			this.encounterDepartmentIdType = patientOrder.getEncounterDepartmentIdType();
 			this.encounterDepartmentName = patientOrder.getEncounterDepartmentName();
 			this.orderDate = patientOrder.getOrderDate();
-			this.orderDateDescription = patientOrder.getOrderDate() == null ? null : formatter.formatDate(patientOrder.getOrderDate(), FormatStyle.MEDIUM);
+			this.orderDateDescription = patientOrder.getOrderDate() == null ? null : formatter.formatDateDescription(patientOrder.getOrderDate());
 			this.orderAgeInMinutes = patientOrder.getOrderAgeInMinutes();
 			this.orderAgeInMinutesDescription = patientOrder.getOrderAgeInMinutes() == null ? null : formatter.formatNumber(patientOrder.getOrderAgeInMinutes());
 			this.orderId = patientOrder.getOrderId();
@@ -1160,7 +1160,7 @@ public class PatientOrderApiResponse {
 			this.episodeClosedAt = patientOrder.getEpisodeClosedAt();
 			this.episodeClosedAtDescription = patientOrder.getEpisodeClosedAt() == null
 					? null
-					: formatter.formatTimestamp(patientOrder.getEpisodeClosedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+					: formatter.formatTimestampDescription(patientOrder.getEpisodeClosedAt());
 			this.episodeClosedByAccountId = patientOrder.getEpisodeClosedByAccountId();
 
 			// Safe cast, int can always hold enough
@@ -1173,7 +1173,7 @@ public class PatientOrderApiResponse {
 			this.resourcesSentAt = patientOrder.getResourcesSentAt();
 			this.resourcesSentAtDescription = patientOrder.getResourcesSentAt() == null
 					? null
-					: formatter.formatTimestamp(patientOrder.getResourcesSentAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+					: formatter.formatTimestampDescription(patientOrder.getResourcesSentAt());
 			this.resourcesSentNote = patientOrder.getResourcesSentNote();
 
 			this.patientOrderDiagnoses = patientOrderDiagnoses;
@@ -1187,15 +1187,15 @@ public class PatientOrderApiResponse {
 			this.totalOutreachCount = patientOrder.getTotalOutreachCount();
 			this.totalOutreachCountDescription = formatter.formatNumber(patientOrder.getTotalOutreachCount() == null ? 0 : patientOrder.getTotalOutreachCount());
 			this.mostRecentTotalOutreachDateTime = patientOrder.getMostRecentTotalOutreachDateTime();
-			this.mostRecentTotalOutreachDateTimeDescription = patientOrder.getMostRecentTotalOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentTotalOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.mostRecentTotalOutreachDateTimeDescription = patientOrder.getMostRecentTotalOutreachDateTime() == null ? null : formatter.formatDateTimeDescription(patientOrder.getMostRecentTotalOutreachDateTime());
 			this.outreachCount = patientOrder.getOutreachCount();
 			this.outreachCountDescription = formatter.formatNumber(patientOrder.getOutreachCount() == null ? 0 : patientOrder.getOutreachCount());
 			this.mostRecentOutreachDateTime = patientOrder.getMostRecentOutreachDateTime();
-			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentOutreachDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.mostRecentOutreachDateTimeDescription = patientOrder.getMostRecentOutreachDateTime() == null ? null : formatter.formatDateTimeDescription(patientOrder.getMostRecentOutreachDateTime());
 			this.scheduledMessageGroupDeliveredCount = patientOrder.getScheduledMessageGroupDeliveredCount();
 			this.scheduledMessageGroupDeliveredCountDescription = formatter.formatNumber(patientOrder.getScheduledMessageGroupDeliveredCount() == null ? 0 : patientOrder.getScheduledMessageGroupDeliveredCount());
 			this.mostRecentDeliveredScheduledMessageGroupDateTime = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime();
-			this.mostRecentDeliveredScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTime(patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.mostRecentDeliveredScheduledMessageGroupDateTimeDescription = patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime() == null ? null : formatter.formatDateTimeDescription(patientOrder.getMostRecentDeliveredScheduledMessageGroupDateTime());
 			this.mostRecentScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName();
 			this.mostRecentScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName();
 			this.mostRecentScreeningSessionCreatedByAccountDisplayName = Normalizer.normalizeName(patientOrder.getMostRecentScreeningSessionCreatedByAccountFirstName(), patientOrder.getMostRecentScreeningSessionCreatedByAccountLastName()).orElse(null);
@@ -1208,20 +1208,20 @@ public class PatientOrderApiResponse {
 			this.patientOrderTriageStatusDescription = patientOrder.getPatientOrderTriageStatusDescription();
 			this.patientBelowAgeThreshold = patientOrder.getPatientBelowAgeThreshold();
 			this.mostRecentEpisodeClosedAt = patientOrder.getMostRecentEpisodeClosedAt();
-			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestamp(patientOrder.getMostRecentEpisodeClosedAt());
+			this.mostRecentEpisodeClosedAtDescription = patientOrder.getMostRecentEpisodeClosedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getMostRecentEpisodeClosedAt());
 			this.mostRecentEpisodeClosedWithinDateThreshold = patientOrder.getMostRecentEpisodeClosedWithinDateThreshold();
 			this.mostRecentPatientOrderVoicemailTaskId = patientOrder.getMostRecentPatientOrderVoicemailTaskId();
 			this.mostRecentPatientOrderVoicemailTaskCompleted = patientOrder.getMostRecentPatientOrderVoicemailTaskCompleted();
 			this.patientOrderScheduledScreeningId = patientOrder.getPatientOrderScheduledScreeningId();
 			this.patientOrderScheduledScreeningScheduledDateTime = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime();
-			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTime(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.patientOrderScheduledScreeningScheduledDateTimeDescription = patientOrder.getPatientOrderScheduledScreeningScheduledDateTime() == null ? null : formatter.formatDateTimeDescription(patientOrder.getPatientOrderScheduledScreeningScheduledDateTime());
 			this.patientOrderScheduledScreeningCalendarUrl = patientOrder.getPatientOrderScheduledScreeningCalendarUrl();
 			this.consentStatusUpdatedByByAccountId = patientOrder.getConsentStatusUpdatedByByAccountId();
 			this.consentStatusUpdatedAt = patientOrder.getConsentStatusUpdatedAt();
-			this.consentStatusUpdatedAtDescription = patientOrder.getConsentStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getConsentStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.consentStatusUpdatedAtDescription = patientOrder.getConsentStatusUpdatedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getConsentStatusUpdatedAt());
 			this.resourceCheckInResponseStatusUpdatedByByAccountId = patientOrder.getResourceCheckInResponseStatusUpdatedByByAccountId();
 			this.resourceCheckInResponseStatusUpdatedAt = patientOrder.getResourceCheckInResponseStatusUpdatedAt();
-			this.resourceCheckInResponseStatusUpdatedAtDescription = patientOrder.getResourceCheckInResponseStatusUpdatedAt() == null ? null : formatter.formatTimestamp(patientOrder.getResourceCheckInResponseStatusUpdatedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.resourceCheckInResponseStatusUpdatedAtDescription = patientOrder.getResourceCheckInResponseStatusUpdatedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getResourceCheckInResponseStatusUpdatedAt());
 
 			if (includeEverything) {
 				this.patientOrderScheduledMessageGroups = batchContext.isScheduledMessageGroupsPreloaded()
@@ -1234,7 +1234,7 @@ public class PatientOrderApiResponse {
 
 			this.resourceCheckInScheduledMessageGroupId = patientOrder.getResourceCheckInScheduledMessageGroupId();
 			this.resourceCheckInScheduledAtDateTime = patientOrder.getResourceCheckInScheduledAtDateTime();
-			this.resourceCheckInScheduledAtDateTimeDescription = patientOrder.getResourceCheckInScheduledAtDateTime() == null ? null : formatter.formatDateTime(patientOrder.getResourceCheckInScheduledAtDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.resourceCheckInScheduledAtDateTimeDescription = patientOrder.getResourceCheckInScheduledAtDateTime() == null ? null : formatter.formatDateTimeDescription(patientOrder.getResourceCheckInScheduledAtDateTime());
 
 			this.mostRecentIntakeScreeningSessionCreatedByAccountFirstName = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountFirstName();
 			this.mostRecentIntakeScreeningSessionCreatedByAccountLastName = patientOrder.getMostRecentIntakeScreeningSessionCreatedByAccountLastName();
@@ -1243,17 +1243,17 @@ public class PatientOrderApiResponse {
 
 			this.encounterCsn = patientOrder.getEncounterCsn();
 			this.encounterSyncedAt = patientOrder.getEncounterSyncedAt();
-			this.encounterSyncedAtDescription = patientOrder.getEncounterSyncedAt() == null ? null : formatter.formatTimestamp(patientOrder.getEncounterSyncedAt());
+			this.encounterSyncedAtDescription = patientOrder.getEncounterSyncedAt() == null ? null : formatter.formatTimestampDescription(patientOrder.getEncounterSyncedAt());
 			this.patientOrderEncounterDocumentationStatusId = patientOrder.getPatientOrderEncounterDocumentationStatusId();
 
 			// Next scheduled outreach
 			this.nextScheduledOutreachId = patientOrder.getNextScheduledOutreachId();
 			this.nextScheduledOutreachScheduledAtDate = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalDate();
-			this.nextScheduledOutreachScheduledAtDateDescription = this.nextScheduledOutreachScheduledAtDate == null ? null : formatter.formatDate(this.nextScheduledOutreachScheduledAtDate, FormatStyle.MEDIUM);
+			this.nextScheduledOutreachScheduledAtDateDescription = this.nextScheduledOutreachScheduledAtDate == null ? null : formatter.formatDateDescription(this.nextScheduledOutreachScheduledAtDate);
 			this.nextScheduledOutreachScheduledAtTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime().toLocalTime();
 			this.nextScheduledOutreachScheduledAtTimeDescription = this.nextScheduledOutreachScheduledAtTime == null ? null : formatter.formatTime(this.nextScheduledOutreachScheduledAtTime, FormatStyle.SHORT);
 			this.nextScheduledOutreachScheduledAtDateTime = patientOrder.getNextScheduledOutreachScheduledAtDateTime() == null ? null : patientOrder.getNextScheduledOutreachScheduledAtDateTime();
-			this.nextScheduledOutreachScheduledAtDateTimeDescription = this.nextScheduledOutreachScheduledAtDateTime == null ? null : formatter.formatDateTime(this.nextScheduledOutreachScheduledAtDateTime, FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.nextScheduledOutreachScheduledAtDateTimeDescription = this.nextScheduledOutreachScheduledAtDateTime == null ? null : formatter.formatDateTimeDescription(this.nextScheduledOutreachScheduledAtDateTime);
 			this.nextScheduledOutreachTypeId = patientOrder.getNextScheduledOutreachTypeId();
 			this.nextScheduledOutreachReasonId = patientOrder.getNextScheduledOutreachReasonId();
 
@@ -1261,9 +1261,9 @@ public class PatientOrderApiResponse {
 			this.lastContactedAt = patientOrder.getLastContactedAt();
 
 			if (this.lastContactedAt != null) {
-				this.lastContactedAtDescription = formatter.formatTimestamp(this.lastContactedAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+				this.lastContactedAtDescription = formatter.formatTimestampDescription(this.lastContactedAt);
 				this.lastContactedAtDate = LocalDate.ofInstant(this.lastContactedAt, currentContext.getTimeZone());
-				this.lastContactedAtDateDescription = formatter.formatDate(this.lastContactedAtDate, FormatStyle.MEDIUM);
+				this.lastContactedAtDateDescription = formatter.formatDateDescription(this.lastContactedAtDate);
 				this.lastContactedAtTime = LocalTime.ofInstant(this.lastContactedAt, currentContext.getTimeZone());
 				this.lastContactedAtTimeDescription = formatter.formatTime(this.lastContactedAtTime, FormatStyle.SHORT);
 			}
@@ -1272,15 +1272,15 @@ public class PatientOrderApiResponse {
 			this.nextContactScheduledAt = patientOrder.getNextContactScheduledAt();
 
 			if (this.nextContactScheduledAt != null) {
-				this.nextContactScheduledAtDescription = formatter.formatDateTime(this.nextContactScheduledAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+				this.nextContactScheduledAtDescription = formatter.formatDateTimeDescription(this.nextContactScheduledAt);
 				this.nextContactScheduledAtDate = this.nextContactScheduledAt.toLocalDate();
-				this.nextContactScheduledAtDateDescription = formatter.formatDate(this.nextContactScheduledAtDate, FormatStyle.MEDIUM);
+				this.nextContactScheduledAtDateDescription = formatter.formatDateDescription(this.nextContactScheduledAtDate);
 				this.nextContactScheduledAtTime = this.nextContactScheduledAt.toLocalTime();
 				this.nextContactScheduledAtTimeDescription = formatter.formatTime(this.nextContactScheduledAtTime, FormatStyle.SHORT);
 			}
 
 			this.mostRecentMessageDeliveredAt = patientOrder.getMostRecentMessageDeliveredAt();
-			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestamp(mostRecentMessageDeliveredAt, FormatStyle.MEDIUM, FormatStyle.SHORT);
+			this.mostRecentMessageDeliveredAtDescription = this.mostRecentMessageDeliveredAt == null ? null : formatter.formatTimestampDescription(mostRecentMessageDeliveredAt);
 
 		}
 	}

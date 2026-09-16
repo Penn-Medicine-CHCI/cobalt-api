@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -130,12 +129,12 @@ public class PageApiResponse {
 		this.imageAltText = page.getImageAltText();
 		this.imageUrl = page.getImageUrl();
 		this.publishedDate = page.getPublishedDate();
-		this.publishedDateDescription = this.publishedDate == null ? "Not Published" : formatter.formatDate(this.publishedDate, FormatStyle.MEDIUM);
+		this.publishedDateDescription = this.publishedDate == null ? "Not Published" : formatter.formatDateDescription(this.publishedDate);
 		//Here we return the created date of the first "version" of this page
 		this.created = page.getOriginalCreateDate();
-		this.createdDescription = formatter.formatTimestamp(page.getOriginalCreateDate(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.createdDescription = formatter.formatTimestampDescription(page.getOriginalCreateDate());
 		this.lastUpdated = page.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(page.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(page.getLastUpdated());
 		this.editingLivePage = page.getPageStatusId().equals(PageStatusId.COPY_FOR_EDITING);
 		this.mailingListEntryCount = page.getMailingListEntryCount();
 		this.mailingListEntryCountDescription = this.mailingListEntryCount == null ? null : formatter.formatInteger(this.mailingListEntryCount);

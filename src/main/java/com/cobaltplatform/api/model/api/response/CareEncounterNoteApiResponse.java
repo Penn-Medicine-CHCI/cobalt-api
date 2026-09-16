@@ -69,9 +69,9 @@ public class CareEncounterNoteApiResponse {
 		this.lastUpdatedByAccountId = careEncounterNote.getLastUpdatedByAccountId();
 		this.lastUpdatedByAccountDisplayName = careEncounterNote.getLastUpdatedByAccountDisplayName();
 		this.created = careEncounterNote.getCreated();
-		this.createdDescription = formatter.formatTimestamp(careEncounterNote.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(careEncounterNote.getCreated());
 		this.lastUpdated = careEncounterNote.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(careEncounterNote.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(careEncounterNote.getLastUpdated());
 	}
 
 	@Nonnull public UUID getCareEncounterNoteId() { return this.careEncounterNoteId; }

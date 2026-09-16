@@ -21,6 +21,8 @@ import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
+import com.cobaltplatform.api.model.api.request.CancelAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest;
 import com.cobaltplatform.api.model.api.request.CreateAppointmentRequest.BookingExperienceId;
@@ -60,12 +62,16 @@ import com.cobaltplatform.api.model.db.CareEncounterScheduledMessage;
 import com.cobaltplatform.api.model.db.CareEncounterScheduledMessageType.CareEncounterScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MessageLog;
+import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
 import com.cobaltplatform.api.model.db.ScheduledMessageStatus.ScheduledMessageStatusId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.db.VideoconferencePlatform.VideoconferencePlatformId;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
@@ -89,8 +95,10 @@ import com.soklet.web.response.ApiResponse;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
+import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -129,6 +137,288 @@ public class CareNavigatorBookingFixtureTests {
 	protected static final UUID CARE_NAVIGATOR_REBOOKED_APPOINTMENT_ID = UUID.fromString("ca4e2000-0000-4000-8000-000000000004");
 	protected static final UUID CARE_NAVIGATOR_PATIENT_CANCELED_APPOINTMENT_ID = UUID.fromString("ca4e2000-0000-4000-8000-000000000005");
 	protected static final UUID CARE_NAVIGATOR_UPCOMING_SCREENING_SESSION_ID = UUID.fromString("ca4e3000-0000-4000-8000-000000000001");
+
+	@Test
+	public void careNavigatorBookingEnqueuesV2PatientNavigatorAndReminderEmails() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
+			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
+			Account navigator = accountService.findAccountById(CARE_NAVIGATOR_ACCOUNT_ID).get();
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(appointment.getAppointmentId());
+
+			List<EmailMessage> emails = enqueuedEmailsForAppointment(database, emailMessageSerializer,
+					appointment.getAppointmentId());
+			assertEquals(2, emails.size());
+			EmailMessage patientEmail = emailWithTemplate(emails,
+					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT);
+			EmailMessage navigatorEmail = emailWithTemplate(emails,
+					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_NAVIGATOR);
+			String patientWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
+					InstitutionId.COBALT, UserExperienceTypeId.PATIENT).get();
+			String staffWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
+					InstitutionId.COBALT, UserExperienceTypeId.STAFF).get();
+			String patientAppointmentUrl = String.format("%s/appointments/%s", patientWebappBaseUrl,
+					appointment.getAppointmentId());
+			String staffAppointmentUrl = String.format("%s/scheduling/appointments/%s", staffWebappBaseUrl,
+					appointment.getAppointmentId());
+
+			assertEquals(List.of(appointment.getEmailAddress()), patientEmail.getToAddresses());
+			assertEquals(List.of(navigator.getEmailAddress()), navigatorEmail.getToAddresses());
+			assertTrue(patientEmail.getReplyToAddress().isEmpty());
+			assertTrue(navigatorEmail.getReplyToAddress().isEmpty());
+			assertEquals(patientAppointmentUrl, patientEmail.getMessageContext().get("patientAppointmentUrl"));
+			assertEquals(staffAppointmentUrl, navigatorEmail.getMessageContext().get("staffAppointmentUrl"));
+			assertCalendarAttachment(patientEmail, patientAppointmentUrl, navigator.getEmailAddress(), "METHOD:REQUEST");
+			assertCalendarAttachment(navigatorEmail, staffAppointmentUrl, navigator.getEmailAddress(), "METHOD:REQUEST");
+
+			Appointment updatedAppointment = appointmentService.findAppointmentById(appointment.getAppointmentId()).get();
+			assertNotNull(updatedAppointment.getPatientReminderScheduledMessageId());
+			ScheduledMessage scheduledMessage = messageService.findScheduledMessageById(
+					updatedAppointment.getPatientReminderScheduledMessageId()).get();
+			EmailMessage reminderEmail = emailMessageSerializer.deserializeMessage(scheduledMessage.getSerializedMessage());
+			LocalDate reminderDate = appointment.getStartTime().toLocalDate()
+					.minusDays(institution.getAppointmentReservationDefaultReminderDayOffset());
+			assertEquals(EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_REMINDER_PATIENT,
+					reminderEmail.getMessageTemplate());
+			assertEquals(List.of(appointment.getEmailAddress()), reminderEmail.getToAddresses());
+			assertTrue(reminderEmail.getReplyToAddress().isEmpty());
+			assertTrue(reminderEmail.getEmailAttachments().isEmpty());
+			assertEquals(LocalDateTime.of(reminderDate,
+					institution.getAppointmentReservationDefaultReminderTimeOfDay()), scheduledMessage.getScheduledAt());
+			assertEquals(appointment.getTimeZone(), scheduledMessage.getTimeZone());
+			assertEquals(ScheduledMessageStatusId.PENDING, scheduledMessage.getScheduledMessageStatusId());
+		});
+	}
+
+	@Test
+	public void careNavigatorCancellationEnqueuesV2PatientAndNavigatorEmails() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
+			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_CANCELED_APPOINTMENT_ID).get();
+			Account navigator = accountService.findAccountById(CARE_NAVIGATOR_ACCOUNT_ID).get();
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCanceledEmails(appointment.getAppointmentId());
+
+			List<EmailMessage> emails = enqueuedEmailsForAppointment(database, emailMessageSerializer,
+					appointment.getAppointmentId());
+			assertEquals(2, emails.size());
+			EmailMessage patientEmail = emailWithTemplate(emails,
+					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CANCELED_PATIENT);
+			EmailMessage navigatorEmail = emailWithTemplate(emails,
+					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CANCELED_NAVIGATOR);
+			String patientWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
+					InstitutionId.COBALT, UserExperienceTypeId.PATIENT).get();
+			String staffWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
+					InstitutionId.COBALT, UserExperienceTypeId.STAFF).get();
+			String patientAppointmentUrl = String.format("%s/appointments/%s", patientWebappBaseUrl,
+					appointment.getAppointmentId());
+			String staffAppointmentUrl = String.format("%s/scheduling/appointments/%s", staffWebappBaseUrl,
+					appointment.getAppointmentId());
+
+			assertEquals(List.of(appointment.getEmailAddress()), patientEmail.getToAddresses());
+			assertEquals(List.of(navigator.getEmailAddress()), navigatorEmail.getToAddresses());
+			assertTrue(patientEmail.getReplyToAddress().isEmpty());
+			assertTrue(navigatorEmail.getReplyToAddress().isEmpty());
+			assertCalendarAttachment(patientEmail, patientAppointmentUrl, navigator.getEmailAddress(), "METHOD:CANCEL");
+			assertCalendarAttachment(navigatorEmail, staffAppointmentUrl, navigator.getEmailAddress(), "METHOD:CANCEL");
+		});
+	}
+
+	@Test
+	public void careNavigatorCancellationCancelsTheV2PatientReminder() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(appointment.getAppointmentId());
+			UUID reminderScheduledMessageId = appointmentService.findAppointmentById(appointment.getAppointmentId())
+					.get().getPatientReminderScheduledMessageId();
+			assertEquals(ScheduledMessageStatusId.PENDING, messageService.findScheduledMessageById(
+					reminderScheduledMessageId).get().getScheduledMessageStatusId());
+
+			CancelAppointmentRequest request = new CancelAppointmentRequest();
+			request.setAppointmentId(appointment.getAppointmentId());
+			request.setAccountId(appointment.getAccountId());
+			request.setCanceledByAccountId(appointment.getAccountId());
+			request.setCanceledByWebhook(false);
+			request.setCanceledForReschedule(false);
+
+			assertTrue(appointmentService.cancelAppointment(request));
+			assertEquals(ScheduledMessageStatusId.CANCELED, messageService.findScheduledMessageById(
+					reminderScheduledMessageId).get().getScheduledMessageStatusId());
+		});
+	}
+
+	@Test
+	public void careNavigatorBookingWithoutAssigneeStillNotifiesPatient() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
+			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
+			Provider provider = providerService.findProviderById(appointment.getProviderId()).get();
+
+			assertEquals(1, database.execute("""
+					UPDATE care_encounter
+					SET care_navigator_account_id=NULL
+					WHERE care_encounter_id=?
+					""", appointment.getCareEncounterId()));
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(appointment.getAppointmentId());
+
+			List<EmailMessage> emails = enqueuedEmailsForAppointment(database, emailMessageSerializer,
+					appointment.getAppointmentId());
+			assertEquals(1, emails.size());
+			EmailMessage patientEmail = emailWithTemplate(emails,
+					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT);
+			String patientWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
+					InstitutionId.COBALT, UserExperienceTypeId.PATIENT).get();
+			String patientAppointmentUrl = String.format("%s/appointments/%s", patientWebappBaseUrl,
+					appointment.getAppointmentId());
+
+			assertEquals(List.of(appointment.getEmailAddress()), patientEmail.getToAddresses());
+			assertCalendarAttachment(patientEmail, patientAppointmentUrl, provider.getEmailAddress(), "METHOD:REQUEST");
+			assertNotNull(appointmentService.findAppointmentById(appointment.getAppointmentId()).get()
+					.getPatientReminderScheduledMessageId());
+		});
+	}
+
+	@Test
+	public void careNavigatorPatientEmailFallsBackToAccountEmail() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
+			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
+			Account patient = accountService.findAccountById(appointment.getAccountId()).get();
+
+			assertEquals(1, database.execute("""
+					UPDATE appointment
+					SET email_address=NULL
+					WHERE appointment_id=?
+					""", appointment.getAppointmentId()));
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(appointment.getAppointmentId());
+
+			EmailMessage patientEmail = emailWithTemplate(
+					enqueuedEmailsForAppointment(database, emailMessageSerializer, appointment.getAppointmentId()),
+					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT);
+			assertEquals(List.of(patient.getEmailAddress()), patientEmail.getToAddresses());
+
+			Appointment updatedAppointment = appointmentService.findAppointmentById(appointment.getAppointmentId()).get();
+			EmailMessage reminderEmail = emailMessageSerializer.deserializeMessage(messageService.findScheduledMessageById(
+					updatedAppointment.getPatientReminderScheduledMessageId()).get().getSerializedMessage());
+			assertEquals(List.of(patient.getEmailAddress()), reminderEmail.getToAddresses());
+		});
+	}
+
+	@Test
+	public void careNavigatorEmailRoutingDoesNotChangeOtherAppointmentTemplates() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
+			UUID switchboardProviderId = createActiveProvider(database, "Unrelated Switchboard Provider");
+			UUID switchboardAppointmentId = UUID.randomUUID();
+			cloneAsActiveAppointmentForProviderAndAccount(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID,
+					switchboardAppointmentId, switchboardProviderId,
+					CARE_NAVIGATOR_PATIENT_CANCELED_FIXTURE_PATIENT_ID, 70);
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(switchboardAppointmentId);
+			assertTrue(enqueuedEmailsForAppointment(database, emailMessageSerializer, switchboardAppointmentId).isEmpty());
+
+			UUID ordinaryProviderId = createActiveProvider(database, "Ordinary Cobalt Provider");
+			UUID ordinaryAppointmentId = UUID.randomUUID();
+			cloneAsActiveAppointmentForProviderAndAccount(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID,
+					ordinaryAppointmentId, ordinaryProviderId,
+					CARE_NAVIGATOR_PATIENT_CANCELED_FIXTURE_PATIENT_ID, 71);
+			assertEquals(1, database.execute("""
+					UPDATE appointment
+					SET videoconference_platform_id='EXTERNAL',
+						videoconference_url='https://example.com/ordinary-appointment'
+					WHERE appointment_id=?
+					""", ordinaryAppointmentId));
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(ordinaryAppointmentId);
+
+			List<EmailMessage> ordinaryEmails = enqueuedEmailsForAppointment(database, emailMessageSerializer,
+					ordinaryAppointmentId);
+			assertEquals(2, ordinaryEmails.size());
+			emailWithTemplate(ordinaryEmails, EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT);
+			emailWithTemplate(ordinaryEmails, EmailMessageTemplate.APPOINTMENT_CREATED_PROVIDER);
+		});
+	}
+
+	@Test
+	public void telephoneProviderReceivesV2IntakeEmailWithAppointmentContactAndScreeningResponses() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
+			UUID telephoneProviderId = createActiveProvider(database, "CuraLinc Intake Counselor");
+			UUID appointmentId = UUID.randomUUID();
+
+			assertEquals(1, database.execute("""
+					UPDATE provider
+					SET videoconference_platform_id='TELEPHONE',
+						phone_number='+18885032380',
+						videoconference_url=NULL
+					WHERE provider_id=?
+					""", telephoneProviderId));
+
+			cloneAsActiveAppointmentForProviderAndAccount(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID,
+					appointmentId, telephoneProviderId, CARE_NAVIGATOR_ACTIVE_FIXTURE_PATIENT_ID, 72);
+
+			assertEquals(1, database.execute("""
+					UPDATE appointment
+					SET first_name='Booking',
+						last_name='Contact',
+						email_address='booking-contact@example.com',
+						contact_phone_number='+12155550123',
+						screening_session_id=?,
+						videoconference_platform_id='TELEPHONE',
+						videoconference_url='https://cobalt.example/appointments/telephone'
+					WHERE appointment_id=?
+					""", CARE_NAVIGATOR_UPCOMING_SCREENING_SESSION_ID, appointmentId));
+
+			appointmentService.sendPatientAndProviderCobaltAppointmentCreatedEmails(appointmentId);
+
+			List<EmailMessage> emails = enqueuedEmailsForAppointment(database, emailMessageSerializer, appointmentId);
+			assertEquals(2, emails.size());
+			emailWithTemplate(emails, EmailMessageTemplate.APPOINTMENT_CREATED_PATIENT);
+			EmailMessage providerEmail = emailWithTemplate(emails,
+					EmailMessageTemplate.V2_PROVIDER_INTAKE_APPOINTMENT_CREATED_PROVIDER);
+
+			assertEquals("Booking Contact", providerEmail.getMessageContext().get("patientName"));
+			assertEquals("booking-contact@example.com", providerEmail.getMessageContext().get("patientEmailAddress"));
+			assertEquals("(215) 555-0123", providerEmail.getMessageContext().get("patientPhoneNumber"));
+			assertTrue(providerEmail.getMessageContext().get("providerSchedulingUrl").toString()
+					.endsWith("/scheduling/appointments/" + appointmentId));
+
+			List<?> intakeResponses = (List<?>) providerEmail.getMessageContext().get("intakeResponses");
+			assertNotNull(intakeResponses);
+			assertFalse(intakeResponses.isEmpty());
+			assertTrue(intakeResponses.stream()
+					.map(response -> (Map<?, ?>) response)
+					.anyMatch(response -> response.get("answer").toString().contains(NAVIGATOR_CONTEXT_FIXTURE_TEXT)));
+		});
+	}
 
 	@Test
 	public void careNavigatorFixturePopulatesHomepageFeatureResponse() {
@@ -990,7 +1280,8 @@ public class CareNavigatorBookingFixtureTests {
 			CareEncounterService careEncounterService = app.getInjector().getInstance(CareEncounterService.class);
 			UUID activeCareEncounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
 			CancelCareEncounterRequest activeCancelRequest = new CancelCareEncounterRequest();
-			activeCancelRequest.setCareEncounterCancellationReasonId(CareEncounterCancellationReasonId.NO_LONGER_NEEDED);
+			activeCancelRequest.setCareEncounterCancellationReasonId(
+					CareEncounterCancellationReasonId.CARE_DELIVERED_DURING_CALL);
 			assertThrows(ValidationException.class, () -> careEncounterService.closeCareEncounter(activeCareEncounterId,
 					InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID));
 			assertThrows(ValidationException.class, () -> careEncounterService.cancelCareEncounter(activeCareEncounterId,
@@ -1033,7 +1324,8 @@ public class CareNavigatorBookingFixtureTests {
 			assertEquals(secondaryNavigatorAccountId, assignedEncounter.getCareNavigatorAccountId());
 
 			CancelCareEncounterRequest cancelRequest = new CancelCareEncounterRequest();
-			cancelRequest.setCareEncounterCancellationReasonId(CareEncounterCancellationReasonId.NO_LONGER_NEEDED);
+			cancelRequest.setCareEncounterCancellationReasonId(
+					CareEncounterCancellationReasonId.CARE_DELIVERED_DURING_CALL);
 			CareEncounter canceledEncounter = careEncounterService.cancelCareEncounter(attendedCareEncounterId,
 					InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, cancelRequest);
 			assertEquals(CareEncounterStatusId.CANCELED, canceledEncounter.getCareEncounterStatusId());
@@ -1329,8 +1621,14 @@ public class CareNavigatorBookingFixtureTests {
 			RenderedEmailMessage preview = service.previewCareEncounterScheduledMessage(
 					encounterId, InstitutionId.COBALT, previewRequest);
 			assertTrue(preview.getEmailSubject().contains("Follow-up"));
+			assertTrue(preview.getEmailBody().contains("<!DOCTYPE html"));
+			assertTrue(preview.getEmailBody().contains(
+					"width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px"));
+			assertTrue(preview.getEmailBody().contains("logo@2x.jpg"));
 			assertTrue(preview.getEmailBody().contains("<strong>follow-up</strong>"));
 			assertFalse(preview.getEmailBody().contains("<script>"));
+			assertTrue(preview.getEmailBody().indexOf("<strong>follow-up</strong>")
+					< preview.getEmailBody().indexOf("Please do not reply to this email."));
 
 			CreateCareEncounterScheduledMessageRequest createRequest = scheduledFollowUpRequest(
 					LocalDate.now(timeZone).plusDays(1), LocalTime.of(9, 30), "<p>Original resources.</p>");
@@ -1915,6 +2213,41 @@ public class CareNavigatorBookingFixtureTests {
 				FROM appointment
 				WHERE appointment_id=?
 				""", appointmentId, providerId, accountId, daysAfterSource, daysAfterSource, sourceAppointmentId));
+	}
+
+	protected List<EmailMessage> enqueuedEmailsForAppointment(Database database,
+																					 EmailMessageSerializer emailMessageSerializer,
+																					 UUID appointmentId) {
+		return database.queryForList("""
+				SELECT *
+				FROM message_log
+				WHERE message_type_id='EMAIL'
+				AND serialized_message->'messageContext'->>'appointmentId'=?
+				ORDER BY enqueued, message_id
+				""", MessageLog.class, appointmentId.toString()).stream()
+				.map(messageLog -> emailMessageSerializer.deserializeMessage(messageLog.getSerializedMessage()))
+				.toList();
+	}
+
+	protected EmailMessage emailWithTemplate(List<EmailMessage> emailMessages,
+																					EmailMessageTemplate emailMessageTemplate) {
+		return emailMessages.stream()
+				.filter(emailMessage -> emailMessage.getMessageTemplate() == emailMessageTemplate)
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("Missing email template " + emailMessageTemplate));
+	}
+
+	protected void assertCalendarAttachment(EmailMessage emailMessage,
+																			 String expectedLocation,
+																			 String expectedOrganizerEmailAddress,
+																			 String expectedMethod) {
+		assertEquals(1, emailMessage.getEmailAttachments().size());
+		String calendar = new String(emailMessage.getEmailAttachments().get(0).getData(), StandardCharsets.UTF_8)
+				.replace("\r\n ", "")
+				.replace("\r\n\t", "");
+		assertTrue(calendar.contains(expectedMethod));
+		assertTrue(calendar.contains("LOCATION:" + expectedLocation));
+		assertTrue(calendar.contains("mailto:" + expectedOrganizerEmailAddress));
 	}
 
 	protected UUID createActiveProvider(Database database, String name) {

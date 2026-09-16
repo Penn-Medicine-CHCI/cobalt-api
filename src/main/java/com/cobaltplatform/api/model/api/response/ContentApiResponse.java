@@ -151,9 +151,9 @@ public class ContentApiResponse {
 		this.description = content.getDescription();
 		this.author = content.getAuthor();
 		this.created = content.getCreated();
-		this.createdDescription = formatter.formatTimestamp(content.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(content.getCreated());
 		this.lastUpdated = content.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(content.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(content.getLastUpdated());
 		this.contentTypeDescription = content.getContentTypeDescription();
 		this.callToAction = content.getCallToAction();
 		this.newFlag = content.getNewFlag();

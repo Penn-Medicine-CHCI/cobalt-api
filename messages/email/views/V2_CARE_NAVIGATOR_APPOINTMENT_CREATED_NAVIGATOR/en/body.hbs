@@ -1,0 +1,44 @@
+{{#partial "preheader"}}
+	A Care Navigator appointment was booked for {{appointmentStartDateTimeDescription}}.
+{{/partial}}
+
+{{#partial "content"}}
+	<table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation">
+		<tr>
+			<td align="left" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:28px; line-height:36px; font-weight:700; color:{{colors.n900}};">
+				A Care Navigator appointment was booked
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:{{colors.n900}};">
+				Hello{{#if careNavigatorName}} {{careNavigatorName}}{{/if}},<br /><br />
+				<strong>{{patientName}}</strong>{{#if patientEmailAddress}} ({{patientEmailAddress}}){{/if}} scheduled a Care Navigator appointment for <strong>{{appointmentStartDateDescription}}</strong> at <strong>{{appointmentStartTimeDescription}}</strong>.
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left">
+				<table border="0" cellspacing="0" cellpadding="0" role="presentation">
+					<tr>
+						<td align="center" bgcolor="{{colors.p500}}" style="background-color:{{colors.p500}}; border-radius:999px;">
+							<a href="{{{staffAppointmentUrl}}}" target="_blank" style="display:inline-block; font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; font-weight:600; color:#FFFFFF; text-decoration:none; padding:11px 21px; border-radius:999px;">View appointment</a>
+						</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:{{colors.n900}};">
+				Please do not reply to this email. This mailbox is not monitored.
+			</td>
+		</tr>
+	</table>
+{{/partial}}
+
+{{#partial "footer"}}
+	You are receiving this transactional email because a Care Navigator appointment was assigned to you through {{platformName}}.
+{{/partial}}
+
+{{> layouts/en/v2}}

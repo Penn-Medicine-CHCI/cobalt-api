@@ -69,7 +69,7 @@ public class AccountSessionApiResponse {
 		this.accountId = accountSession.getAccountId();
 		this.assessmentId = accountSession.getAssessmentId();
 		//TODO: Drive this off a real completed timestamp?
-		this.assessmentSessionDate = formatter.formatTimestamp(accountSession.getCreated());
+		this.assessmentSessionDate = formatter.formatTimestampDescription(accountSession.getCreated());
 	}
 
 	@Nonnull

@@ -77,9 +77,9 @@ public class ClientDeviceActivityApiResponse {
 		this.clientDeviceActivityTypeId = clientDeviceActivity.getClientDeviceActivityTypeId();
 		this.accountId = clientDeviceActivity.getAccountId();
 		this.created = clientDeviceActivity.getCreated();
-		this.createdDescription = formatter.formatTimestamp(clientDeviceActivity.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(clientDeviceActivity.getCreated());
 		this.lastUpdated = clientDeviceActivity.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(clientDeviceActivity.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(clientDeviceActivity.getLastUpdated());
 	}
 
 	@Nonnull

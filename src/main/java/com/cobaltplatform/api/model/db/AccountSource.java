@@ -44,6 +44,18 @@ public class AccountSource {
 	@Nullable
 	private String prodSsoUrl;
 
+	@Nullable
+	private String onboardingScreeningPresentationId;
+
+	@Nullable
+	public String getOnboardingScreeningPresentationId() {
+		return this.onboardingScreeningPresentationId;
+	}
+
+	public void setOnboardingScreeningPresentationId(@Nullable String onboardingScreeningPresentationId) {
+		this.onboardingScreeningPresentationId = onboardingScreeningPresentationId;
+	}
+
 	public enum AccountSourceId {
 		COBALT_SSO,
 		ANONYMOUS,

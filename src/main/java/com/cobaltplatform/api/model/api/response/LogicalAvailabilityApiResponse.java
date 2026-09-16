@@ -121,9 +121,9 @@ public class LogicalAvailabilityApiResponse {
 		this.logicalAvailabilityTypeId = logicalAvailability.getLogicalAvailabilityTypeId();
 		this.recurrenceTypeId = logicalAvailability.getRecurrenceTypeId();
 		this.startDateTime = logicalAvailability.getStartDateTime();
-		this.startDateTimeDescription = formatter.formatDateTime(logicalAvailability.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT);
+		this.startDateTimeDescription = formatter.formatDateTimeDescription(logicalAvailability.getStartDateTime());
 		this.endDate = availabilityService.normalizedEndDate(logicalAvailability).orElse(null);
-		this.endDateDescription = endDate == null ? null : formatter.formatDate(endDate, FormatStyle.LONG);
+		this.endDateDescription = endDate == null ? null : formatter.formatDateDescription(endDate);
 		this.endTime = logicalAvailability.getEndDateTime().toLocalTime();
 		this.endTimeDescription = formatter.formatTime(endTime, FormatStyle.SHORT);
 		this.recurSunday = logicalAvailability.getRecurSunday();
@@ -148,7 +148,7 @@ public class LogicalAvailabilityApiResponse {
 			// e.g. "9:00 AM - 5:00 PM" / "March 1, 2022"
 			descriptionComponents.add(format("%s - %s", formatter.formatTime(getStartDateTime().toLocalTime(), FormatStyle.SHORT),
 					formatter.formatTime(getEndTime(), FormatStyle.SHORT)));
-			descriptionComponents.add(formatter.formatDate(getStartDateTime().toLocalDate(), FormatStyle.LONG));
+			descriptionComponents.add(formatter.formatDateDescription(getStartDateTime().toLocalDate()));
 		} else if (recurrenceTypeId == RecurrenceTypeId.DAILY) {
 			// e.g "9:00 AM - 5:00 PM" / "Every MTWRF" / "Starting March 1, 2022" / "Ending March 31, 2022"
 			descriptionComponents.add(format("%s - %s", formatter.formatTime(getStartDateTime().toLocalTime(), FormatStyle.SHORT),
@@ -174,12 +174,12 @@ public class LogicalAvailabilityApiResponse {
 			descriptionComponents.add(dayAbbreviations.stream().collect(Collectors.joining(", ")));
 
 			descriptionComponents.add(strings.get("Starting on {{startDate}}", new HashMap<String, Object>() {{
-				put("startDate", formatter.formatDate(getStartDateTime().toLocalDate(), FormatStyle.LONG));
+				put("startDate", formatter.formatDateDescription(getStartDateTime().toLocalDate()));
 			}}));
 
 			if (getEndDate() != null)
 				descriptionComponents.add(strings.get("Ending on {{endDate}}", new HashMap<String, Object>() {{
-					put("endDate", formatter.formatDate(getEndDate(), FormatStyle.LONG));
+					put("endDate", formatter.formatDateDescription(getEndDate()));
 				}}));
 		} else {
 			throw new IllegalStateException(format("Not sure how to handle %s.%s", RecurrenceTypeId.class.getSimpleName(),

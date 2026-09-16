@@ -86,7 +86,7 @@ public class InteractionOptionActionApiResponse {
 		this.interactionInstanceId = interactionOptionAction.getInteractionInstanceId();
 		this.accountId = interactionOptionAction.getAccountId();
 		this.created = interactionOptionAction.getCreated();
-		this.createdDescription = formatter.formatTimestamp(interactionOptionAction.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(interactionOptionAction.getCreated());
 
 		Account account = accountService.findAccountById(accountId).get();
 
@@ -123,7 +123,7 @@ public class InteractionOptionActionApiResponse {
 		return strings.get("{{accountDescription}} selected \"{{optionDescription}}\" on {{timestampDescription}}.", new HashMap<String, Object>() {{
 			put("accountDescription", accountDescription);
 			put("optionDescription", interactionOption.getOptionDescription());
-			put("timestampDescription", formatter.formatTimestamp(interactionOptionAction.getCreated()));
+			put("timestampDescription", formatter.formatTimestampDescription(interactionOptionAction.getCreated()));
 		}});
 	}
 
@@ -156,7 +156,7 @@ public class InteractionOptionActionApiResponse {
 		return strings.get("<strong>{{accountDescription}}</strong> selected <strong>{{optionDescription}}</strong> on <strong>{{timestampDescription}}</strong>.", new HashMap<String, Object>() {{
 			put("accountDescription", accountDescription);
 			put("optionDescription", interactionOption.getOptionDescription());
-			put("timestampDescription", formatter.formatTimestamp(interactionOptionAction.getCreated()));
+			put("timestampDescription", formatter.formatTimestampDescription(interactionOptionAction.getCreated()));
 		}});
 	}
 

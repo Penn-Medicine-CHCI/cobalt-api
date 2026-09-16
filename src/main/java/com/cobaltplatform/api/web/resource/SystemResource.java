@@ -71,7 +71,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -213,9 +212,9 @@ public class SystemResource {
 		return new ApiResponse(new HashMap<String, Object>() {{
 			put("environment", getConfiguration().getEnvironment());
 			put("buildTimestamp", getConfiguration().getBuildTimestamp());
-			put("buildTimestampDescription", getFormatter().formatTimestamp(getConfiguration().getBuildTimestamp(), FormatStyle.LONG, FormatStyle.LONG, displayTimezone));
+			put("buildTimestampDescription", getFormatter().formatTimestampDescription(getConfiguration().getBuildTimestamp(), displayTimezone));
 			put("deploymentTimestamp", getConfiguration().getDeploymentTimestamp());
-			put("deploymentTimestampDescription", getFormatter().formatTimestamp(getConfiguration().getDeploymentTimestamp(), FormatStyle.LONG, FormatStyle.LONG, displayTimezone));
+			put("deploymentTimestampDescription", getFormatter().formatTimestampDescription(getConfiguration().getDeploymentTimestamp(), displayTimezone));
 			put("uptime", getFormatter().formatDuration(Duration.between(getConfiguration().getDeploymentTimestamp(), Instant.now())));
 			put("nodeIdentifier", getConfiguration().getNodeIdentifier());
 			put("security", Map.of(

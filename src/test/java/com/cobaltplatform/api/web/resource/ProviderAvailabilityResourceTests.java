@@ -220,6 +220,7 @@ public class ProviderAvailabilityResourceTests {
 		assertEquals(date, firstAvailableAppointment.getDate());
 		assertEquals(time, firstAvailableAppointment.getTime());
 		assertEquals(LocalDateTime.of(date, time), firstAvailableAppointment.getDateTime());
+		assertEquals("Thu, Jan 1, 2026 9:00 am", firstAvailableAppointment.getDateTimeDescription());
 		assertEquals(normalizedTimeDescription(time), firstAvailableAppointment.getTimeDescription());
 		assertEquals(appointmentTypeId, firstAvailableAppointment.getAppointmentTypeId());
 		assertEquals(List.of(appointmentTypeId), firstAvailableAppointment.getAppointmentTypeIds());

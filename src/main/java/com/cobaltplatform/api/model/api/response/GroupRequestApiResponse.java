@@ -101,7 +101,7 @@ public class GroupRequestApiResponse {
 		this.minimumAttendeeCount = groupRequest.getMinimumAttendeeCount();
 		this.maximumAttendeeCount = groupRequest.getMaximumAttendeeCount();
 		this.created = groupRequest.getCreated();
-		this.createdDescription = formatter.formatTimestamp(groupRequest.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(groupRequest.getCreated());
 
 		this.groupTopics = groupRequestService.findGroupTopicsByGroupRequestId(groupRequest.getGroupRequestId()).stream()
 				.map(groupTopic -> groupTopicApiResponseFactory.create(groupTopic))

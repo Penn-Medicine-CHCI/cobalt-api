@@ -126,15 +126,15 @@ public class ScreeningSessionApiResponse {
 		this.patientOrderId = screeningSession.getPatientOrderId();
 		this.completed = screeningSession.getCompleted();
 		this.completedAt = screeningSession.getCompletedAt();
-		this.completedAtDescription = screeningSession.getCompletedAt() == null ? null : formatter.formatTimestamp(screeningSession.getCompletedAt());
+		this.completedAtDescription = screeningSession.getCompletedAt() == null ? null : formatter.formatTimestampDescription(screeningSession.getCompletedAt());
 		this.skipped = screeningSession.getSkipped();
 		this.skippedAt = screeningSession.getSkippedAt();
-		this.skippedAtDescription = screeningSession.getSkippedAt() == null ? null : formatter.formatTimestamp(screeningSession.getSkippedAt());
+		this.skippedAtDescription = screeningSession.getSkippedAt() == null ? null : formatter.formatTimestampDescription(screeningSession.getSkippedAt());
 		this.crisisIndicated = screeningSession.getCrisisIndicated();
 		this.crisisIndicatedAt = screeningSession.getCrisisIndicatedAt();
-		this.crisisIndicatedAtDescription = screeningSession.getCrisisIndicatedAt() == null ? null : formatter.formatTimestamp(screeningSession.getCrisisIndicatedAt());
+		this.crisisIndicatedAtDescription = screeningSession.getCrisisIndicatedAt() == null ? null : formatter.formatTimestampDescription(screeningSession.getCrisisIndicatedAt());
 		this.created = screeningSession.getCreated();
-		this.createdDescription = formatter.formatTimestamp(screeningSession.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(screeningSession.getCreated());
 
 		if (supplements.contains(ScreeningSessionApiResponseSupplement.NEXT_QUESTION)) {
 			ScreeningQuestionContext nextScreeningQuestionContext =

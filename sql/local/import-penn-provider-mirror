@@ -1,0 +1,79 @@
+#!/bin/sh
+
+set -eu
+
+local_script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cobalt_workspace_directory=$(CDPATH= cd -- "$local_script_directory/../../.." && pwd)
+
+penn_provider_bundle_directory=${PENN_PROVIDER_MIRROR_BUNDLE_DIR:-"$cobalt_workspace_directory/penn-prod-provider-export-2026-09-11"}
+penn_provider_import_script=${PENN_PROVIDER_MIRROR_IMPORT_SCRIPT:-"$cobalt_workspace_directory/cobalt-api-enterprise/sql/provider-v2-penn-mirror/03-import-target.sql"}
+
+local_database_host=${COBALT_LOCAL_DATABASE_HOST:-localhost}
+local_database_port=${COBALT_LOCAL_DATABASE_PORT:-5501}
+local_database_name=${COBALT_LOCAL_DATABASE_NAME:-cobalt}
+local_database_user=${COBALT_LOCAL_DATABASE_USER:-cobalt}
+local_database_password=${COBALT_LOCAL_DATABASE_PASSWORD:-password}
+local_import_owner_account_id=${PENN_PROVIDER_MIRROR_OWNER_ACCOUNT_ID:-07b6f7c6-1d6d-4886-a6eb-1bcfd0139e53}
+
+# The production-derived bundle is intentionally private and is not committed
+# to this repository. Developers without the bundle still need to be able to
+# recreate the normal local database.
+if [ ! -d "$penn_provider_bundle_directory" ]; then
+	echo "PENN provider mirror bundle not found; skipping private local import: $penn_provider_bundle_directory"
+	exit 0
+fi
+
+for required_bundle_file in \
+	00-export-info.csv \
+	01-provider-legacy-configuration.csv \
+	80-manifest.csv \
+	99-export-complete.csv
+do
+	if [ ! -f "$penn_provider_bundle_directory/$required_bundle_file" ]; then
+		echo "PENN provider mirror bundle is incomplete: missing $required_bundle_file" >&2
+		exit 1
+	fi
+done
+
+if [ ! -f "$penn_provider_import_script" ]; then
+	echo "PENN provider mirror importer not found: $penn_provider_import_script" >&2
+	exit 1
+fi
+
+echo "Importing the private PENN production provider mirror into local COBALT..."
+# This command inherits the developer's terminal. Disable psql's pager so long
+# validation/summary result sets cannot pause bootstrap waiting for a keypress.
+(
+	cd "$penn_provider_bundle_directory"
+	PGPASSWORD="$local_database_password" psql \
+		-X \
+		-P pager=off \
+		-v ON_ERROR_STOP=1 \
+		-v target_institution_id=COBALT \
+		-v target_environment=LOCAL \
+		-v target_owner_account_id="$local_import_owner_account_id" \
+		-v commit_changes=YES \
+		-v confirm_provider_mirror_import=YES \
+		-U "$local_database_user" \
+		-h "$local_database_host" \
+		-p "$local_database_port" \
+		-d "$local_database_name" \
+		-f "$penn_provider_import_script"
+)
+
+# The guarded importer deliberately leaves Provider Booking V2 disabled so a
+# PENN dev rollout cannot enable it accidentally. A local bootstrap is itself
+# the repeatable smoke-test path, so opt COBALT back in after a successful import.
+# If this helper runs after the containerized bootstrap, also reactivate the
+# already-seeded Care Navigator provider that should remain locally bookable.
+PGPASSWORD="$local_database_password" psql \
+	-X \
+	-P pager=off \
+	-v ON_ERROR_STOP=1 \
+	-U "$local_database_user" \
+	-h "$local_database_host" \
+	-p "$local_database_port" \
+	-d "$local_database_name" \
+	-c "UPDATE institution SET booking_v2_enabled=TRUE WHERE institution_id='COBALT'; UPDATE provider SET active=TRUE WHERE institution_id='COBALT' AND provider_id=(SELECT provider_id FROM institution_feature WHERE institution_id='COBALT' AND feature_id='RESOURCE_NAVIGATOR');"
+
+echo "PENN provider mirror import complete; local COBALT Provider Booking V2 is enabled."

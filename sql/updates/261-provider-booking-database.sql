@@ -351,6 +351,7 @@ WHERE app_type.deleted = FALSE;
 DO $$
 DECLARE
 	v_appointment_assessment RECORD;
+	v_adjusted_minimum_eligibility_score INTEGER;
 	v_created_by_account_id UUID;
 	v_destination_function TEXT;
 	v_flow_name TEXT;
@@ -358,6 +359,7 @@ DECLARE
 	v_institution_id TEXT;
 	v_orchestration_function TEXT;
 	v_question_count INTEGER;
+	v_removed_contact_score_credit INTEGER;
 	v_results_function TEXT;
 	v_screening_flow_id UUID;
 	v_screening_flow_version_id UUID;
@@ -477,19 +479,125 @@ BEGIN
 		FROM tmp_provider_booking_assessment_chain assessment_chain
 		JOIN question
 			ON question.assessment_id=assessment_chain.assessment_id
+		JOIN question_type
+			ON question_type.question_type_id=question.question_type_id
 		LEFT JOIN (
 			SELECT question_id, COUNT(*) AS answer_count
 			FROM answer
 			GROUP BY question_id
 		) answer_count
-			ON answer_count.question_id=question.question_id;
+			ON answer_count.question_id=question.question_id
+		WHERE (
+			question.question_content_hint_id IS NULL
+			OR question.question_content_hint_id NOT IN (
+				'FIRST_NAME',
+				'LAST_NAME',
+				'EMAIL_ADDRESS',
+				'PHONE_NUMBER'
+			)
+		)
+		AND NOT (
+			question_type.requires_text_response
+			AND LOWER(BTRIM(COALESCE(
+				NULLIF(question.cms_question_text, ''),
+				NULLIF(question.question_text, ''),
+				''
+			))) IN (
+				'what is your first and last name?',
+				'great. this sounds like a good match. what is your first and last name?',
+				'great. this sounds like a good match. what is your name?'
+			)
+		);
+
+		-- Contact questions are collected on the final appointment-confirmation
+		-- page in Booking V2. Legacy required contact questions use one fixed-score
+		-- answer, so remove that guaranteed credit from the eligibility threshold
+		-- along with the question. Refuse ambiguous source data instead of silently
+		-- changing its eligibility behavior.
+		IF EXISTS (
+			SELECT 1
+			FROM tmp_provider_booking_assessment_chain assessment_chain
+			JOIN question
+				ON question.assessment_id=assessment_chain.assessment_id
+			JOIN question_type
+				ON question_type.question_type_id=question.question_type_id
+			LEFT JOIN answer
+				ON answer.question_id=question.question_id
+			WHERE (
+				question.question_content_hint_id IN (
+					'FIRST_NAME',
+					'LAST_NAME',
+					'EMAIL_ADDRESS',
+					'PHONE_NUMBER'
+				)
+				OR (
+					question_type.requires_text_response
+					AND LOWER(BTRIM(COALESCE(
+						NULLIF(question.cms_question_text, ''),
+						NULLIF(question.question_text, ''),
+						''
+					))) IN (
+						'what is your first and last name?',
+						'great. this sounds like a good match. what is your first and last name?',
+						'great. this sounds like a good match. what is your name?'
+					)
+				)
+			)
+			GROUP BY question.question_id, question.answer_required
+			HAVING question.answer_required IS NOT TRUE
+				OR COUNT(answer.answer_id) = 0
+				OR MIN(answer.answer_value) IS DISTINCT FROM MAX(answer.answer_value)
+		) THEN
+			RAISE EXCEPTION 'Appointment type % assessment % has a removable contact question without one guaranteed score; eligibility cannot be converted safely.',
+				v_appointment_assessment.appointment_type_id, v_appointment_assessment.assessment_id;
+		END IF;
+
+		SELECT COALESCE(SUM(removed_question.fixed_score), 0)::INTEGER
+		INTO v_removed_contact_score_credit
+		FROM (
+			SELECT MIN(answer.answer_value) AS fixed_score
+			FROM tmp_provider_booking_assessment_chain assessment_chain
+			JOIN question
+				ON question.assessment_id=assessment_chain.assessment_id
+			JOIN question_type
+				ON question_type.question_type_id=question.question_type_id
+			JOIN answer
+				ON answer.question_id=question.question_id
+			WHERE question.answer_required IS TRUE
+			AND (
+				question.question_content_hint_id IN (
+					'FIRST_NAME',
+					'LAST_NAME',
+					'EMAIL_ADDRESS',
+					'PHONE_NUMBER'
+				)
+				OR (
+					question_type.requires_text_response
+					AND LOWER(BTRIM(COALESCE(
+						NULLIF(question.cms_question_text, ''),
+						NULLIF(question.question_text, ''),
+						''
+					))) IN (
+						'what is your first and last name?',
+						'great. this sounds like a good match. what is your first and last name?',
+						'great. this sounds like a good match. what is your name?'
+					)
+				)
+			)
+			GROUP BY question.question_id
+		) removed_question;
+
+		v_adjusted_minimum_eligibility_score := GREATEST(
+			0,
+			v_appointment_assessment.minimum_eligibility_score - v_removed_contact_score_credit
+		);
 
 		SELECT COUNT(*)
 		INTO v_question_count
 		FROM tmp_provider_booking_question_map;
 
 		IF v_question_count = 0 THEN
-			RAISE NOTICE 'Skipping appointment type % assessment % because no legacy questions were found.',
+			RAISE NOTICE 'Skipping appointment type % assessment % because no intake questions remain after contact fields were excluded.',
 				v_appointment_assessment.appointment_type_id, v_appointment_assessment.assessment_id;
 			CONTINUE;
 		END IF;
@@ -542,6 +650,8 @@ BEGIN
 		-- completion/crisis state, and destination routes completed sessions back
 		-- to provider appointment booking.
 		v_scoring_function := FORMAT($scoring$
+// providerIntakeEligibilityMigrationVersion: 2
+// Original threshold: %s; removed contact-question credit: %s.
 const minimumEligibilityScore = %s;
 const questions = (input.screeningQuestionsWithAnswerOptions || [])
   .map((screeningQuestionWithAnswerOptions) => screeningQuestionWithAnswerOptions.screeningQuestion)
@@ -644,7 +754,8 @@ output.belowScoringThreshold = terminalFailure || overallScore < minimumEligibil
 if (!output.completed && firstUnansweredQuestionId) {
   output.nextScreeningQuestionId = firstUnansweredQuestionId;
 }
-$scoring$, v_appointment_assessment.minimum_eligibility_score);
+$scoring$, v_appointment_assessment.minimum_eligibility_score,
+			v_removed_contact_score_credit, v_adjusted_minimum_eligibility_score);
 
 		v_orchestration_function := $orchestration$
 const screeningSessionScreening = (input.screeningSessionScreenings || [])[0];
@@ -701,7 +812,7 @@ $destination$,
 			created_by_account_id
 		) VALUES (
 			v_screening_id,
-			v_flow_name,
+			'Intake Assessment',
 			NULL,
 			v_created_by_account_id
 		);
@@ -746,6 +857,9 @@ $destination$,
 			display_order,
 			metadata
 		)
+		-- One shared PENN eligibility question stores explanatory lists and its
+		-- prompt in a single legacy rich-text field. Split that known shape into
+		-- V2 intro/question fields so list content does not inherit h3 typography.
 		SELECT
 			question_map.screening_question_id,
 			v_screening_version_id,
@@ -759,8 +873,30 @@ $destination$,
 					THEN question.question_content_hint_id
 				ELSE 'NONE'
 			END,
-			NULL,
-			COALESCE(NULLIF(question.cms_question_text, ''), NULLIF(question.question_text, ''), NULLIF(assessment.base_question, ''), 'Question'),
+			CASE
+				WHEN source_question_text.question_text LIKE '%To confirm your eligibility, we need to know if you''re a <strong>UPHS</strong> or%'
+				AND source_question_text.question_text LIKE '%888-503-2380%'
+					THEN $provider_intake_intro$
+<p class="mb-2">To confirm your eligibility, we need to know if you're a <strong>UPHS</strong> or <strong>UPenn</strong> employee. A quick way to tell is by how often you get paid:</p>
+<ul class="mb-2">
+  <li><strong>UPHS employees</strong> receive a paycheck <strong>every two weeks</strong>.</li>
+  <li><strong>UPenn employees</strong> receive a paycheck <strong>monthly or weekly</strong>.</li>
+</ul>
+<p class="mb-0">If you receive a paycheck monthly or weekly, please go back and select <strong>UPenn</strong> as your employer to book with your EAP Counselors, or call <strong>888-503-2380</strong>.</p>
+$provider_intake_intro$
+				ELSE NULL
+			END,
+			CASE
+				WHEN source_question_text.question_text LIKE '%To confirm your eligibility, we need to know if you''re a <strong>UPHS</strong> or%'
+				AND source_question_text.question_text LIKE '%888-503-2380%'
+					THEN 'Are you a UPHS employee who receives a paycheck every two weeks?'
+				ELSE REGEXP_REPLACE(
+					source_question_text.question_text,
+					'please hit "exit booking" and',
+					'please exit booking and',
+					'gi'
+				)
+			END,
 			CASE WHEN question.answer_required THEN 1 ELSE 0 END,
 			CASE
 				WHEN question_type.allow_multiple_answers THEN GREATEST(question_map.answer_count, 1)
@@ -777,7 +913,15 @@ $destination$,
 		JOIN assessment
 			ON assessment.assessment_id=question.assessment_id
 		LEFT JOIN question_type
-			ON question_type.question_type_id=question.question_type_id;
+			ON question_type.question_type_id=question.question_type_id
+		CROSS JOIN LATERAL (
+			SELECT COALESCE(
+				NULLIF(question.cms_question_text, ''),
+				NULLIF(question.question_text, ''),
+				NULLIF(assessment.base_question, ''),
+				'Question'
+			) AS question_text
+		) source_question_text;
 
 		INSERT INTO screening_answer_option (
 			screening_answer_option_id,
@@ -800,6 +944,16 @@ $destination$,
 				'legacyQuestionId', answer_option_map.legacy_question_id::TEXT,
 				'legacyNextQuestionId', answer_option_map.legacy_next_question_id::TEXT,
 				'nextScreeningQuestionId', next_question_map.screening_question_id::TEXT,
+				'terminal', CASE
+					WHEN answer_option_map.legacy_next_question_id IS NULL
+					AND EXISTS (
+						SELECT 1
+						FROM answer sibling_answer
+						WHERE sibling_answer.question_id=answer_option_map.legacy_question_id
+						AND sibling_answer.next_question_id IS NOT NULL
+					) THEN TRUE
+					ELSE NULL
+				END,
 				'answerValue', answer_option_map.answer_value,
 				'call', answer_option_map.call
 			))
@@ -834,7 +988,8 @@ $destination$,
 			orchestration_function,
 			results_function,
 			destination_function,
-			created_by_account_id
+			created_by_account_id,
+			recommendation_expiration_minutes
 		) VALUES (
 			v_screening_flow_version_id,
 			v_screening_flow_id,
@@ -844,7 +999,8 @@ $destination$,
 			v_orchestration_function,
 			v_results_function,
 			v_destination_function,
-			v_created_by_account_id
+			v_created_by_account_id,
+			0
 		);
 
 		UPDATE screening_flow

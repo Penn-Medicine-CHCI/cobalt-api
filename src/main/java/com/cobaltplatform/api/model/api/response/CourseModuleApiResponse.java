@@ -99,9 +99,9 @@ public class CourseModuleApiResponse {
 		this.estimatedCompletionTimeInMinutesDescription = estimatedCompletionTimeInMinutes == null ? null
 				: strings.get("{{duration}} minutes", Map.of("duration", estimatedCompletionTimeInMinutes));
 		this.created = courseModule.getCreated();
-		this.createdDescription = formatter.formatTimestamp(courseModule.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(courseModule.getCreated());
 		this.lastUpdated = courseModule.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(courseModule.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(courseModule.getLastUpdated());
 
 		this.courseUnits = courseUnits.stream()
 				.map(courseUnit -> courseUnitApiResponseFactory.create(courseUnit))

@@ -265,8 +265,8 @@ public class GroupSessionApiResponse {
 
 		if (hasStartEndTime)
 			this.startDateTimeDescription = groupSession.getSingleSessionFlag() ?
-					formatter.formatDateTime(groupSession.getStartDateTime(), FormatStyle.LONG, FormatStyle.SHORT) :
-					formatter.formatDate(groupSession.getStartDateTime().toLocalDate(), FormatStyle.LONG);
+					formatter.formatDateTimeDescription(groupSession.getStartDateTime()) :
+					formatter.formatDateDescription(groupSession.getStartDateTime().toLocalDate());
 		else
 			this.startDateTimeDescription = null;
 
@@ -274,14 +274,14 @@ public class GroupSessionApiResponse {
 
 		if (hasStartEndTime)
 			this.endDateTimeDescription = groupSession.getSingleSessionFlag() ?
-					formatter.formatDateTime(groupSession.getEndDateTime(), FormatStyle.LONG, FormatStyle.SHORT) :
-					formatter.formatDate(groupSession.getEndDateTime().toLocalDate(), FormatStyle.LONG);
+					formatter.formatDateTimeDescription(groupSession.getEndDateTime()) :
+					formatter.formatDateDescription(groupSession.getEndDateTime().toLocalDate());
 		else
 			this.endDateTimeDescription = null;
 
 		if (this.startDateTime != null) {
 			this.startDate = this.startDateTime.toLocalDate();
-			this.startDateDescription = formatter.formatDate(this.startDate, FormatStyle.LONG);
+			this.startDateDescription = formatter.formatDateDescription(this.startDate);
 			this.startTime = this.startDateTime.toLocalTime();
 			this.startTimeDescription = formatter.formatTime(this.startTime, FormatStyle.SHORT);
 		} else {
@@ -293,7 +293,7 @@ public class GroupSessionApiResponse {
 
 		if (this.endDateTime != null) {
 			this.endDate = this.endDateTime.toLocalDate();
-			this.endDateDescription = formatter.formatDate(this.endDate, FormatStyle.LONG);
+			this.endDateDescription = formatter.formatDateDescription(this.endDate);
 			this.endTime = this.endDateTime.toLocalTime();
 			this.endTimeDescription = formatter.formatTime(this.endTime, FormatStyle.SHORT);
 		} else {
@@ -358,7 +358,7 @@ public class GroupSessionApiResponse {
 			this.registrationEndDateTime = groupSession.getRegistrationEndDateTime();
 			// Note: for the moment, chop off the time component and just format the date because the UI only works with dates.
 			// If we add UI support for time in the future, we can take that into account when formatting.
-			this.registrationEndDateTimeDescription = formatter.formatDate(groupSession.getRegistrationEndDateTime().toLocalDate(), FormatStyle.MEDIUM);
+			this.registrationEndDateTimeDescription = formatter.formatDateDescription(groupSession.getRegistrationEndDateTime().toLocalDate());
 			this.registrationEndDateTimeHasPassed = LocalDateTime.now(currentContext.getTimeZone()).isAfter(groupSession.getRegistrationEndDateTime());
 		} else {
 			this.registrationEndDateTime = null;
@@ -388,13 +388,13 @@ public class GroupSessionApiResponse {
 		this.groupSessionLearnMoreMethodId = groupSession.getGroupSessionLearnMoreMethodId();
 		this.learnMoreDescription = groupSession.getLearnMoreDescription();
 		this.created = groupSession.getCreated();
-		this.createdDescription = formatter.formatTimestamp(groupSession.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(groupSession.getCreated());
 
 		LocalDate createdDate = LocalDate.ofInstant(groupSession.getCreated(), currentContextProvider.get().getTimeZone());
-		this.createdDateDescription = formatter.formatDate(createdDate, FormatStyle.SHORT);
+		this.createdDateDescription = formatter.formatDateDescription(createdDate);
 
 		this.lastUpdated = groupSession.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(groupSession.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(groupSession.getLastUpdated());
 
 		this.differentEmailAddressForNotifications = groupSession.getDifferentEmailAddressForNotifications();
 		this.groupSessionCollectionUrlName = groupSession.getGroupSessionCollectionUrlName();

@@ -83,7 +83,6 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -322,7 +321,7 @@ public class AppointmentResource {
 				List<Appointment> appointmentsForDate = entry.getValue();
 
 				Map<String, Object> dateGroup = new HashMap<>();
-				dateGroup.put("date", date.equals(today) ? getStrings().get("Today") : getFormatter().formatDate(date, FormatStyle.MEDIUM));
+				dateGroup.put("date", date.equals(today) ? getStrings().get("Today") : getFormatter().formatDateDescription(date));
 				dateGroup.put("appointments", appointmentsForDate.stream()
 						.map((appointment) -> getAppointmentApiResponseFactory().create(appointment, Set.of(AppointmentApiResponseSupplement.PROVIDER,
 								AppointmentApiResponseSupplement.APPOINTMENT_REASON, AppointmentApiResponseSupplement.PRIVATE_DETAILS)))

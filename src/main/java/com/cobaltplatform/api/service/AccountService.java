@@ -1193,6 +1193,15 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public Optional<AccountSource> findAccountSourceById(@Nullable AccountSourceId accountSourceId) {
+		if (accountSourceId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM account_source WHERE account_source_id=?",
+				AccountSource.class, accountSourceId);
+	}
+
+	@Nonnull
 	public Optional<AccountSourceForInstitution> findAccountSourceByAccountId(@Nullable UUID accountId) {
 		if (accountId == null)
 			return Optional.empty();

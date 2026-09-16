@@ -130,17 +130,17 @@ public class PatientOrderScheduledOutreachApiResponse {
 		this.completedByAccountId = patientOrderScheduledOutreach.getCompletedByAccountId();
 		this.message = patientOrderScheduledOutreach.getMessage();
 		this.scheduledAtDate = patientOrderScheduledOutreach.getScheduledAtDateTime().toLocalDate();
-		this.scheduledAtDateDescription = formatter.formatDate(this.scheduledAtDate, FormatStyle.MEDIUM);
+		this.scheduledAtDateDescription = formatter.formatDateDescription(this.scheduledAtDate);
 		this.scheduledAtTime = patientOrderScheduledOutreach.getScheduledAtDateTime().toLocalTime();
 		this.scheduledAtTimeDescription = formatter.formatTime(this.scheduledAtTime, FormatStyle.SHORT);
 		this.scheduledAtDateTime = patientOrderScheduledOutreach.getScheduledAtDateTime();
-		this.scheduledAtDateTimeDescription = formatter.formatDateTime(patientOrderScheduledOutreach.getScheduledAtDateTime(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.scheduledAtDateTimeDescription = formatter.formatDateTimeDescription(patientOrderScheduledOutreach.getScheduledAtDateTime());
 		this.completedAt = patientOrderScheduledOutreach.getCompletedAt();
-		this.completedAtDescription = patientOrderScheduledOutreach.getCompletedAt() == null ? null : formatter.formatTimestamp(patientOrderScheduledOutreach.getCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.completedAtDescription = patientOrderScheduledOutreach.getCompletedAt() == null ? null : formatter.formatTimestampDescription(patientOrderScheduledOutreach.getCompletedAt());
 		this.created = patientOrderScheduledOutreach.getCreated();
-		this.createdDescription = formatter.formatTimestamp(patientOrderScheduledOutreach.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.createdDescription = formatter.formatTimestampDescription(patientOrderScheduledOutreach.getCreated());
 		this.lastUpdated = patientOrderScheduledOutreach.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(patientOrderScheduledOutreach.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(patientOrderScheduledOutreach.getLastUpdated());
 
 		this.createdByAccountFirstName = patientOrderScheduledOutreach.getCreatedByAccountFirstName();
 		this.createdByAccountLastName = patientOrderScheduledOutreach.getCreatedByAccountLastName();

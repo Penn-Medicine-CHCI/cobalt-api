@@ -38,7 +38,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
@@ -144,15 +143,15 @@ public class FollowupApiResponse {
 		this.providerId = followup.getProviderId();
 		this.appointmentReasonId = followup.getAppointmentReasonId();
 		this.followupDate = followup.getFollowupDate();
-		this.followupDateDescription = formatter.formatDate(followup.getFollowupDate(), FormatStyle.MEDIUM);
+		this.followupDateDescription = formatter.formatDateDescription(followup.getFollowupDate());
 		this.comment = followup.getComment();
 		this.canceled = followup.getCanceled();
 		this.canceledAt = followup.getCanceledAt();
-		this.canceledAtDescription = followup.getCanceledAt() == null ? null : formatter.formatTimestamp(followup.getCanceledAt());
+		this.canceledAtDescription = followup.getCanceledAt() == null ? null : formatter.formatTimestampDescription(followup.getCanceledAt());
 		this.created = followup.getCreated();
-		this.createdDescription = formatter.formatTimestamp(followup.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(followup.getCreated());
 		this.lastUpdated = followup.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(followup.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(followup.getLastUpdated());
 
 		AccountApiResponse accountApiResponse = null;
 

@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
-import java.time.format.FormatStyle;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -115,14 +114,14 @@ public class PatientOrderVoicemailTaskApiResponse {
 		this.message = patientOrderVoicemailTask.getMessage();
 		this.completed = patientOrderVoicemailTask.getCompleted();
 		this.completedAt = patientOrderVoicemailTask.getCompletedAt();
-		this.completedAtDescription = patientOrderVoicemailTask.getCompletedAt() == null ? null : formatter.formatTimestamp(patientOrderVoicemailTask.getCompletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.completedAtDescription = patientOrderVoicemailTask.getCompletedAt() == null ? null : formatter.formatTimestampDescription(patientOrderVoicemailTask.getCompletedAt());
 		this.deleted = patientOrderVoicemailTask.getDeleted();
 		this.deletedAt = patientOrderVoicemailTask.getDeletedAt();
-		this.deletedAtDescription = patientOrderVoicemailTask.getDeletedAt() == null ? null : formatter.formatTimestamp(patientOrderVoicemailTask.getDeletedAt(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.deletedAtDescription = patientOrderVoicemailTask.getDeletedAt() == null ? null : formatter.formatTimestampDescription(patientOrderVoicemailTask.getDeletedAt());
 		this.created = patientOrderVoicemailTask.getCreated();
-		this.createdDescription = formatter.formatTimestamp(patientOrderVoicemailTask.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.createdDescription = formatter.formatTimestampDescription(patientOrderVoicemailTask.getCreated());
 		this.lastUpdated = patientOrderVoicemailTask.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(patientOrderVoicemailTask.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(patientOrderVoicemailTask.getLastUpdated());
 
 		this.createdByAccountFirstName = patientOrderVoicemailTask.getCreatedByAccountFirstName();
 		this.createdByAccountLastName = patientOrderVoicemailTask.getCreatedByAccountLastName();

@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.FormatStyle;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -126,13 +125,13 @@ public class GroupSessionRequestApiResponse {
 		this.customQuestion2 = groupSessionRequest.getCustomQuestion2();
 		this.dataCollectionEnabled = groupSessionRequest.getDataCollectionEnabled();
 		this.created = groupSessionRequest.getCreated();
-		this.createdDescription = formatter.formatTimestamp(groupSessionRequest.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(groupSessionRequest.getCreated());
 
 		LocalDate createdDate = LocalDate.ofInstant(groupSessionRequest.getCreated(), currentContextProvider.get().getTimeZone());
-		this.createdDateDescription = formatter.formatDate(createdDate, FormatStyle.SHORT);
+		this.createdDateDescription = formatter.formatDateDescription(createdDate);
 
 		this.lastUpdated = groupSessionRequest.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(groupSessionRequest.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(groupSessionRequest.getLastUpdated());
 	}
 
 	@Nonnull

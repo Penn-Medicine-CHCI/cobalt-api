@@ -77,7 +77,7 @@ public class ScreeningAnswerApiResponse {
 		this.text = screeningAnswer.getText();
 		this.answerOrder = screeningAnswer.getAnswerOrder();
 		this.created = screeningAnswer.getCreated();
-		this.createdDescription = formatter.formatTimestamp(screeningAnswer.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(screeningAnswer.getCreated());
 	}
 
 	@Nonnull

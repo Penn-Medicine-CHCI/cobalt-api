@@ -122,9 +122,9 @@ public class ProviderCalendarApiResponse {
 
 			this.logicalAvailabilityId = availability.getLogicalAvailabilityId();
 			this.startDateTime = availability.getStartDateTime();
-			this.startDateTimeDescription = getStartDateTime() == null ? null : formatter.formatDateTime(getStartDateTime());
+			this.startDateTimeDescription = getStartDateTime() == null ? null : formatter.formatDateTimeDescription(getStartDateTime());
 			this.endDateTime = availability.getEndDateTime();
-			this.endDateTimeDescription = getEndDateTime() == null ? null : formatter.formatDateTime(getEndDateTime());
+			this.endDateTimeDescription = getEndDateTime() == null ? null : formatter.formatDateTimeDescription(getEndDateTime());
 			this.appointmentTypes = availability.getAppointmentTypes() == null ? Collections.emptyList() : availability.getAppointmentTypes().stream()
 					.map(appointmentType -> appointmentTypeApiResponseFactory.create(appointmentType))
 					.collect(Collectors.toList());
@@ -181,9 +181,9 @@ public class ProviderCalendarApiResponse {
 
 			this.logicalAvailabilityId = block.getLogicalAvailabilityId();
 			this.startDateTime = block.getStartDateTime();
-			this.startDateTimeDescription = getStartDateTime() == null ? null : formatter.formatDateTime(getStartDateTime());
+			this.startDateTimeDescription = getStartDateTime() == null ? null : formatter.formatDateTimeDescription(getStartDateTime());
 			this.endDateTime = block.getEndDateTime();
-			this.endDateTimeDescription = getEndDateTime() == null ? null : formatter.formatDateTime(getEndDateTime());
+			this.endDateTimeDescription = getEndDateTime() == null ? null : formatter.formatDateTimeDescription(getEndDateTime());
 		}
 
 		@Nonnull

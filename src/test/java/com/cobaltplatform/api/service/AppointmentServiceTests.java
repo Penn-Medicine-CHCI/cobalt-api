@@ -86,6 +86,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -230,7 +231,7 @@ public class AppointmentServiceTests {
 	}
 
 	@Test
-	public void appointmentBookingRequirementsCreateResumeAndSatisfyScreeningSession() {
+	public void appointmentBookingRequirementsCreateFreshAndSatisfyScreeningSession() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
@@ -256,11 +257,12 @@ public class AppointmentServiceTests {
 			assertEquals(pair.getProviderId().toString(), appointmentBookingRequirements.getContext().get("providerId"));
 			assertEquals(pair.getAppointmentTypeId().toString(), appointmentBookingRequirements.getContext().get("appointmentTypeId"));
 
-			UUID screeningSessionId = appointmentBookingRequirements.getScreeningSession().getScreeningSessionId();
-			AppointmentBookingRequirements resumedAppointmentBookingRequirements =
+			UUID abandonedScreeningSessionId = appointmentBookingRequirements.getScreeningSession().getScreeningSessionId();
+			AppointmentBookingRequirements freshAppointmentBookingRequirements =
 					appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account);
+			UUID screeningSessionId = freshAppointmentBookingRequirements.getScreeningSession().getScreeningSessionId();
 
-			assertEquals(screeningSessionId, resumedAppointmentBookingRequirements.getScreeningSession().getScreeningSessionId());
+			assertNotEquals(abandonedScreeningSessionId, screeningSessionId);
 
 			AppointmentBookingScreeningKey expectedScreeningKey =
 					new AppointmentBookingScreeningKey(pair.getProviderId(), pair.getAppointmentTypeId(), screeningFlowId);
@@ -376,6 +378,56 @@ public class AppointmentServiceTests {
 	}
 
 	@Test
+	public void zeroExpirationRequiresFreshScreeningButAllowsExplicitCompletedSessionHandoff() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
+			ProviderAppointmentTypePair pair = findProviderAppointmentTypePair(database);
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get()
+					.getFeatureScreeningFlowId();
+
+			setAppointmentTypeScreeningFlow(database, pair.getAppointmentTypeId(), screeningFlowId);
+			database.execute("""
+					UPDATE screening_flow_version sfv
+					SET recommendation_expiration_minutes=0
+					FROM screening_flow sf
+					WHERE sf.screening_flow_id=?
+					AND sf.active_screening_flow_version_id=sfv.screening_flow_version_id
+					""", screeningFlowId);
+
+			FindAppointmentBookingRequirementsRequest initialRequest = requestFor(account, pair);
+			AppointmentBookingRequirements initialRequirements = appointmentService
+					.findAppointmentBookingRequirements(initialRequest, account);
+			UUID abandonedScreeningSessionId = initialRequirements.getScreeningSession().getScreeningSessionId();
+			AppointmentBookingRequirements restartedRequirements = appointmentService
+					.findAppointmentBookingRequirements(requestFor(account, pair), account);
+			UUID screeningSessionId = restartedRequirements.getScreeningSession().getScreeningSessionId();
+
+			assertNotEquals(abandonedScreeningSessionId, screeningSessionId);
+			completeScreeningSession(database, screeningSessionId);
+
+			FindAppointmentBookingRequirementsRequest explicitHandoffRequest = requestFor(account, pair);
+			explicitHandoffRequest.setScreeningSessionId(screeningSessionId);
+			AppointmentBookingRequirements explicitHandoffRequirements = appointmentService
+					.findAppointmentBookingRequirements(explicitHandoffRequest, account);
+
+			assertEquals(AppointmentBookingRequirementsDestinationId.APPOINTMENT_BOOKING,
+					explicitHandoffRequirements.getAppointmentBookingRequirementsDestinationId());
+			assertEquals(true, explicitHandoffRequirements.getScreeningSatisfied());
+
+			AppointmentBookingRequirements nextAttemptRequirements = appointmentService
+					.findAppointmentBookingRequirements(requestFor(account, pair), account);
+
+			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
+					nextAttemptRequirements.getAppointmentBookingRequirementsDestinationId());
+			assertEquals(false, nextAttemptRequirements.getScreeningSatisfied());
+		});
+	}
+
+	@Test
 	public void supersededScreeningFlowVersionNoLongerQualifies() {
 		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
 
@@ -450,7 +502,7 @@ public class AppointmentServiceTests {
 	}
 
 	@Test
-	public void appointmentBookingRequirementsIncompleteScreeningResumeRemainsAppointmentTypeSpecific() {
+	public void appointmentBookingRequirementsAlwaysCreatesFreshIncompleteScreeningSession() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
@@ -458,29 +510,23 @@ public class AppointmentServiceTests {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			Account account = accountService.findAdminAccountsForInstitution(InstitutionId.COBALT).get(0);
 			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
-			ProviderAppointmentTypePair pair = findProviderAppointmentTypePairWithOtherAppointmentType(database);
-			ProviderAppointmentTypePair otherPair = pairForOtherAppointmentType(pair);
+			ProviderAppointmentTypePair pair = findProviderAppointmentTypePair(database);
 			UUID screeningFlowId = institution.getFeatureScreeningFlowId();
 
-			database.execute("UPDATE appointment_type SET screening_flow_id=? WHERE appointment_type_id IN (?, ?)",
-					screeningFlowId, pair.getAppointmentTypeId(), otherPair.getAppointmentTypeId());
+			database.execute("UPDATE appointment_type SET screening_flow_id=? WHERE appointment_type_id=?",
+					screeningFlowId, pair.getAppointmentTypeId());
 
 			AppointmentBookingRequirements appointmentBookingRequirements =
 					appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account);
-			AppointmentBookingRequirements otherAppointmentTypeRequirements =
-					appointmentService.findAppointmentBookingRequirements(requestFor(account, otherPair), account);
-			AppointmentBookingRequirements resumedOtherAppointmentTypeRequirements =
-					appointmentService.findAppointmentBookingRequirements(requestFor(account, otherPair), account);
+			AppointmentBookingRequirements freshAppointmentBookingRequirements =
+					appointmentService.findAppointmentBookingRequirements(requestFor(account, pair), account);
 
 			assertEquals(AppointmentBookingRequirementsDestinationId.SCREENING_SESSION,
-					otherAppointmentTypeRequirements.getAppointmentBookingRequirementsDestinationId());
+					freshAppointmentBookingRequirements.getAppointmentBookingRequirementsDestinationId());
 			assertNotNull(appointmentBookingRequirements.getScreeningSession());
-			assertNotNull(otherAppointmentTypeRequirements.getScreeningSession());
-			assertNotNull(resumedOtherAppointmentTypeRequirements.getScreeningSession());
-			assertFalse(appointmentBookingRequirements.getScreeningSession().getScreeningSessionId()
-					.equals(otherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId()));
-			assertEquals(otherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId(),
-					resumedOtherAppointmentTypeRequirements.getScreeningSession().getScreeningSessionId());
+			assertNotNull(freshAppointmentBookingRequirements.getScreeningSession());
+			assertNotEquals(appointmentBookingRequirements.getScreeningSession().getScreeningSessionId(),
+					freshAppointmentBookingRequirements.getScreeningSession().getScreeningSessionId());
 		});
 	}
 
@@ -541,6 +587,47 @@ public class AppointmentServiceTests {
 			assertNotNull(appointmentId);
 			assertEquals(screeningSessionId,
 					appointmentService.findAppointmentById(appointmentId).get().getScreeningSessionId());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(AcuitySchedulingClient.class).toInstance(acuitySchedulingClient);
+			}
+		});
+	}
+
+	@Test
+	public void createAppointmentAllowsOneTimeExplicitHandoffForZeroExpirationScreening() {
+		RecordingAcuitySchedulingClient acuitySchedulingClient = new RecordingAcuitySchedulingClient();
+
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			AcuityAppointmentTestData testData = createAcuityAppointmentTestData(accountService, database, acuitySchedulingClient);
+			Account account = accountService.findAccountById(testData.getAccountId()).get();
+			UUID screeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get().getFeatureScreeningFlowId();
+
+			setAppointmentTypeScreeningFlow(database, testData.getAppointmentTypeId(), screeningFlowId);
+			database.execute("""
+					UPDATE screening_flow_version sfv
+					SET recommendation_expiration_minutes=0
+					FROM screening_flow sf
+					WHERE sf.screening_flow_id=?
+					AND sf.active_screening_flow_version_id=sfv.screening_flow_version_id
+					""", screeningFlowId);
+			UUID screeningSessionId = createCompletedAppointmentBookingScreeningSession(
+					appointmentService, database, account, pairFor(testData));
+			CreateAppointmentRequest request = requestForAcuityAppointment(testData);
+			request.setScreeningSessionId(screeningSessionId);
+
+			UUID appointmentId = appointmentService.createAppointment(request);
+
+			assertNotNull(appointmentId);
+			assertEquals(screeningSessionId,
+					appointmentService.findAppointmentById(appointmentId).get().getScreeningSessionId());
+			assertTrue(appointmentService.findSuccessfulAppointmentBookingScreeningSessionById(screeningSessionId,
+					account.getAccountId(), testData.getProviderId(), testData.getAppointmentTypeId(), screeningFlowId).isEmpty());
 		}, new AbstractModule() {
 			@Override
 			protected void configure() {
@@ -1462,6 +1549,7 @@ public class AppointmentServiceTests {
 
 			assertNotNull(appointmentType.getScreeningFlowId());
 			assertEquals(1L, activeAssessmentCount(database, appointmentTypeId));
+			assertEquals("Intake Assessment", activeInitialScreeningName(database, appointmentType.getScreeningFlowId()));
 			assertEquals(2L, activeInitialScreeningQuestionCount(database, appointmentType.getScreeningFlowId()));
 			assertEquals(4L, activeInitialScreeningAnswerOptionCount(database, appointmentType.getScreeningFlowId()));
 
@@ -1843,7 +1931,7 @@ public class AppointmentServiceTests {
 	}
 
 	protected long activeInitialScreeningQuestionCount(@Nonnull Database database,
-																										 @Nonnull UUID screeningFlowId) {
+																			 @Nonnull UUID screeningFlowId) {
 		return database.queryForObject("""
 				SELECT COUNT(*)
 				FROM screening_question sq
@@ -1855,6 +1943,20 @@ public class AppointmentServiceTests {
 					ON sf.active_screening_flow_version_id=sfv.screening_flow_version_id
 				WHERE sf.screening_flow_id=?
 				""", Long.class, screeningFlowId).get();
+	}
+
+	@Nonnull
+	protected String activeInitialScreeningName(@Nonnull Database database,
+																				@Nonnull UUID screeningFlowId) {
+		return database.queryForObject("""
+				SELECT s.name
+				FROM screening s
+				JOIN screening_flow_version sfv
+					ON sfv.initial_screening_id=s.screening_id
+				JOIN screening_flow sf
+					ON sf.active_screening_flow_version_id=sfv.screening_flow_version_id
+				WHERE sf.screening_flow_id=?
+				""", String.class, screeningFlowId).get();
 	}
 
 	protected long activeInitialScreeningAnswerOptionCount(@Nonnull Database database,

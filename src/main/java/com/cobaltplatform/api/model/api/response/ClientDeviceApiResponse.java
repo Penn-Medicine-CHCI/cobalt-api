@@ -136,9 +136,9 @@ public class ClientDeviceApiResponse {
 		this.model = clientDevice.getModel();
 		this.brand = clientDevice.getBrand();
 		this.created = clientDevice.getCreated();
-		this.createdDescription = formatter.formatTimestamp(clientDevice.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(clientDevice.getCreated());
 		this.lastUpdated = clientDevice.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(clientDevice.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(clientDevice.getLastUpdated());
 
 		if (supplements.contains(ClientDeviceApiResponseSupplement.CLIENT_DEVICE_PUSH_TOKENS)) {
 			List<ClientDevicePushToken> clientDevicePushTokens = clientDeviceService.findClientDevicePushTokensByClientDeviceId(clientDevice.getClientDeviceId());

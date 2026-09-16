@@ -636,7 +636,7 @@ public class ScreeningResource {
 
 		if (sessionFullyCompletedAt != null) {
 			response.put("sessionFullyCompletedAt", sessionFullyCompletedAt);
-			response.put("sessionFullyCompletedAtDescription", getFormatter().formatTimestamp(sessionFullyCompletedAt));
+			response.put("sessionFullyCompletedAtDescription", getFormatter().formatTimestampDescription(sessionFullyCompletedAt));
 		}
 
 		return new ApiResponse(response);

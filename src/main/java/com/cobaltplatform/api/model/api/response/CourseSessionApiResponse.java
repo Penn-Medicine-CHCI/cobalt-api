@@ -107,9 +107,9 @@ public class CourseSessionApiResponse {
 		this.accountId = courseSession.getAccountId();
 		this.courseSessionStatusId = courseSession.getCourseSessionStatusId();
 		this.created = courseSession.getCreated();
-		this.createdDescription = formatter.formatTimestamp(courseSession.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(courseSession.getCreated());
 		this.lastUpdated = courseSession.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(courseSession.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(courseSession.getLastUpdated());
 
 		// Show status for each course unit in the session.
 		// If we don't have status yet, create a synthetic "INCOMPLETE" record

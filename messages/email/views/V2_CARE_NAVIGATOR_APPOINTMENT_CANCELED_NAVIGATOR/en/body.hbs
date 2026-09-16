@@ -1,0 +1,32 @@
+{{#partial "preheader"}}
+	A Care Navigator appointment for {{appointmentStartDateTimeDescription}} was canceled.
+{{/partial}}
+
+{{#partial "content"}}
+	<table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation">
+		<tr>
+			<td align="left" style="font-family:'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:28px; line-height:36px; font-weight:700; color:{{colors.n900}};">
+				A Care Navigator appointment was canceled
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:{{colors.n900}};">
+				Hello{{#if careNavigatorName}} {{careNavigatorName}}{{/if}},<br /><br />
+				The Care Navigator appointment with <strong>{{patientName}}</strong>{{#if patientEmailAddress}} ({{patientEmailAddress}}){{/if}} on <strong>{{appointmentStartDateDescription}}</strong> at <strong>{{appointmentStartTimeDescription}}</strong> has been canceled.
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:{{colors.n900}};">
+				Please do not reply to this email. This mailbox is not monitored.
+			</td>
+		</tr>
+	</table>
+{{/partial}}
+
+{{#partial "footer"}}
+	You are receiving this transactional email because a Care Navigator appointment assigned to you through {{platformName}} was canceled.
+{{/partial}}
+
+{{> layouts/en/v2}}

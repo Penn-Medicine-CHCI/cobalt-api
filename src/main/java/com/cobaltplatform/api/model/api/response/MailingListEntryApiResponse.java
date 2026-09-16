@@ -31,7 +31,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
-import java.time.format.FormatStyle;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -84,9 +83,9 @@ public class MailingListEntryApiResponse {
 		this.createdByAccountId = mailingListEntry.getCreatedByAccountId();
 		this.value = mailingListEntry.getValue();
 		this.created = mailingListEntry.getCreated();
-		this.createdDescription = formatter.formatTimestamp(mailingListEntry.getCreated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.createdDescription = formatter.formatTimestampDescription(mailingListEntry.getCreated());
 		this.lastUpdated = mailingListEntry.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(mailingListEntry.getLastUpdated(), FormatStyle.MEDIUM, FormatStyle.SHORT);
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(mailingListEntry.getLastUpdated());
 	}
 
 	@Nonnull

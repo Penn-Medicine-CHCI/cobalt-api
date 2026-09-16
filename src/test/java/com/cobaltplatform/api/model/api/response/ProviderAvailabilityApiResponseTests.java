@@ -44,6 +44,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 import java.lang.reflect.Proxy;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
@@ -99,6 +100,8 @@ public class ProviderAvailabilityApiResponseTests {
 		assertEquals(date, phoneAvailability.getAvailability().get(0).getDate());
 		assertEquals(1, phoneAvailability.getAvailability().get(0).getTimes().size());
 		assertEquals(LocalTime.of(9, 0), phoneAvailability.getAvailability().get(0).getTimes().get(0).getTime());
+		assertEquals(LocalDateTime.of(date, LocalTime.of(9, 0)), phoneAvailability.getAvailability().get(0).getTimes().get(0).getDateTime());
+		assertEquals("Thu, Jan 1, 2026 9:00 am", phoneAvailability.getAvailability().get(0).getTimes().get(0).getDateTimeDescription());
 		assertEquals(List.of(firstAppointmentTypeId, secondAppointmentTypeId),
 				phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeIds());
 		assertNull(phoneAvailability.getAvailability().get(0).getTimes().get(0).getAppointmentTypeDescription());

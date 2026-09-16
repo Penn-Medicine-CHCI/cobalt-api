@@ -73,9 +73,9 @@ public class AnalyticsReportGroupApiResponse {
 		this.displayOrder = analyticsReportGroup.getDisplayOrder();
 		this.displayOrderDescription = formatter.formatInteger(analyticsReportGroup.getDisplayOrder());
 		this.created = analyticsReportGroup.getCreated();
-		this.createdDescription = formatter.formatTimestamp(analyticsReportGroup.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(analyticsReportGroup.getCreated());
 		this.lastUpdated = analyticsReportGroup.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(analyticsReportGroup.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(analyticsReportGroup.getLastUpdated());
 	}
 
 	@Nonnull

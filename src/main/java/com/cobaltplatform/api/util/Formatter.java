@@ -48,13 +48,16 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.FormatStyle;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -66,6 +69,21 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
  */
 @ThreadSafe
 public final class Formatter {
+	@Nonnull
+	private static final DateTimeFormatter DATE_DESCRIPTION_FORMATTER;
+	@Nonnull
+	private static final DateTimeFormatter DATE_TIME_DESCRIPTION_FORMATTER;
+
+	static {
+		Map<Long, String> amPmDescriptions = Map.of(0L, "am", 1L, "pm");
+		DATE_DESCRIPTION_FORMATTER = DateTimeFormatter.ofPattern("EEE, MMM d, uuuu", Locale.US);
+		DATE_TIME_DESCRIPTION_FORMATTER = new DateTimeFormatterBuilder()
+				.append(DATE_DESCRIPTION_FORMATTER)
+				.appendPattern(" h:mm ")
+				.appendText(ChronoField.AMPM_OF_DAY, amPmDescriptions)
+				.toFormatter(Locale.US);
+	}
+
 	@Nonnull
 	private final Cache localCache;
 	@Nonnull
@@ -111,8 +129,8 @@ public final class Formatter {
 
 	@Nonnull
 	public String formatDate(@Nonnull LocalDate date,
-													 @Nonnull FormatStyle formatStyle,
-													 @Nonnull Locale locale) {
+											 @Nonnull FormatStyle formatStyle,
+											 @Nonnull Locale locale) {
 		requireNonNull(date);
 		requireNonNull(formatStyle);
 		requireNonNull(locale);
@@ -123,6 +141,15 @@ public final class Formatter {
 				DateTimeFormatter.ofLocalizedDate(formatStyle).withLocale(locale), DateTimeFormatter.class);
 
 		return dateFormatter.format(date);
+	}
+
+	/**
+	 * Formats the date portion of an API description using its canonical, locale-independent representation.
+	 */
+	@Nonnull
+	public String formatDateDescription(@Nonnull LocalDate date) {
+		requireNonNull(date);
+		return DATE_DESCRIPTION_FORMATTER.format(date);
 	}
 
 	@Nonnull
@@ -191,6 +218,15 @@ public final class Formatter {
 		return dateFormatter.format(dateTime);
 	}
 
+	/**
+	 * Formats a local date-time for an API description using its canonical, locale-independent representation.
+	 */
+	@Nonnull
+	public String formatDateTimeDescription(@Nonnull LocalDateTime dateTime) {
+		requireNonNull(dateTime);
+		return DATE_TIME_DESCRIPTION_FORMATTER.format(dateTime);
+	}
+
 	@Nonnull
 	public String formatTimestamp(@Nonnull Instant timestamp) {
 		requireNonNull(timestamp);
@@ -243,6 +279,26 @@ public final class Formatter {
 				DateTimeFormatter.ofLocalizedDateTime(dateFormatStyle, timeFormatStyle).withLocale(locale).withZone(timeZone), DateTimeFormatter.class);
 
 		return dateFormatter.format(timestamp);
+	}
+
+	/**
+	 * Formats a timestamp for an API description in the current context's time zone.
+	 */
+	@Nonnull
+	public String formatTimestampDescription(@Nonnull Instant timestamp) {
+		requireNonNull(timestamp);
+		return formatTimestampDescription(timestamp, getCurrentContext().getTimeZone());
+	}
+
+	/**
+	 * Formats a timestamp for an API description in the requested time zone.
+	 */
+	@Nonnull
+	public String formatTimestampDescription(@Nonnull Instant timestamp,
+																				 @Nonnull ZoneId timeZone) {
+		requireNonNull(timestamp);
+		requireNonNull(timeZone);
+		return DATE_TIME_DESCRIPTION_FORMATTER.withZone(timeZone).format(timestamp);
 	}
 
 	@Nonnull

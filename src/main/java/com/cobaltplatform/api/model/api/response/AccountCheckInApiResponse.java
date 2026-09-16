@@ -38,7 +38,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalTime;
-import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -117,13 +116,13 @@ public class AccountCheckInApiResponse {
 
 		if (checkInActive) {
 			if (includeTimeInDescription)
-				checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInEndDateTime(), FormatStyle.MEDIUM, FormatStyle.MEDIUM);
+				checkInDateDescription = formatter.formatDateTimeDescription(accountCheckIn.getCheckInEndDateTime());
 			else
-				checkInDateDescription = formatter.formatDate(accountCheckIn.getCheckInEndDateTime().toLocalDate());
+				checkInDateDescription = formatter.formatDateDescription(accountCheckIn.getCheckInEndDateTime().toLocalDate());
 		} else if (includeTimeInDescription)
-			checkInDateDescription = formatter.formatDateTime(accountCheckIn.getCheckInStartDateTime(), FormatStyle.MEDIUM, FormatStyle.MEDIUM);
+			checkInDateDescription = formatter.formatDateTimeDescription(accountCheckIn.getCheckInStartDateTime());
 		else
-			checkInDateDescription = formatter.formatDate(accountCheckIn.getCheckInStartDateTime().toLocalDate());
+			checkInDateDescription = formatter.formatDateDescription(accountCheckIn.getCheckInStartDateTime().toLocalDate());
 
 		this.accountCheckInId = accountCheckIn.getAccountCheckInId();
 		this.checkInTypeId = accountCheckIn.getCheckInTypeId();

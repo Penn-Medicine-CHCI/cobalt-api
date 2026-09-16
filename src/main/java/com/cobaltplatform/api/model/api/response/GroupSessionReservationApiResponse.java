@@ -90,9 +90,9 @@ public class GroupSessionReservationApiResponse {
 		this.phoneNumber = groupSessionReservation.getPhoneNumber() == null ? null : formatter.formatPhoneNumber(groupSessionReservation.getPhoneNumber());
 		this.canceled = groupSessionReservation.getCanceled();
 		this.created = groupSessionReservation.getCreated();
-		this.createdDescription = formatter.formatTimestamp(groupSessionReservation.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(groupSessionReservation.getCreated());
 		this.lastUpdated = groupSessionReservation.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(groupSessionReservation.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(groupSessionReservation.getLastUpdated());
 	}
 
 	@Nonnull

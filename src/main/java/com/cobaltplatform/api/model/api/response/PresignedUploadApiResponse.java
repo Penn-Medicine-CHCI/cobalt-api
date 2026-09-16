@@ -70,7 +70,7 @@ public class PresignedUploadApiResponse {
 		this.accessUrl = presignedUpload.getAccessUrl();
 		this.contentType = presignedUpload.getContentType();
 		this.expirationTimestamp = presignedUpload.getExpirationTimestamp();
-		this.expirationTimestampDescription = formatter.formatTimestamp(presignedUpload.getExpirationTimestamp());
+		this.expirationTimestampDescription = formatter.formatTimestampDescription(presignedUpload.getExpirationTimestamp());
 		this.httpHeaders = Collections.unmodifiableMap(presignedUpload.getHttpHeaders());
 	}
 

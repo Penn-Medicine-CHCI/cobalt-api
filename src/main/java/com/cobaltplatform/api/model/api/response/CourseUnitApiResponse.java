@@ -128,9 +128,9 @@ public class CourseUnitApiResponse {
 		this.courseUnitDownloadableFiles = courseService.findCourseUnitDownloadableFiles(courseUnitId).stream()
 				.map(courseUnitDownloadableFile -> courseUnitDownloadableFileApiResponseFactory.create(courseUnitDownloadableFile)).collect(Collectors.toList());
 		this.created = courseUnit.getCreated();
-		this.createdDescription = formatter.formatTimestamp(courseUnit.getCreated());
+		this.createdDescription = formatter.formatTimestampDescription(courseUnit.getCreated());
 		this.lastUpdated = courseUnit.getLastUpdated();
-		this.lastUpdatedDescription = formatter.formatTimestamp(courseUnit.getLastUpdated());
+		this.lastUpdatedDescription = formatter.formatTimestampDescription(courseUnit.getLastUpdated());
 	}
 
 	@Nonnull
