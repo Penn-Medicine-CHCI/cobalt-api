@@ -297,3 +297,7 @@ if [ -f "initial/bootstrap.sql" ]; then
 fi
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/266-cobalt-employer-onboarding-single-question.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/267-cobalt-homepage-features.sql
+
+if [ -f "initial/bootstrap.sql" ]; then
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/270-team-clinic-medication-prescriber.sql
+fi
