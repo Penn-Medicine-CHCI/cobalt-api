@@ -145,14 +145,14 @@ $scoring$, v_question_id, v_question_id);
 		v_intro_prompt_id,
 		'SINGLE_SELECT',
 		'NONE',
-		'Who is your employer?',
+		'Please select your employer',
 		'Cobalt uses your employer to personalize your experience and identify the benefits and services available to you. We do not share your individual response with your employer, manager, or coworkers.',
 		1,
 		1,
 		1,
 		FALSE,
-		'NEXT',
-		'{"shouldUpdateAccountInstitutionLocation":true}'::JSONB
+		'SUBMIT',
+		'{"shouldUpdateAccountInstitutionLocation":true,"submitButtonText":"Done"}'::JSONB
 	);
 
 	-- Each screening version is a snapshot of the employer list. Future location

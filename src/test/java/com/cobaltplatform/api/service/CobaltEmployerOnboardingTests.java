@@ -34,6 +34,7 @@ import com.cobaltplatform.api.model.db.InstitutionLocation;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
+import com.cobaltplatform.api.model.db.ScreeningQuestionSubmissionStyle.ScreeningQuestionSubmissionStyleId;
 import com.cobaltplatform.api.model.db.ScreeningSession;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements;
 import com.cobaltplatform.api.model.service.AppointmentBookingRequirements.AppointmentBookingRequirementsDestinationId;
@@ -88,10 +89,13 @@ public class CobaltEmployerOnboardingTests {
 			ScreeningQuestionContext questionContext = screeningService
 					.findNextUnansweredScreeningQuestionContextByScreeningSessionId(screeningSessionId).get();
 
-			assertEquals("Who is your employer?", questionContext.getScreeningQuestion().getQuestionText());
+			assertEquals("Please select your employer", questionContext.getScreeningQuestion().getQuestionText());
 			assertEquals("Cobalt uses your employer to personalize your experience and identify the benefits and services available to you. We do not share your individual response with your employer, manager, or coworkers.",
 					questionContext.getScreeningQuestion().getFooterText());
 			assertEquals(Boolean.FALSE, questionContext.getScreeningQuestion().getPreferAutosubmit());
+			assertEquals(ScreeningQuestionSubmissionStyleId.SUBMIT,
+					questionContext.getScreeningQuestion().getScreeningQuestionSubmissionStyleId());
+			assertEquals("Done", questionContext.getScreeningQuestion().getMetadata().get("submitButtonText"));
 			assertEquals(Boolean.TRUE,
 					questionContext.getScreeningQuestion().getMetadata().get("shouldUpdateAccountInstitutionLocation"));
 

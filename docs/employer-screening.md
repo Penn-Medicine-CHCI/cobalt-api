@@ -28,6 +28,11 @@ WHERE account_source_id IN ('PENN_SSO', 'PENN_KEY_SSO');
 ```
 
 Use `LARGE_MODAL` for the existing screening UI or `SMALL_MODAL` for the compact modal.
+
+Employer onboarding uses the `SUBMIT` screening-question submission style so
+the final action does not imply that another question follows. Set
+`screening_question.metadata.submitButtonText` to a nonblank string to replace
+the default `Submit` label; the local and PENN employer fixtures use `Done`.
 This setting applies to every account using that source across institutions.
 Clients should fall back to the existing UI for absent or unrecognized values.
 New visual presentations require client support, but the backend passes their
