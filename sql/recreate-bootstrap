@@ -286,6 +286,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/263-care
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/264-provider-institution-referrer.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/265-onboarding-screening-presentation-and-cancellation-reasons.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/266-provider-booking-analytics.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < updates/269-ease-clinic-assessment-types.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/263-care-navigator-seed.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/264-cobalt-employer-onboarding.sql
 
@@ -300,4 +301,5 @@ PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432
 
 if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/270-team-clinic-medication-prescriber.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/271-cobalt-ic-ease.sql
 fi

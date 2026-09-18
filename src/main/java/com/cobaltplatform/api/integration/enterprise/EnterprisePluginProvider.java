@@ -30,7 +30,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -85,7 +84,7 @@ public class EnterprisePluginProvider {
 	}
 
 	@Nonnull
-	protected Map<InstitutionId, Class<? extends EnterprisePlugin>> createEnterprisePluginClassesByInstitutionId() {
+	protected static Map<InstitutionId, Class<? extends EnterprisePlugin>> createEnterprisePluginClassesByInstitutionId() {
 		Map<InstitutionId, Class<? extends EnterprisePlugin>> enterprisePluginClassesByInstitutionId = new HashMap<>();
 
 		// Magic: figure out institution plugin class names based on Institution IDs.
@@ -103,23 +102,9 @@ public class EnterprisePluginProvider {
 				// This line appears unsafe, but we do a check below to confirm it's kosher
 				Class<? extends EnterprisePlugin> enterprisePluginClass = (Class<? extends EnterprisePlugin>) Class.forName(fullyQualifiedClassName);
 
-				if (!Arrays.stream(enterprisePluginClass.getInterfaces()).toList().contains(EnterprisePlugin.class)) {
-					boolean superclassImplementsEnterprisePlugin = false;
-					Class<?> enterprisePluginSuperclass = enterprisePluginClass.getSuperclass();
-
-					while (enterprisePluginSuperclass != null) {
-						if (Arrays.stream(enterprisePluginSuperclass.getInterfaces()).toList().contains(EnterprisePlugin.class)) {
-							superclassImplementsEnterprisePlugin = true;
-							break;
-						}
-
-						enterprisePluginSuperclass = enterprisePluginClass.getSuperclass();
-					}
-
-					if (!superclassImplementsEnterprisePlugin)
-						throw new IllegalStateException(format("Plugin class %s, or one of its superclasses, must be modified to implement the %s interface.",
-								fullyQualifiedClassName, EnterprisePlugin.class));
-				}
+				if (!EnterprisePlugin.class.isAssignableFrom(enterprisePluginClass))
+					throw new IllegalStateException(format("Plugin class %s, or one of its superclasses, must be modified to implement the %s interface.",
+							fullyQualifiedClassName, EnterprisePlugin.class));
 
 				enterprisePluginClassesByInstitutionId.put(institutionId, enterprisePluginClass);
 			} catch (Exception e) {

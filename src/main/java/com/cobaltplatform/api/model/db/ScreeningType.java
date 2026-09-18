@@ -43,6 +43,7 @@ public class ScreeningType {
 		PHQ_4,
 		PHQ_8,
 		PHQ_9,
+		PROMIS_PARTICIPATION_SOCIAL_ROLES_8A_V1,
 		WHO_5,
 		PC_PTSD_5,
 		CAGE_ALCOHOL,

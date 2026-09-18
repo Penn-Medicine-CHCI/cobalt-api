@@ -25,6 +25,7 @@ import com.google.gson.GsonBuilder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,13 +54,19 @@ public class ScreeningScore {
 	private Integer depersonalizationScore;  // MBI-9
 	@Nullable
 	private Integer emotionalExhaustionScore;  // MBI-9
+	@Nullable
+	private Integer rawScore; // PROMIS short forms
+	@Nullable
+	private BigDecimal tScore; // PROMIS short forms
+	@Nullable
+	private BigDecimal standardError; // PROMIS short forms
 
 	@Override
 	public String toString() {
 		return format("%s{overallScore=%s, personalAccomplishmentScore=%s, " +
-						"depersonalizationScore=%s, emotionalExhaustionScore=%s}",
+						"depersonalizationScore=%s, emotionalExhaustionScore=%s, rawScore=%s, tScore=%s, standardError=%s}",
 				getClass().getSimpleName(), getOverallScore(), getPersonalAccomplishmentScore(),
-				getDepersonalizationScore(), getEmotionalExhaustionScore());
+				getDepersonalizationScore(), getEmotionalExhaustionScore(), getRawScore(), getTScore(), getStandardError());
 	}
 
 	@Nonnull
@@ -74,6 +81,9 @@ public class ScreeningScore {
 		jsonObject.put("personalAccomplishmentScore", getPersonalAccomplishmentScore());
 		jsonObject.put("depersonalizationScore", getDepersonalizationScore());
 		jsonObject.put("emotionalExhaustionScore", getEmotionalExhaustionScore());
+		jsonObject.put("rawScore", getRawScore());
+		jsonObject.put("tScore", getTScore());
+		jsonObject.put("standardError", getStandardError());
 
 		return GSON.toJson(jsonObject);
 	}
@@ -112,5 +122,32 @@ public class ScreeningScore {
 
 	public void setEmotionalExhaustionScore(@Nullable Integer emotionalExhaustionScore) {
 		this.emotionalExhaustionScore = emotionalExhaustionScore;
+	}
+
+	@Nullable
+	public Integer getRawScore() {
+		return this.rawScore;
+	}
+
+	public void setRawScore(@Nullable Integer rawScore) {
+		this.rawScore = rawScore;
+	}
+
+	@Nullable
+	public BigDecimal getTScore() {
+		return this.tScore;
+	}
+
+	public void setTScore(@Nullable BigDecimal tScore) {
+		this.tScore = tScore;
+	}
+
+	@Nullable
+	public BigDecimal getStandardError() {
+		return this.standardError;
+	}
+
+	public void setStandardError(@Nullable BigDecimal standardError) {
+		this.standardError = standardError;
 	}
 }
