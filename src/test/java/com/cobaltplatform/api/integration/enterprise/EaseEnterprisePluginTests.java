@@ -10,7 +10,6 @@ import com.cobaltplatform.api.UnitTest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
-import com.cobaltplatform.api.model.db.RawPatientOrder;
 import com.cobaltplatform.api.model.db.Role.RoleId;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import org.junit.Test;
@@ -46,25 +45,5 @@ public class EaseEnterprisePluginTests {
 		assertEquals("ease-test@example.com", request.getEmailAddress());
 		assertEquals("password-hash", request.getPassword());
 		assertEquals(Boolean.TRUE, request.getTestAccount());
-	}
-
-	@Test
-	public void pennTestPatientIsUsedOnlyForPennDevTestAccounts() {
-		assertTrue(EaseEnterprisePlugin.shouldUsePennTestPatient(true, "penn-dev"));
-		assertFalse(EaseEnterprisePlugin.shouldUsePennTestPatient(false, "penn-dev"));
-		assertFalse(EaseEnterprisePlugin.shouldUsePennTestPatient(true, "local"));
-		assertFalse(EaseEnterprisePlugin.shouldUsePennTestPatient(true, "penn-prod"));
-	}
-
-	@Test
-	public void pennDevFlowsheetWritebackUsesTheSameTestPatientAsBooking() {
-		RawPatientOrder patientOrder = new RawPatientOrder();
-		patientOrder.setPatientUniqueId("FAKE-UID-123");
-		patientOrder.setPatientUniqueIdType("FAKE-UID");
-
-		EaseEnterprisePlugin.applyEncounterWritebackPatientIdentity(patientOrder, true, "penn-dev");
-
-		assertEquals("8643076748", patientOrder.getPatientUniqueId());
-		assertEquals("UID", patientOrder.getPatientUniqueIdType());
 	}
 }

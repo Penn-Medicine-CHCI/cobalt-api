@@ -19,8 +19,6 @@ package com.cobaltplatform.api.integration.enterprise;
 import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.integration.epic.EpicClient;
-import com.cobaltplatform.api.integration.epic.request.CancelAppointmentRequest;
-import com.cobaltplatform.api.integration.epic.request.ScheduleAppointmentWithInsuranceRequest;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.EmailPasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Account;
@@ -57,14 +55,10 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 /**
- * Shared EASE behavior for the Penn enterprise and Cobalt mirror institutions.
+ * Shared EASE patient-order, assessment, and local test-account behavior.
  */
 @ThreadSafe
 public abstract class EaseEnterprisePlugin extends DefaultEnterprisePlugin {
-	@Nonnull
-	private static final String PENN_TEST_PATIENT_UNIQUE_ID = "8643076748";
-	@Nonnull
-	private static final String PENN_TEST_PATIENT_UNIQUE_ID_TYPE = "UID";
 	@Nonnull
 	private final ScreeningService screeningService;
 	@Nonnull
@@ -138,31 +132,6 @@ public abstract class EaseEnterprisePlugin extends DefaultEnterprisePlugin {
 		}
 	}
 
-	@Override
-	public void customizeScheduleAppointmentWithInsuranceRequest(@Nonnull ScheduleAppointmentWithInsuranceRequest request,
-																								 @Nonnull Account account) {
-		requireNonNull(request);
-		requireNonNull(account);
-
-		// Penn TST requires a real test-patient UID. Local mirror environments use their mock Epic client.
-		if (shouldUsePennTestPatient(account.getTestAccount(), getConfiguration().getEnvironment())) {
-			request.setPatientID(PENN_TEST_PATIENT_UNIQUE_ID);
-			request.setPatientIDType(PENN_TEST_PATIENT_UNIQUE_ID_TYPE);
-		}
-	}
-
-	@Override
-	public void customizeCancelAppointmentRequest(@Nonnull CancelAppointmentRequest request,
-																			 @Nonnull Account account) {
-		requireNonNull(request);
-		requireNonNull(account);
-
-		if (shouldUsePennTestPatient(account.getTestAccount(), getConfiguration().getEnvironment())) {
-			request.getPatient().setID(PENN_TEST_PATIENT_UNIQUE_ID);
-			request.getPatient().setType(PENN_TEST_PATIENT_UNIQUE_ID_TYPE);
-		}
-	}
-
 	static boolean shouldAutoProvisionTestPatient(boolean production,
 																					 @Nullable UserExperienceTypeId userExperienceTypeId,
 																					 @Nullable Boolean integratedCareEnabled,
@@ -193,21 +162,6 @@ public abstract class EaseEnterprisePlugin extends DefaultEnterprisePlugin {
 		return request;
 	}
 
-	static boolean shouldUsePennTestPatient(@Nullable Boolean testAccount, @Nullable String environment) {
-		return Boolean.TRUE.equals(testAccount) && "penn-dev".equals(environment);
-	}
-
-	static void applyEncounterWritebackPatientIdentity(@Nonnull RawPatientOrder patientOrder,
-																			 @Nullable Boolean testAccount,
-																			 @Nullable String environment) {
-		requireNonNull(patientOrder);
-
-		if (shouldUsePennTestPatient(testAccount, environment)) {
-			patientOrder.setPatientUniqueId(PENN_TEST_PATIENT_UNIQUE_ID);
-			patientOrder.setPatientUniqueIdType(PENN_TEST_PATIENT_UNIQUE_ID_TYPE);
-		}
-	}
-
 	@Override
 	public void performPatientOrderEncounterWriteback(@Nullable UUID patientOrderId,
 																						 @Nullable String encounterCsn) {
@@ -232,8 +186,7 @@ public abstract class EaseEnterprisePlugin extends DefaultEnterprisePlugin {
 
 		Account patientAccount = patientOrder.getPatientAccountId() == null ? null
 				: getAccountService().findAccountById(patientOrder.getPatientAccountId()).orElse(null);
-		applyEncounterWritebackPatientIdentity(patientOrder, patientAccount == null ? null : patientAccount.getTestAccount(),
-				getConfiguration().getEnvironment());
+		customizePatientOrderForEncounterWriteback(patientOrder, patientAccount);
 
 		ScreeningSessionResult screeningSessionResult = getScreeningService()
 				.findScreeningSessionResult(completedScreeningSession)
@@ -254,6 +207,11 @@ public abstract class EaseEnterprisePlugin extends DefaultEnterprisePlugin {
 				completedScreeningSession.getCompletedAt(),
 				epicClient
 		);
+	}
+
+	protected void customizePatientOrderForEncounterWriteback(@Nonnull RawPatientOrder patientOrder,
+																			 @Nullable Account patientAccount) {
+		requireNonNull(patientOrder);
 	}
 
 	@Nonnull
