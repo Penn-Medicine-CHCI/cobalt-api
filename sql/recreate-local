@@ -286,6 +286,7 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/263-care-navig
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/264-provider-institution-referrer.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/265-onboarding-screening-presentation-and-cancellation-reasons.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/266-provider-booking-analytics.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/269-ease-clinic-assessment-types.sql
 
 # When the private production-derived bundle is available in the shared Cobalt
 # workspace, mirror the active PENN providers into local COBALT on every rebuild.
@@ -300,6 +301,9 @@ if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/265-team-clinic-referral-provider-seed.sql
   PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/268-team-clinic-provider-image.sql
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/269-cobalt-ic-test-provider-department-mapping.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/271-cobalt-ic-ease.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/272-cobalt-ic-ease-mhic-test-accounts.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/273-cobalt-ic-ease-triage.sql
 fi
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/266-cobalt-employer-onboarding-single-question.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/267-cobalt-homepage-features.sql

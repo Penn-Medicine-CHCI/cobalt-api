@@ -394,6 +394,25 @@ public class AppointmentService {
 	}
 
 	@Nonnull
+	public List<Appointment> findActivePatientOrderAppointmentsCreatedBetween(@Nullable InstitutionId institutionId,
+																																																 @Nullable Instant windowStart,
+																																																 @Nullable Instant windowEnd) {
+		if (institutionId == null || windowStart == null || windowEnd == null || !windowStart.isBefore(windowEnd))
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT a.*
+				FROM appointment a
+				JOIN patient_order po ON po.patient_order_id=a.patient_order_id
+				WHERE po.institution_id=?
+				AND a.canceled=FALSE
+				AND a.created>?
+				AND a.created<=?
+				ORDER BY a.created, a.appointment_id
+				""", Appointment.class, institutionId, windowStart, windowEnd);
+	}
+
+	@Nonnull
 	public Optional<Appointment> findAppointmentByAcuityAppointmentId(@Nullable Long acuityAppointmentId) {
 		if (acuityAppointmentId == null)
 			return Optional.empty();

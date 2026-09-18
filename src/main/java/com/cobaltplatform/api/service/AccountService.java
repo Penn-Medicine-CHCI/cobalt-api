@@ -269,6 +269,22 @@ public class AccountService {
 	}
 
 	@Nonnull
+	public List<Account> findActiveAccountsByInstitutionIdAndRoleId(@Nullable InstitutionId institutionId,
+																													 @Nullable RoleId roleId) {
+		if (institutionId == null || roleId == null)
+			return List.of();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM v_account
+				WHERE institution_id=?
+				AND role_id=?
+				AND active=TRUE
+				ORDER BY first_name, last_name, account_id
+				""", Account.class, institutionId, roleId);
+	}
+
+	@Nonnull
 	@SuppressWarnings("unchecked")
 	public Optional<Role> findRoleById(@Nullable RoleId roleId) {
 		if (roleId == null)

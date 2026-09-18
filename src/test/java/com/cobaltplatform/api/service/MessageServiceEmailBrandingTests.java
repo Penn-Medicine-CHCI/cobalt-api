@@ -20,11 +20,13 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.UnitTest;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Map;
 
 /**
  * @author Transmogrify, LLC.
@@ -36,8 +38,7 @@ public class MessageServiceEmailBrandingTests {
 	public void explicitImageOverrideTakesPrecedence() {
 		Assert.assertEquals("https://example.com/override.png", MessageService.resolvePlatformEmailImageUrl(
 				"https://example.com/override.png",
-				"https://example.com/institution.png",
-				"https://example.com/fallback.png"
+				"https://example.com/institution.png"
 		));
 	}
 
@@ -45,17 +46,36 @@ public class MessageServiceEmailBrandingTests {
 	public void institutionImageTakesPrecedenceOverFallback() {
 		Assert.assertEquals("https://example.com/institution.png", MessageService.resolvePlatformEmailImageUrl(
 				null,
-				"https://example.com/institution.png",
-				"https://example.com/fallback.png"
+				"https://example.com/institution.png"
 		));
 	}
 
 	@Test
-	public void blankConfiguredImagesUseFallback() {
-		Assert.assertEquals("https://example.com/fallback.png", MessageService.resolvePlatformEmailImageUrl(
+	public void blankConfiguredImagesUseLayoutFallback() {
+		Assert.assertNull(MessageService.resolvePlatformEmailImageUrl(
 				" ",
-				"\t",
-				"https://example.com/fallback.png"
+				"\t"
 		));
+	}
+
+	@Test
+	public void v2EmailUsesDefaultColorsWhenInstitutionPaletteIsMissing() {
+		Assert.assertEquals(Map.of(
+				"n50", "#FAF7F5",
+				"n900", "#292827",
+				"p500", "#30578E"
+		), MessageService.resolveEmailColors(EmailMessageTemplate.V2_ACCOUNT_VERIFICATION, Map.of()));
+	}
+
+	@Test
+	public void institutionColorsOverrideV2Defaults() {
+		Map<String, String> colors = MessageService.resolveEmailColors(
+				EmailMessageTemplate.V2_ACCOUNT_VERIFICATION,
+				Map.of("p500", "#123456")
+		);
+
+		Assert.assertEquals("#123456", colors.get("p500"));
+		Assert.assertEquals("#FAF7F5", colors.get("n50"));
+		Assert.assertEquals("#292827", colors.get("n900"));
 	}
 }

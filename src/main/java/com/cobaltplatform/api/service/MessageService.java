@@ -34,6 +34,7 @@ import com.cobaltplatform.api.messaging.call.CallMessageSerializer;
 import com.cobaltplatform.api.messaging.email.EmailMessage;
 import com.cobaltplatform.api.messaging.email.EmailMessageContextKey;
 import com.cobaltplatform.api.messaging.email.EmailMessageSerializer;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.messaging.push.PushMessage;
 import com.cobaltplatform.api.messaging.push.PushMessageSerializer;
 import com.cobaltplatform.api.messaging.sms.SmsMessage;
@@ -109,6 +110,8 @@ public class MessageService implements AutoCloseable {
 	private static final Long SEND_MESSAGE_TASK_INTERVAL_IN_SECONDS;
 	@Nonnull
 	private static final Long SEND_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS;
+	@Nonnull
+	private static final Map<String, String> V2_EMAIL_DEFAULT_COLORS;
 
 	@Nonnull
 	private final Provider<SendMessageTask> sendMessageTaskProvider;
@@ -159,6 +162,11 @@ public class MessageService implements AutoCloseable {
 		SEND_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
 		SCHEDULED_MESSAGE_TASK_INTERVAL_IN_SECONDS = 15L;
 		SCHEDULED_MESSAGE_TASK_INITIAL_DELAY_IN_SECONDS = 10L;
+		V2_EMAIL_DEFAULT_COLORS = Map.of(
+				"n50", "#FAF7F5",
+				"n900", "#292827",
+				"p500", "#30578E"
+		);
 	}
 
 	@Inject
@@ -333,8 +341,9 @@ public class MessageService implements AutoCloseable {
 		messageContext.put("staticFileUrlPrefix", staticFileUrlPrefix);
 		messageContext.put("copyrightYear", LocalDateTime.now(institution.getTimeZone()).getYear());
 		messageContext.put("institutionId", institutionId.name());
-		messageContext.put("colors", institutionColorValues.stream().collect(Collectors.toMap(
-				InstitutionColorValue::getName, InstitutionColorValue::getCssRepresentation)));
+		Map<String, String> institutionColors = institutionColorValues.stream().collect(Collectors.toMap(
+				InstitutionColorValue::getName, InstitutionColorValue::getCssRepresentation));
+		messageContext.put("colors", resolveEmailColors(emailMessage.getMessageTemplate(), institutionColors));
 
 		String platformName = ObjectUtils.firstNonNull(
 				trimToNull((String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_NAME.name())),
@@ -347,27 +356,43 @@ public class MessageService implements AutoCloseable {
 				institution.getSupportEmailAddress()));
 		messageContext.put("privacyPolicyUrl", trimToNull(institution.getPrivacyPolicyUrl()));
 		messageContext.put("emailFooterText", trimToNull(institution.getEmailFooterText()));
-		messageContext.put("platformEmailImageUrl", resolvePlatformEmailImageUrl(
+		String platformEmailImageUrl = resolvePlatformEmailImageUrl(
 				(String) messageContext.get(EmailMessageContextKey.OVERRIDE_PLATFORM_EMAIL_IMAGE_URL.name()),
-				institution.getPlatformEmailImageUrl(),
-				format("%s/logo@2x.jpg", staticFileUrlPrefix)));
+				institution.getPlatformEmailImageUrl());
+		if (platformEmailImageUrl == null)
+			messageContext.remove("platformEmailImageUrl");
+		else
+			messageContext.put("platformEmailImageUrl", platformEmailImageUrl);
 
 		EmailMessage preparedEmailMessage = emailMessage.toBuilder().messageContext(messageContext).build();
 		return getEnterprisePluginProvider().enterprisePluginForInstitutionId(institutionId)
 				.customizeEmailMessage(preparedEmailMessage);
 	}
 
-	@Nonnull
+	@Nullable
 	static String resolvePlatformEmailImageUrl(@Nullable String overridePlatformEmailImageUrl,
-																				 @Nullable String institutionPlatformEmailImageUrl,
-																				 @Nonnull String fallbackPlatformEmailImageUrl) {
-		requireNonNull(fallbackPlatformEmailImageUrl);
+																 @Nullable String institutionPlatformEmailImageUrl) {
+		return ObjectUtils.firstNonNull(trimToNull(overridePlatformEmailImageUrl),
+				trimToNull(institutionPlatformEmailImageUrl));
+	}
 
-		return ObjectUtils.firstNonNull(
-				trimToNull(overridePlatformEmailImageUrl),
-				trimToNull(institutionPlatformEmailImageUrl),
-				fallbackPlatformEmailImageUrl
-		);
+	@Nonnull
+	static Map<String, String> resolveEmailColors(@Nonnull EmailMessageTemplate emailMessageTemplate,
+																	 @Nonnull Map<String, String> institutionColors) {
+		requireNonNull(emailMessageTemplate);
+		requireNonNull(institutionColors);
+
+		Map<String, String> resolvedColors = new HashMap<>();
+		if (usesV2EmailLayout(emailMessageTemplate))
+			resolvedColors.putAll(V2_EMAIL_DEFAULT_COLORS);
+		resolvedColors.putAll(institutionColors);
+		return resolvedColors;
+	}
+
+	static boolean usesV2EmailLayout(@Nonnull EmailMessageTemplate emailMessageTemplate) {
+		requireNonNull(emailMessageTemplate);
+		return emailMessageTemplate.name().startsWith("V2_")
+				|| emailMessageTemplate == EmailMessageTemplate.CARE_ENCOUNTER_FOLLOW_UP;
 	}
 
 	/**
