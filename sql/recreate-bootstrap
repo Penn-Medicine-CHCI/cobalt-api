@@ -302,4 +302,6 @@ PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432
 if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/270-team-clinic-medication-prescriber.sql
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/271-cobalt-ic-ease.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/272-cobalt-ic-ease-mhic-test-accounts.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < local/273-cobalt-ic-ease-triage.sql
 fi

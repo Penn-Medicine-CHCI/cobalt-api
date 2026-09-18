@@ -50,7 +50,7 @@ AND team.institution_id='COBALT_IC_SELF_REFERRAL';
 UPDATE institution
 SET name='EASE Clinic',
     integrated_care_enabled=TRUE,
-    integrated_care_availability_description='TBD: Hours',
+    integrated_care_availability_description='(TBD: hours for EASE Clinic go here)',
     integrated_care_phone_number='+12155551212',
     clinical_support_phone_number='+12155551212',
     integrated_care_outreach_followup_day_offset=4,
@@ -497,8 +497,8 @@ INSERT INTO screening_question (
   display_order
 ) VALUES
   ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'Employment status', 'This pilot program is currently intended for UPHS employees. Are you a UPHS employee?', 1, 1, 1),
-  ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'What EASE Clinic provides', '<p>EASE Clinic provides quick symptom evaluation, immediate psychiatric intervention when needed, brief psychotherapeutic support, warm hand-off scheduling to longer-term care, and follow-up planning until you are bridged to ongoing care, if needed.</p>', 1, 1, 2),
-  ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'What EASE Clinic does not provide', '<p>This service is typically not appropriate for administrative paperwork (including FMLA, disability, workers'' compensation, or ESA requests), legal or forensic evaluations, or neuropsychological testing (for example, ADHD evaluations).</p>', 1, 1, 3),
+  ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'What EASE Clinic provides', 'EASE Clinic provides quick symptom evaluation, immediate psychiatric intervention when needed, brief psychotherapeutic support, warm hand-off scheduling to longer-term care, and follow-up planning until you are bridged to ongoing care, if needed.', 1, 1, 2),
+  ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'What EASE Clinic does not provide', 'This service is typically not appropriate for administrative paperwork (including FMLA, disability, workers'' compensation, or ESA requests), legal or forensic evaluations, or neuropsychological testing (for example, ADHD evaluations).', 1, 1, 3),
   ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'Insurance', 'How do you currently get your health insurance?', 1, 1, 4),
   ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'Insurance', 'Select your current behavioral health insurance plan from the list below.', 1, 1, 5),
   ('f9c47b13-419f-45d0-a6cb-03d7a060052f', 'SINGLE_SELECT', 'Insurance confirmation', 'Staff will confirm insurance prior to your appointment, and you may be contacted if any issues are identified.<br/><br/>The Department of Psychiatry and/or Cobalt are not responsible for fees that may arise from incomplete or inaccurate insurance information.', 1, 1, 6);
@@ -770,14 +770,14 @@ INSERT INTO screening_question (
   maximum_answer_count,
   display_order
 ) VALUES
-  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'In the past 7 days - I am satisfied with how much work I can do (include work at home)', 1, 1, 1),
-  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'In the past 7 days - I am satisfied with my ability to work (include work at home)', 1, 1, 2),
-  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'In the past 7 days - I am satisfied with my ability to do regular personal and household responsibilities', 1, 1, 3),
+  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', 'In the past 7 days...', 'I am satisfied with how much work I can do (include work at home)', 1, 1, 1),
+  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', 'In the past 7 days...', 'I am satisfied with my ability to work (include work at home)', 1, 1, 2),
+  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', 'In the past 7 days...', 'I am satisfied with my ability to do regular personal and household responsibilities', 1, 1, 3),
   ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'I am satisfied with my ability to perform my daily routines', 1, 1, 4),
-  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'In the past 7 days - I am satisfied with my ability to meet the needs of those who depend on me', 1, 1, 5),
-  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'In the past 7 days - I am satisfied with my ability to do household chores/tasks', 1, 1, 6),
+  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', 'In the past 7 days...', 'I am satisfied with my ability to meet the needs of those who depend on me', 1, 1, 5),
+  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', 'In the past 7 days...', 'I am satisfied with my ability to do household chores/tasks', 1, 1, 6),
   ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'I am satisfied with my ability to do things for my family', 1, 1, 7),
-  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', NULL, 'In the past 7 days - I am satisfied with the amount of time I spend performing my daily routines', 1, 1, 8);
+  ('7c866e7c-3dda-4318-adf2-fa31400c6b62', 'SINGLE_SELECT', 'In the past 7 days...', 'I am satisfied with the amount of time I spend performing my daily routines', 1, 1, 8);
 
 INSERT INTO screening_answer_option (
   screening_question_id,

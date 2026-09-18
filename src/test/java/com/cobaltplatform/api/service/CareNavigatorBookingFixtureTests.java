@@ -1624,7 +1624,7 @@ public class CareNavigatorBookingFixtureTests {
 			assertTrue(preview.getEmailBody().contains("<!DOCTYPE html"));
 			assertTrue(preview.getEmailBody().contains(
 					"width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px"));
-			assertTrue(preview.getEmailBody().contains("logo@2x.jpg"));
+			assertTrue(preview.getEmailBody().contains("https://cdn-prod.cobalt.care/logos/email-v2/COBALT.png"));
 			assertTrue(preview.getEmailBody().contains("<strong>follow-up</strong>"));
 			assertFalse(preview.getEmailBody().contains("<script>"));
 			assertTrue(preview.getEmailBody().indexOf("<strong>follow-up</strong>")

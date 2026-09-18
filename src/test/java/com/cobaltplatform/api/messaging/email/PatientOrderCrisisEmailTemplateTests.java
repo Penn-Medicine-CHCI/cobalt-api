@@ -45,6 +45,8 @@ public class PatientOrderCrisisEmailTemplateTests {
 		Assert.assertTrue(body.contains("Example Health safety review needed"));
 		Assert.assertTrue(body.contains("review Example Health order <strong>12345</strong>"));
 		Assert.assertTrue(body.contains("href=\"https://staff.example.com/ic/mhic/patient-orders/order-id\""));
+		Assert.assertTrue(body.contains("background-color:#2F7F61"));
+		Assert.assertTrue(body.contains("color:#FFFFFF"));
 		Assert.assertTrue(body.contains("a safety-review contact for Example Health in Penn Cobalt"));
 		Assert.assertFalse(subject.contains("EASE"));
 		Assert.assertFalse(body.contains("EASE"));

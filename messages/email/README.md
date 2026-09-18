@@ -26,8 +26,9 @@ The layout consumes these common context fields automatically:
   replaces the template's `footer` block.
 - `privacyPolicyUrl` for the optional Privacy Policy link.
 
-`platformEmailImageUrl` comes from `institution.platform_email_image_url` unless the sending flow
-provides `OVERRIDE_PLATFORM_EMAIL_IMAGE_URL`; that per-message override takes precedence.
+`platformEmailImageUrl` uses `https://cdn-prod.cobalt.care/logos/email-v2/{institutionId}.png` by
+default. `institution.platform_email_image_url` can override that default, and a sending flow's
+`OVERRIDE_PLATFORM_EMAIL_IMAGE_URL` takes precedence over both.
 
 Minimal V2 body:
 
