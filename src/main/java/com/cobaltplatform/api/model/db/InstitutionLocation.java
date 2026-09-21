@@ -40,6 +40,8 @@ public class InstitutionLocation {
 	@Nullable
 	private String shortName;
 	@Nullable
+	private String groupName;
+	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
@@ -80,6 +82,15 @@ public class InstitutionLocation {
 
 	public void setShortName(@Nullable String shortName) {
 		this.shortName = shortName;
+	}
+
+	@Nullable
+	public String getGroupName() {
+		return this.groupName;
+	}
+
+	public void setGroupName(@Nullable String groupName) {
+		this.groupName = groupName;
 	}
 
 	public Integer getDisplayOrder() {

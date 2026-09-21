@@ -38,16 +38,55 @@ import com.soklet.web.response.ApiResponse;
 import org.junit.Test;
 
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 /**
  * @author Transmogrify, LLC.
  */
 public class InstitutionResourceTests {
+	@Test
+	public void getLocationsReturnsOptionalGroupsInDisplayOrder() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionResource institutionResource = app.getInjector().getInstance(InstitutionResource.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			UUID firstGroupedLocationId = UUID.randomUUID();
+			UUID secondGroupedLocationId = UUID.randomUUID();
+			UUID ungroupedLocationId = UUID.randomUUID();
+
+			database.execute("""
+					INSERT INTO institution_location (
+					  institution_location_id,
+					  institution_id,
+					  name,
+					  group_name,
+					  display_order
+					) VALUES
+					  (?, 'COBALT', 'Grouped Location One', 'Example Employer', 991),
+					  (?, 'COBALT', 'Grouped Location Two', 'Example Employer', 992),
+					  (?, 'COBALT', 'Ungrouped Location', NULL, 993)
+					""", firstGroupedLocationId, secondGroupedLocationId, ungroupedLocationId);
+
+			ApiResponse response = institutionResource.getLocations();
+			List<InstitutionLocationApiResponse> locations = responseModelValue(response, "locations");
+			List<InstitutionLocationApiResponse> insertedLocations = locations.stream()
+					.filter(location -> List.of(firstGroupedLocationId, secondGroupedLocationId, ungroupedLocationId)
+							.contains(location.getInstitutionLocationId()))
+					.toList();
+
+			assertEquals(List.of(firstGroupedLocationId, secondGroupedLocationId, ungroupedLocationId),
+					insertedLocations.stream().map(InstitutionLocationApiResponse::getInstitutionLocationId).toList());
+			assertEquals("Example Employer", insertedLocations.get(0).getGroupName().get());
+			assertEquals("Example Employer", insertedLocations.get(1).getGroupName().get());
+			assertFalse(insertedLocations.get(2).getGroupName().isPresent());
+		});
+	}
+
 	@Test
 	public void getInstitutionHidesBookingV2ForIntegratedCareWhenStoredFlagIsEnabled() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {

@@ -17,6 +17,8 @@
 package com.cobaltplatform.api.service;
 
 import com.cobaltplatform.api.IntegrationTestExecutor;
+import com.cobaltplatform.api.context.CurrentContext;
+import com.cobaltplatform.api.context.CurrentContextExecutor;
 import com.cobaltplatform.api.model.api.request.CreateAccountRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest;
 import com.cobaltplatform.api.model.api.request.CreateScreeningAnswersRequest.CreateAnswerRequest;
@@ -25,6 +27,8 @@ import com.cobaltplatform.api.model.api.request.FindAppointmentBookingRequiremen
 import com.cobaltplatform.api.model.api.response.AccountApiResponse.AccountApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentModalityId;
 import com.cobaltplatform.api.model.api.response.ProviderListDetailsApiResponse.ProviderAppointmentSelectionTypeId;
+import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse;
+import com.cobaltplatform.api.model.api.response.ScreeningQuestionApiResponse.ScreeningQuestionApiResponseFactory;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.AccountSource.AccountSourceId;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
@@ -42,7 +46,9 @@ import com.cobaltplatform.api.model.service.FeatureForInstitution;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
+import com.cobaltplatform.api.web.resource.ScreeningResource;
 import com.pyranid.Database;
+import com.soklet.web.response.ApiResponse;
 import org.junit.Test;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -51,6 +57,9 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -62,6 +71,130 @@ import static org.junit.Assert.assertTrue;
 
 @ThreadSafe
 public class CobaltEmployerOnboardingTests {
+	@Test
+	public void activatingNewFlowVersionRequiresPreviouslyCompletedAccountToCompleteOnceMore() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			ScreeningResource screeningResource = app.getInjector().getInstance(ScreeningResource.class);
+			CurrentContextExecutor currentContextExecutor = app.getInjector().getInstance(CurrentContextExecutor.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			Institution institution = institutionService.findInstitutionById(InstitutionId.COBALT).get();
+			UUID screeningFlowId = institution.getOnboardingScreeningFlowId();
+			ScreeningFlow screeningFlow = screeningService.findScreeningFlowById(screeningFlowId).get();
+			UUID previousFlowVersionId = screeningFlow.getActiveScreeningFlowVersionId();
+			UUID accountId = createCobaltAccount(accountService);
+			Account account = accountService.findAccountById(accountId).get();
+
+			ScreeningQuestionContext previousQuestionContext = onboardingQuestionContext(screeningService,
+					screeningFlowId, accountId);
+			answer(screeningService, previousQuestionContext, accountId, 0);
+			assertTrue(sessionFullyCompleted(screeningResource, currentContextExecutor, account, screeningFlowId));
+
+			UUID replacementFlowVersionId = UUID.randomUUID();
+			database.execute("""
+					INSERT INTO screening_flow_version (
+					  screening_flow_version_id,
+					  screening_flow_id,
+					  initial_screening_id,
+					  pre_completion_screening_confirmation_prompt_id,
+					  screening_flow_skip_type_id,
+					  phone_number_required,
+					  skippable,
+					  version_number,
+					  initialization_function,
+					  orchestration_function,
+					  results_function,
+					  destination_function,
+					  created_by_account_id,
+					  minutes_until_retake,
+					  recommendation_expiration_minutes
+					)
+					SELECT
+					  ?,
+					  screening_flow_id,
+					  initial_screening_id,
+					  pre_completion_screening_confirmation_prompt_id,
+					  screening_flow_skip_type_id,
+					  phone_number_required,
+					  skippable,
+					  version_number + 1,
+					  initialization_function,
+					  orchestration_function,
+					  results_function,
+					  destination_function,
+					  created_by_account_id,
+					  minutes_until_retake,
+					  recommendation_expiration_minutes
+					FROM screening_flow_version
+					WHERE screening_flow_version_id=?
+					""", replacementFlowVersionId, previousFlowVersionId);
+			database.execute("""
+					INSERT INTO screening_flow_version_account_source (
+					  screening_flow_version_id,
+					  account_source_id,
+					  display_order
+					)
+					SELECT ?, account_source_id, display_order
+					FROM screening_flow_version_account_source
+					WHERE screening_flow_version_id=?
+					""", replacementFlowVersionId, previousFlowVersionId);
+			database.execute("""
+					UPDATE screening_flow
+					SET active_screening_flow_version_id=?
+					WHERE screening_flow_id=?
+					""", replacementFlowVersionId, screeningFlowId);
+
+			assertFalse(sessionFullyCompleted(screeningResource, currentContextExecutor, account, screeningFlowId));
+
+			ScreeningQuestionContext replacementQuestionContext = onboardingQuestionContext(screeningService,
+					screeningFlowId, accountId);
+			answer(screeningService, replacementQuestionContext, accountId, 0);
+
+			assertTrue(sessionFullyCompleted(screeningResource, currentContextExecutor, account, screeningFlowId));
+			assertEquals(1, screeningService.findScreeningSessionsByScreeningFlowVersionIdAndTargetAccountId(
+					replacementFlowVersionId, accountId).stream().filter(ScreeningSession::getCompleted).count());
+		});
+	}
+
+	@Test
+	public void screeningQuestionResponsePreservesFooterCalloutMetadata() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
+			ScreeningService screeningService = app.getInjector().getInstance(ScreeningService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			UUID accountId = createCobaltAccount(accountService);
+			UUID onboardingScreeningFlowId = institutionService.findInstitutionById(InstitutionId.COBALT).get()
+					.getOnboardingScreeningFlowId();
+			ScreeningQuestionContext questionContext = onboardingQuestionContext(screeningService,
+					onboardingScreeningFlowId, accountId);
+
+			database.execute("""
+					UPDATE screening_question
+					SET metadata=metadata || JSONB_BUILD_OBJECT(
+					  'footerCallout',
+					  JSONB_BUILD_OBJECT(
+					    'title', 'How we use this information',
+					    'displayTypeId', 'PRIMARY'
+					  )
+					)
+					WHERE screening_question_id=?
+					""", questionContext.getScreeningQuestion().getScreeningQuestionId());
+
+			ScreeningQuestionApiResponse response = app.getInjector()
+					.getInstance(ScreeningQuestionApiResponseFactory.class)
+					.create(screeningService.findScreeningQuestionById(
+							questionContext.getScreeningQuestion().getScreeningQuestionId()).get());
+
+			assertEquals(Map.of(
+					"title", "How we use this information",
+					"displayTypeId", "PRIMARY"
+			), response.getMetadata().get("footerCallout"));
+		});
+	}
+
 	@Test
 	public void onboardingFlowPublishesSingleEmployerQuestionWithoutPrompts() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
@@ -238,6 +371,24 @@ public class CobaltEmployerOnboardingTests {
 		request.setAnswers(List.of(answer));
 		request.setForce(true);
 		screeningService.createScreeningAnswers(request);
+	}
+
+	@SuppressWarnings("unchecked")
+	protected static boolean sessionFullyCompleted(ScreeningResource screeningResource,
+																CurrentContextExecutor currentContextExecutor,
+																Account account,
+																UUID screeningFlowId) {
+		boolean[] sessionFullyCompleted = {false};
+
+		currentContextExecutor.execute(new CurrentContext.Builder(account, Locale.US,
+				ZoneId.of("America/New_York")).build(), () -> {
+			ApiResponse response = screeningResource.screeningFlowSessionFullyCompleted(screeningFlowId,
+					Optional.empty());
+			Map<String, Object> model = (Map<String, Object>) response.model().get();
+			sessionFullyCompleted[0] = Boolean.TRUE.equals(model.get("sessionFullyCompleted"));
+		});
+
+		return sessionFullyCompleted[0];
 	}
 
 	protected static void assertCareNavigatorAvailable(InstitutionService institutionService,

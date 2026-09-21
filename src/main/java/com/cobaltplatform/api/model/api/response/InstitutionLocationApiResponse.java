@@ -45,6 +45,8 @@ public class InstitutionLocationApiResponse {
 	private final String name;
 	@Nullable
 	private final String shortName;
+	@Nullable
+	private final String groupName;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
@@ -61,6 +63,7 @@ public class InstitutionLocationApiResponse {
 		this.institutionId = institutionLocation.getInstitutionId();
 		this.name = institutionLocation.getName();
 		this.shortName = institutionLocation.getShortName();
+		this.groupName = institutionLocation.getGroupName();
 	}
 
 	@Nonnull
@@ -81,5 +84,10 @@ public class InstitutionLocationApiResponse {
 	@Nonnull
 	public Optional<String> getShortName() {
 		return Optional.ofNullable(this.shortName);
+	}
+
+	@Nonnull
+	public Optional<String> getGroupName() {
+		return Optional.ofNullable(this.groupName);
 	}
 }
