@@ -30,6 +30,7 @@ import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import com.soklet.web.exception.AuthorizationException;
@@ -55,35 +56,127 @@ public class InstitutionResourceTests {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			InstitutionResource institutionResource = app.getInjector().getInstance(InstitutionResource.class);
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
-			UUID firstGroupedLocationId = UUID.randomUUID();
-			UUID secondGroupedLocationId = UUID.randomUUID();
+			JsonMapper jsonMapper = app.getInjector().getInstance(JsonMapper.class);
+			UUID firstGroupId = UUID.randomUUID();
+			UUID secondGroupId = UUID.randomUUID();
+			UUID secondLocationInFirstGroupId = UUID.randomUUID();
+			UUID firstLocationInFirstGroupId = UUID.randomUUID();
+			UUID secondGroupLocationId = UUID.randomUUID();
 			UUID ungroupedLocationId = UUID.randomUUID();
+
+			database.execute("""
+					INSERT INTO institution_location_group (
+					  institution_location_group_id,
+					  institution_id,
+					  name,
+					  display_order
+					) VALUES
+					  (?, 'COBALT', 'First Employer', 1),
+					  (?, 'COBALT', 'Second Employer', 2)
+					""", firstGroupId, secondGroupId);
 
 			database.execute("""
 					INSERT INTO institution_location (
 					  institution_location_id,
 					  institution_id,
 					  name,
-					  group_name,
+					  institution_location_group_id,
 					  display_order
 					) VALUES
-					  (?, 'COBALT', 'Grouped Location One', 'Example Employer', 991),
-					  (?, 'COBALT', 'Grouped Location Two', 'Example Employer', 992),
+					  (?, 'COBALT', 'First Group Location Two', ?, 992),
+					  (?, 'COBALT', 'First Group Location One', ?, 991),
+					  (?, 'COBALT', 'Second Group Location', ?, 1),
 					  (?, 'COBALT', 'Ungrouped Location', NULL, 993)
-					""", firstGroupedLocationId, secondGroupedLocationId, ungroupedLocationId);
+					""", secondLocationInFirstGroupId, firstGroupId,
+					firstLocationInFirstGroupId, firstGroupId,
+					secondGroupLocationId, secondGroupId,
+					ungroupedLocationId);
 
 			ApiResponse response = institutionResource.getLocations();
 			List<InstitutionLocationApiResponse> locations = responseModelValue(response, "locations");
 			List<InstitutionLocationApiResponse> insertedLocations = locations.stream()
-					.filter(location -> List.of(firstGroupedLocationId, secondGroupedLocationId, ungroupedLocationId)
+					.filter(location -> List.of(firstLocationInFirstGroupId, secondLocationInFirstGroupId,
+							secondGroupLocationId, ungroupedLocationId)
 							.contains(location.getInstitutionLocationId()))
 					.toList();
 
-			assertEquals(List.of(firstGroupedLocationId, secondGroupedLocationId, ungroupedLocationId),
+			assertEquals(List.of(firstLocationInFirstGroupId, secondLocationInFirstGroupId,
+					secondGroupLocationId, ungroupedLocationId),
 					insertedLocations.stream().map(InstitutionLocationApiResponse::getInstitutionLocationId).toList());
-			assertEquals("Example Employer", insertedLocations.get(0).getGroupName().get());
-			assertEquals("Example Employer", insertedLocations.get(1).getGroupName().get());
-			assertFalse(insertedLocations.get(2).getGroupName().isPresent());
+			assertEquals(firstGroupId, insertedLocations.get(0).getInstitutionLocationGroup().get()
+					.getInstitutionLocationGroupId());
+			assertEquals("First Employer", insertedLocations.get(0).getInstitutionLocationGroup().get().getName());
+			assertEquals(Integer.valueOf(1), insertedLocations.get(0).getInstitutionLocationGroup().get().getDisplayOrder());
+			assertEquals(firstGroupId, insertedLocations.get(1).getInstitutionLocationGroup().get()
+					.getInstitutionLocationGroupId());
+			assertEquals(secondGroupId, insertedLocations.get(2).getInstitutionLocationGroup().get()
+					.getInstitutionLocationGroupId());
+			assertFalse(insertedLocations.get(3).getInstitutionLocationGroup().isPresent());
+
+			Map<String, Object> serializedGroupedLocation = jsonMapper.toMap(insertedLocations.get(0));
+			Map<?, ?> serializedGroup = (Map<?, ?>) serializedGroupedLocation
+					.get("institutionLocationGroup");
+			Map<String, Object> serializedUngroupedLocation = jsonMapper.toMap(insertedLocations.get(3));
+
+			assertEquals(firstGroupId.toString(), serializedGroup.get("institutionLocationGroupId"));
+			assertEquals("First Employer", serializedGroup.get("name"));
+			assertEquals(Double.valueOf(1), serializedGroup.get("displayOrder"));
+			assertFalse(serializedUngroupedLocation.containsKey("institutionLocationGroup"));
+		});
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void institutionLocationGroupRejectsCaseInsensitiveDuplicateNameWithinInstitution() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			String groupName = "Employer " + UUID.randomUUID();
+
+			database.execute("""
+					INSERT INTO institution_location_group (institution_id, name, display_order)
+					VALUES ('COBALT', ?, 1)
+					""", groupName);
+			database.execute("""
+					INSERT INTO institution_location_group (institution_id, name, display_order)
+					VALUES ('COBALT', ?, 2)
+					""", groupName.toUpperCase(Locale.US));
+		});
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void institutionLocationGroupRejectsBlankName() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+
+			database.execute("""
+					INSERT INTO institution_location_group (institution_id, name, display_order)
+					VALUES ('COBALT', '   ', 1)
+					""");
+		});
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void institutionLocationRejectsGroupFromAnotherInstitution() {
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			UUID institutionLocationGroupId = UUID.randomUUID();
+
+			database.execute("""
+					INSERT INTO institution_location_group (
+					  institution_location_group_id,
+					  institution_id,
+					  name,
+					  display_order
+					) VALUES (?, 'COBALT', 'Cross Institution Group', 1)
+					""", institutionLocationGroupId);
+			database.execute("""
+					INSERT INTO institution_location (
+					  institution_location_id,
+					  institution_id,
+					  name,
+					  institution_location_group_id,
+					  display_order
+					) VALUES (?, 'COBALT_IC', 'Cross Institution Location', ?, 1)
+					""", UUID.randomUUID(), institutionLocationGroupId);
 		});
 	}
 
@@ -118,6 +211,21 @@ public class InstitutionResourceTests {
 					WHERE institution_id=?
 					AND name=?
 					""", UUID.class, InstitutionId.COBALT, "Cobalt General").get();
+			UUID institutionLocationGroupId = UUID.randomUUID();
+
+			database.execute("""
+					INSERT INTO institution_location_group (
+					  institution_location_group_id,
+					  institution_id,
+					  name,
+					  display_order
+					) VALUES (?, 'COBALT', 'Example Employer', 3)
+					""", institutionLocationGroupId);
+			database.execute("""
+					UPDATE institution_location
+					SET institution_location_group_id=?
+					WHERE institution_location_id=?
+					""", institutionLocationGroupId, institutionLocationId);
 
 			setBookingV2Enabled(database, true);
 
@@ -127,6 +235,10 @@ public class InstitutionResourceTests {
 			assertEquals(200, response.status());
 			assertEquals(institutionLocationId, location.getInstitutionLocationId());
 			assertEquals(InstitutionId.COBALT, location.getInstitutionId());
+			assertEquals(institutionLocationGroupId, location.getInstitutionLocationGroup().get()
+					.getInstitutionLocationGroupId());
+			assertEquals("Example Employer", location.getInstitutionLocationGroup().get().getName());
+			assertEquals(Integer.valueOf(3), location.getInstitutionLocationGroup().get().getDisplayOrder());
 		});
 	}
 

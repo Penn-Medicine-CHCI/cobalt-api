@@ -43,6 +43,7 @@ import com.cobaltplatform.api.model.db.InstitutionBlurb;
 import com.cobaltplatform.api.model.db.InstitutionBlurbType.InstitutionBlurbTypeId;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
+import com.cobaltplatform.api.model.db.InstitutionLocationGroup;
 import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
@@ -315,9 +316,14 @@ public class InstitutionResource {
 	@GET("/institution/locations")
 	public ApiResponse getLocations() {
 		Institution institution = getInstitutionService().findInstitutionById(getCurrentContext().getInstitutionId()).get();
+		Map<UUID, InstitutionLocationGroup> institutionLocationGroupsById = getInstitutionService()
+				.findLocationGroupsByInstitutionId(institution.getInstitutionId()).stream()
+				.collect(Collectors.toMap(InstitutionLocationGroup::getInstitutionLocationGroupId,
+						institutionLocationGroup -> institutionLocationGroup));
 
 		List<InstitutionLocationApiResponse> institutionLocations = getInstitutionService().findLocationsByInstitutionId(institution.getInstitutionId()).stream()
-				.map(institutionLocation -> getInstitutionLocationApiResponseFactory().create(institutionLocation))
+				.map(institutionLocation -> getInstitutionLocationApiResponseFactory().create(institutionLocation,
+						institutionLocationGroupsById.get(institutionLocation.getInstitutionLocationGroupId())))
 				.collect(Collectors.toList());
 
 		return new ApiResponse(new HashMap<String, Object>() {{
@@ -340,8 +346,11 @@ public class InstitutionResource {
 		if (!Objects.equals(institutionLocation.getInstitutionId(), getCurrentContext().getInstitutionId()))
 			throw new AuthorizationException();
 
+		InstitutionLocationGroup institutionLocationGroup = getInstitutionService()
+				.findLocationGroupById(institutionLocation.getInstitutionLocationGroupId()).orElse(null);
+
 		return new ApiResponse(new HashMap<String, Object>() {{
-			put("location", getInstitutionLocationApiResponseFactory().create(institutionLocation));
+			put("location", getInstitutionLocationApiResponseFactory().create(institutionLocation, institutionLocationGroup));
 		}});
 	}
 

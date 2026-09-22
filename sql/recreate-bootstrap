@@ -286,7 +286,7 @@ PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/263-care
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/264-provider-institution-referrer.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/265-onboarding-screening-presentation-and-cancellation-reasons.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/266-provider-booking-analytics.sql
-PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/267-institution-location-group-name.sql
+PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < updates/267-institution-location-group.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/263-care-navigator-seed.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/264-cobalt-employer-onboarding.sql
 

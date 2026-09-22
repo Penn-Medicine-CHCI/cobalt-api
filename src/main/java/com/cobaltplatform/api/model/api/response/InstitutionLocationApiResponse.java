@@ -21,6 +21,7 @@ package com.cobaltplatform.api.model.api.response;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
+import com.cobaltplatform.api.model.db.InstitutionLocationGroup;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 
@@ -46,24 +47,35 @@ public class InstitutionLocationApiResponse {
 	@Nullable
 	private final String shortName;
 	@Nullable
-	private final String groupName;
+	private final InstitutionLocationGroupApiResponse institutionLocationGroup;
 
 	// Note: requires FactoryModuleBuilder entry in AppModule
 	@ThreadSafe
 	public interface InstitutionLocationApiResponseFactory {
 		@Nonnull
 		InstitutionLocationApiResponse create(@Nonnull InstitutionLocation institutionLocation);
+
+		@Nonnull
+		InstitutionLocationApiResponse create(@Nonnull InstitutionLocation institutionLocation,
+																						 @Nullable InstitutionLocationGroup institutionLocationGroup);
 	}
 
 	@AssistedInject
 	public InstitutionLocationApiResponse(@Assisted @Nonnull InstitutionLocation institutionLocation) {
+		this(institutionLocation, null);
+	}
+
+	@AssistedInject
+	public InstitutionLocationApiResponse(@Assisted @Nonnull InstitutionLocation institutionLocation,
+																				 @Assisted @Nullable InstitutionLocationGroup institutionLocationGroup) {
 		requireNonNull(institutionLocation);
 
 		this.institutionLocationId = institutionLocation.getInstitutionLocationId();
 		this.institutionId = institutionLocation.getInstitutionId();
 		this.name = institutionLocation.getName();
 		this.shortName = institutionLocation.getShortName();
-		this.groupName = institutionLocation.getGroupName();
+		this.institutionLocationGroup = institutionLocationGroup == null ? null
+				: new InstitutionLocationGroupApiResponse(institutionLocationGroup);
 	}
 
 	@Nonnull
@@ -87,7 +99,7 @@ public class InstitutionLocationApiResponse {
 	}
 
 	@Nonnull
-	public Optional<String> getGroupName() {
-		return Optional.ofNullable(this.groupName);
+	public Optional<InstitutionLocationGroupApiResponse> getInstitutionLocationGroup() {
+		return Optional.ofNullable(this.institutionLocationGroup);
 	}
 }

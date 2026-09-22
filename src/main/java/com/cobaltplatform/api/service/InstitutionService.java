@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.db.InstitutionBlurbTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionColorValue;
 import com.cobaltplatform.api.model.db.InstitutionFeatureInstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionLocation;
+import com.cobaltplatform.api.model.db.InstitutionLocationGroup;
 import com.cobaltplatform.api.model.db.InstitutionReferrer;
 import com.cobaltplatform.api.model.db.InstitutionTeamMember;
 import com.cobaltplatform.api.model.db.InstitutionUrl;
@@ -608,11 +609,33 @@ public class InstitutionService {
 			return Collections.emptyList();
 
 		return getDatabase().queryForList("""
-				SELECT *
-				FROM institution_location
-				WHERE institution_id=?
-				ORDER BY display_order
+				SELECT il.*
+				FROM institution_location il
+				LEFT JOIN institution_location_group ilg
+				ON ilg.institution_location_group_id=il.institution_location_group_id
+				AND ilg.institution_id=il.institution_id
+				WHERE il.institution_id=?
+				ORDER BY
+					CASE WHEN ilg.institution_location_group_id IS NULL THEN 1 ELSE 0 END,
+					ilg.display_order,
+					ilg.institution_location_group_id,
+					il.display_order,
+					il.name,
+					il.institution_location_id
 				""", InstitutionLocation.class, institutionId);
+	}
+
+	@Nonnull
+	public List<InstitutionLocationGroup> findLocationGroupsByInstitutionId(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("""
+				SELECT *
+				FROM institution_location_group
+				WHERE institution_id=?
+				ORDER BY display_order, name, institution_location_group_id
+				""", InstitutionLocationGroup.class, institutionId);
 	}
 
 	@Nonnull
@@ -625,6 +648,18 @@ public class InstitutionService {
 				FROM institution_location
 				WHERE institution_location_id=?
 				""", InstitutionLocation.class, institutionLocationId);
+	}
+
+	@Nonnull
+	public Optional<InstitutionLocationGroup> findLocationGroupById(@Nullable UUID institutionLocationGroupId) {
+		if (institutionLocationGroupId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT *
+				FROM institution_location_group
+				WHERE institution_location_group_id=?
+				""", InstitutionLocationGroup.class, institutionLocationGroupId);
 	}
 
 	@Nonnull

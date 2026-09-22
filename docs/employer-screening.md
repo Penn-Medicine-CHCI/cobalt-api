@@ -41,16 +41,37 @@ presentation only.
 
 ## Grouped institution locations
 
-Migration `267-institution-location-group-name.sql` adds the nullable
-`institution_location.group_name` presentation field. Institution-location API
-responses expose it as optional `groupName`. The locations response remains a
-flat list ordered by `display_order`; clients may render adjacent locations with
-the same nonblank group name inside an option group. A missing group name keeps
-the existing ungrouped presentation.
+Migration `267-institution-location-group.sql` adds the
+`institution_location_group` table and an optional
+`institution_location.institution_location_group_id` reference. Institution-
+location API responses expose group presentation data as an optional nested
+object:
 
-`groupName` is not a parent location and has no provider-inheritance semantics.
-Provider and institution-referrer eligibility continues to match the selected
-`institutionLocationId` exactly.
+Feature databases that applied the earlier, unmerged `group_name` version of
+migration 267 must be rebuilt. The replacement migration intentionally does not
+retain or backfill that column.
+
+```json
+{
+  "institutionLocationGroup": {
+    "institutionLocationGroupId": "f6cd7e84-9c3a-4f14-8b74-138b5603d6bc",
+    "name": "University of Pennsylvania Health System (UPHS)",
+    "displayOrder": 1
+  }
+}
+```
+
+The locations response remains a flat list, and the single-location endpoint
+uses the same optional nested representation. Grouped locations are ordered by
+group `displayOrder` and then location `displayOrder`; ungrouped locations are
+appended in location `displayOrder`. Institutions with no groups retain their
+existing location ordering. Clients should group by
+`institutionLocationGroupId`, use `name` as the option-group label, and render a
+location with no group as an ordinary option.
+
+An institution-location group is presentation metadata, not a parent location,
+and has no provider-inheritance semantics. Provider and institution-referrer
+eligibility continues to match the selected `institutionLocationId` exactly.
 
 ## Information footer callout
 
@@ -115,10 +136,12 @@ All three questions use `prefer_autosubmit=TRUE`. Only questions 2a and 2b use
 so replacing the employer answer invalidates the old branch and requires an
 answer from the newly selected branch.
 
-The PENN data patch should reuse the existing broad UPHS and UPenn location IDs
-as the corresponding `Other` entries, retain the LGH ID, and rename the existing
-Princeton location to PMC. Add the remaining leaf locations and set their
-`group_name` to the appropriate question-1 employer label.
+The PENN data patch should create fixed UPHS and UPenn
+`institution_location_group` records. Reuse the existing broad UPHS and UPenn
+location IDs as the corresponding `Other` entries, retain the LGH ID, and rename
+the existing Princeton location to PMC. Add the remaining leaf locations and
+assign every leaf through `institution_location_group_id` to the appropriate
+question-1 employer group.
 
 ### PENN service eligibility
 
