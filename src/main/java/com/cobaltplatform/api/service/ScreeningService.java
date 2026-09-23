@@ -23,9 +23,12 @@ import com.cobaltplatform.api.Configuration;
 import com.cobaltplatform.api.context.CurrentContext;
 import com.cobaltplatform.api.error.ErrorReporter;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin;
+import com.cobaltplatform.api.integration.enterprise.EnterprisePlugin.PatientOrderCrisisMode;
 import com.cobaltplatform.api.integration.enterprise.EnterprisePluginProvider;
 import com.cobaltplatform.api.messaging.call.CallMessage;
 import com.cobaltplatform.api.messaging.call.CallMessageTemplate;
+import com.cobaltplatform.api.messaging.email.EmailMessage;
+import com.cobaltplatform.api.messaging.email.EmailMessageTemplate;
 import com.cobaltplatform.api.model.api.request.ClosePatientOrderRequest;
 import com.cobaltplatform.api.model.api.request.CreateGroupSessionReservationRequest;
 import com.cobaltplatform.api.model.api.request.CreatePatientOrderScheduledMessageGroupRequest;
@@ -51,6 +54,7 @@ import com.cobaltplatform.api.model.db.CourseSession;
 import com.cobaltplatform.api.model.db.CourseSessionStatus.CourseSessionStatusId;
 import com.cobaltplatform.api.model.db.CourseSessionUnitStatus.CourseSessionUnitStatusId;
 import com.cobaltplatform.api.model.db.CourseUnit;
+import com.cobaltplatform.api.model.db.CrisisContact;
 import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.GroupSession;
 import com.cobaltplatform.api.model.db.Institution;
@@ -95,6 +99,7 @@ import com.cobaltplatform.api.model.db.ScreeningVersion;
 import com.cobaltplatform.api.model.db.Study;
 import com.cobaltplatform.api.model.db.SupportRole;
 import com.cobaltplatform.api.model.db.SupportRole.SupportRoleId;
+import com.cobaltplatform.api.model.db.UserExperienceType.UserExperienceTypeId;
 import com.cobaltplatform.api.model.service.ProviderSearchResult.ProviderSearchResultTypeId;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
@@ -1929,23 +1934,34 @@ public class ScreeningService {
 
 		// If orchestration logic says we are in crisis, trigger crisis flow
 		if (orchestrationFunctionOutput.getCrisisIndicated()) {
-			if (screeningSession.getCrisisIndicated()) {
+			PatientOrderCrisisMode patientOrderCrisisMode = getEnterprisePluginProvider()
+					.enterprisePluginForInstitutionId(institution.getInstitutionId())
+					.patientOrderCrisisMode();
+			RawPatientOrder patientOrder = screeningSession.getPatientOrderId() == null
+					? null
+					: getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).get();
+			boolean patientOrderNeedsSafetyPlanning = patientOrder != null
+					&& patientOrder.getPatientOrderSafetyPlanningStatusId() != PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING;
+			boolean selfAdministered = patientOrderNeedsSafetyPlanning
+					&& getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
+			PatientOrderCrisisActions crisisActions = determinePatientOrderCrisisActions(patientOrderCrisisMode,
+					screeningSession.getCrisisIndicated(), patientOrderNeedsSafetyPlanning, selfAdministered);
+
+			if (!crisisActions.markScreeningSession()) {
 				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis. " +
 						"This session was already marked as having a crisis indicated, so no action needed.", screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
 			} else {
-				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis.  Creating crisis interaction instance...",
+				getLogger().info("Orchestration function for screening session screening ID {} ({}) indicated crisis.",
 						screeningSessionScreeningId, screeningVersion.getScreeningTypeId().name());
 
 				getDatabase().execute("UPDATE screening_session SET crisis_indicated=TRUE, crisis_indicated_at=NOW() WHERE screening_session_id=?", screeningSession.getScreeningSessionId());
 
-				getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
+				if (crisisActions.createInteraction())
+					getInteractionService().createCrisisInteraction(screeningSession.getScreeningSessionId());
 			}
 
 			// If this screening session is done for a patient order, mark the order as "crisis indicated"
-			if (screeningSession.getPatientOrderId() != null) {
-				RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).get();
-
-				if (patientOrder.getPatientOrderSafetyPlanningStatusId() != PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING) {
+			if (patientOrder != null && crisisActions.markPatientOrderForSafetyPlanning()) {
 					getLogger().info("Patient order ID {} will be marked as 'needs safety planning'.", patientOrder.getPatientOrderId());
 					getDatabase().execute("""
 							UPDATE patient_order
@@ -1953,59 +1969,13 @@ public class ScreeningService {
 							WHERE patient_order_id=?
 							""", PatientOrderSafetyPlanningStatusId.NEEDS_SAFETY_PLANNING, patientOrder.getPatientOrderId());
 
-					boolean selfAdministered = getAccountService().findAccountById(screeningSession.getCreatedByAccountId()).get().getRoleId() == RoleId.PATIENT;
-
-					// Notify any "crisis handlers" for this institution if a patient is self-screening and indicated crisis
-					if (selfAdministered) {
-						// First, get crisis handlers who are always notified for all orders
-						List<PatientOrderCrisisHandler> allOrdersPatientOrderCrisisHandlers = getPatientOrderService().findPatientOrderCrisisHandlersForAllOrdersByInstitutionId(patientOrder.getInstitutionId());
-
-						// Then, pick out any crisis handlers specifically assigned to this order's department
-						List<PatientOrderCrisisHandler> epicDepartmentSpecificPatientOrderCrisisHandlers = getPatientOrderService().findPatientOrderCrisisHandlersSpecificallyForEpicDepartmentId(patientOrder.getEpicDepartmentId());
-
-						// Combine them into a final list of crisis handlers to notify
-						List<PatientOrderCrisisHandler> notifiablePatientOrderCrisisHandlers = new ArrayList<>(allOrdersPatientOrderCrisisHandlers.size() + epicDepartmentSpecificPatientOrderCrisisHandlers.size());
-						notifiablePatientOrderCrisisHandlers.addAll(allOrdersPatientOrderCrisisHandlers);
-						notifiablePatientOrderCrisisHandlers.addAll(epicDepartmentSpecificPatientOrderCrisisHandlers);
-
-						getLogger().info("Notifying {} IC crisis handlers for institution ID {}...", notifiablePatientOrderCrisisHandlers.size(), institution.getInstitutionId());
-
-						for (PatientOrderCrisisHandler patientOrderCrisisHandler : notifiablePatientOrderCrisisHandlers) {
-							getLogger().info("Enqueuing IC crisis call message for {}...", patientOrderCrisisHandler.getPhoneNumber());
-
-							Map<String, Object> messageContext = new HashMap<>();
-
-							if (!configuration.isProduction())
-								messageContext.put("additionalDetails", getStrings().get("This notification is for a test patient in a nonproduction environment."));
-
-							CallMessage callMessage = new CallMessage.Builder(institution.getInstitutionId(), CallMessageTemplate.IC_CRISIS, patientOrderCrisisHandler.getPhoneNumber(), institution.getLocale())
-									.messageContext(messageContext)
-									.build();
-
-							getMessageService().enqueueMessage(callMessage);
-						}
-
-						// Also automatically assign to the institution's designated safety manager, if one exists
-						UUID integratedCareSafetyPlanningManagerAccountId = institution.getIntegratedCareSafetyPlanningManagerAccountId();
-
-						// If there is a department-specific safety manager, assign that person instead.
-						// If there are multiple department-specific safety managers, pick the first one we encounter.
-						List<Account> epicDepartmentSafetyPlanningManagerAccounts = getPatientOrderService().findEpicDepartmentSafetyPlanningManagerAccountsByEpicDepartmentId(patientOrder.getEpicDepartmentId());
-
-						if (epicDepartmentSafetyPlanningManagerAccounts.size() > 0) {
-							Account epicDepartmentSafetyPlanningManagerAccount = epicDepartmentSafetyPlanningManagerAccounts.get(0);
-							getLogger().info("Using specially-configured safety planning manager account {} for epic department ID {}...", epicDepartmentSafetyPlanningManagerAccount.getEmailAddress(), patientOrder.getEpicDepartmentId());
-							integratedCareSafetyPlanningManagerAccountId = epicDepartmentSafetyPlanningManagerAccount.getAccountId();
-						}
-
-						if (integratedCareSafetyPlanningManagerAccountId != null) {
-							Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
-							getPatientOrderService().assignPatientOrderToPanelAccount(patientOrder.getPatientOrderId(), integratedCareSafetyPlanningManagerAccountId, serviceAccount.getAccountId());
-						}
-					}
+					// Notify configured responders if a patient is self-screening and indicated crisis.
+					if (crisisActions.sendCrisisEmails())
+						sendPatientOrderCrisisEmails(patientOrder, institution);
+					else if (crisisActions.performStandardResponse())
+						performStandardPatientOrderCrisisResponse(patientOrder, institution);
 
 					// TODO: write to patient order event table to keep track of when this happened
-				}
 			}
 		}
 
@@ -3730,6 +3700,162 @@ public class ScreeningService {
 
 		public void setAnswerValid(@Nullable Boolean answerValid) {
 			this.answerValid = answerValid;
+		}
+	}
+
+	protected void sendPatientOrderCrisisEmails(@Nonnull RawPatientOrder patientOrder,
+																	@Nonnull Institution institution) {
+		requireNonNull(patientOrder);
+		requireNonNull(institution);
+
+		List<CrisisContact> crisisContacts = getDatabase().queryForList("""
+				SELECT *
+				FROM crisis_contact
+				WHERE institution_id=?
+				AND active=TRUE
+				ORDER BY email_address
+				""", CrisisContact.class, institution.getInstitutionId());
+
+		if (crisisContacts.isEmpty()) {
+			getErrorReporter().report(format("Patient order crisis alert email needed, but there are no active crisis contacts for institution ID %s and patient order ID %s.",
+					institution.getInstitutionId(), patientOrder.getPatientOrderId()));
+			return;
+		}
+
+		String staffWebappBaseUrl = getInstitutionService()
+				.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institution.getInstitutionId(), UserExperienceTypeId.STAFF)
+				.orElse(null);
+
+		if (staffWebappBaseUrl == null) {
+			getErrorReporter().report(format("Patient order crisis alert email needed, but there is no staff webapp URL for institution ID %s and patient order ID %s.",
+					institution.getInstitutionId(), patientOrder.getPatientOrderId()));
+			return;
+		}
+
+		String patientOrderReferenceNumber = patientOrder.getReferenceNumber() == null
+				? patientOrder.getPatientOrderId().toString()
+				: patientOrder.getReferenceNumber().toString();
+		String staffPatientOrderUrl = format("%s/ic/mhic/patient-orders/%s", staffWebappBaseUrl, patientOrder.getPatientOrderId());
+		Map<String, Object> messageContext = Map.of(
+				"institutionName", institution.getName(),
+				"patientOrderReferenceNumber", patientOrderReferenceNumber,
+				"staffPatientOrderUrl", staffPatientOrderUrl
+		);
+
+		for (CrisisContact crisisContact : crisisContacts) {
+			getLogger().info("Enqueuing patient order crisis email for institution ID {} to {}...",
+					institution.getInstitutionId(), crisisContact.getEmailAddress());
+
+			getMessageService().enqueueMessage(new EmailMessage.Builder(
+					institution.getInstitutionId(), EmailMessageTemplate.V2_PATIENT_ORDER_CRISIS, crisisContact.getLocale())
+					.toAddresses(List.of(crisisContact.getEmailAddress()))
+					.messageContext(messageContext)
+					.build());
+		}
+	}
+
+	@Nonnull
+	static PatientOrderCrisisActions determinePatientOrderCrisisActions(@Nonnull PatientOrderCrisisMode patientOrderCrisisMode,
+																												 boolean screeningSessionAlreadyMarked,
+																												 boolean patientOrderNeedsSafetyPlanning,
+																												 boolean selfAdministered) {
+		requireNonNull(patientOrderCrisisMode);
+
+		boolean emailOnly = patientOrderCrisisMode == PatientOrderCrisisMode.EMAIL_ONLY;
+		return new PatientOrderCrisisActions(
+				!screeningSessionAlreadyMarked,
+				!screeningSessionAlreadyMarked && !emailOnly,
+				patientOrderNeedsSafetyPlanning,
+				patientOrderNeedsSafetyPlanning && selfAdministered && emailOnly,
+				patientOrderNeedsSafetyPlanning && selfAdministered && !emailOnly
+		);
+	}
+
+	static final class PatientOrderCrisisActions {
+		private final boolean markScreeningSession;
+		private final boolean createInteraction;
+		private final boolean markPatientOrderForSafetyPlanning;
+		private final boolean sendCrisisEmails;
+		private final boolean performStandardResponse;
+
+		PatientOrderCrisisActions(boolean markScreeningSession,
+													 boolean createInteraction,
+													 boolean markPatientOrderForSafetyPlanning,
+													 boolean sendCrisisEmails,
+													 boolean performStandardResponse) {
+			this.markScreeningSession = markScreeningSession;
+			this.createInteraction = createInteraction;
+			this.markPatientOrderForSafetyPlanning = markPatientOrderForSafetyPlanning;
+			this.sendCrisisEmails = sendCrisisEmails;
+			this.performStandardResponse = performStandardResponse;
+		}
+
+		boolean markScreeningSession() {
+			return this.markScreeningSession;
+		}
+
+		boolean createInteraction() {
+			return this.createInteraction;
+		}
+
+		boolean markPatientOrderForSafetyPlanning() {
+			return this.markPatientOrderForSafetyPlanning;
+		}
+
+		boolean sendCrisisEmails() {
+			return this.sendCrisisEmails;
+		}
+
+		boolean performStandardResponse() {
+			return this.performStandardResponse;
+		}
+	}
+
+	protected void performStandardPatientOrderCrisisResponse(@Nonnull RawPatientOrder patientOrder,
+																							@Nonnull Institution institution) {
+		requireNonNull(patientOrder);
+		requireNonNull(institution);
+
+		List<PatientOrderCrisisHandler> allOrdersPatientOrderCrisisHandlers = getPatientOrderService()
+				.findPatientOrderCrisisHandlersForAllOrdersByInstitutionId(patientOrder.getInstitutionId());
+		List<PatientOrderCrisisHandler> epicDepartmentSpecificPatientOrderCrisisHandlers = getPatientOrderService()
+				.findPatientOrderCrisisHandlersSpecificallyForEpicDepartmentId(patientOrder.getEpicDepartmentId());
+		List<PatientOrderCrisisHandler> notifiablePatientOrderCrisisHandlers = new ArrayList<>(
+				allOrdersPatientOrderCrisisHandlers.size() + epicDepartmentSpecificPatientOrderCrisisHandlers.size());
+		notifiablePatientOrderCrisisHandlers.addAll(allOrdersPatientOrderCrisisHandlers);
+		notifiablePatientOrderCrisisHandlers.addAll(epicDepartmentSpecificPatientOrderCrisisHandlers);
+
+		getLogger().info("Notifying {} IC crisis handlers for institution ID {}...",
+				notifiablePatientOrderCrisisHandlers.size(), institution.getInstitutionId());
+
+		for (PatientOrderCrisisHandler patientOrderCrisisHandler : notifiablePatientOrderCrisisHandlers) {
+			getLogger().info("Enqueuing IC crisis call message for {}...", patientOrderCrisisHandler.getPhoneNumber());
+			Map<String, Object> messageContext = new HashMap<>();
+
+			if (!getConfiguration().isProduction())
+				messageContext.put("additionalDetails", getStrings().get("This notification is for a test patient in a nonproduction environment."));
+
+			getMessageService().enqueueMessage(new CallMessage.Builder(
+					institution.getInstitutionId(), CallMessageTemplate.IC_CRISIS, patientOrderCrisisHandler.getPhoneNumber(), institution.getLocale())
+					.messageContext(messageContext)
+					.build());
+		}
+
+		UUID integratedCareSafetyPlanningManagerAccountId = institution.getIntegratedCareSafetyPlanningManagerAccountId();
+		List<Account> epicDepartmentSafetyPlanningManagerAccounts = getPatientOrderService()
+				.findEpicDepartmentSafetyPlanningManagerAccountsByEpicDepartmentId(patientOrder.getEpicDepartmentId());
+
+		if (!epicDepartmentSafetyPlanningManagerAccounts.isEmpty()) {
+			Account epicDepartmentSafetyPlanningManagerAccount = epicDepartmentSafetyPlanningManagerAccounts.get(0);
+			getLogger().info("Using specially-configured safety planning manager account {} for epic department ID {}...",
+					epicDepartmentSafetyPlanningManagerAccount.getEmailAddress(), patientOrder.getEpicDepartmentId());
+			integratedCareSafetyPlanningManagerAccountId = epicDepartmentSafetyPlanningManagerAccount.getAccountId();
+		}
+
+		if (integratedCareSafetyPlanningManagerAccountId != null) {
+			Account serviceAccount = getAccountService().findServiceAccountByInstitutionId(institution.getInstitutionId()).get();
+			getPatientOrderService().assignPatientOrderToPanelAccount(patientOrder.getPatientOrderId(),
+					integratedCareSafetyPlanningManagerAccountId, serviceAccount.getAccountId());
 		}
 	}
 

@@ -80,6 +80,16 @@ public class V2EmailLayoutContractTests {
 				});
 	}
 
+	@Test
+	public void v2EmailUsesInstitutionCdnLogoWhenNoOverrideIsConfigured() {
+		Map<String, Object> context = baseContext();
+		context.remove("platformEmailImageUrl");
+
+		String body = render(EmailMessageTemplate.V2_ACCOUNT_VERIFICATION, context);
+
+		Assert.assertTrue(body.contains("src=\"https://cdn-prod.cobalt.care/logos/email-v2/COBALT.png\""));
+	}
+
 	@Nonnull
 	protected Map<String, Object> baseContext() {
 		Map<String, Object> context = new HashMap<>();

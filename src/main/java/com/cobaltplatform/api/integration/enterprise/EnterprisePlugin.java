@@ -86,8 +86,18 @@ import static java.util.Objects.requireNonNull;
  * @author Transmogrify, LLC.
  */
 public interface EnterprisePlugin {
+	enum PatientOrderCrisisMode {
+		STANDARD,
+		EMAIL_ONLY
+	}
+
 	@Nonnull
 	InstitutionId getInstitutionId();
+
+	@Nonnull
+	default PatientOrderCrisisMode patientOrderCrisisMode() {
+		return PatientOrderCrisisMode.STANDARD;
+	}
 
 	@Nonnull
 	default EmailMessage customizeEmailMessage(@Nonnull EmailMessage emailMessage) {
