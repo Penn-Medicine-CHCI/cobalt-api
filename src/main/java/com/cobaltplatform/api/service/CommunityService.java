@@ -41,7 +41,6 @@ import com.cobaltplatform.api.util.ValidationException.FieldError;
 import com.cobaltplatform.api.util.ValidationUtility;
 import com.cobaltplatform.api.util.WebUtility;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
-import com.devskiller.friendly_id.FriendlyId;
 import com.lokalized.Strings;
 import com.pyranid.Database;
 import org.slf4j.Logger;
@@ -196,8 +195,6 @@ public class CommunityService {
 			if (emailRecipient.getCommunicationPreferencesUrl().isPresent())
 				messageContext.put("communicationPreferencesUrl", emailRecipient.getCommunicationPreferencesUrl().get());
 
-			addMessageTrackingToV2CommunityHighlightsContext(messageContext, messageId);
-
 			EmailMessage emailMessage = new EmailMessage.Builder(messageId, context.getInstitutionId(), EmailMessageTemplate.V2_COMMUNITY_HIGHLIGHTS, context.getLocale())
 					.toAddresses(List.of(emailRecipient.getEmailAddress()))
 					.messageContext(messageContext)
@@ -210,70 +207,6 @@ public class CommunityService {
 		getLogger().info("Notified subscribers for page group ID {}. emails={}, invalidEmails={}, skippedSms={}, sessions={}, overrideEmailAddressesApplied={}",
 				pageGroupId, emailMessagesEnqueued, context.getInvalidEmailEntries(), context.getSmsEntriesSkipped(),
 				context.getUpcomingGroupSessionCount(), context.getOverrideEmailAddressesApplied());
-	}
-
-	protected void addMessageTrackingToV2CommunityHighlightsContext(@Nonnull Map<String, Object> messageContext,
-																																 @Nonnull UUID messageId) {
-		requireNonNull(messageContext);
-		requireNonNull(messageId);
-
-		addMessageTrackingToContextUrl(messageContext, "communityPageUrl", messageId);
-		addMessageTrackingToContextUrl(messageContext, "recordingUrl", messageId);
-		addMessageTrackingToContextUrl(messageContext, "communicationPreferencesUrl", messageId);
-		addMessageTrackingToContextUrls(messageContext, "upcomingGroupSessions", "reserveSeatUrl", messageId);
-		addMessageTrackingToContextUrls(messageContext, "footerContents", "url", messageId);
-	}
-
-	protected void addMessageTrackingToContextUrl(@Nonnull Map<String, Object> messageContext,
-																								@Nonnull String contextUrlKey,
-																								@Nonnull UUID messageId) {
-		requireNonNull(messageContext);
-		requireNonNull(contextUrlKey);
-		requireNonNull(messageId);
-
-		Object contextUrl = messageContext.get(contextUrlKey);
-
-		if (!(contextUrl instanceof String contextUrlString))
-			return;
-
-		messageContext.put(contextUrlKey, addMessageTrackingToUrl(contextUrlString, messageId));
-	}
-
-	protected void addMessageTrackingToContextUrls(@Nonnull Map<String, Object> messageContext,
-																								 @Nonnull String contextCollectionKey,
-																								 @Nonnull String contextUrlKey,
-																								 @Nonnull UUID messageId) {
-		requireNonNull(messageContext);
-		requireNonNull(contextCollectionKey);
-		requireNonNull(contextUrlKey);
-		requireNonNull(messageId);
-
-		@SuppressWarnings("unchecked")
-		List<Map<String, Object>> contextCollection = (List<Map<String, Object>>) messageContext.get(contextCollectionKey);
-
-		if (contextCollection == null)
-			return;
-
-		List<Map<String, Object>> trackedContextCollection = new ArrayList<>(contextCollection.size());
-
-		for (Map<String, Object> contextCollectionItem : contextCollection) {
-			Map<String, Object> trackedContextCollectionItem = new HashMap<>(contextCollectionItem);
-			addMessageTrackingToContextUrl(trackedContextCollectionItem, contextUrlKey, messageId);
-			trackedContextCollection.add(trackedContextCollectionItem);
-		}
-
-		messageContext.put(contextCollectionKey, trackedContextCollection);
-	}
-
-	@Nonnull
-	protected String addMessageTrackingToUrl(@Nonnull String url,
-																						 @Nonnull UUID messageId) {
-		requireNonNull(url);
-		requireNonNull(messageId);
-
-		return WebUtility.appendQueryParameters(url, Map.of(
-				AnalyticsService.ANALYTICS_REFERRING_MESSAGE_ID_QUERY_PARAMETER_NAME, FriendlyId.toFriendlyId(messageId)
-		));
 	}
 
 	@Nonnull
