@@ -29,10 +29,27 @@ WHERE account_source_id IN ('PENN_SSO', 'PENN_KEY_SSO');
 
 Use `LARGE_MODAL` for the existing screening UI or `SMALL_MODAL` for the compact modal.
 
-Employer onboarding uses the `SUBMIT` screening-question submission style so
+## Local Penn preview data
+
+`sql/local/274-cobalt-penn-location-preview.sql` adds the UPHS and UPenn groups
+and their locations to the local `COBALT` institution, while keeping its existing
+ungrouped Cobalt locations. It also copies local provider-location links to the
+new leaves and gives the LGH preview location Dr. Steven Fetrow-Keihl.
+`sql/local/275-cobalt-penn-onboarding-preview.sql` publishes the two-level
+employer screening as version 2 and sets local email and anonymous account
+sources to `SMALL_MODAL`. These local patches are the reviewable source for the
+preview database changes; they do not configure the `PENN` tenant. The local
+rebuild applies them only when the private Penn provider mirror bundle is
+present. The bootstrap rebuild omits them.
+
+The local version 2 questions use the `NEXT` submission style and auto-submit.
+The first question shows its privacy text in a primary callout. The preview also
+points the local `COBALT` institution URL at `http://localhost:3002`.
+
+The original employer fixture uses the `SUBMIT` screening-question submission style so
 the final action does not imply that another question follows. Set
 `screening_question.metadata.submitButtonText` to a nonblank string to replace
-the default `Submit` label; the local and PENN employer fixtures use `Done`.
+the default `Submit` label; the original local and PENN employer fixtures use `Done`.
 This setting applies to every account using that source across institutions.
 Clients should fall back to the existing UI for absent or unrecognized values.
 New visual presentations require client support, but the backend passes their
@@ -155,7 +172,7 @@ services agree:
 | UPHS | LGH | UPHS EAP, TEAM Clinic, Spiritual Support only |
 | UPenn | University, Perelman School of Medicine, Other | UPenn EAP, TEAM Clinic, Spiritual Support only |
 
-Dr. Steven Fetrow-Kiehl is not available to LGH. Resolve service providers and
+Dr. Steven Fetrow-Keihl is available to LGH in the local preview. Resolve service providers and
 referrers by stable IDs or canonical URL names and fail the tenant patch when an
 expected record is missing or ambiguous. Providers without any location rows
 are treated as globally available by Provider Booking V2, so any provider that
