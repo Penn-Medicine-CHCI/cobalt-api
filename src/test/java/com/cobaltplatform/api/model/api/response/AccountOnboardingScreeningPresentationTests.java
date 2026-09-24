@@ -12,7 +12,6 @@ import com.pyranid.Database;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AccountOnboardingScreeningPresentationTests {
@@ -27,18 +26,28 @@ public class AccountOnboardingScreeningPresentationTests {
 			request.setAccountSourceId(AccountSourceId.ANONYMOUS);
 			Account account = accountService.findAccountById(accountService.createAccount(request)).get();
 
-			assertEquals("LARGE_MODAL", factory.create(account).getOnboardingScreeningPresentationId());
-			assertFalse(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
+			database.execute("UPDATE account_source SET onboarding_screening_presentation_id='SMALL_MODAL' WHERE account_source_id IN ('ANONYMOUS', 'ANONYMOUS_IMPLICIT', 'EMAIL_PASSWORD')");
+			assertEquals("SMALL_MODAL", factory.create(account).getOnboardingScreeningPresentationId());
+			assertTrue(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
 
 			for (String presentation : new String[]{"SMALL_MODAL", "FUTURE_PRESENTATION", "LARGE_MODAL"}) {
 				database.execute("UPDATE account_source SET onboarding_screening_presentation_id=? WHERE account_source_id=?",
 						presentation, AccountSourceId.ANONYMOUS);
 				assertEquals(presentation, factory.create(account).getOnboardingScreeningPresentationId());
-				assertEquals("LARGE_MODAL", accountService.findAccountSourceById(AccountSourceId.EMAIL_PASSWORD).get()
+				assertEquals("SMALL_MODAL", accountService.findAccountSourceById(AccountSourceId.EMAIL_PASSWORD).get()
 						.getOnboardingScreeningPresentationId());
+				assertTrue(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
 			}
 
+			account.setAccountSourceId(AccountSourceId.ANONYMOUS_IMPLICIT);
+			assertEquals("SMALL_MODAL", factory.create(account).getOnboardingScreeningPresentationId());
+			assertTrue(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
+
 			account.setAccountSourceId(AccountSourceId.COBALT_SSO);
+			assertEquals("SMALL_MODAL", factory.create(account).getOnboardingScreeningPresentationId());
+			assertTrue(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
+
+			account.setAccountSourceId(AccountSourceId.EMAIL_PASSWORD);
 			assertEquals("SMALL_MODAL", factory.create(account).getOnboardingScreeningPresentationId());
 			assertTrue(factory.create(account).getOnboardingScreeningFlowAppliesToAccount());
 		});
