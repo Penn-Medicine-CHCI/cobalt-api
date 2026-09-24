@@ -98,7 +98,15 @@ public class CobaltEnterprisePlugin extends DefaultEnterprisePlugin {
 	@Override
 	public boolean isAccountEligibleForOnboardingScreeningFlow(@Nonnull Account account) {
 		requireNonNull(account);
-		return account.getAccountSourceId() == AccountSourceId.COBALT_SSO;
+		if (account.getAccountSourceId() == AccountSourceId.COBALT_SSO)
+			return true;
+
+		if (!getConfiguration().isLocal())
+			return false;
+
+		return account.getAccountSourceId() == AccountSourceId.EMAIL_PASSWORD
+				|| account.getAccountSourceId() == AccountSourceId.ANONYMOUS
+				|| account.getAccountSourceId() == AccountSourceId.ANONYMOUS_IMPLICIT;
 	}
 
 	@Nonnull

@@ -30,6 +30,8 @@ Never apply any of these local fixture patches to a production database:
 - `sql/local/264-cobalt-employer-onboarding.sql`
 - `sql/local/265-team-clinic-referral-provider-seed.sql`
 - `sql/local/266-cobalt-employer-onboarding-single-question.sql`
+- `sql/local/274-cobalt-penn-location-preview.sql`
+- `sql/local/275-cobalt-penn-onboarding-preview.sql`
 
 They live outside the production update directory because they contain test
 accounts, fixed fixture identifiers, synthetic clinical

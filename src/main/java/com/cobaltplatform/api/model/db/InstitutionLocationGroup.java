@@ -30,59 +30,19 @@ import java.util.UUID;
  * @author Transmogrify, LLC.
  */
 @NotThreadSafe
-public class InstitutionLocation {
+public class InstitutionLocationGroup {
 	@Nullable
-	private UUID institutionLocationId;
+	private UUID institutionLocationGroupId;
 	@Nullable
 	private InstitutionId institutionId;
 	@Nullable
 	private String name;
-	@Nullable
-	private String shortName;
-	@Nullable
-	private UUID institutionLocationGroupId;
 	@Nullable
 	private Integer displayOrder;
 	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
-
-	@Nullable
-	public UUID getInstitutionLocationId() {
-		return institutionLocationId;
-	}
-
-	public void setInstitutionLocationId(@Nullable UUID institutionLocationId) {
-		this.institutionLocationId = institutionLocationId;
-	}
-
-	@Nullable
-	public InstitutionId getInstitutionId() {
-		return institutionId;
-	}
-
-	public void setInstitutionId(@Nullable InstitutionId institutionId) {
-		this.institutionId = institutionId;
-	}
-
-	@Nullable
-	public String getName() {
-		return name;
-	}
-
-	public void setName(@Nullable String name) {
-		this.name = name;
-	}
-
-	@Nullable
-	public String getShortName() {
-		return this.shortName;
-	}
-
-	public void setShortName(@Nullable String shortName) {
-		this.shortName = shortName;
-	}
 
 	@Nullable
 	public UUID getInstitutionLocationGroupId() {
@@ -93,6 +53,25 @@ public class InstitutionLocation {
 		this.institutionLocationGroupId = institutionLocationGroupId;
 	}
 
+	@Nullable
+	public InstitutionId getInstitutionId() {
+		return this.institutionId;
+	}
+
+	public void setInstitutionId(@Nullable InstitutionId institutionId) {
+		this.institutionId = institutionId;
+	}
+
+	@Nullable
+	public String getName() {
+		return this.name;
+	}
+
+	public void setName(@Nullable String name) {
+		this.name = name;
+	}
+
+	@Nullable
 	public Integer getDisplayOrder() {
 		return this.displayOrder;
 	}
@@ -103,7 +82,7 @@ public class InstitutionLocation {
 
 	@Nullable
 	public Instant getCreated() {
-		return created;
+		return this.created;
 	}
 
 	public void setCreated(@Nullable Instant created) {
@@ -112,7 +91,7 @@ public class InstitutionLocation {
 
 	@Nullable
 	public Instant getLastUpdated() {
-		return lastUpdated;
+		return this.lastUpdated;
 	}
 
 	public void setLastUpdated(@Nullable Instant lastUpdated) {
