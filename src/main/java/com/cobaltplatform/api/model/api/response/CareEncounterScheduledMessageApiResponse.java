@@ -58,6 +58,10 @@ public class CareEncounterScheduledMessageApiResponse {
 	@Nullable private final String deliveryFailedReason;
 	@Nullable private final Instant complaintRegisteredAt;
 	@Nullable private final String complaintRegisteredAtDescription;
+	@Nonnull private final Long resourceLinkCount;
+	@Nonnull private final Long resourceLinkOpenedCount;
+	@Nullable private final Instant resourceLinkLastClickedAt;
+	@Nullable private final String resourceLinkLastClickedAtDescription;
 	@Nonnull private final String recipientEmailAddress;
 	@Nonnull private final String customEmailText;
 	@Nonnull private final String emailSubject;
@@ -115,6 +119,10 @@ public class CareEncounterScheduledMessageApiResponse {
 		this.deliveryFailedReason = model.getDeliveryFailedReason();
 		this.complaintRegisteredAt = model.getComplaintRegisteredAt();
 		this.complaintRegisteredAtDescription = describe(formatter, this.complaintRegisteredAt);
+		this.resourceLinkCount = model.getResourceLinkCount() == null ? 0L : model.getResourceLinkCount();
+		this.resourceLinkOpenedCount = model.getResourceLinkOpenedCount() == null ? 0L : model.getResourceLinkOpenedCount();
+		this.resourceLinkLastClickedAt = model.getResourceLinkLastClickedAt();
+		this.resourceLinkLastClickedAtDescription = describe(formatter, this.resourceLinkLastClickedAt);
 		this.recipientEmailAddress = model.getRecipientEmailAddress();
 		this.customEmailText = model.getCustomEmailText();
 		this.emailSubject = model.getEmailSubject();
@@ -174,6 +182,10 @@ public class CareEncounterScheduledMessageApiResponse {
 	@Nullable public String getDeliveryFailedReason() { return deliveryFailedReason; }
 	@Nullable public Instant getComplaintRegisteredAt() { return complaintRegisteredAt; }
 	@Nullable public String getComplaintRegisteredAtDescription() { return complaintRegisteredAtDescription; }
+	@Nonnull public Long getResourceLinkCount() { return resourceLinkCount; }
+	@Nonnull public Long getResourceLinkOpenedCount() { return resourceLinkOpenedCount; }
+	@Nullable public Instant getResourceLinkLastClickedAt() { return resourceLinkLastClickedAt; }
+	@Nullable public String getResourceLinkLastClickedAtDescription() { return resourceLinkLastClickedAtDescription; }
 	@Nonnull public String getRecipientEmailAddress() { return recipientEmailAddress; }
 	@Nonnull public String getCustomEmailText() { return customEmailText; }
 	@Nonnull public String getEmailSubject() { return emailSubject; }

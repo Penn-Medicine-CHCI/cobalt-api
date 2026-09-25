@@ -21,9 +21,14 @@ import com.cobaltplatform.api.model.db.CareEncounter;
 import com.cobaltplatform.api.model.db.CareEncounterScheduledMessage;
 import com.cobaltplatform.api.model.db.CareEncounterCancellationReason.CareEncounterCancellationReasonId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
+import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.ScreeningSession;
+import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.CareEncounterService;
+import com.cobaltplatform.api.service.InstitutionService;
+import com.cobaltplatform.api.service.ScreeningService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -105,6 +110,10 @@ public class CareEncounterApiResponse {
 	private final AppointmentApiResponse appointment;
 	@Nonnull
 	private final List<AppointmentApiResponse> appointmentHistory;
+	@Nullable
+	private final ScreeningSessionResult featureScreeningSessionResult;
+	@Nullable
+	private final String featureScreeningCompletedAtDescription;
 
 	@ThreadSafe
 	public interface CareEncounterApiResponseFactory {
@@ -115,6 +124,8 @@ public class CareEncounterApiResponse {
 	@AssistedInject
 	public CareEncounterApiResponse(@Nonnull CareEncounterService careEncounterService,
 																 @Nonnull AccountService accountService,
+																 @Nonnull InstitutionService institutionService,
+																 @Nonnull ScreeningService screeningService,
 																 @Nonnull AppointmentApiResponseFactory appointmentApiResponseFactory,
 																 @Nonnull CareEncounterNoteApiResponseFactory careEncounterNoteApiResponseFactory,
 																 @Nonnull Formatter formatter,
@@ -122,6 +133,8 @@ public class CareEncounterApiResponse {
 																 @Assisted @Nonnull CareEncounter careEncounter) {
 		requireNonNull(careEncounterService);
 		requireNonNull(accountService);
+		requireNonNull(institutionService);
+		requireNonNull(screeningService);
 		requireNonNull(appointmentApiResponseFactory);
 		requireNonNull(careEncounterNoteApiResponseFactory);
 		requireNonNull(formatter);
@@ -187,6 +200,15 @@ public class CareEncounterApiResponse {
 				.filter(appointmentModel -> !isActiveAppointment(appointmentModel))
 				.map(appointmentModel -> appointmentApiResponseFactory.create(appointmentModel, supplements))
 				.collect(Collectors.toUnmodifiableList());
+
+		Institution institution = institutionService.findInstitutionById(institutionId).orElseThrow();
+		ScreeningSession featureScreeningSession = screeningService
+				.findMostRecentlyCompletedScreeningSessionByScreeningFlowAndTargetAccountId(
+						institution.getFeatureScreeningFlowId(), careEncounter.getAccountId()).orElse(null);
+		this.featureScreeningSessionResult = featureScreeningSession == null ? null
+				: screeningService.findScreeningSessionResult(featureScreeningSession).orElse(null);
+		this.featureScreeningCompletedAtDescription = featureScreeningSession == null ? null
+				: formatter.formatTimestampDescription(featureScreeningSession.getCompletedAt());
 	}
 
 	protected static boolean isActiveAppointment(@Nonnull Appointment appointment) {

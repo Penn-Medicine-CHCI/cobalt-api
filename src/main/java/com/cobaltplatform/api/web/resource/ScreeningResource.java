@@ -44,6 +44,7 @@ import com.cobaltplatform.api.model.db.Screening;
 import com.cobaltplatform.api.model.db.ScreeningAnswer;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
+import com.cobaltplatform.api.model.db.ScreeningDestinationContent;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
@@ -55,6 +56,7 @@ import com.cobaltplatform.api.model.security.AuthenticationRequired;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContext;
 import com.cobaltplatform.api.model.service.ScreeningQuestionContextId;
 import com.cobaltplatform.api.model.service.ScreeningSessionDestination;
+import com.cobaltplatform.api.model.service.ScreeningSessionDestination.ScreeningSessionDestinationId;
 import com.cobaltplatform.api.service.AccountService;
 import com.cobaltplatform.api.service.AuthorizationService;
 import com.cobaltplatform.api.service.PatientOrderService;
@@ -279,6 +281,41 @@ public class ScreeningResource {
 						return getScreeningSessionApiResponseFactory().create(screeningSession, Set.of(ScreeningSessionApiResponseSupplement.NEXT_QUESTION));
 					}).collect(Collectors.toList()));
 		}});
+	}
+
+	@Nonnull
+	@GET("/screening-sessions/{screeningSessionId}/eligibility-exit")
+	@AuthenticationRequired
+	public ApiResponse screeningSessionEligibilityExit(@Nonnull @PathParameter UUID screeningSessionId) {
+		requireNonNull(screeningSessionId);
+
+		ScreeningSession screeningSession = getScreeningService().findScreeningSessionById(screeningSessionId).orElse(null);
+		if (screeningSession == null)
+			throw new NotFoundException();
+
+		Account account = getCurrentContext().getAccount().get();
+		if (screeningSession.getPatientOrderId() != null) {
+			RawPatientOrder patientOrder = getPatientOrderService().findRawPatientOrderById(screeningSession.getPatientOrderId()).orElse(null);
+			if (patientOrder == null || !getAuthorizationService().canViewPatientOrder(patientOrder, account))
+				throw new AuthorizationException();
+		} else {
+			Account targetAccount = getAccountService().findAccountById(screeningSession.getTargetAccountId()).orElse(null);
+			if (targetAccount == null || !getAuthorizationService().canViewScreeningSession(screeningSession, account, targetAccount))
+				throw new AuthorizationException();
+		}
+
+		ScreeningSessionDestination destination =
+				getScreeningService().determineDestinationForScreeningSessionId(screeningSessionId).orElse(null);
+		if (destination == null || destination.getScreeningSessionDestinationId() != ScreeningSessionDestinationId.IC_PATIENT_ELIGIBILITY_EXIT)
+			throw new NotFoundException();
+
+		ScreeningFlowVersion flowVersion = getScreeningService()
+				.findScreeningFlowVersionById(screeningSession.getScreeningFlowVersionId()).orElseThrow(NotFoundException::new);
+		ScreeningDestinationContent content = getScreeningService()
+				.findScreeningDestinationContent(flowVersion.getScreeningFlowId(), destination.getScreeningSessionDestinationId())
+				.orElseThrow(NotFoundException::new);
+
+		return new ApiResponse(Map.of("eligibilityExitContent", content));
 	}
 
 	@Nonnull

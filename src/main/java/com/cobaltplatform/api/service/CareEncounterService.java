@@ -44,6 +44,7 @@ import com.cobaltplatform.api.model.db.CareEncounterScheduledMessage;
 import com.cobaltplatform.api.model.db.CareEncounterScheduledMessageType;
 import com.cobaltplatform.api.model.db.CareEncounterScheduledMessageType.CareEncounterScheduledMessageTypeId;
 import com.cobaltplatform.api.model.db.CareEncounterStatus.CareEncounterStatusId;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
@@ -520,7 +521,7 @@ public class CareEncounterService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		return renderCareEncounterFollowUp(careEncounter, institutionId, customEmailText, UUID.randomUUID()).renderedEmailMessage;
+		return renderCareEncounterFollowUp(careEncounter, institutionId, customEmailText, UUID.randomUUID(), null).renderedEmailMessage;
 	}
 
 	@Nonnull
@@ -546,8 +547,9 @@ public class CareEncounterService {
 			throw validationException;
 
 		UUID messageId = UUID.randomUUID();
+		UUID linkRevisionId = UUID.randomUUID();
 		FollowUpEmailSnapshot snapshot = renderCareEncounterFollowUp(careEncounter, institutionId,
-				customEmailText, messageId);
+				customEmailText, messageId, linkRevisionId);
 		Map<String, Object> metadata = scheduledMessageMetadata(careEncounterId,
 				request.getCareEncounterScheduledMessageTypeId());
 		CreateScheduledMessageRequest<EmailMessage> scheduledMessageRequest = new CreateScheduledMessageRequest<>();
@@ -604,13 +606,19 @@ public class CareEncounterService {
 		if (validationException.hasErrors())
 			throw validationException;
 
+		UUID linkRevisionId = UUID.randomUUID();
 		FollowUpEmailSnapshot snapshot = renderCareEncounterFollowUp(careEncounter, institutionId,
-				customEmailText, existing.getMessageId());
+				customEmailText, existing.getMessageId(), linkRevisionId);
 		boolean updated = getMessageService().updateScheduledMessage(existing.getScheduledMessageId(),
 				snapshot.freeformEmailMessage, scheduledAt, snapshot.timeZone,
 				scheduledMessageMetadata(careEncounterId, request.getCareEncounterScheduledMessageTypeId()));
-		if (!updated)
+		if (!updated) {
+			getDatabase().execute("DELETE FROM care_encounter_follow_up_link WHERE message_id=? AND revision_id=?",
+					existing.getMessageId(), linkRevisionId);
 			throw pendingScheduledMessageValidationException("Only pending scheduled messages can be edited.");
+		}
+		getDatabase().execute("DELETE FROM care_encounter_follow_up_link WHERE message_id=? AND revision_id<>?",
+				existing.getMessageId(), linkRevisionId);
 
 		getDatabase().execute("""
 				UPDATE care_encounter_scheduled_message
@@ -1504,9 +1512,10 @@ public class CareEncounterService {
 
 	@Nonnull
 	protected FollowUpEmailSnapshot renderCareEncounterFollowUp(@Nonnull CareEncounter careEncounter,
-																						@Nonnull InstitutionId institutionId,
-																						@Nonnull String customEmailText,
-																						@Nonnull UUID messageId) {
+																			@Nonnull InstitutionId institutionId,
+																			@Nonnull String customEmailText,
+																			@Nonnull UUID messageId,
+											@Nullable UUID linkRevisionId) {
 		Institution institution = getInstitutionService().findInstitutionById(institutionId).get();
 		Appointment appointment = findLatestAppointmentByCareEncounterIdForInstitutionId(
 				careEncounter.getCareEncounterId(), institutionId).orElseThrow();
@@ -1527,10 +1536,21 @@ public class CareEncounterService {
 		String patientWebappBaseUrl = getInstitutionService()
 				.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(institutionId, UserExperienceTypeId.PATIENT)
 				.orElse(null);
-		context.put("careNavigatorBookingUrl", patientWebappBaseUrl == null ? null
-				: patientWebappBaseUrl.replaceAll("/+$", "") + "/providers?featureId=RESOURCE_NAVIGATOR");
+		if (linkRevisionId != null && patientWebappBaseUrl != null)
+			context.put("customEmailText", trackFollowUpResourceLinks(customEmailText,
+					careEncounter.getCareEncounterId(), messageId, linkRevisionId, patientWebappBaseUrl));
+		String careNavigatorBookingPath = patient == null ? null
+				: getInstitutionService().findFeaturesByInstitutionId(institution, patient).stream()
+				.filter(feature -> feature.getFeatureId() == FeatureId.RESOURCE_NAVIGATOR
+						&& feature.getUrlName() != null)
+				.map(feature -> feature.getUrlName())
+				.findFirst().orElse(null);
+		context.put("careNavigatorBookingUrl", patientWebappBaseUrl == null || careNavigatorBookingPath == null ? null
+				: patientWebappBaseUrl.replaceAll("/+$", "")
+				+ (careNavigatorBookingPath.startsWith("/") ? "" : "/") + careNavigatorBookingPath);
 		context.put("supportEmailAddress", institution.getSupportEmailAddress());
 		context.put("integratedCarePhoneNumber", institution.getIntegratedCarePhoneNumber());
+		context.put("careNavigatorCrisisPhoneNumber", institution.getCareNavigatorCrisisPhoneNumber());
 		context.put("integratedCarePhoneNumberFormatted", getFormatter().formatPhoneNumber(
 				institution.getIntegratedCarePhoneNumber(), locale));
 		context.put("integratedCareAvailabilityDescription", institution.getIntegratedCareAvailabilityDescription());
@@ -1561,6 +1581,21 @@ public class CareEncounterService {
 	}
 
 	@Nonnull
+	protected String trackFollowUpResourceLinks(@Nonnull String sanitizedHtml, @Nonnull UUID careEncounterId,
+															@Nonnull UUID messageId, @Nonnull UUID linkRevisionId,
+															@Nonnull String patientWebappBaseUrl) {
+		return CareEncounterFollowUpLinkRewriter.rewrite(sanitizedHtml, patientWebappBaseUrl, destinationUrl -> {
+			UUID linkId = UUID.randomUUID();
+			getDatabase().execute("""
+				INSERT INTO care_encounter_follow_up_link
+				(care_encounter_follow_up_link_id, care_encounter_id, message_id, revision_id, destination_url)
+				VALUES (?,?,?,?,?)
+				""", linkId, careEncounterId, messageId, linkRevisionId, destinationUrl);
+			return linkId;
+		});
+	}
+
+	@Nonnull
 	protected Map<String, Object> scheduledMessageMetadata(@Nonnull UUID careEncounterId,
 																					 @Nonnull CareEncounterScheduledMessageTypeId typeId) {
 		return Map.of("careEncounterId", careEncounterId.toString(),
@@ -1586,6 +1621,9 @@ public class CareEncounterService {
 					ml.processed AS sent_at, ml.delivered AS delivered_at,
 					ml.delivery_failed AS delivery_failed_at, ml.delivery_failed_reason,
 					ml.complaint_registered AS complaint_registered_at,
+					COALESCE(link_activity.resource_link_count, 0) AS resource_link_count,
+					COALESCE(link_activity.resource_link_opened_count, 0) AS resource_link_opened_count,
+					link_activity.resource_link_last_clicked_at,
 					COALESCE(NULLIF(BTRIM(scheduled_by.display_name), ''),
 						NULLIF(BTRIM(CONCAT_WS(' ', scheduled_by.first_name, scheduled_by.last_name)), ''))
 						AS scheduled_by_account_display_name,
@@ -1607,6 +1645,13 @@ public class CareEncounterService {
 					ON sms.scheduled_message_status_id=sm.scheduled_message_status_id
 				LEFT JOIN message_log ml ON ml.message_id=sm.message_id
 				LEFT JOIN message_status ms ON ms.message_status_id=ml.message_status_id
+				LEFT JOIN LATERAL (
+					SELECT COUNT(*) AS resource_link_count,
+						COUNT(*) FILTER (WHERE link.click_count > 0) AS resource_link_opened_count,
+						MAX(link.last_clicked_at) AS resource_link_last_clicked_at
+					FROM care_encounter_follow_up_link link
+					WHERE link.message_id=sm.message_id
+				) link_activity ON TRUE
 				LEFT JOIN account scheduled_by ON scheduled_by.account_id=sm.scheduled_by_account_id
 				JOIN account created_by ON created_by.account_id=cesm.created_by_account_id
 				JOIN account updated_by ON updated_by.account_id=cesm.last_updated_by_account_id

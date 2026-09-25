@@ -74,6 +74,8 @@ public class FeatureForInstitution {
 	private String recommendationBookingUrlOverride;
 	@Nullable
 	private UUID providerId;
+	@Nullable
+	private UUID clinicId;
 
 	@Nullable
 	public FeatureId getFeatureId() {
@@ -253,5 +255,14 @@ public class FeatureForInstitution {
 
 	public void setProviderId(@Nullable UUID providerId) {
 		this.providerId = providerId;
+	}
+
+	@Nullable
+	public UUID getClinicId() {
+		return clinicId;
+	}
+
+	public void setClinicId(@Nullable UUID clinicId) {
+		this.clinicId = clinicId;
 	}
 }

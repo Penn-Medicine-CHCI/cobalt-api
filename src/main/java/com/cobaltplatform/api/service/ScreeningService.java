@@ -86,6 +86,7 @@ import com.cobaltplatform.api.model.db.ScreeningAnswerContentHint.ScreeningAnswe
 import com.cobaltplatform.api.model.db.ScreeningAnswerFormat.ScreeningAnswerFormatId;
 import com.cobaltplatform.api.model.db.ScreeningAnswerOption;
 import com.cobaltplatform.api.model.db.ScreeningConfirmationPrompt;
+import com.cobaltplatform.api.model.db.ScreeningDestinationContent;
 import com.cobaltplatform.api.model.db.ScreeningFlow;
 import com.cobaltplatform.api.model.db.ScreeningFlowType.ScreeningFlowTypeId;
 import com.cobaltplatform.api.model.db.ScreeningFlowVersion;
@@ -303,6 +304,18 @@ public class ScreeningService {
 
 		return getDatabase().queryForObject("SELECT * FROM screening_session WHERE screening_session_id=?",
 				ScreeningSession.class, screeningSessionId);
+	}
+
+	@Nonnull
+	public Optional<ScreeningDestinationContent> findScreeningDestinationContent(@Nullable UUID screeningFlowId,
+																					@Nullable ScreeningSessionDestinationId destinationId) {
+		if (screeningFlowId == null || destinationId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("""
+				SELECT * FROM screening_destination_content
+				WHERE screening_flow_id=? AND screening_session_destination_id=?
+				""", ScreeningDestinationContent.class, screeningFlowId, destinationId.name());
 	}
 
 	@Nonnull

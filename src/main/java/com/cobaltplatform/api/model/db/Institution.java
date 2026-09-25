@@ -494,6 +494,12 @@ public class Institution {
 		}.getType());
 	}
 
+	@Nullable
+	public String getCareNavigatorCrisisPhoneNumber() {
+		Object value = getMetadataAsMap().get("careNavigatorCrisisPhoneNumber");
+		return value instanceof String ? trimToNull((String) value) : null;
+	}
+
 	@Nonnull
 	public StandardMetadata getStandardMetadata() {
 		String metadata = trimToNull(getMetadata());

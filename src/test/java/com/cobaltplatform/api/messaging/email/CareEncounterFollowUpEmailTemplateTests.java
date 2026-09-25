@@ -43,7 +43,7 @@ public class CareEncounterFollowUpEmailTemplateTests {
 		context.put("patientFirstName", "Jordan <Lee>");
 		context.put("appointmentDateDescription", "Sep 9, 2026");
 		context.put("careNavigatorBookingUrl", "https://example.com/providers?featureId=RESOURCE_NAVIGATOR");
-		context.put("integratedCarePhoneNumberFormatted", "(215) 555-0100");
+		context.put("careNavigatorCrisisPhoneNumber", "1-888-321-4433");
 
 		String subject = render("subject", context).trim();
 		String body = render("body", context);
@@ -60,7 +60,8 @@ public class CareEncounterFollowUpEmailTemplateTests {
 		Assert.assertTrue(body.contains("href=\"https://example.com/providers?featureId=RESOURCE_NAVIGATOR\""));
 		Assert.assertTrue(body.contains("Please do not reply to this email. This mailbox is not monitored."));
 		Assert.assertTrue(body.contains("href=\"https://example.com/privacy\""));
-		Assert.assertTrue(body.contains(
+		Assert.assertTrue(body.contains("1-888-321-4433"));
+		Assert.assertFalse(body.contains(
 				"You are receiving this transactional email because you met with a Care Navigator through Cobalt."));
 		Assert.assertFalse(body.contains("font-family:'Karla'"));
 	}

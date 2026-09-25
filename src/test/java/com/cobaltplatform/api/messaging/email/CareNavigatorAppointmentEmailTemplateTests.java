@@ -52,6 +52,8 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 		context.put("patientAppointmentUrl", PATIENT_APPOINTMENT_URL);
 		context.put("cancelUrl", CANCEL_URL);
 		context.put("appointmentCreatedPatientEmailBodyHtml", "<p>Bring your resource questions.</p>");
+		context.put("careNavigatorCrisisPhoneNumber", "1-888-321-4433");
+		context.put("careNavigatorBookingUrl", "https://cobalt.example/providers?featureId=RESOURCE_NAVIGATOR");
 
 		String createdSubject = render(EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT,
 				"subject", context).trim();
@@ -74,19 +76,34 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 		Assert.assertTrue(createdBody.contains("href=\"" + PATIENT_APPOINTMENT_URL + "\""));
 		Assert.assertTrue(createdBody.contains("href=\"" + CANCEL_URL + "\""));
 		Assert.assertTrue(createdBody.contains("<p>Bring your resource questions.</p>"));
+		Assert.assertTrue(createdBody.contains("1-888-321-4433"));
 		assertNoReplyAndBranding(createdBody);
 
 		Assert.assertEquals("Cobalt: Care Navigator appointment reminder", reminderSubject);
 		Assert.assertTrue(reminderBody.contains("January 15, 2027"));
 		Assert.assertTrue(reminderBody.contains("10:30 AM"));
 		Assert.assertFalse(reminderBody.contains(PATIENT_APPOINTMENT_URL));
+		Assert.assertTrue(reminderBody.contains("1-888-321-4433"));
 		assertNoReplyAndBranding(reminderBody);
 
 		Assert.assertEquals("Cobalt: Care Navigator appointment canceled", canceledSubject);
 		Assert.assertTrue(canceledBody.contains("Your Care Navigator appointment was canceled"));
 		Assert.assertTrue(canceledBody.contains("January 15, 2027"));
 		Assert.assertTrue(canceledBody.contains("10:30 AM"));
+		Assert.assertTrue(canceledBody.contains("https://cobalt.example/providers?featureId=RESOURCE_NAVIGATOR"));
+		Assert.assertTrue(canceledBody.contains("1-888-321-4433"));
+		Assert.assertFalse(canceledBody.contains("Reason:"));
 		assertNoReplyAndBranding(canceledBody);
+	}
+
+	@Test
+	public void omitsUnknownPatientGreetingAndAbsentCancellationReason() {
+		Map<String, Object> context = baseContext();
+		context.put("cancellationReason", "Navigator unavailable");
+		String canceledBody = render(EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CANCELED_PATIENT,
+				"body", context);
+		Assert.assertFalse(canceledBody.contains("Hello,"));
+		Assert.assertTrue(canceledBody.contains("Reason: Navigator unavailable"));
 	}
 
 	@Test
