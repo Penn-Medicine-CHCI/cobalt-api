@@ -43,6 +43,9 @@ public class CareEncounterScheduledMessage {
 	@Nullable private Instant deliveryFailedAt;
 	@Nullable private String deliveryFailedReason;
 	@Nullable private Instant complaintRegisteredAt;
+	@Nullable private Long resourceLinkCount;
+	@Nullable private Long resourceLinkOpenedCount;
+	@Nullable private Instant resourceLinkLastClickedAt;
 	@Nullable private String recipientEmailAddress;
 	@Nullable private String customEmailText;
 	@Nullable private String emailSubject;
@@ -106,6 +109,12 @@ public class CareEncounterScheduledMessage {
 	public void setDeliveryFailedReason(@Nullable String v) { deliveryFailedReason = v; }
 	@Nullable public Instant getComplaintRegisteredAt() { return complaintRegisteredAt; }
 	public void setComplaintRegisteredAt(@Nullable Instant v) { complaintRegisteredAt = v; }
+	@Nullable public Long getResourceLinkCount() { return resourceLinkCount; }
+	public void setResourceLinkCount(@Nullable Long v) { resourceLinkCount = v; }
+	@Nullable public Long getResourceLinkOpenedCount() { return resourceLinkOpenedCount; }
+	public void setResourceLinkOpenedCount(@Nullable Long v) { resourceLinkOpenedCount = v; }
+	@Nullable public Instant getResourceLinkLastClickedAt() { return resourceLinkLastClickedAt; }
+	public void setResourceLinkLastClickedAt(@Nullable Instant v) { resourceLinkLastClickedAt = v; }
 	@Nullable public String getRecipientEmailAddress() { return recipientEmailAddress; }
 	public void setRecipientEmailAddress(@Nullable String v) { recipientEmailAddress = v; }
 	@Nullable public String getCustomEmailText() { return customEmailText; }

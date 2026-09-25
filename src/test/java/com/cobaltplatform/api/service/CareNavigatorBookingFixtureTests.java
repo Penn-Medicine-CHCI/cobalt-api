@@ -101,6 +101,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -589,8 +590,9 @@ public class CareNavigatorBookingFixtureTests {
 					AND deleted=FALSE
 					""", Long.class, account.getAccountId()).get());
 
-			LocalDate bookingDate = nextWeekday(LocalDate.now(ZoneId.of("America/New_York")).plusDays(14));
-			LocalTime bookingTime = LocalTime.of(9, 0);
+			LocalDate bookingDate = LocalDate.now(ZoneId.of("America/New_York")).plusDays(14)
+					.with(TemporalAdjusters.nextOrSame(DayOfWeek.TUESDAY));
+			LocalTime bookingTime = LocalTime.of(10, 15);
 			FindAppointmentBookingRequirementsRequest requirementsRequest = requirementsRequestFor(account, bookingDate,
 					bookingTime);
 
@@ -802,8 +804,8 @@ public class CareNavigatorBookingFixtureTests {
 			updateAppointmentRequest.setCreatedByAcountId(account.getAccountId());
 			updateAppointmentRequest.setProviderId(CARE_NAVIGATOR_PROVIDER_ID);
 			updateAppointmentRequest.setAppointmentTypeId(CARE_NAVIGATOR_APPOINTMENT_TYPE_ID);
-			updateAppointmentRequest.setDate(nextWeekday(bookingDate.plusDays(1)));
-			updateAppointmentRequest.setTime(bookingTime);
+			updateAppointmentRequest.setDate(bookingDate.plusDays(2));
+			updateAppointmentRequest.setTime(LocalTime.of(11, 15));
 			UUID replacementAppointmentId = appointmentService.rescheduleAppointment(updateAppointmentRequest);
 			assertEquals(screeningSessionId,
 					appointmentService.findAppointmentById(replacementAppointmentId).get().getScreeningSessionId());
@@ -1626,6 +1628,8 @@ public class CareNavigatorBookingFixtureTests {
 					"width:600px; max-width:600px; background-color:#FFFFFF; border-radius:8px"));
 			assertTrue(preview.getEmailBody().contains("https://cdn-prod.cobalt.care/logos/email-v2/COBALT.png"));
 			assertTrue(preview.getEmailBody().contains("<strong>follow-up</strong>"));
+			assertTrue(preview.getEmailBody().contains("/clinic-info/"));
+			assertFalse(preview.getEmailBody().contains("/providers?featureId=RESOURCE_NAVIGATOR"));
 			assertFalse(preview.getEmailBody().contains("<script>"));
 			assertTrue(preview.getEmailBody().indexOf("<strong>follow-up</strong>")
 					< preview.getEmailBody().indexOf("Please do not reply to this email."));
@@ -2067,19 +2071,24 @@ public class CareNavigatorBookingFixtureTests {
 				AND name='Care Navigation Consultation'
 				AND duration_in_minutes=30
 				""", UUID.class, CARE_NAVIGATOR_APPOINTMENT_TYPE_ID).get());
-		assertEquals(Long.valueOf(1L), database.queryForObject("""
+		assertEquals(Long.valueOf(9L), database.queryForObject("""
 				SELECT COUNT(*)
 				FROM logical_availability la
 				JOIN logical_availability_appointment_type laat
 				  ON laat.logical_availability_id=la.logical_availability_id
 				WHERE la.provider_id=?
 				AND laat.appointment_type_id=?
-				AND la.recur_monday=TRUE
-				AND la.recur_tuesday=TRUE
-				AND la.recur_wednesday=TRUE
-				AND la.recur_thursday=TRUE
-				AND la.recur_friday=TRUE
 				""", Long.class, CARE_NAVIGATOR_PROVIDER_ID, CARE_NAVIGATOR_APPOINTMENT_TYPE_ID).get());
+		assertEquals(Long.valueOf(3L), database.queryForObject("""
+				SELECT COUNT(*)
+				FROM logical_availability la
+				JOIN logical_availability_appointment_type laat
+				  ON laat.logical_availability_id=la.logical_availability_id
+				JOIN provider p ON p.provider_id=la.provider_id
+				WHERE p.institution_id='COBALT'
+				AND p.url_name='cobalt-care-navigator-michal'
+				AND laat.appointment_type_id=?
+				""", Long.class, CARE_NAVIGATOR_APPOINTMENT_TYPE_ID).get());
 	}
 
 	protected void cloneAsActiveAppointment(Database database,

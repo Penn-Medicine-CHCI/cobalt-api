@@ -3469,7 +3469,7 @@ public class AppointmentService {
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(
 				appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
-		String patientName = getAccountService().determineDisplayName(patient);
+		String patientName = Normalizer.normalizeName(patient.getFirstName(), patient.getLastName()).orElse(null);
 		String patientEmailAddress = firstNonNull(trimToNull(appointment.getEmailAddress()),
 				trimToNull(patient.getEmailAddress()));
 		String patientWebappBaseUrl = getInstitutionService()
@@ -3493,6 +3493,7 @@ public class AppointmentService {
 					patientWebappBaseUrl, appointment.getAppointmentId()));
 			patientMessageContext.put("appointmentCreatedPatientEmailBodyHtml", appointmentType == null ? null
 					: trimToNull(appointmentType.getAppointmentCreatedPatientEmailBodyHtml()));
+			patientMessageContext.put("careNavigatorCrisisPhoneNumber", institution.getCareNavigatorCrisisPhoneNumber());
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(),
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT,
@@ -3573,7 +3574,7 @@ public class AppointmentService {
 		String appointmentStartDateDescription = getFormatter().formatDate(appointment.getStartTime().toLocalDate());
 		String appointmentStartTimeDescription = getFormatter().formatTime(
 				appointment.getStartTime().toLocalTime(), FormatStyle.SHORT);
-		String patientName = getAccountService().determineDisplayName(patient);
+		String patientName = Normalizer.normalizeName(patient.getFirstName(), patient.getLastName()).orElse(null);
 		String patientEmailAddress = firstNonNull(trimToNull(appointment.getEmailAddress()),
 				trimToNull(patient.getEmailAddress()));
 		String patientWebappBaseUrl = getInstitutionService()
@@ -3592,6 +3593,12 @@ public class AppointmentService {
 			patientMessageContext.put("patientName", patientName);
 			patientMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 			patientMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
+			patientMessageContext.put("careNavigatorCrisisPhoneNumber",
+					getInstitutionService().findInstitutionById(provider.getInstitutionId()).get()
+							.getCareNavigatorCrisisPhoneNumber());
+			patientMessageContext.put("careNavigatorBookingUrl", patientWebappBaseUrl.replaceAll("/+$", "")
+					+ "/providers?featureId=RESOURCE_NAVIGATOR");
+			patientMessageContext.put("cancellationReason", trimToNull(appointment.getCancellationReason()));
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(),
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CANCELED_PATIENT,

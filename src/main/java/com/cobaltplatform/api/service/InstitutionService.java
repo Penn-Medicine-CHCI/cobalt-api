@@ -392,7 +392,13 @@ public class InstitutionService {
 				       institution_feature.recommendation_description_override,
 				       institution_feature.recommendation_booking_title_override,
 				       institution_feature.recommendation_booking_url_override,
-				       institution_feature.provider_id
+				       institution_feature.provider_id,
+				       (SELECT pc.clinic_id FROM provider_clinic pc
+				        JOIN clinic c ON c.clinic_id=pc.clinic_id
+				        WHERE pc.provider_id=institution_feature.provider_id
+				          AND c.appointment_booking_level_id='CLINIC'
+				        ORDER BY pc.primary_clinic DESC, pc.created, pc.clinic_id
+				        LIMIT 1) AS clinic_id
 				FROM institution_feature, feature f
 				WHERE f.feature_id=institution_feature.feature_id
 				AND institution_feature.institution_id=?
@@ -518,6 +524,7 @@ public class InstitutionService {
 				screeningSessionId = mostRecentCompletedFeatureScreeningSession.getScreeningSessionId();
 
 		List<FeatureForInstitution> features = getDatabase().queryForList("SELECT f.feature_id, f.url_name, COALESCE(if.name_override, f.name) AS name, COALESCE(if.subtitle_override, f.subtitle) AS subtitle, if.description, if.nav_description, if.nav_visible, if.landing_page_visible, if.treatment_description, if.provider_id, " +
+				"(SELECT pc.clinic_id FROM provider_clinic pc JOIN clinic c ON c.clinic_id=pc.clinic_id WHERE pc.provider_id=if.provider_id AND c.appointment_booking_level_id='CLINIC' ORDER BY pc.primary_clinic DESC, pc.created, pc.clinic_id LIMIT 1) AS clinic_id, " +
 				"CASE WHEN ss.screening_session_id IS NOT NULL THEN true ELSE false END AS recommended, f.navigation_header_id, if.banner_message, if.banner_message_display_type_id, if.recommendation_title_override, if.recommendation_description_override, if.recommendation_booking_title_override, if.recommendation_booking_url_override " +
 				"FROM institution_feature if, feature f  " +
 				"LEFT OUTER JOIN screening_session_feature_recommendation ss " +
@@ -583,11 +590,13 @@ public class InstitutionService {
 		if (feature.getFeatureId() == null || supportRoleIds.size() == 0)
 			return;
 
-		String providerSearchUrlName = providerSearchUrlNameFor(feature.getFeatureId());
-		feature.setUrlName(providerSearchUrlName);
+		String bookingUrlName = feature.getFeatureId() == FeatureId.RESOURCE_NAVIGATOR && feature.getClinicId() != null
+				? format("/clinic-info/%s?featureId=%s", feature.getClinicId(), feature.getFeatureId())
+				: providerSearchUrlNameFor(feature.getFeatureId());
+		feature.setUrlName(bookingUrlName);
 
 		if (isLegacyCareUrlName(feature.getRecommendationBookingUrlOverride()))
-			feature.setRecommendationBookingUrlOverride(providerSearchUrlName);
+			feature.setRecommendationBookingUrlOverride(bookingUrlName);
 	}
 
 	@Nonnull

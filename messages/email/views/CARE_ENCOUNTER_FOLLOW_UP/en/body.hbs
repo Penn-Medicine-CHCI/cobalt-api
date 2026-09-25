@@ -12,23 +12,19 @@
 		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
 		<tr>
 			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:{{colors.n900}};">
-				<p style="margin:0 0 16px 0;">Hello{{#if patientFirstName}} {{patientFirstName}}{{/if}},</p>
+				{{#if patientFirstName}}<p style="margin:0 0 16px 0;">Hello {{patientFirstName}},</p>{{/if}}
 				{{#if appointmentDateDescription}}
 					<p style="margin:0 0 16px 0;">Thank you for attending your meeting with the Care Navigator on {{appointmentDateDescription}}.</p>
 				{{/if}}
 				<div>{{{customEmailText}}}</div>
 				<p style="margin:16px 0 0 0;">Please do not reply to this email. This mailbox is not monitored.{{#if careNavigatorBookingUrl}} If you have questions or would like additional support, please <a href="{{{careNavigatorBookingUrl}}}" target="_blank" style="color:{{colors.p500}}; text-decoration:underline;">schedule another Care Navigator call through {{platformName}}</a>.{{/if}}</p>
-				{{#if integratedCarePhoneNumberFormatted}}
-					<p style="margin:16px 0 0 0;">If you are experiencing a medical or mental health emergency, or are concerned about your immediate safety or the safety of someone else, please call 911 or 988 immediately. {{platformName}} employees may also contact the EAP 24/7 Crisis Line at {{integratedCarePhoneNumberFormatted}}.</p>
-				{{/if}}
+					{{#if careNavigatorCrisisPhoneNumber}}
+					<p style="margin:16px 0 0 0;">If you are experiencing a medical or mental health emergency, or are concerned about your immediate safety or the safety of someone else, please call 911 or 988 immediately. Penn Medicine employees may also contact the EAP 24/7 Crisis Line at {{careNavigatorCrisisPhoneNumber}}.</p>
+					{{/if}}
 				<p style="margin:16px 0 0 0;">Warmly,<br />The {{platformName}} Team</p>
 			</td>
 		</tr>
 	</table>
-{{/partial}}
-
-{{#partial "footer"}}
-	You are receiving this transactional email because you met with a Care Navigator through {{platformName}}.
 {{/partial}}
 
 {{> layouts/en/v2}}

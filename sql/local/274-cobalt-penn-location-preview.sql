@@ -52,22 +52,38 @@ WHERE institution_id = 'COBALT'
   AND institution_location_id = 'c898aa56-8d57-4555-b241-725e31f2a06c';
 
 UPDATE institution_location
-SET name = 'Lancaster General Health (LGH)', short_name = 'LGH', display_order = 4
+SET name = 'Lancaster General Health (LGH)', short_name = 'LGH', display_order = 4,
+    institution_location_group_id = (
+      SELECT institution_location_group_id FROM institution_location_group
+      WHERE institution_id = 'COBALT' AND name = 'University of Pennsylvania Health System (UPHS)'
+    )
 WHERE institution_id = 'COBALT'
   AND institution_location_id = 'f73191c8-be08-43f5-8a90-bd3ed1dd81ce';
 
 UPDATE institution_location
-SET name = 'Princeton Medical Center (PMC)', short_name = 'PMC', display_order = 5
+SET name = 'Princeton Medical Center (PMC)', short_name = 'PMC', display_order = 5,
+    institution_location_group_id = (
+      SELECT institution_location_group_id FROM institution_location_group
+      WHERE institution_id = 'COBALT' AND name = 'University of Pennsylvania Health System (UPHS)'
+    )
 WHERE institution_id = 'COBALT'
   AND institution_location_id = '70affd3f-dd74-4a95-99af-5a311c847c6e';
 
 UPDATE institution_location
-SET name = 'Doylestown', short_name = 'Doylestown', display_order = 6
+SET name = 'Doylestown', short_name = 'Doylestown', display_order = 6,
+    institution_location_group_id = (
+      SELECT institution_location_group_id FROM institution_location_group
+      WHERE institution_id = 'COBALT' AND name = 'University of Pennsylvania Health System (UPHS)'
+    )
 WHERE institution_id = 'COBALT'
   AND institution_location_id = 'a2dfa975-877b-4a7c-9a56-f3e0ea2f3bc5';
 
 UPDATE institution_location
-SET name = 'Chester County Hospital (CCH)', short_name = 'CCH', display_order = 7
+SET name = 'Chester County Hospital (CCH)', short_name = 'CCH', display_order = 7,
+    institution_location_group_id = (
+      SELECT institution_location_group_id FROM institution_location_group
+      WHERE institution_id = 'COBALT' AND name = 'University of Pennsylvania Health System (UPHS)'
+    )
 WHERE institution_id = 'COBALT'
   AND institution_location_id = 'd1fe3d12-c8ad-41b6-8f53-66c8ac1df381';
 

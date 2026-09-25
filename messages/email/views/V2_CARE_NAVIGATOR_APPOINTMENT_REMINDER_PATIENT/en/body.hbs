@@ -12,8 +12,14 @@
 		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
 		<tr>
 			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:16px; line-height:24px; color:{{colors.n900}};">
-				Hello{{#if patientName}} {{patientName}}{{/if}},<br /><br />
+				{{#if patientName}}Hello {{patientName}},<br /><br />{{/if}}
 				This is a reminder that your video appointment with a Care Navigator is scheduled for <strong>{{appointmentStartDateDescription}}</strong> at <strong>{{appointmentStartTimeDescription}}</strong>.
+			</td>
+		</tr>
+		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+		<tr>
+			<td align="left" style="font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; color:{{colors.n900}};">
+				If you are experiencing a medical or mental health emergency, or are concerned about your immediate safety or someone else's safety, please call 911 or 988 immediately.{{#if careNavigatorCrisisPhoneNumber}} Penn Medicine employees may also call the EAP 24/7 Crisis Line at {{careNavigatorCrisisPhoneNumber}}.{{/if}}
 			</td>
 		</tr>
 		<tr><td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>

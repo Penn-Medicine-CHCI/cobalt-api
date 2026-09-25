@@ -288,6 +288,8 @@ PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/265-onboarding
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/266-provider-booking-analytics.sql
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < updates/267-institution-location-group.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/269-ease-clinic-assessment-types.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/271-care-encounter-follow-up-link-clicks.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/272-screening-destination-content.sql
 
 # When the private production-derived bundle is available in the shared Cobalt
 # workspace, mirror the active PENN providers into local COBALT on every rebuild.
@@ -305,8 +307,11 @@ if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/271-cobalt-ic-ease.sql
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/272-cobalt-ic-ease-mhic-test-accounts.sql
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/273-cobalt-ic-ease-triage.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/276-cobalt-ic-ease-finalization.sql
 fi
 PGPASSWORD=password psql -U cobalt -h localhost -p 5501 < local/266-cobalt-employer-onboarding-single-question.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/277-cobalt-care-navigator-contact.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/278-cobalt-care-navigator-slots.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < local/267-cobalt-homepage-features.sql
 
 # The Penn location preview needs the private provider mirror imported above.

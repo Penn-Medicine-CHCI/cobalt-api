@@ -13,4 +13,12 @@ docker run --network localstack_default --rm cobalt-bootstrap:latest
 # when a developer does not have the private bundle.
 sh ./sql/local/import-penn-provider-mirror
 
+# The Penn location and onboarding previews depend on the private provider
+# import above, so they must run on the host after the container bootstrap.
+penn_provider_bundle_directory=${PENN_PROVIDER_MIRROR_BUNDLE_DIR:-"../penn-prod-provider-export-2026-09-11"}
+if [ -d "$penn_provider_bundle_directory" ]; then
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 -d cobalt < sql/local/274-cobalt-penn-location-preview.sql
+  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 -d cobalt < sql/local/275-cobalt-penn-onboarding-preview.sql
+fi
+
 echo "Bootstrap complete."
