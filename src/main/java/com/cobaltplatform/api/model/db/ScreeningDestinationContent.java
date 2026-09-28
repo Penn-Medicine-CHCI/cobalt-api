@@ -47,9 +47,17 @@ public class ScreeningDestinationContent {
 		return screeningFlowId;
 	}
 
+	public void setScreeningFlowId(@Nullable UUID screeningFlowId) {
+		this.screeningFlowId = screeningFlowId;
+	}
+
 	@Nullable
 	public String getScreeningSessionDestinationId() {
 		return screeningSessionDestinationId;
+	}
+
+	public void setScreeningSessionDestinationId(@Nullable String screeningSessionDestinationId) {
+		this.screeningSessionDestinationId = screeningSessionDestinationId;
 	}
 
 	@Nullable
@@ -57,9 +65,17 @@ public class ScreeningDestinationContent {
 		return title;
 	}
 
+	public void setTitle(@Nullable String title) {
+		this.title = title;
+	}
+
 	@Nullable
 	public String getMessage() {
 		return message;
+	}
+
+	public void setMessage(@Nullable String message) {
+		this.message = message;
 	}
 
 	@Nullable
@@ -67,9 +83,17 @@ public class ScreeningDestinationContent {
 		return actionUrl;
 	}
 
+	public void setActionUrl(@Nullable String actionUrl) {
+		this.actionUrl = actionUrl;
+	}
+
 	@Nullable
 	public String getActionText() {
 		return actionText;
+	}
+
+	public void setActionText(@Nullable String actionText) {
+		this.actionText = actionText;
 	}
 
 	@Nullable
@@ -77,8 +101,16 @@ public class ScreeningDestinationContent {
 		return contactName;
 	}
 
+	public void setContactName(@Nullable String contactName) {
+		this.contactName = contactName;
+	}
+
 	@Nullable
 	public String getContactPhone() {
 		return contactPhone;
+	}
+
+	public void setContactPhone(@Nullable String contactPhone) {
+		this.contactPhone = contactPhone;
 	}
 }
