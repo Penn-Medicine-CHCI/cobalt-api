@@ -47,6 +47,8 @@ public class Provider {
 	@Nullable
 	private String name;
 	@Nullable
+	private Integer searchDisplayOrder;
+	@Nullable
 	private String title;
 	@Nullable
 	private String entity;
@@ -152,6 +154,15 @@ public class Provider {
 
 	public void setName(@Nullable String name) {
 		this.name = name;
+	}
+
+	@Nullable
+	public Integer getSearchDisplayOrder() {
+		return searchDisplayOrder;
+	}
+
+	public void setSearchDisplayOrder(@Nullable Integer searchDisplayOrder) {
+		this.searchDisplayOrder = searchDisplayOrder;
 	}
 
 	@Nullable

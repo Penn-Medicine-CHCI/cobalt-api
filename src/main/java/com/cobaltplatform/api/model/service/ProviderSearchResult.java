@@ -178,6 +178,10 @@ public class ProviderSearchResult {
 		return name;
 	}
 
+	public int getSearchDisplayOrder() {
+		return provider == null || provider.getSearchDisplayOrder() == null ? 0 : provider.getSearchDisplayOrder();
+	}
+
 	@Nullable
 	public Provider getProvider() {
 		return provider;
