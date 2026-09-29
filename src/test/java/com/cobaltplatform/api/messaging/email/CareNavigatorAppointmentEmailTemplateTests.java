@@ -56,7 +56,7 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 		context.put("cancelUrl", CANCEL_URL);
 		context.put("appointmentCreatedPatientEmailBodyHtml", "<p>Bring your resource questions.</p>");
 		context.put("careNavigatorCrisisPhoneNumber", "1-888-321-4433");
-		context.put("careNavigatorBookingUrl", "https://cobalt.example/providers?featureId=RESOURCE_NAVIGATOR");
+		context.put("careNavigatorBookingUrl", "https://cobalt.example/clinic-info/clinic-id?featureId=RESOURCE_NAVIGATOR");
 
 		String createdSubject = render(EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT,
 				"subject", context).trim();
@@ -94,7 +94,7 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 		Assert.assertTrue(canceledBody.contains("Your Care Navigator appointment was canceled"));
 		Assert.assertTrue(canceledBody.contains("January 15, 2027"));
 		Assert.assertTrue(canceledBody.contains("10:30 AM"));
-		Assert.assertTrue(canceledBody.contains("https://cobalt.example/providers?featureId=RESOURCE_NAVIGATOR"));
+		Assert.assertTrue(canceledBody.contains("href=\"https://cobalt.example/clinic-info/clinic-id?featureId=RESOURCE_NAVIGATOR\""));
 		Assert.assertTrue(canceledBody.contains("1-888-321-4433"));
 		Assert.assertFalse(canceledBody.contains("Reason:"));
 		assertNoReplyAndBranding(canceledBody);

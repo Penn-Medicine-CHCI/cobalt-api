@@ -200,6 +200,7 @@ public class CareNavigatorBookingFixtureTests {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
 			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
 			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_CANCELED_APPOINTMENT_ID).get();
 			Account navigator = accountService.findAccountById(CARE_NAVIGATOR_ACCOUNT_ID).get();
@@ -215,6 +216,18 @@ public class CareNavigatorBookingFixtureTests {
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CANCELED_NAVIGATOR);
 			assertEquals(List.of(appointment.getEmailAddress()), patientEmail.getToAddresses());
 			assertEquals(List.of(navigator.getEmailAddress()), navigatorEmail.getToAddresses());
+			UUID bookingClinicId = database.queryForObject("""
+				SELECT c.clinic_id
+				FROM provider_clinic pc
+				JOIN clinic c ON c.clinic_id=pc.clinic_id
+				WHERE pc.provider_id=? AND c.appointment_booking_level_id='CLINIC'
+				ORDER BY pc.primary_clinic DESC, pc.created, pc.clinic_id
+				LIMIT 1
+				""", UUID.class, appointment.getProviderId()).get();
+			String patientWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
+					InstitutionId.COBALT, UserExperienceTypeId.PATIENT).get();
+			assertEquals(patientWebappBaseUrl.replaceAll("/+$", "") + "/clinic-info/" + bookingClinicId
+					+ "?featureId=RESOURCE_NAVIGATOR", patientEmail.getMessageContext().get("careNavigatorBookingUrl"));
 			assertTrue(patientEmail.getReplyToAddress().isEmpty());
 			assertTrue(navigatorEmail.getReplyToAddress().isEmpty());
 			assertCalendarAttachment(patientEmail, appointment.getVideoconferenceUrl(), navigator.getEmailAddress(), "METHOD:CANCEL");
