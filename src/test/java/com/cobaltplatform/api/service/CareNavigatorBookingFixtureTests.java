@@ -161,12 +161,8 @@ public class CareNavigatorBookingFixtureTests {
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT);
 			EmailMessage navigatorEmail = emailWithTemplate(emails,
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_NAVIGATOR);
-			String patientWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
-					InstitutionId.COBALT, UserExperienceTypeId.PATIENT).get();
 			String staffWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
 					InstitutionId.COBALT, UserExperienceTypeId.STAFF).get();
-			String patientAppointmentUrl = String.format("%s/appointments/%s", patientWebappBaseUrl,
-					appointment.getAppointmentId());
 			String staffAppointmentUrl = String.format("%s/scheduling/appointments/%s", staffWebappBaseUrl,
 					appointment.getAppointmentId());
 
@@ -174,10 +170,10 @@ public class CareNavigatorBookingFixtureTests {
 			assertEquals(List.of(navigator.getEmailAddress()), navigatorEmail.getToAddresses());
 			assertTrue(patientEmail.getReplyToAddress().isEmpty());
 			assertTrue(navigatorEmail.getReplyToAddress().isEmpty());
-			assertEquals(patientAppointmentUrl, patientEmail.getMessageContext().get("patientAppointmentUrl"));
+			assertEquals(appointment.getVideoconferenceUrl(), patientEmail.getMessageContext().get("joinAppointmentUrl"));
 			assertEquals(staffAppointmentUrl, navigatorEmail.getMessageContext().get("staffAppointmentUrl"));
-			assertCalendarAttachment(patientEmail, patientAppointmentUrl, navigator.getEmailAddress(), "METHOD:REQUEST");
-			assertCalendarAttachment(navigatorEmail, staffAppointmentUrl, navigator.getEmailAddress(), "METHOD:REQUEST");
+			assertCalendarAttachment(patientEmail, appointment.getVideoconferenceUrl(), navigator.getEmailAddress(), "METHOD:REQUEST");
+			assertCalendarAttachment(navigatorEmail, appointment.getVideoconferenceUrl(), navigator.getEmailAddress(), "METHOD:REQUEST");
 
 			Appointment updatedAppointment = appointmentService.findAppointmentById(appointment.getAppointmentId()).get();
 			assertNotNull(updatedAppointment.getPatientReminderScheduledMessageId());
@@ -204,7 +200,6 @@ public class CareNavigatorBookingFixtureTests {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
-			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
 			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
 			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_CANCELED_APPOINTMENT_ID).get();
 			Account navigator = accountService.findAccountById(CARE_NAVIGATOR_ACCOUNT_ID).get();
@@ -218,21 +213,12 @@ public class CareNavigatorBookingFixtureTests {
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CANCELED_PATIENT);
 			EmailMessage navigatorEmail = emailWithTemplate(emails,
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CANCELED_NAVIGATOR);
-			String patientWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
-					InstitutionId.COBALT, UserExperienceTypeId.PATIENT).get();
-			String staffWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
-					InstitutionId.COBALT, UserExperienceTypeId.STAFF).get();
-			String patientAppointmentUrl = String.format("%s/appointments/%s", patientWebappBaseUrl,
-					appointment.getAppointmentId());
-			String staffAppointmentUrl = String.format("%s/scheduling/appointments/%s", staffWebappBaseUrl,
-					appointment.getAppointmentId());
-
 			assertEquals(List.of(appointment.getEmailAddress()), patientEmail.getToAddresses());
 			assertEquals(List.of(navigator.getEmailAddress()), navigatorEmail.getToAddresses());
 			assertTrue(patientEmail.getReplyToAddress().isEmpty());
 			assertTrue(navigatorEmail.getReplyToAddress().isEmpty());
-			assertCalendarAttachment(patientEmail, patientAppointmentUrl, navigator.getEmailAddress(), "METHOD:CANCEL");
-			assertCalendarAttachment(navigatorEmail, staffAppointmentUrl, navigator.getEmailAddress(), "METHOD:CANCEL");
+			assertCalendarAttachment(patientEmail, appointment.getVideoconferenceUrl(), navigator.getEmailAddress(), "METHOD:CANCEL");
+			assertCalendarAttachment(navigatorEmail, appointment.getVideoconferenceUrl(), navigator.getEmailAddress(), "METHOD:CANCEL");
 		});
 	}
 
@@ -268,7 +254,6 @@ public class CareNavigatorBookingFixtureTests {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
 			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
-			InstitutionService institutionService = app.getInjector().getInstance(InstitutionService.class);
 			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
 			Appointment appointment = appointmentService.findAppointmentById(CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
 			Provider provider = providerService.findProviderById(appointment.getProviderId()).get();
@@ -286,13 +271,8 @@ public class CareNavigatorBookingFixtureTests {
 			assertEquals(1, emails.size());
 			EmailMessage patientEmail = emailWithTemplate(emails,
 					EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT);
-			String patientWebappBaseUrl = institutionService.findWebappBaseUrlByInstitutionIdAndUserExperienceTypeId(
-					InstitutionId.COBALT, UserExperienceTypeId.PATIENT).get();
-			String patientAppointmentUrl = String.format("%s/appointments/%s", patientWebappBaseUrl,
-					appointment.getAppointmentId());
-
 			assertEquals(List.of(appointment.getEmailAddress()), patientEmail.getToAddresses());
-			assertCalendarAttachment(patientEmail, patientAppointmentUrl, provider.getEmailAddress(), "METHOD:REQUEST");
+			assertCalendarAttachment(patientEmail, appointment.getVideoconferenceUrl(), provider.getEmailAddress(), "METHOD:REQUEST");
 			assertNotNull(appointmentService.findAppointmentById(appointment.getAppointmentId()).get()
 					.getPatientReminderScheduledMessageId());
 		});
