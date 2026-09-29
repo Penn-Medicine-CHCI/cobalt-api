@@ -41,6 +41,8 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 	@Nonnull
 	private static final String PATIENT_APPOINTMENT_URL = "https://cobalt.example/appointments/appointment-id";
 	@Nonnull
+	private static final String JOIN_APPOINTMENT_URL = "https://teams.example/join/appointment-id";
+	@Nonnull
 	private static final String CANCEL_URL = "https://cobalt.example/my-calendar?appointmentId=appointment-id&action=cancel";
 	@Nonnull
 	private static final String STAFF_APPOINTMENT_URL = "https://admin.cobalt.example/scheduling/appointments/appointment-id";
@@ -50,6 +52,7 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 		Map<String, Object> context = baseContext();
 		context.put("patientName", "Patient <One>");
 		context.put("patientAppointmentUrl", PATIENT_APPOINTMENT_URL);
+		context.put("joinAppointmentUrl", JOIN_APPOINTMENT_URL);
 		context.put("cancelUrl", CANCEL_URL);
 		context.put("appointmentCreatedPatientEmailBodyHtml", "<p>Bring your resource questions.</p>");
 		context.put("careNavigatorCrisisPhoneNumber", "1-888-321-4433");
@@ -73,7 +76,8 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 		Assert.assertFalse(createdBody.contains("Patient <One>"));
 		Assert.assertTrue(createdBody.contains("January 15, 2027"));
 		Assert.assertTrue(createdBody.contains("10:30 AM"));
-		Assert.assertTrue(createdBody.contains("href=\"" + PATIENT_APPOINTMENT_URL + "\""));
+		Assert.assertTrue(createdBody.contains("href=\"" + JOIN_APPOINTMENT_URL + "\""));
+		Assert.assertFalse(createdBody.contains("href=\"" + PATIENT_APPOINTMENT_URL + "\""));
 		Assert.assertTrue(createdBody.contains("href=\"" + CANCEL_URL + "\""));
 		Assert.assertTrue(createdBody.contains("<p>Bring your resource questions.</p>"));
 		Assert.assertTrue(createdBody.contains("1-888-321-4433"));
@@ -94,6 +98,17 @@ public class CareNavigatorAppointmentEmailTemplateTests {
 		Assert.assertTrue(canceledBody.contains("1-888-321-4433"));
 		Assert.assertFalse(canceledBody.contains("Reason:"));
 		assertNoReplyAndBranding(canceledBody);
+	}
+
+	@Test
+	public void olderQueuedConfirmationKeepsItsAppointmentPageLink() {
+		Map<String, Object> context = baseContext();
+		context.put("patientAppointmentUrl", PATIENT_APPOINTMENT_URL);
+
+		String body = render(EmailMessageTemplate.V2_CARE_NAVIGATOR_APPOINTMENT_CREATED_PATIENT,
+				"body", context);
+
+		Assert.assertTrue(body.contains("href=\"" + PATIENT_APPOINTMENT_URL + "\""));
 	}
 
 	@Test

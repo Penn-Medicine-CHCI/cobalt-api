@@ -22,7 +22,7 @@
 				<table border="0" cellspacing="0" cellpadding="0" role="presentation">
 					<tr>
 						<td align="center" bgcolor="{{colors.p500}}" style="background-color:{{colors.p500}}; border-radius:999px;">
-							<a href="{{{patientAppointmentUrl}}}" target="_blank" style="display:inline-block; font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; font-weight:600; color:#FFFFFF; text-decoration:none; padding:11px 21px; border-radius:999px;">Join appointment</a>
+							<a href="{{#if joinAppointmentUrl}}{{{joinAppointmentUrl}}}{{else}}{{{patientAppointmentUrl}}}{{/if}}" target="_blank" style="display:inline-block; font-family:'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size:14px; line-height:20px; font-weight:600; color:#FFFFFF; text-decoration:none; padding:11px 21px; border-radius:999px;">Join appointment</a>
 						</td>
 					</tr>
 				</table>
