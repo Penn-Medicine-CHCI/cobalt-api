@@ -541,6 +541,48 @@ public class ProviderServiceTests {
 	}
 
 	@Test
+	public void providerSearchResultsPlaceLowerPriorityProvidersAfterAlphabeticalResults() {
+		UUID firstProviderId = UUID.randomUUID();
+		UUID lastProviderId = UUID.randomUUID();
+		Provider firstProvider = providerWithPhone(firstProviderId, "Zebra");
+		Provider lastProvider = providerWithPhone(lastProviderId, "Alpha");
+		lastProvider.setSearchDisplayOrder(100);
+
+		List<ProviderSearchResult> results = ProviderService.providerSearchResultsFor(
+				List.of(providerFind(lastProviderId, "Alpha"), providerFind(firstProviderId, "Zebra")),
+				Map.of(firstProviderId, firstProvider, lastProviderId, lastProvider),
+				Map.of(), Map.of());
+
+		assertEquals(List.of(firstProviderId, lastProviderId), results.stream()
+				.map(ProviderSearchResult::getProviderSearchResultId).toList());
+	}
+
+	@Test
+	public void providerSearchDisplayOrderPreservesClinicsAndReferralProviders() {
+		UUID clinicProviderId = UUID.randomUUID();
+		UUID clinicId = UUID.randomUUID();
+		UUID referralProviderId = UUID.randomUUID();
+		UUID lowerPriorityProviderId = UUID.randomUUID();
+		Provider lowerPriorityProvider = providerWithPhone(lowerPriorityProviderId, "A LGH Coach");
+		lowerPriorityProvider.setSearchDisplayOrder(100);
+
+		List<ProviderSearchResult> results = ProviderService.providerSearchResultsFor(
+				List.of(providerFind(lowerPriorityProviderId, "A LGH Coach"),
+						providerFind(referralProviderId, "B Referral"),
+						providerFind(clinicProviderId, "C Clinic Member")),
+				Map.of(lowerPriorityProviderId, lowerPriorityProvider,
+						referralProviderId, provider(referralProviderId, "B Referral"),
+						clinicProviderId, provider(clinicProviderId, "C Clinic Member")),
+				Map.of(clinicProviderId, List.of(clinic(clinicId, "C Clinic", AppointmentBookingLevelId.CLINIC))),
+				Map.of(), Set.of(),
+				Map.of(referralProviderId, providerReferralBooking(referralProviderId, UUID.randomUUID(), null,
+						ProviderAppointmentModalityId.IN_PERSON)));
+
+		assertEquals(List.of(referralProviderId, clinicId, lowerPriorityProviderId), results.stream()
+				.map(ProviderSearchResult::getProviderSearchResultId).toList());
+	}
+
+	@Test
 	public void appointmentBookingScreeningKeysOnlyIncludeRequiredScreeningFlows() {
 		UUID providerId = UUID.randomUUID();
 		UUID noScreeningAppointmentTypeId = UUID.randomUUID();
