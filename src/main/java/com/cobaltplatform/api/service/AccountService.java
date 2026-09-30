@@ -46,6 +46,7 @@ import com.cobaltplatform.api.model.api.request.UpdateBetaFeatureAlertRequest;
 import com.cobaltplatform.api.model.api.request.UsernamePasswordAccessTokenRequest;
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.Account.StandardMetadata;
+import com.cobaltplatform.api.model.db.AccountCapabilityType.AccountCapabilityTypeId;
 import com.cobaltplatform.api.model.db.AccountInvite;
 import com.cobaltplatform.api.model.db.AccountLoginRule;
 import com.cobaltplatform.api.model.db.AccountSource;
@@ -940,6 +941,15 @@ public class AccountService {
 			throw validationException;
 
 		getDatabase().execute("UPDATE account SET role_id=?, provider_id=? WHERE account_id=?", roleId, providerId, accountId);
+	}
+
+	public void grantAccountCapabilities(@Nonnull UUID accountId, @Nonnull Set<AccountCapabilityTypeId> capabilityTypeIds) {
+		requireNonNull(accountId);
+		requireNonNull(capabilityTypeIds);
+
+		for (AccountCapabilityTypeId capabilityTypeId : capabilityTypeIds)
+			getDatabase().execute("INSERT INTO account_capability (account_id, account_capability_type_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+					accountId, capabilityTypeId);
 	}
 
 	@Nonnull

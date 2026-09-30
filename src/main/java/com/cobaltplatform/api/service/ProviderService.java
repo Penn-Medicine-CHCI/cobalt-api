@@ -1040,7 +1040,8 @@ public class ProviderService {
 		requireNonNull(providerSearchResults);
 
 		providerSearchResults.sort(Comparator
-				.comparing(ProviderSearchResult::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+				.comparingInt(ProviderSearchResult::getSearchDisplayOrder)
+				.thenComparing(ProviderSearchResult::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
 				.thenComparing(ProviderSearchResult::getProviderSearchResultTypeId)
 				.thenComparing(ProviderSearchResult::getProviderSearchResultId));
 	}

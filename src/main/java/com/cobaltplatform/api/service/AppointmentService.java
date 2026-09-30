@@ -98,6 +98,7 @@ import com.cobaltplatform.api.model.db.AttendanceStatus.AttendanceStatusId;
 import com.cobaltplatform.api.model.db.AuditLog;
 import com.cobaltplatform.api.model.db.AuditLogEvent.AuditLogEventId;
 import com.cobaltplatform.api.model.db.EpicDepartment;
+import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.FontSize.FontSizeId;
 import com.cobaltplatform.api.model.db.FootprintEventGroupType.FootprintEventGroupTypeId;
 import com.cobaltplatform.api.model.db.Institution;
@@ -3490,6 +3491,7 @@ public class AppointmentService {
 						provider.getInstitutionId(), UserExperienceTypeId.STAFF).get();
 		String patientAppointmentUrl = format("%s/appointments/%s", patientWebappBaseUrl, appointment.getAppointmentId());
 		String staffAppointmentUrl = format("%s/scheduling/appointments/%s", staffWebappBaseUrl, appointment.getAppointmentId());
+		String joinAppointmentUrl = firstNonNull(trimToNull(appointment.getVideoconferenceUrl()), patientAppointmentUrl);
 		String calendarOrganizerEmailAddress = firstNonNull(careNavigatorEmailAddress, provider.getEmailAddress());
 
 		if (patientEmailAddress != null) {
@@ -3499,6 +3501,7 @@ public class AppointmentService {
 			patientMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 			patientMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
 			patientMessageContext.put("patientAppointmentUrl", patientAppointmentUrl);
+			patientMessageContext.put("joinAppointmentUrl", joinAppointmentUrl);
 			patientMessageContext.put("cancelUrl", format("%s/my-calendar?appointmentId=%s&action=cancel",
 					patientWebappBaseUrl, appointment.getAppointmentId()));
 			patientMessageContext.put("appointmentCreatedPatientEmailBodyHtml", appointmentType == null ? null
@@ -3511,7 +3514,7 @@ public class AppointmentService {
 					.toAddresses(List.of(patientEmailAddress))
 					.messageContext(patientMessageContext)
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST,
-							patientAppointmentUrl, calendarOrganizerEmailAddress)))
+							joinAppointmentUrl, calendarOrganizerEmailAddress)))
 					.build();
 
 			getMessageService().enqueueMessage(patientEmailMessage);
@@ -3562,7 +3565,7 @@ public class AppointmentService {
 				.toAddresses(List.of(careNavigatorEmailAddress))
 				.messageContext(navigatorMessageContext)
 				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.REQUEST,
-						staffAppointmentUrl, careNavigatorEmailAddress)))
+						joinAppointmentUrl, careNavigatorEmailAddress)))
 				.build();
 
 		getMessageService().enqueueMessage(navigatorEmailMessage);
@@ -3574,6 +3577,7 @@ public class AppointmentService {
 		Account patient = getAccountService().findAccountById(appointment.getAccountId()).get();
 		Provider provider = getProviderService().findProviderById(appointment.getProviderId()).get();
 		Account careNavigator = findAssignedCareNavigatorForAppointment(appointment).orElse(null);
+		Institution institution = getInstitutionService().findInstitutionById(provider.getInstitutionId()).get();
 		String careNavigatorEmailAddress = careNavigator == null ? null : trimToNull(careNavigator.getEmailAddress());
 
 		if (careNavigatorEmailAddress != null && !isValidEmailAddress(careNavigatorEmailAddress))
@@ -3595,7 +3599,16 @@ public class AppointmentService {
 						provider.getInstitutionId(), UserExperienceTypeId.STAFF).get();
 		String patientAppointmentUrl = format("%s/appointments/%s", patientWebappBaseUrl, appointment.getAppointmentId());
 		String staffAppointmentUrl = format("%s/scheduling/appointments/%s", staffWebappBaseUrl, appointment.getAppointmentId());
+		String joinAppointmentUrl = firstNonNull(trimToNull(appointment.getVideoconferenceUrl()), patientAppointmentUrl);
 		String calendarOrganizerEmailAddress = firstNonNull(careNavigatorEmailAddress, provider.getEmailAddress());
+		String careNavigatorBookingPath = getInstitutionService().findFeaturesByInstitutionId(institution, patient).stream()
+				.filter(feature -> feature.getFeatureId() == FeatureId.RESOURCE_NAVIGATOR)
+				.map(feature -> trimToNull(feature.getUrlName()))
+				.filter(Objects::nonNull)
+				.findFirst().orElse(null);
+		String careNavigatorBookingUrl = careNavigatorBookingPath == null ? null
+				: patientWebappBaseUrl.replaceAll("/+$", "")
+				+ (careNavigatorBookingPath.startsWith("/") ? "" : "/") + careNavigatorBookingPath;
 
 		if (patientEmailAddress != null) {
 			Map<String, Object> patientMessageContext = new HashMap<>();
@@ -3603,11 +3616,8 @@ public class AppointmentService {
 			patientMessageContext.put("patientName", patientName);
 			patientMessageContext.put("appointmentStartDateDescription", appointmentStartDateDescription);
 			patientMessageContext.put("appointmentStartTimeDescription", appointmentStartTimeDescription);
-			patientMessageContext.put("careNavigatorCrisisPhoneNumber",
-					getInstitutionService().findInstitutionById(provider.getInstitutionId()).get()
-							.getCareNavigatorCrisisPhoneNumber());
-			patientMessageContext.put("careNavigatorBookingUrl", patientWebappBaseUrl.replaceAll("/+$", "")
-					+ "/providers?featureId=RESOURCE_NAVIGATOR");
+			patientMessageContext.put("careNavigatorCrisisPhoneNumber", institution.getCareNavigatorCrisisPhoneNumber());
+			patientMessageContext.put("careNavigatorBookingUrl", careNavigatorBookingUrl);
 			patientMessageContext.put("cancellationReason", trimToNull(appointment.getCancellationReason()));
 
 			EmailMessage patientEmailMessage = new EmailMessage.Builder(provider.getInstitutionId(),
@@ -3616,7 +3626,7 @@ public class AppointmentService {
 					.toAddresses(List.of(patientEmailAddress))
 					.messageContext(patientMessageContext)
 					.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL,
-							patientAppointmentUrl, calendarOrganizerEmailAddress)))
+							joinAppointmentUrl, calendarOrganizerEmailAddress)))
 					.build();
 
 			getMessageService().enqueueMessage(patientEmailMessage);
@@ -3643,7 +3653,7 @@ public class AppointmentService {
 				.toAddresses(List.of(careNavigatorEmailAddress))
 				.messageContext(navigatorMessageContext)
 				.emailAttachments(List.of(generateICalInviteAsEmailAttachment(appointment, InviteMethod.CANCEL,
-						staffAppointmentUrl, careNavigatorEmailAddress)))
+						joinAppointmentUrl, careNavigatorEmailAddress)))
 				.build();
 
 		getMessageService().enqueueMessage(navigatorEmailMessage);
