@@ -1211,9 +1211,6 @@ public class ProviderService {
 			if (visitTypeIds.size() > 0)
 				query.append(", provider_appointment_type pat, v_appointment_type at");
 
-			if (patientOrderId != null)
-				query.append(", patient_order po");
-
 			query.append(" WHERE p.institution_id=? AND p.active=TRUE");
 			parameters.add(institutionId);
 
@@ -1268,25 +1265,6 @@ public class ProviderService {
 				query.append(") ");
 			}
 
-			// If this is an IC order, only expose providers that are currently associated with the order's department.
-			// If there is an order-level department override, use it.
-			// Otherwise, if the order's department itself has a scheduling override department, use that one instead.
-			if (patientOrderId != null) {
-				UUID epicDepartmentIdForScheduling =
-						getPatientOrderService().findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
-
-				// Ensure only the providers in the specified department are shown
-				query.append("""
-						AND p.provider_id IN (
-						  SELECT ped.provider_id
-						  FROM provider_epic_department ped
-						  WHERE ped.epic_department_id=?
-						)
-						""");
-
-				parameters.add(epicDepartmentIdForScheduling);
-			}
-
 			query.append(" AND p.system_affinity_id=? ");
 			parameters.add(systemAffinityId);
 
@@ -1300,6 +1278,18 @@ public class ProviderService {
 			}
 		}
 
+		// Explicit pools constrain every selection path. Without a pool, preserve
+		// the legacy department filter for normal searches only: direct-provider
+		// and clinic searches did not apply that filter.
+		if (patientOrderId != null && ((providerId == null && clinicIds.isEmpty())
+				|| getPatientOrderService().hasProviderEligibilityPoolForPatientOrderId(patientOrderId))) {
+			Set<UUID> eligibleProviderIds =
+					getPatientOrderService().findEligibleProviderIdsForPatientOrderId(patientOrderId);
+			providers = providers.stream()
+					.filter(provider -> eligibleProviderIds.contains(provider.getProviderId()))
+					.collect(Collectors.toList());
+		}
+
 		// If we are pulling previous slots, discard any providers of EPIC_FHIR type because we can't ask Epic for that data
 		if (includePastAvailability)
 			providers = providers.stream()
@@ -1308,6 +1298,10 @@ public class ProviderService {
 
 		if (providers.size() == 0)
 			return Collections.emptyList();
+
+		UUID patientOrderSchedulingEpicDepartmentId = patientOrderId == null
+				? null
+				: getPatientOrderService().findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
 
 		// Single query to pull in all specialties for all providers in the resultset
 		Map<UUID, List<Specialty>> specialtiesByProviderId = specialtiesByProviderIdForInstitutionId(institutionId);
@@ -1477,13 +1471,8 @@ public class ProviderService {
 			datesCommand.setExcludedAppointmentId(request.getExcludedAppointmentId());
 
 			// For IC, we discard any availability slots that are not relevant for the order's scheduling Epic department
-			if (patientOrderId != null) {
-				UUID patientOrderEpicDepartmentId =
-						getPatientOrderService().findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
-
-				if (patientOrderEpicDepartmentId != null)
-					datesCommand.setEpicDepartmentIds(Set.of(patientOrderEpicDepartmentId));
-			}
+			if (patientOrderSchedulingEpicDepartmentId != null)
+				datesCommand.setEpicDepartmentIds(Set.of(patientOrderSchedulingEpicDepartmentId));
 
 			List<AvailabilityDate> dates = new ArrayList<>();
 

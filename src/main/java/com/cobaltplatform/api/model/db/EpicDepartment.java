@@ -51,6 +51,8 @@ public class EpicDepartment {
 	@Nullable
 	private UUID schedulingOverrideEpicDepartmentId;
 	@Nullable
+	private UUID providerEligibilityPoolId;
+	@Nullable
 	private Instant created;
 	@Nullable
 	private Instant lastUpdated;
@@ -134,6 +136,15 @@ public class EpicDepartment {
 
 	public void setSchedulingOverrideEpicDepartmentId(@Nullable UUID schedulingOverrideEpicDepartmentId) {
 		this.schedulingOverrideEpicDepartmentId = schedulingOverrideEpicDepartmentId;
+	}
+
+	@Nullable
+	public UUID getProviderEligibilityPoolId() {
+		return this.providerEligibilityPoolId;
+	}
+
+	public void setProviderEligibilityPoolId(@Nullable UUID providerEligibilityPoolId) {
+		this.providerEligibilityPoolId = providerEligibilityPoolId;
 	}
 
 	@Nullable

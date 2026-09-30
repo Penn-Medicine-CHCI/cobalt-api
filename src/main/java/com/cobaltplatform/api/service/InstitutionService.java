@@ -744,9 +744,26 @@ public class InstitutionService {
 
 	@Nonnull
 	public Optional<EpicDepartment> findEpicDepartmentByProviderIdAndTimeslot(@Nullable UUID providerId,
-																																						@Nullable LocalDateTime timeslot) {
+																								@Nullable LocalDateTime timeslot) {
+		return findEpicDepartmentByProviderIdAndTimeslot(providerId, timeslot, null);
+	}
+
+	@Nonnull
+	public Optional<EpicDepartment> findEpicDepartmentByProviderIdAndTimeslot(@Nullable UUID providerId,
+																								@Nullable LocalDateTime timeslot,
+																								@Nullable UUID epicDepartmentId) {
 		if (providerId == null || timeslot == null)
 			return Optional.empty();
+
+		if (epicDepartmentId != null)
+			return getDatabase().queryForObject("""
+					SELECT DISTINCT ed.*
+					FROM epic_department ed, provider_availability pa
+					WHERE pa.provider_id=?
+					AND pa.epic_department_id=?
+					AND pa.epic_department_id=ed.epic_department_id
+					AND pa.date_time=?
+					""", EpicDepartment.class, providerId, epicDepartmentId, timeslot);
 
 		return getDatabase().queryForObject("""
 				  SELECT DISTINCT ed.*

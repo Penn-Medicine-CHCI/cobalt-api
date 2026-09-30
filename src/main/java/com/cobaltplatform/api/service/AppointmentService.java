@@ -1627,13 +1627,19 @@ public class AppointmentService {
 		String videoconferenceUrl = null;
 		ZoneId timeZone = provider.getTimeZone();
 
-		// Integrated care handling.  If the institution is an IC institution, require appointments be tied to orders.
-		// Otherwise, it's not permitted to tie to orders.
+		// Preserve legacy IC order handling. Only explicit pools enable the new
+		// provider eligibility and scheduling-department checks during booking.
+		UUID providerEligibilityPoolId = null;
 		if (institution.getIntegratedCareEnabled()) {
 			if (patientOrderId == null)
 				throw new ValidationException(new FieldError("patientOrderId", getStrings().get("Patient Order ID is required.")));
 
-			// TODO: track event
+			providerEligibilityPoolId = getPatientOrderService().findProviderEligibilityPoolIdForPatientOrderId(patientOrderId).orElse(null);
+			if (providerEligibilityPoolId != null
+					&& !getPatientOrderService().isProviderEligibleForPatientOrderId(providerId, patientOrderId))
+				throw new IllegalStateException(format(
+						"Provider is not eligible for the patient order's provider pool: providerId=%s, patientOrderId=%s, providerEligibilityPoolId=%s",
+						providerId, patientOrderId, providerEligibilityPoolId));
 		} else {
 			patientOrderId = null;
 		}
@@ -1887,12 +1893,22 @@ public class AppointmentService {
 				EpicClient epicClient = enterprisePlugin.epicClientForBackendService().get();
 				account = getAccountService().findAccountById(accountId).get();
 
-				// Figure out the department for this provider and timeslot
-				EpicDepartment epicDepartment = getInstitutionService().findEpicDepartmentByProviderIdAndTimeslot(providerId, LocalDateTime.of(date, time)).orElse(null);
+				// Only pool-backed orders constrain the cached slot to the effective
+				// scheduling department. Non-pool orders retain legacy slot selection.
+				UUID schedulingEpicDepartmentId = providerEligibilityPoolId != null
+						? getPatientOrderService().findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId)
+						: null;
+				EpicDepartment epicDepartment = getInstitutionService().findEpicDepartmentByProviderIdAndTimeslot(
+						providerId, LocalDateTime.of(date, time), schedulingEpicDepartmentId).orElse(null);
 
-				// Should not occur...
-				if (epicDepartment == null)
-					throw new IllegalStateException(format("Cannot find an EPIC department for this provider/timeslot: %s / %s", providerId, LocalDateTime.of(date, time)));
+				if (epicDepartment == null) {
+					if (providerEligibilityPoolId == null)
+						throw new IllegalStateException(format("Cannot find an EPIC department for this provider/timeslot: %s / %s", providerId, LocalDateTime.of(date, time)));
+
+					throw new IllegalStateException(format(
+							"Cannot find a cached EPIC slot in the order's scheduling department: providerId=%s, patientOrderId=%s, providerEligibilityPoolId=%s, schedulingEpicDepartmentId=%s, timeslot=%s",
+							providerId, patientOrderId, providerEligibilityPoolId, schedulingEpicDepartmentId, LocalDateTime.of(date, time)));
+				}
 
 				epicDepartmentIdForFailure = trimToNull(epicDepartment.getDepartmentId());
 				epicDepartmentIdTypeForFailure = trimToNull(epicDepartment.getDepartmentIdType());

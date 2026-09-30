@@ -491,36 +491,114 @@ public class PatientOrderService implements AutoCloseable {
 	public UUID findSchedulingEpicDepartmentIdForPatientOrderId(@Nonnull UUID patientOrderId) {
 		requireNonNull(patientOrderId);
 
-		// Fail fast if the order doesn't exist
-		RawPatientOrder rawPatientOrder = findRawPatientOrderById(patientOrderId).get();
+		// Without a pool, an order-level override remains the final scheduling
+		// department. Pool-backed overrides select a pod whose schedules may live
+		// in a separate department.
+		return getDatabase().queryForObject("""
+				SELECT CASE
+					WHEN po.override_scheduling_epic_department_id IS NOT NULL
+					AND routing_epic_department.provider_eligibility_pool_id IS NULL
+					THEN po.override_scheduling_epic_department_id
+					ELSE COALESCE(routing_epic_department.scheduling_override_epic_department_id,
+					              routing_epic_department.epic_department_id)
+				END
+				FROM patient_order po
+				JOIN epic_department routing_epic_department
+				  ON routing_epic_department.epic_department_id=
+				     COALESCE(po.override_scheduling_epic_department_id, po.epic_department_id)
+				WHERE po.patient_order_id=?
+				""", UUID.class, patientOrderId).get();
+	}
 
-		// First, see if we have an order-level override and use that if so
-		UUID epicDepartmentIdForScheduling = rawPatientOrder.getOverrideSchedulingEpicDepartmentId();
+	/**
+	 * An explicit pool opts an order into pod selection and booking enforcement.
+	 * An assigned empty pool is still enabled; absence of a pool preserves legacy behavior.
+	 */
+	public boolean hasProviderEligibilityPoolForPatientOrderId(@Nonnull UUID patientOrderId) {
+		return findProviderEligibilityPoolIdForPatientOrderId(patientOrderId).isPresent();
+	}
 
-		// If no order-level override was found, pull from the order's department (which might have its own override)
-		if (epicDepartmentIdForScheduling == null) {
-			epicDepartmentIdForScheduling = getDatabase().queryForObject("""
-					SELECT COALESCE(ed.scheduling_override_epic_department_id, ed.epic_department_id) AS epic_department_id_for_scheduling
-					FROM epic_department ed, patient_order po
-					WHERE ed.epic_department_id=po.epic_department_id
-					AND po.patient_order_id=?
-					""", UUID.class, patientOrderId).get();
-		}
+	@Nonnull
+	public Optional<UUID> findProviderEligibilityPoolIdForPatientOrderId(@Nonnull UUID patientOrderId) {
+		requireNonNull(patientOrderId);
 
-		return epicDepartmentIdForScheduling;
+		return Optional.ofNullable(findRoutingEpicDepartmentForPatientOrderId(patientOrderId).getProviderEligibilityPoolId());
+	}
+
+	/**
+	 * Finds authoritative pool members, including an empty pool, or the legacy
+	 * department-mapped providers for normal discovery. Without a pool, this
+	 * list is not enforced for direct-provider/clinic discovery or booking.
+	 */
+	@Nonnull
+	public Set<UUID> findEligibleProviderIdsForPatientOrderId(@Nonnull UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		EpicDepartment routingEpicDepartment = findRoutingEpicDepartmentForPatientOrderId(patientOrderId);
+		UUID providerEligibilityPoolId = routingEpicDepartment.getProviderEligibilityPoolId();
+
+		if (providerEligibilityPoolId != null)
+			return new HashSet<>(getDatabase().queryForList("""
+					SELECT pepp.provider_id
+					FROM provider_eligibility_pool_provider pepp
+					JOIN provider_eligibility_pool pep
+					  ON pep.provider_eligibility_pool_id=pepp.provider_eligibility_pool_id
+					JOIN provider p ON p.provider_id=pepp.provider_id
+					WHERE pepp.provider_eligibility_pool_id=?
+					AND pep.institution_id=?
+					AND p.institution_id=?
+					""", UUID.class, providerEligibilityPoolId,
+					routingEpicDepartment.getInstitutionId(), routingEpicDepartment.getInstitutionId()));
+
+		UUID schedulingEpicDepartmentId = findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
+
+		return new HashSet<>(getDatabase().queryForList("""
+				SELECT ped.provider_id
+				FROM provider_epic_department ped
+				WHERE ped.epic_department_id=?
+				""", UUID.class, schedulingEpicDepartmentId));
+	}
+
+	public boolean isProviderEligibleForPatientOrderId(@Nonnull UUID providerId,
+																					 @Nonnull UUID patientOrderId) {
+		requireNonNull(providerId);
+		requireNonNull(patientOrderId);
+
+		return findEligibleProviderIdsForPatientOrderId(patientOrderId).contains(providerId);
+	}
+
+	@Nonnull
+	protected EpicDepartment findRoutingEpicDepartmentForPatientOrderId(@Nonnull UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		return getDatabase().queryForObject("""
+				SELECT routing_epic_department.*
+				FROM patient_order po
+				JOIN epic_department routing_epic_department
+				  ON routing_epic_department.epic_department_id=
+				     COALESCE(po.override_scheduling_epic_department_id, po.epic_department_id)
+				WHERE po.patient_order_id=?
+				""", EpicDepartment.class, patientOrderId).get();
 	}
 
 	@Nonnull
 	public Optional<String> findConnectWithSupportDescriptionOverrideForPatientOrderId(@Nonnull UUID patientOrderId) {
 		requireNonNull(patientOrderId);
 
-		UUID epicDepartmentIdForScheduling = findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
+		RawPatientOrder rawPatientOrder = findRawPatientOrderById(patientOrderId).get();
+		UUID epicDepartmentIdForDescription = rawPatientOrder.getOverrideSchedulingEpicDepartmentId();
+
+		// Preserve the existing copy-selection behavior: an order-level override's
+		// department owns the message even when its availability comes from a
+		// separate scheduling-override department.
+		if (epicDepartmentIdForDescription == null)
+			epicDepartmentIdForDescription = findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
 
 		return getDatabase().queryForObject("""
 				SELECT connect_with_support_description_override
 				FROM epic_department
 				WHERE epic_department_id=?
-				""", String.class, epicDepartmentIdForScheduling);
+				""", String.class, epicDepartmentIdForDescription);
 	}
 
 	@Nonnull
