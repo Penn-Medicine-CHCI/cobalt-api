@@ -1278,9 +1278,11 @@ public class ProviderService {
 			}
 		}
 
-		// Apply order eligibility after every provider-selection path so direct-provider,
-		// clinic, and normal searches cannot bypass the routing department's pool.
-		if (patientOrderId != null) {
+		// Explicit pools constrain every selection path. Without a pool, preserve
+		// the legacy department filter for normal searches only: direct-provider
+		// and clinic searches did not apply that filter.
+		if (patientOrderId != null && ((providerId == null && clinicIds.isEmpty())
+				|| getPatientOrderService().hasProviderEligibilityPoolForPatientOrderId(patientOrderId))) {
 			Set<UUID> eligibleProviderIds =
 					getPatientOrderService().findEligibleProviderIdsForPatientOrderId(patientOrderId);
 			providers = providers.stream()

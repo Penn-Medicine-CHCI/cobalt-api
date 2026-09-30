@@ -59,6 +59,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -254,6 +256,7 @@ public class PatientOrderProviderEligibilityTests {
 			UUID virtualDepartmentOrderId = insertOrder(database, patientOrderImportId, virtualSchedulingDepartmentId, null);
 			UUID selfSchedulingPoolOrderId = insertOrder(database, patientOrderImportId, selfSchedulingPoolDepartmentId, null);
 			UUID overriddenOrderId = insertOrder(database, patientOrderImportId, poolADepartmentId, poolBDepartmentId);
+			UUID legacyOverriddenOrderId = insertOrder(database, patientOrderImportId, poolADepartmentId, legacyDepartmentId);
 			LocalDateTime timeslot = LocalDate.now().plusDays(14).atTime(10, 0);
 
 			database.execute("""
@@ -274,6 +277,10 @@ public class PatientOrderProviderEligibilityTests {
 			assertEquals(Set.of(providerAId, providerBId),
 					patientOrderService.findEligibleProviderIdsForPatientOrderId(legacyOrderId));
 			assertTrue(patientOrderService.findEligibleProviderIdsForPatientOrderId(emptyPoolOrderId).isEmpty());
+			assertTrue(patientOrderService.hasProviderEligibilityPoolForPatientOrderId(emptyPoolOrderId));
+			assertFalse(patientOrderService.hasProviderEligibilityPoolForPatientOrderId(legacyOverriddenOrderId));
+			assertEquals(Set.of(providerAId, providerBId),
+					patientOrderService.findEligibleProviderIdsForPatientOrderId(legacyOverriddenOrderId));
 			assertTrue(patientOrderService.findEligibleProviderIdsForPatientOrderId(virtualDepartmentOrderId).isEmpty());
 			assertEquals(Set.of(providerAId),
 					patientOrderService.findEligibleProviderIdsForPatientOrderId(selfSchedulingPoolOrderId));
@@ -330,16 +337,69 @@ public class PatientOrderProviderEligibilityTests {
 			try {
 				appointmentService.createAppointment(appointmentRequest);
 				fail("Expected appointment creation to reject a provider outside the order's pool.");
-			} catch (ValidationException e) {
-				assertTrue(e.getFieldErrors().contains(new FieldError(
-						"providerId", "Provider ID is invalid for this patient order.")));
+			} catch (IllegalStateException e) {
+				assertTrue(e.getMessage().contains(providerBId.toString()));
+				assertTrue(e.getMessage().contains(poolAOrderId.toString()));
+				assertTrue(e.getMessage().contains(poolAId.toString()));
 			}
+			assertNull(epicClient.getLastGetProviderScheduleRequest());
+			assertNull(epicClient.getLastScheduleAppointmentRequest());
 
 			EpicDepartment selectedDepartment = institutionService.findEpicDepartmentByProviderIdAndTimeslot(
 					providerAId, timeslot, virtualSchedulingDepartmentId).get();
 			assertEquals(virtualSchedulingDepartmentId, selectedDepartment.getEpicDepartmentId());
 
 			appointmentRequest.setProviderId(providerAId);
+			appointmentRequest.setPatientOrderId(emptyPoolOrderId);
+			try {
+				appointmentService.createAppointment(appointmentRequest);
+				fail("Expected an assigned empty pool to reject booking even with cached availability.");
+			} catch (IllegalStateException e) {
+				assertTrue(e.getMessage().contains(providerAId.toString()));
+				assertTrue(e.getMessage().contains(emptyPoolOrderId.toString()));
+				assertTrue(e.getMessage().contains(emptyPoolId.toString()));
+			}
+			assertNull(epicClient.getLastScheduleAppointmentRequest());
+
+			appointmentRequest.setPatientOrderId(poolAOrderId);
+			database.execute("""
+					DELETE FROM provider_availability
+					WHERE provider_id=? AND date_time=? AND epic_department_id=?
+					""", providerAId, timeslot, virtualSchedulingDepartmentId);
+			try {
+				appointmentService.createAppointment(appointmentRequest);
+				fail("Expected a pool-backed order to reject a slot in the wrong scheduling department.");
+			} catch (IllegalStateException e) {
+				assertTrue(e.getMessage().contains(providerAId.toString()));
+				assertTrue(e.getMessage().contains(poolAOrderId.toString()));
+				assertTrue(e.getMessage().contains(poolAId.toString()));
+				assertTrue(e.getMessage().contains(virtualSchedulingDepartmentId.toString()));
+				assertTrue(e.getMessage().contains(timeslot.toString()));
+			}
+			assertNull(epicClient.getLastGetProviderScheduleRequest());
+			database.execute("""
+					INSERT INTO provider_availability (
+						provider_availability_id, provider_id, date_time, appointment_type_id, epic_department_id
+					) VALUES (?, ?, ?, ?, ?)
+					""", UUID.randomUUID(), providerAId, timeslot, appointmentTypeId, virtualSchedulingDepartmentId);
+
+			// A real availability race in Epic remains a user-facing validation
+			// error even though routing and the cached slot are consistent.
+			epicClient.setSlotAvailable(false);
+			try {
+				appointmentService.createAppointment(appointmentRequest);
+				fail("Expected a slot closed in Epic to return the normal availability error.");
+			} catch (ValidationException e) {
+				assertEquals(true, e.getMetadata().get("appointmentTimeslotUnavailable"));
+			}
+			assertEquals(selectedDepartment.getDepartmentId(),
+					epicClient.getLastGetProviderScheduleRequest().getDepartmentID());
+			assertNull(epicClient.getLastScheduleAppointmentRequest());
+			assertEquals(Long.valueOf(0), database.queryForObject(
+					"SELECT count(*) FROM appointment WHERE patient_order_id IN (?, ?)",
+					Long.class, poolAOrderId, emptyPoolOrderId).get());
+			epicClient.setSlotAvailable(true);
+
 			UUID appointmentId = appointmentService.createAppointment(appointmentRequest);
 			assertTrue(database.queryForObject("""
 					SELECT EXISTS (
@@ -357,6 +417,168 @@ public class PatientOrderProviderEligibilityTests {
 					epicClient.getLastScheduleAppointmentRequest().getDepartmentID());
 			assertEquals(selectedDepartment.getDepartmentIdType(),
 					epicClient.getLastScheduleAppointmentRequest().getDepartmentIDType());
+		}, new AbstractModule() {
+			@Override
+			protected void configure() {
+				bind(RecordingEpicClient.class).toInstance(epicClient);
+				bind(EnterprisePluginProvider.class).to(RecordingEnterprisePluginProvider.class);
+			}
+		});
+	}
+
+	@Test
+	public void picOrdersWithoutPoolsRetainLegacySearchAndBookingBehavior() {
+		assertLegacyNonPoolBehavior(InstitutionId.COBALT_IC);
+	}
+
+	@Test
+	public void easeOrdersWithoutPoolsRetainLegacySearchAndBookingBehavior() {
+		assertLegacyNonPoolBehavior(InstitutionId.COBALT_IC_EASE);
+	}
+
+	@Test
+	public void selfReferralOrdersWithoutPoolsRetainLegacySearchAndBookingBehavior() {
+		assertLegacyNonPoolBehavior(InstitutionId.COBALT_IC_SELF_REFERRAL);
+	}
+
+	private void assertLegacyNonPoolBehavior(InstitutionId institutionId) {
+		RecordingEpicClient epicClient = new RecordingEpicClient(LocalTime.of(10, 0));
+		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+			PatientOrderService patientOrderService = app.getInjector().getInstance(PatientOrderService.class);
+			ProviderService providerService = app.getInjector().getInstance(ProviderService.class);
+			AppointmentService appointmentService = app.getInjector().getInstance(AppointmentService.class);
+			AccountService accountService = app.getInjector().getInstance(AccountService.class);
+			assertTrue(app.getInjector().getInstance(InstitutionService.class)
+					.findInstitutionById(institutionId).get().getIntegratedCareEnabled());
+
+			UUID sourceDepartmentId = UUID.randomUUID();
+			UUID overrideDepartmentId = UUID.randomUUID();
+			UUID chainedDepartmentId = UUID.randomUUID();
+			UUID mappedProviderId = UUID.randomUUID();
+			UUID unmappedProviderId = UUID.randomUUID();
+			UUID otherInstitutionProviderId = UUID.randomUUID();
+			UUID appointmentTypeId = UUID.randomUUID();
+			UUID patientOrderImportId = UUID.randomUUID();
+			UUID clinicId = UUID.randomUUID();
+			UUID accountId = UUID.randomUUID();
+			LocalDateTime timeslot = LocalDate.now().plusDays(14).atTime(10, 0);
+
+			insertDepartment(database, institutionId, chainedDepartmentId, "TEST-CHAINED", null, null);
+			insertDepartment(database, institutionId, overrideDepartmentId, "TEST-OVERRIDE", chainedDepartmentId, null);
+			insertDepartment(database, institutionId, sourceDepartmentId, "TEST-SOURCE", overrideDepartmentId, null);
+			insertProvider(database, institutionId, mappedProviderId, "Test Mapped Provider");
+			insertProvider(database, institutionId, unmappedProviderId, "Test Unmapped Provider");
+			insertProvider(database, institutionId == InstitutionId.COBALT_IC_EASE
+					? InstitutionId.COBALT_IC : InstitutionId.COBALT_IC_EASE,
+					otherInstitutionProviderId, "Test Other Institution Provider");
+			database.execute("""
+					INSERT INTO appointment_type (
+						appointment_type_id, name, duration_in_minutes, scheduling_system_id,
+						epic_visit_type_id, epic_visit_type_id_type, visit_type_id
+					) VALUES (?, 'Test Legacy Epic Appointment', 60, 'EPIC', '1008', 'INTERNAL', 'INITIAL')
+					""", appointmentTypeId);
+			database.execute("""
+					INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order)
+					VALUES (?, ?, 1), (?, ?, 1), (?, ?, 1)
+					""", mappedProviderId, appointmentTypeId, unmappedProviderId, appointmentTypeId,
+					otherInstitutionProviderId, appointmentTypeId);
+			database.execute("""
+					INSERT INTO provider_epic_department (provider_id, epic_department_id, display_order)
+					VALUES (?, ?, 1), (?, ?, 1)
+					""", mappedProviderId, overrideDepartmentId, otherInstitutionProviderId, overrideDepartmentId);
+			database.execute("""
+					INSERT INTO clinic (clinic_id, description, institution_id)
+					VALUES (?, 'Test Legacy Clinic', ?)
+					""", clinicId, institutionId);
+			database.execute("""
+					INSERT INTO provider_clinic (provider_clinic_id, provider_id, clinic_id, primary_clinic)
+					VALUES (?, ?, ?, TRUE), (?, ?, ?, TRUE), (?, ?, ?, TRUE)
+					""", UUID.randomUUID(), mappedProviderId, clinicId,
+					UUID.randomUUID(), unmappedProviderId, clinicId,
+					UUID.randomUUID(), otherInstitutionProviderId, clinicId);
+			database.execute("""
+					INSERT INTO patient_order_import (
+						patient_order_import_id, patient_order_import_type_id, institution_id, raw_order
+					) VALUES (?, 'CSV', ?, '{}')
+					""", patientOrderImportId, institutionId);
+			UUID ordinaryOrderId = insertOrder(database, institutionId, patientOrderImportId, sourceDepartmentId, null);
+			UUID overriddenOrderId = insertOrder(database, institutionId, patientOrderImportId,
+					sourceDepartmentId, overrideDepartmentId);
+			database.execute("""
+					INSERT INTO account (
+						account_id, institution_id, role_id, account_source_id, first_name, last_name,
+						epic_patient_unique_id, epic_patient_unique_id_type
+					) VALUES (?, ?, 'PATIENT', 'EMAIL_PASSWORD', 'Test', 'Patient', ?, 'UID')
+					""", accountId, institutionId, "test-patient-" + accountId);
+			database.execute("""
+					INSERT INTO provider_availability (
+						provider_availability_id, provider_id, date_time, appointment_type_id, epic_department_id
+					) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)
+					""", UUID.randomUUID(), mappedProviderId, timeslot, appointmentTypeId, overrideDepartmentId,
+					UUID.randomUUID(), unmappedProviderId, timeslot, appointmentTypeId, chainedDepartmentId);
+			database.execute("""
+					INSERT INTO audit_log_event (audit_log_event_id, description)
+					VALUES ('EPIC_APPOINTMENT_CREATE', 'Create an Epic appointment')
+					ON CONFLICT (audit_log_event_id) DO NOTHING
+					""");
+			Account account = accountService.findAccountById(accountId).get();
+
+			// Department overrides are one-hop; an order override is the final
+			// department even when that department has its own scheduling override.
+			for (UUID orderId : List.of(ordinaryOrderId, overriddenOrderId)) {
+				assertFalse(patientOrderService.hasProviderEligibilityPoolForPatientOrderId(orderId));
+				assertEquals(overrideDepartmentId, patientOrderService.findSchedulingEpicDepartmentIdForPatientOrderId(orderId));
+				assertEquals(Set.of(mappedProviderId, otherInstitutionProviderId),
+						patientOrderService.findEligibleProviderIdsForPatientOrderId(orderId));
+				List<ProviderFind> normalResults = providerService.findProviders(
+						providerFindRequest(institutionId, orderId, null, Set.of()), account, false);
+				assertEquals(Set.of(mappedProviderId), providerIds(normalResults));
+				assertEquals(Set.of(overrideDepartmentId), availabilityEpicDepartmentIds(normalResults));
+				List<ProviderFind> directResults = providerService.findProviders(
+						providerFindRequest(institutionId, orderId, unmappedProviderId, Set.of()), account, false);
+				assertEquals(Set.of(unmappedProviderId), providerIds(directResults));
+				assertTrue(availabilityEpicDepartmentIds(directResults).isEmpty());
+				List<ProviderFind> clinicResults = providerService.findProviders(
+						providerFindRequest(institutionId, orderId, null, Set.of(clinicId)), account, false);
+				assertEquals(Set.of(mappedProviderId, unmappedProviderId), providerIds(clinicResults));
+				assertEquals(Set.of(overrideDepartmentId), availabilityEpicDepartmentIds(clinicResults));
+				// Candidate selection still prevents another institution's provider
+				// from leaking through shared department or clinic mappings.
+				assertTrue(providerService.findProviders(providerFindRequest(
+						institutionId, orderId, otherInstitutionProviderId, Set.of()), account, false).isEmpty());
+			}
+
+			CreateAppointmentRequest appointmentRequest = new CreateAppointmentRequest();
+			appointmentRequest.setAccountId(accountId);
+			appointmentRequest.setCreatedByAcountId(accountId);
+			appointmentRequest.setProviderId(unmappedProviderId);
+			appointmentRequest.setAppointmentTypeId(appointmentTypeId);
+			appointmentRequest.setDate(timeslot.toLocalDate());
+			appointmentRequest.setTime(timeslot.toLocalTime());
+			try {
+				appointmentService.createAppointment(appointmentRequest);
+				fail("Expected non-pool IC booking to continue requiring a patient order.");
+			} catch (ValidationException e) {
+				assertTrue(e.getFieldErrors().contains(new FieldError("patientOrderId", "Patient Order ID is required.")));
+			}
+
+			// Legacy booking does not require a department membership or constrain
+			// the cached slot to the order department. Preserve that behavior.
+			appointmentRequest.setPatientOrderId(overriddenOrderId);
+			UUID unmappedAppointmentId = appointmentService.createAppointment(appointmentRequest);
+			assertEquals(overriddenOrderId, database.queryForObject(
+					"SELECT patient_order_id FROM appointment WHERE appointment_id=?", UUID.class, unmappedAppointmentId).get());
+			String chainedEpicDepartmentId = "TEST-CHAINED-" + chainedDepartmentId;
+			assertEquals(chainedEpicDepartmentId, epicClient.getLastGetProviderScheduleRequest().getDepartmentID());
+			assertEquals(chainedEpicDepartmentId, epicClient.getLastScheduleAppointmentRequest().getDepartmentID());
+
+			appointmentRequest.setProviderId(mappedProviderId);
+			UUID mappedAppointmentId = appointmentService.createAppointment(appointmentRequest);
+			assertEquals(overriddenOrderId, database.queryForObject(
+					"SELECT patient_order_id FROM appointment WHERE appointment_id=?", UUID.class, mappedAppointmentId).get());
+			String overrideEpicDepartmentId = "TEST-OVERRIDE-" + overrideDepartmentId;
+			assertEquals(overrideEpicDepartmentId, epicClient.getLastScheduleAppointmentRequest().getDepartmentID());
 		}, new AbstractModule() {
 			@Override
 			protected void configure() {
@@ -391,6 +613,13 @@ public class PatientOrderProviderEligibilityTests {
 																String departmentId,
 																UUID schedulingOverrideEpicDepartmentId,
 																UUID providerEligibilityPoolId) {
+		insertDepartment(database, InstitutionId.COBALT_IC, epicDepartmentId, departmentId,
+				schedulingOverrideEpicDepartmentId, providerEligibilityPoolId);
+	}
+
+	private void insertDepartment(Database database, InstitutionId institutionId,
+																UUID epicDepartmentId, String departmentId,
+																UUID schedulingOverrideEpicDepartmentId, UUID providerEligibilityPoolId) {
 		database.execute("""
 				INSERT INTO epic_department (
 					epic_department_id,
@@ -401,13 +630,17 @@ public class PatientOrderProviderEligibilityTests {
 					scheduling_override_epic_department_id,
 					provider_eligibility_pool_id
 				) VALUES (?, ?, ?, 'INTERNAL', ?, ?, ?)
-				""", epicDepartmentId, InstitutionId.COBALT_IC,
+				""", epicDepartmentId, institutionId,
 				departmentId + "-" + epicDepartmentId, departmentId,
 				schedulingOverrideEpicDepartmentId, providerEligibilityPoolId);
 	}
 
 	private void insertProvider(Database database, UUID providerId, String name) {
-			database.execute("""
+		insertProvider(database, InstitutionId.COBALT_IC, providerId, name);
+	}
+
+	private void insertProvider(Database database, InstitutionId institutionId, UUID providerId, String name) {
+		database.execute("""
 				INSERT INTO provider (
 					provider_id,
 					institution_id,
@@ -418,7 +651,7 @@ public class PatientOrderProviderEligibilityTests {
 					epic_provider_id,
 					epic_provider_id_type
 				) VALUES (?, ?, ?, ?, 'EPIC', 'EXTERNAL', ?, 'INTERNAL')
-				""", providerId, InstitutionId.COBALT_IC, name,
+				""", providerId, institutionId, name,
 				"test-provider-" + providerId, providerId.toString());
 	}
 
@@ -426,6 +659,13 @@ public class PatientOrderProviderEligibilityTests {
 											 UUID patientOrderImportId,
 											 UUID epicDepartmentId,
 											 UUID overrideSchedulingEpicDepartmentId) {
+		return insertOrder(database, InstitutionId.COBALT_IC, patientOrderImportId,
+				epicDepartmentId, overrideSchedulingEpicDepartmentId);
+	}
+
+	private UUID insertOrder(Database database, InstitutionId institutionId,
+													 UUID patientOrderImportId, UUID epicDepartmentId,
+													 UUID overrideSchedulingEpicDepartmentId) {
 		UUID patientOrderId = UUID.randomUUID();
 
 		database.execute("""
@@ -442,7 +682,7 @@ public class PatientOrderProviderEligibilityTests {
 					epic_department_id,
 					override_scheduling_epic_department_id
 				) VALUES (?, ?, ?, 'Patient', 'Test', ?, ?, 'INTERNAL', ?, ?, ?)
-				""", patientOrderId, patientOrderImportId, InstitutionId.COBALT_IC,
+				""", patientOrderId, patientOrderImportId, institutionId,
 				"test-mrn-" + patientOrderId, "test-patient-" + patientOrderId,
 				"test-order-" + patientOrderId, epicDepartmentId, overrideSchedulingEpicDepartmentId);
 
@@ -452,10 +692,15 @@ public class PatientOrderProviderEligibilityTests {
 	private ProviderFindRequest providerFindRequest(UUID patientOrderId,
 																	 UUID providerId,
 																	 Set<UUID> clinicIds) {
+		return providerFindRequest(InstitutionId.COBALT_IC, patientOrderId, providerId, clinicIds);
+	}
+
+	private ProviderFindRequest providerFindRequest(InstitutionId institutionId, UUID patientOrderId,
+																	 UUID providerId, Set<UUID> clinicIds) {
 		ProviderFindRequest request = new ProviderFindRequest();
 		LocalDate date = LocalDate.now().plusDays(14);
 
-		request.setInstitutionId(InstitutionId.COBALT_IC);
+		request.setInstitutionId(institutionId);
 		request.setPatientOrderId(patientOrderId);
 		request.setProviderId(providerId);
 		request.setClinicIds(clinicIds);
@@ -483,7 +728,7 @@ public class PatientOrderProviderEligibilityTests {
 	@Singleton
 	public static class RecordingEnterprisePluginProvider extends EnterprisePluginProvider {
 		@Nonnull
-		private final EnterprisePlugin enterprisePlugin;
+		private final EpicClient epicClient;
 
 		@Inject
 		public RecordingEnterprisePluginProvider(@Nonnull Injector injector,
@@ -491,11 +736,21 @@ public class PatientOrderProviderEligibilityTests {
 																			@Nonnull javax.inject.Provider<CurrentContext> currentContextProvider,
 																			@Nonnull RecordingEpicClient epicClient) {
 			super(injector, configuration, currentContextProvider);
-			this.enterprisePlugin = new EnterprisePlugin() {
+			this.epicClient = epicClient;
+		}
+
+		@Nonnull
+		@Override
+		public EnterprisePlugin enterprisePluginForInstitutionId(@Nonnull InstitutionId institutionId) {
+			if (!Set.of(InstitutionId.COBALT_IC, InstitutionId.COBALT_IC_EASE,
+					InstitutionId.COBALT_IC_SELF_REFERRAL).contains(institutionId))
+				return super.enterprisePluginForInstitutionId(institutionId);
+
+			return new EnterprisePlugin() {
 				@Nonnull
 				@Override
 				public InstitutionId getInstitutionId() {
-					return InstitutionId.COBALT_IC;
+					return institutionId;
 				}
 
 				@Nonnull
@@ -505,20 +760,12 @@ public class PatientOrderProviderEligibilityTests {
 				}
 			};
 		}
-
-		@Nonnull
-		@Override
-		public EnterprisePlugin enterprisePluginForInstitutionId(@Nonnull InstitutionId institutionId) {
-			if (institutionId == InstitutionId.COBALT_IC)
-				return enterprisePlugin;
-
-			return super.enterprisePluginForInstitutionId(institutionId);
-		}
 	}
 
 	public static class RecordingEpicClient extends MockEpicClient {
 		@Nonnull
 		private final LocalTime openTime;
+		private boolean slotAvailable = true;
 		@Nullable
 		private GetProviderScheduleRequest lastGetProviderScheduleRequest;
 		@Nullable
@@ -526,6 +773,10 @@ public class PatientOrderProviderEligibilityTests {
 
 		public RecordingEpicClient(@Nonnull LocalTime openTime) {
 			this.openTime = openTime;
+		}
+
+		public void setSlotAvailable(boolean slotAvailable) {
+			this.slotAvailable = slotAvailable;
 		}
 
 		@Nonnull
@@ -541,7 +792,7 @@ public class PatientOrderProviderEligibilityTests {
 
 			GetProviderScheduleResponse.ScheduleSlot scheduleSlot = new GetProviderScheduleResponse.ScheduleSlot();
 			scheduleSlot.setStartTime("10:00 AM");
-			scheduleSlot.setAvailableOpenings("1");
+			scheduleSlot.setAvailableOpenings(slotAvailable ? "1" : "0");
 
 			GetProviderScheduleResponse response = new GetProviderScheduleResponse();
 			response.setScheduleSlots(List.of(scheduleSlot));

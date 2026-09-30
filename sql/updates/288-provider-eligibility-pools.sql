@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('273-provider-eligibility-pools', ARRAY['173-ic-department-scheduling-overrides'], NULL);
+SELECT _v.register_patch('288-provider-eligibility-pools', ARRAY['173-ic-department-scheduling-overrides'], NULL);
 
 -- A pool defines the providers that may be shown for an order routed through
 -- an Epic department. Availability still comes from the department used for

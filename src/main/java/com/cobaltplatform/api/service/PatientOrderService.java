@@ -491,17 +491,44 @@ public class PatientOrderService implements AutoCloseable {
 	public UUID findSchedulingEpicDepartmentIdForPatientOrderId(@Nonnull UUID patientOrderId) {
 		requireNonNull(patientOrderId);
 
-		EpicDepartment routingEpicDepartment = findRoutingEpicDepartmentForPatientOrderId(patientOrderId);
-
-		return routingEpicDepartment.getSchedulingOverrideEpicDepartmentId() == null
-				? routingEpicDepartment.getEpicDepartmentId()
-				: routingEpicDepartment.getSchedulingOverrideEpicDepartmentId();
+		// Without a pool, an order-level override remains the final scheduling
+		// department. Pool-backed overrides select a pod whose schedules may live
+		// in a separate department.
+		return getDatabase().queryForObject("""
+				SELECT CASE
+					WHEN po.override_scheduling_epic_department_id IS NOT NULL
+					AND routing_epic_department.provider_eligibility_pool_id IS NULL
+					THEN po.override_scheduling_epic_department_id
+					ELSE COALESCE(routing_epic_department.scheduling_override_epic_department_id,
+					              routing_epic_department.epic_department_id)
+				END
+				FROM patient_order po
+				JOIN epic_department routing_epic_department
+				  ON routing_epic_department.epic_department_id=
+				     COALESCE(po.override_scheduling_epic_department_id, po.epic_department_id)
+				WHERE po.patient_order_id=?
+				""", UUID.class, patientOrderId).get();
 	}
 
 	/**
-	 * Finds providers that may be shown and booked for an order. A pool assigned
-	 * to the routing department is authoritative, including when it is empty.
-	 * Departments without a pool retain the legacy scheduling-department rule.
+	 * An explicit pool opts an order into pod selection and booking enforcement.
+	 * An assigned empty pool is still enabled; absence of a pool preserves legacy behavior.
+	 */
+	public boolean hasProviderEligibilityPoolForPatientOrderId(@Nonnull UUID patientOrderId) {
+		return findProviderEligibilityPoolIdForPatientOrderId(patientOrderId).isPresent();
+	}
+
+	@Nonnull
+	public Optional<UUID> findProviderEligibilityPoolIdForPatientOrderId(@Nonnull UUID patientOrderId) {
+		requireNonNull(patientOrderId);
+
+		return Optional.ofNullable(findRoutingEpicDepartmentForPatientOrderId(patientOrderId).getProviderEligibilityPoolId());
+	}
+
+	/**
+	 * Finds authoritative pool members, including an empty pool, or the legacy
+	 * department-mapped providers for normal discovery. Without a pool, this
+	 * list is not enforced for direct-provider/clinic discovery or booking.
 	 */
 	@Nonnull
 	public Set<UUID> findEligibleProviderIdsForPatientOrderId(@Nonnull UUID patientOrderId) {
@@ -523,17 +550,13 @@ public class PatientOrderService implements AutoCloseable {
 					""", UUID.class, providerEligibilityPoolId,
 					routingEpicDepartment.getInstitutionId(), routingEpicDepartment.getInstitutionId()));
 
-		UUID schedulingEpicDepartmentId = routingEpicDepartment.getSchedulingOverrideEpicDepartmentId() == null
-				? routingEpicDepartment.getEpicDepartmentId()
-				: routingEpicDepartment.getSchedulingOverrideEpicDepartmentId();
+		UUID schedulingEpicDepartmentId = findSchedulingEpicDepartmentIdForPatientOrderId(patientOrderId);
 
 		return new HashSet<>(getDatabase().queryForList("""
 				SELECT ped.provider_id
 				FROM provider_epic_department ped
-				JOIN provider p ON p.provider_id=ped.provider_id
 				WHERE ped.epic_department_id=?
-				AND p.institution_id=?
-				""", UUID.class, schedulingEpicDepartmentId, routingEpicDepartment.getInstitutionId()));
+				""", UUID.class, schedulingEpicDepartmentId));
 	}
 
 	public boolean isProviderEligibleForPatientOrderId(@Nonnull UUID providerId,
