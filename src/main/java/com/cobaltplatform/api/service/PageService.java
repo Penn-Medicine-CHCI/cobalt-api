@@ -2917,7 +2917,8 @@ public class PageService {
 					  ifu.url AS image_url,
 					  p.name,
 					  p.page_id,
-					  p.url_name AS page_url_name
+					  p.url_name AS page_url_name,
+					  psl.short_description
 					FROM
 					  page p, page_site_location psl, file_upload ifu
 					WHERE

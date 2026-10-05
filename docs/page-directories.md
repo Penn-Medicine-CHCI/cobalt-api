@@ -113,6 +113,35 @@ navigation remains sourced from `institution.additionalNavigationItems` in its
 configured order. The frontend's Monthly Spotlight label continues using the
 existing Featured Topic placement source and legacy routes.
 
+## Curated Community navigation
+
+For page-based institutions, a `page_site_location` record with
+`site_location_id = 'COMMUNITY'` selects that page version for the Community
+dropdown. Add placements only after the institution supplies its selections.
+There is no selection UI or additional selection flag.
+
+Configure the existing placement fields in data:
+
+- `page_id`: the selected page version in the institution.
+- `display_order`: the curated navigation order (use distinct values).
+- `short_description`: supporting text, including the established supported HTML.
+- `publish_start_date` / `publish_end_date`: optional visibility window; the start
+  is inclusive and the end is exclusive.
+- `call_to_action` and `created_by_account_id`: existing required placement fields.
+
+Only live, non-deleted pages whose placement window is active appear in navigation.
+The page category remains independent: `page_location_id = 'COMMUNITY'` includes
+a published page in `/communities`, whether or not it has a Community placement.
+Categorizing a page does not select it for the dropdown. Editing copies inherit
+placements, including order, supporting text, and schedules; publishing the copy
+replaces the navigation entry with the newly published version.
+
+`institution.additionalNavigationItems` includes optional `shortDescription` from
+the placement. Legacy topic-center navigation retains its configured selection,
+order, routes, and analytics, and uses `nav_description` for `shortDescription`.
+Release this additive API response change before the consuming frontend. No new
+migration or example Community selections are needed.
+
 ## Migration and rollout
 
 1. Apply the single feature migration, `sql/updates/289-page-directory-locations.sql`,

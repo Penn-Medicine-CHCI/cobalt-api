@@ -220,6 +220,7 @@ public class PageDirectoryTests {
 		final String prefix = "directory-" + UUID.randomUUID();
 		final Database database;
 		final PageService service;
+		final TopicCenterService topicCenterService;
 		final PageResource resource;
 		final JsonMapper mapper;
 		final Account account;
@@ -228,6 +229,7 @@ public class PageDirectoryTests {
 		Fixture(App app) {
 			database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			service = app.getInjector().getInstance(PageService.class);
+			topicCenterService = app.getInjector().getInstance(TopicCenterService.class);
 			resource = app.getInjector().getInstance(PageResource.class);
 			mapper = app.getInjector().getInstance(JsonMapper.class);
 			UUID accountId = database.queryForObject("SELECT account_id FROM account WHERE institution_id='COBALT' ORDER BY created LIMIT 1", UUID.class).orElseThrow();

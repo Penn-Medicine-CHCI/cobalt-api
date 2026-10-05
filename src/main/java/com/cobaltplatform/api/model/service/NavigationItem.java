@@ -37,6 +37,8 @@ public class NavigationItem {
 	@Nullable
 	private String imageUrl;
 	@Nullable
+	private String shortDescription;
+	@Nullable
 	@Deprecated
 	private UUID topicCenterId;
 	@Nullable
@@ -78,6 +80,15 @@ public class NavigationItem {
 
 	public void setImageUrl(@Nullable String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	@Nullable
+	public String getShortDescription() {
+		return this.shortDescription;
+	}
+
+	public void setShortDescription(@Nullable String shortDescription) {
+		this.shortDescription = shortDescription;
 	}
 
 	@Nullable
