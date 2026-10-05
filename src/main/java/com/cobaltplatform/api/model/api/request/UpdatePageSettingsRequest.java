@@ -20,6 +20,7 @@
 package com.cobaltplatform.api.model.api.request;
 
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.PageLocation.PageLocationId;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -40,6 +41,18 @@ public class UpdatePageSettingsRequest {
 	private String name;
 	@Nullable
 	private String urlName;
+	@Nullable
+	private PageLocationId pageLocationId;
+
+	@Nullable
+	public PageLocationId getPageLocationId() {
+		return this.pageLocationId;
+	}
+
+	public void setPageLocationId(@Nullable PageLocationId pageLocationId) {
+		this.pageLocationId = pageLocationId;
+	}
+
 	@Nullable
 	public UUID getPageId() {
 		return pageId;

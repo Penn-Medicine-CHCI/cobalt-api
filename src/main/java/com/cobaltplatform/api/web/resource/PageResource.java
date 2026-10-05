@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.FindPublishedPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCallToActionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
@@ -57,6 +58,7 @@ import com.cobaltplatform.api.model.api.response.FileUploadResultApiResponse.Fil
 import com.cobaltplatform.api.model.api.response.MailingListApiResponse.MailingListApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.MailingListEntryApiResponse;
 import com.cobaltplatform.api.model.api.response.PageApiResponse.PageApiResponseFactory;
+import com.cobaltplatform.api.model.api.response.PageLocationApiResponse;
 import com.cobaltplatform.api.model.api.response.PageRowApiResponse.PageRowApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowColumnApiResponse.PageRowImageApiResponseFactory;
 import com.cobaltplatform.api.model.api.response.PageRowContentApiResponse.PageRowContentApiResponseFactory;
@@ -74,7 +76,9 @@ import com.cobaltplatform.api.model.api.response.PageUrlValidationResultApiRespo
 import com.cobaltplatform.api.model.db.Account;
 import com.cobaltplatform.api.model.db.FileUploadType;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
+import com.cobaltplatform.api.model.db.MailingListEntryType.MailingListEntryTypeId;
 import com.cobaltplatform.api.model.db.Page;
+import com.cobaltplatform.api.model.db.PageLocation.PageLocationId;
 import com.cobaltplatform.api.model.db.PageRow;
 import com.cobaltplatform.api.model.db.PageRowMailingList;
 import com.cobaltplatform.api.model.db.PageRowTag;
@@ -350,6 +354,41 @@ public class PageResource {
 		}});
 	}
 
+	@GET("/page-locations")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse pageLocations() {
+		return new ApiResponse(Map.of("pageLocations", getPageService().findPageLocations().stream()
+				.map(PageLocationApiResponse::new).collect(Collectors.toList())));
+	}
+
+	@GET("/pages/published")
+	@AuthenticationRequired
+	@ReadReplica
+	public ApiResponse publishedPages(@Nonnull @QueryParameter Optional<PageLocationId> pageLocationId,
+																	 @Nonnull @QueryParameter Optional<String> searchQuery,
+																	 @Nonnull @QueryParameter Optional<Integer> pageNumber,
+																	 @Nonnull @QueryParameter Optional<Integer> pageSize) {
+		requireNonNull(pageLocationId);
+		requireNonNull(searchQuery);
+		requireNonNull(pageNumber);
+		requireNonNull(pageSize);
+		Account account = getCurrentContext().getAccount().get();
+		FindPublishedPagesRequest request = new FindPublishedPagesRequest();
+		request.setInstitutionId(account.getInstitutionId());
+		request.setPageLocationId(pageLocationId.orElse(null));
+		request.setSearchQuery(searchQuery.orElse(null));
+		request.setPageNumber(pageNumber.orElse(null));
+		request.setPageSize(pageSize.orElse(null));
+		FindResult<Page> findResult = getPageService().findPublishedPages(request);
+		return new ApiResponse(new LinkedHashMap<String, Object>() {{
+			put("totalCount", findResult.getTotalCount());
+			put("totalCountDescription", getFormatter().formatNumber(findResult.getTotalCount()));
+			put("pages", findResult.getResults().stream()
+					.map(page -> getPageApiResponseFactory().create(page, false)).collect(Collectors.toList()));
+		}});
+	}
+
 	@GET("/page-site-locations")
 	@AuthenticationRequired
 	@ReadReplica
@@ -408,22 +447,29 @@ public class PageResource {
 		if (!getAuthorizationService().canManagePages(institutionId, account))
 			throw new AuthorizationException();
 
-		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), true);
+		Optional<Page> page = getPageService().findPageById(pageIdentifier, account.getInstitutionId(), false)
+				.or(() -> getPageService().findPageById(pageIdentifier, account.getInstitutionId(), true));
 
 		if (!page.isPresent())
 			throw new NotFoundException();
 
 		if (page.get().getPageStatusId().equals(PageStatus.PageStatusId.LIVE)) {
-			DuplicatePageRequest request = new DuplicatePageRequest();
-			request.setCreatedByAccountId(account.getAccountId());
-			request.setPageId(page.get().getPageId());
-			request.setName(page.get().getName());
-			request.setUrlName(page.get().getUrlName());
-			request.setCopyForEditing(true);
-			request.setPageStatusId(PageStatus.PageStatusId.COPY_FOR_EDITING);
+			Optional<Page> editingCopy = getPageService().findPageEditingCopy(
+					page.get().getPageId(), account.getAccountId(), institutionId);
+			if (editingCopy.isPresent()) {
+				page = editingCopy;
+			} else {
+				DuplicatePageRequest request = new DuplicatePageRequest();
+				request.setCreatedByAccountId(account.getAccountId());
+				request.setPageId(page.get().getPageId());
+				request.setName(page.get().getName());
+				request.setUrlName(page.get().getUrlName());
+				request.setCopyForEditing(true);
+				request.setPageStatusId(PageStatus.PageStatusId.COPY_FOR_EDITING);
 
-			UUID pageId = getPageService().duplicatePage(request, institutionId);
-			page = getPageService().findPageById(pageId, institutionId, true);
+				UUID pageId = getPageService().duplicatePage(request, institutionId);
+				page = getPageService().findPageById(pageId, institutionId, true);
+			}
 		}
 
 		final Page finalPage = page.get();
@@ -496,8 +542,10 @@ public class PageResource {
 	@GET("/page-row-mailing-lists/csv")
 	@AuthenticationRequired
 	public CustomResponse pageRowMailingListsCsv(@Nonnull @QueryParameter("pageId") String pageIdentifier,
+																							 @Nonnull @QueryParameter Optional<MailingListEntryTypeId> mailingListEntryTypeId,
 																							 @Nonnull HttpServletResponse httpServletResponse) throws IOException {
 		requireNonNull(pageIdentifier);
+		requireNonNull(mailingListEntryTypeId);
 		requireNonNull(httpServletResponse);
 
 		Account account = getCurrentContext().getAccount().get();
@@ -541,6 +589,8 @@ public class PageResource {
 				for (PageRowMailingListApiResponse pageRowMailingList : pageRowMailingLists) {
 
 					for (MailingListEntryApiResponse mailingListEntry : pageRowMailingList.getMailingListEntries()) {
+						if (mailingListEntryTypeId.isPresent() && mailingListEntry.getMailingListEntryTypeId() != mailingListEntryTypeId.get())
+							continue;
 						List<String> recordElements = new ArrayList<>();
 
 						recordElements.add(pageRowMailingList.getTitle());

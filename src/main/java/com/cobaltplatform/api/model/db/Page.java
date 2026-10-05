@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
+import com.cobaltplatform.api.model.db.PageLocation.PageLocationId;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,6 +43,14 @@ public class Page {
 	private String urlName;
 	@Nullable
 	private PageStatusId pageStatusId;
+	@Nullable
+	private PageLocationId pageLocationId;
+	@Nullable
+	private String pageLocationDescription;
+	@Nullable
+	private String pageStatusDescription;
+	@Nullable
+	private Boolean hasBeenPublished;
 	@Nullable
 	private String headline;
 	@Nullable
@@ -109,6 +118,42 @@ public class Page {
 
 	public void setPageStatusId(@Nullable PageStatusId pageStatusId) {
 		this.pageStatusId = pageStatusId;
+	}
+
+	@Nullable
+	public PageLocationId getPageLocationId() {
+		return this.pageLocationId;
+	}
+
+	public void setPageLocationId(@Nullable PageLocationId pageLocationId) {
+		this.pageLocationId = pageLocationId;
+	}
+
+	@Nullable
+	public String getPageLocationDescription() {
+		return this.pageLocationDescription;
+	}
+
+	public void setPageLocationDescription(@Nullable String pageLocationDescription) {
+		this.pageLocationDescription = pageLocationDescription;
+	}
+
+	@Nullable
+	public String getPageStatusDescription() {
+		return this.pageStatusDescription;
+	}
+
+	public void setPageStatusDescription(@Nullable String pageStatusDescription) {
+		this.pageStatusDescription = pageStatusDescription;
+	}
+
+	@Nullable
+	public Boolean getHasBeenPublished() {
+		return this.hasBeenPublished;
+	}
+
+	public void setHasBeenPublished(@Nullable Boolean hasBeenPublished) {
+		this.hasBeenPublished = hasBeenPublished;
 	}
 
 	@Nullable
