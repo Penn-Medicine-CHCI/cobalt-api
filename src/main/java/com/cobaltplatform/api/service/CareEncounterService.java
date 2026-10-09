@@ -537,8 +537,6 @@ public class CareEncounterService {
 		validateScheduledMessageType(request.getCareEncounterScheduledMessageTypeId(), validationException);
 		LocalDateTime scheduledAt = validateScheduledAt(request, validationException);
 		validateRecipientEmailAddress(careEncounter, validationException);
-		validateAttendedAppointmentForFollowUp(careEncounter, institutionId,
-				request.getCareEncounterScheduledMessageTypeId(), validationException);
 		if (careEncounter != null && hasPendingScheduledMessage(careEncounter.getCareEncounterId(),
 				request.getCareEncounterScheduledMessageTypeId()))
 			validationException.add(new FieldError("careEncounterScheduledMessageTypeId",
@@ -601,8 +599,6 @@ public class CareEncounterService {
 		validateScheduledMessageType(request.getCareEncounterScheduledMessageTypeId(), validationException);
 		LocalDateTime scheduledAt = validateScheduledAt(request, validationException);
 		validateRecipientEmailAddress(careEncounter, validationException);
-		validateAttendedAppointmentForFollowUp(careEncounter, institutionId,
-				request.getCareEncounterScheduledMessageTypeId(), validationException);
 		if (validationException.hasErrors())
 			throw validationException;
 
@@ -1477,24 +1473,6 @@ public class CareEncounterService {
 					getStrings().get("The Care Encounter must have an email address before a follow-up can be scheduled.")));
 		else if (!isValidEmailAddress(emailAddress))
 			validationException.add(new FieldError("emailAddress", getStrings().get("Email address is invalid.")));
-	}
-
-	protected void validateAttendedAppointmentForFollowUp(
-			@Nullable CareEncounter careEncounter,
-			@Nullable InstitutionId institutionId,
-			@Nullable CareEncounterScheduledMessageTypeId typeId,
-			@Nonnull ValidationException validationException) {
-		if (careEncounter == null || institutionId == null || typeId != CareEncounterScheduledMessageTypeId.FOLLOW_UP)
-			return;
-
-		Appointment appointment = findLatestAppointmentByCareEncounterIdForInstitutionId(
-				careEncounter.getCareEncounterId(), institutionId).orElse(null);
-		if (appointment == null
-				|| appointment.getAttendanceStatusId() != AttendanceStatusId.ATTENDED
-				|| Boolean.TRUE.equals(appointment.getCanceled())
-				|| Boolean.TRUE.equals(appointment.getCanceledForReschedule()))
-			validationException.add(new FieldError("attendanceStatusId", getStrings().get(
-					"A follow-up message can only be scheduled after the current appointment is marked Attended.")));
 	}
 
 	@Nullable
