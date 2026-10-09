@@ -65,6 +65,7 @@ import com.cobaltplatform.api.model.db.Feature.FeatureId;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.MessageLog;
+import com.cobaltplatform.api.model.db.MessageStatus.MessageStatusId;
 import com.cobaltplatform.api.model.db.Provider;
 import com.cobaltplatform.api.model.db.ScheduledMessageSource.ScheduledMessageSourceId;
 import com.cobaltplatform.api.model.db.ScheduledMessage;
@@ -1506,24 +1507,62 @@ public class CareNavigatorBookingFixtureTests {
 	}
 
 	@Test
-	public void encounterFollowUpRequiresCurrentAppointmentAttendance() {
+	public void encounterFollowUpCanBeScheduledEditedAndProcessedRegardlessOfAttendance() {
+		record Scenario(AttendanceStatusId attendanceStatusId, boolean canceledForReschedule) {}
+
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			CareEncounterService service = app.getInjector().getInstance(CareEncounterService.class);
+			MessageService messageService = app.getInjector().getInstance(MessageService.class);
+			EmailMessageSerializer emailMessageSerializer = app.getInjector().getInstance(EmailMessageSerializer.class);
 			UUID encounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
 			ZoneId timeZone = ZoneId.of("America/New_York");
-			int originalMessageCount = service.findCareEncounterScheduledMessagesByCareEncounterId(encounterId).size();
-			CreateCareEncounterScheduledMessageRequest request = scheduledFollowUpRequest(
-					LocalDate.now(timeZone).plusDays(1), LocalTime.of(9, 30), "<p>Premature follow-up.</p>");
 
-			ValidationException exception = assertThrows(ValidationException.class,
-					() -> service.createCareEncounterScheduledMessage(encounterId, InstitutionId.COBALT,
-							CARE_NAVIGATOR_ACCOUNT_ID, request));
+			for (Scenario scenario : List.of(
+					new Scenario(AttendanceStatusId.UNKNOWN, false),
+					new Scenario(AttendanceStatusId.MISSED, false),
+					new Scenario(AttendanceStatusId.ATTENDED, false),
+					new Scenario(AttendanceStatusId.CANCELED, false),
+					new Scenario(AttendanceStatusId.CANCELED, true))) {
+				resetAppointmentAsActive(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
+				if (scenario.attendanceStatusId() == AttendanceStatusId.CANCELED)
+					cancelAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID,
+							CARE_NAVIGATOR_ACCOUNT_ID, scenario.canceledForReschedule());
+				else
+					assertEquals(1, database.execute("UPDATE appointment SET attendance_status_id=? WHERE appointment_id=?",
+							scenario.attendanceStatusId(), CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID));
+				assertEquals("OPEN", careEncounterStatus(database, encounterId));
 
-			assertTrue(exception.getFieldErrors().stream()
-					.anyMatch(error -> error.getField().equals("attendanceStatusId")));
-			assertEquals(originalMessageCount,
-					service.findCareEncounterScheduledMessagesByCareEncounterId(encounterId).size());
+				CareEncounterScheduledMessage message = service.createCareEncounterScheduledMessage(encounterId,
+						InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, scheduledFollowUpRequest(
+								LocalDate.now(timeZone).plusDays(1), LocalTime.of(9, 30), "<p>Let's connect.</p>"));
+				assertEquals(ScheduledMessageStatusId.PENDING, message.getScheduledMessageStatusId());
+
+				String editedText = "<p>Here are some resources to help you get started.</p>";
+				CareEncounterScheduledMessage edited = service.updateCareEncounterScheduledMessage(encounterId,
+						message.getCareEncounterScheduledMessageId(), InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID,
+						scheduledFollowUpRequest(LocalDate.now(timeZone).minusDays(1), LocalTime.of(9, 30), editedText));
+				assertEquals(message.getMessageId(), edited.getMessageId());
+				assertEquals(ScheduledMessageStatusId.PENDING, edited.getScheduledMessageStatusId());
+				assertTrue(edited.getEmailBody().contains(editedText));
+				assertFalse(edited.getEmailBody().contains("Thank you for attending"));
+
+				messageService.getScheduledMessageTaskProvider().get().processPendingScheduledMessages();
+
+				CareEncounterScheduledMessage processed = service.findCareEncounterScheduledMessageById(
+						encounterId, message.getCareEncounterScheduledMessageId()).get();
+				assertEquals(scenario.toString(), ScheduledMessageStatusId.PROCESSED, processed.getScheduledMessageStatusId());
+				MessageLog messageLog = messageService.findMessageLogById(message.getMessageId()).get();
+				assertEquals(MessageStatusId.ENQUEUED, messageLog.getMessageStatusId());
+				EmailMessage email = emailMessageSerializer.deserializeMessage(messageLog.getSerializedMessage());
+				assertEquals(List.of(edited.getRecipientEmailAddress()), email.getToAddresses());
+				assertEquals(edited.getEmailBody(), email.getMessageContext().get("body"));
+				Appointment appointment = database.queryForObject("SELECT * FROM appointment WHERE appointment_id=?",
+						Appointment.class, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID).get();
+				assertEquals(scenario.attendanceStatusId(), appointment.getAttendanceStatusId());
+				assertEquals(scenario.attendanceStatusId() == AttendanceStatusId.CANCELED, appointment.getCanceled());
+				assertEquals(scenario.canceledForReschedule(), appointment.getCanceledForReschedule());
+			}
 		});
 	}
 
@@ -1573,29 +1612,68 @@ public class CareNavigatorBookingFixtureTests {
 	}
 
 	@Test
-	public void attendanceCorrectionCancelsPendingEncounterFollowUp() {
+	public void appointmentChangesPreservePendingEncounterFollowUp() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			CareEncounterService service = app.getInjector().getInstance(CareEncounterService.class);
 			UUID encounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID);
 			ZoneId timeZone = ZoneId.of("America/New_York");
-			CreateCareEncounterScheduledMessageRequest request = scheduledFollowUpRequest(
-					LocalDate.now(timeZone).plusDays(1), LocalTime.of(9, 30), "<p>Pending resources.</p>");
-			CareEncounterScheduledMessage message = service.createCareEncounterScheduledMessage(encounterId,
-					InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, request);
+			for (String change : List.of("MISSED", "UNKNOWN", "CANCELED", "RESCHEDULED")) {
+				resetAppointmentAsActive(database, CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID);
+				assertEquals(1, database.execute("UPDATE appointment SET attendance_status_id='ATTENDED' WHERE appointment_id=?",
+						CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID));
+				CareEncounterScheduledMessage message = service.createCareEncounterScheduledMessage(encounterId,
+						InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, scheduledFollowUpRequest(
+								LocalDate.now(timeZone).plusDays(1), LocalTime.of(9, 30), "<p>Pending resources.</p>"));
 
-			assertEquals(1, database.execute("""
-					UPDATE appointment
-					SET attendance_status_id='MISSED'
-					WHERE appointment_id=?
-					""", CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID));
+				if (change.equals("CANCELED") || change.equals("RESCHEDULED"))
+					cancelAppointment(database, CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID,
+							CARE_NAVIGATOR_ACCOUNT_ID, change.equals("RESCHEDULED"));
+				else
+					assertEquals(1, database.execute("UPDATE appointment SET attendance_status_id=? WHERE appointment_id=?",
+							change, CARE_NAVIGATOR_ATTENDED_APPOINTMENT_ID));
 
-			assertEquals("OPEN", careEncounterStatus(database, encounterId));
-			CareEncounterScheduledMessage canceledMessage = service.findCareEncounterScheduledMessageById(
-					encounterId, message.getCareEncounterScheduledMessageId()).get();
-			assertEquals(ScheduledMessageStatusId.CANCELED, canceledMessage.getScheduledMessageStatusId());
-			assertNotNull(canceledMessage.getCanceledAt());
+				assertEquals("OPEN", careEncounterStatus(database, encounterId));
+				CareEncounterScheduledMessage pendingMessage = service.findCareEncounterScheduledMessageById(
+						encounterId, message.getCareEncounterScheduledMessageId()).get();
+				assertEquals(change, ScheduledMessageStatusId.PENDING, pendingMessage.getScheduledMessageStatusId());
+				assertNull(pendingMessage.getCanceledAt());
+				service.deleteCareEncounterScheduledMessage(encounterId, message.getCareEncounterScheduledMessageId(),
+						InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID);
+			}
 		});
+	}
+
+	@Test
+	public void terminalEncounterChangesStillCancelPendingFollowUp() {
+		for (String change : List.of("CLOSED", "CANCELED", "DELETED")) {
+			IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
+				Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
+				CareEncounterService service = app.getInjector().getInstance(CareEncounterService.class);
+				UUID encounterId = careEncounterIdForAppointment(database, CARE_NAVIGATOR_ACTIVE_APPOINTMENT_ID);
+				ZoneId timeZone = ZoneId.of("America/New_York");
+				CareEncounterScheduledMessage message = service.createCareEncounterScheduledMessage(encounterId,
+						InstitutionId.COBALT, CARE_NAVIGATOR_ACCOUNT_ID, scheduledFollowUpRequest(
+								LocalDate.now(timeZone).plusDays(1), LocalTime.of(9, 30), "<p>Pending outreach.</p>"));
+
+				boolean canceled = change.equals("CANCELED");
+				assertEquals(1, database.execute("""
+						UPDATE care_encounter
+						SET care_encounter_status_id=?, deleted=?, closed_at=NOW(),
+							closed_by_account_id=?, canceled_by_account_id=?,
+							care_encounter_cancellation_reason_id=?
+						WHERE care_encounter_id=?
+						""", canceled ? "CANCELED" : "CLOSED", change.equals("DELETED"),
+						canceled ? null : CARE_NAVIGATOR_ACCOUNT_ID, canceled ? CARE_NAVIGATOR_ACCOUNT_ID : null,
+						canceled ? CareEncounterCancellationReasonId.UNABLE_TO_REACH_PATIENT : null, encounterId));
+
+				CareEncounterScheduledMessage canceledMessage = service.findCareEncounterScheduledMessageById(
+						encounterId, message.getCareEncounterScheduledMessageId()).get();
+				assertEquals(change, ScheduledMessageStatusId.CANCELED, canceledMessage.getScheduledMessageStatusId());
+				assertNotNull(canceledMessage.getCanceledAt());
+				assertFalse(canceledMessage.getDeleted());
+			});
+		}
 	}
 
 	@Test

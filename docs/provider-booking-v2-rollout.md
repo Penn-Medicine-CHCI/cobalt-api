@@ -322,6 +322,24 @@ COMMIT;
 Both updates must affect exactly one row. Roll back the transaction if either
 does not.
 
+## Care Navigator follow-up without attendance
+
+Apply `sql/updates/289-care-encounter-follow-up-without-attendance.sql` before
+deploying the API change that removes the follow-up attendance requirement.
+It depends on `262-care-navigator` and removes the appointment trigger that
+canceled pending follow-ups when attendance was corrected or the appointment
+was canceled or rescheduled.
+
+Navigators can create and edit follow-ups for any open encounter regardless of
+appointment attendance. Closing, canceling, or deleting the encounter still
+cancels pending messages. Recipient validation, message permissions, and the
+one-pending-follow-up limit continue to apply.
+
+New and edited emails use wording that does not assume a meeting took place.
+Already scheduled emails retain their saved content until edited. Previously
+canceled messages are not automatically reactivated; schedule a new follow-up
+on the open encounter when needed.
+
 ## Rollback
 
 The experience can be returned to V1 without deleting migrated screening
