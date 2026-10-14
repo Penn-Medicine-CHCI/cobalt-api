@@ -108,6 +108,7 @@ import com.cobaltplatform.api.model.db.InteractionType;
 import com.cobaltplatform.api.model.db.MicrosoftTeamsMeeting;
 import com.cobaltplatform.api.model.db.PatientOrderScheduledMessageType;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ProviderAppointmentType;
 import com.cobaltplatform.api.model.db.Question;
 import com.cobaltplatform.api.model.db.QuestionContentHint.QuestionContentHintId;
 import com.cobaltplatform.api.model.db.QuestionType.QuestionTypeId;
@@ -136,6 +137,7 @@ import com.cobaltplatform.api.model.service.ScreeningSessionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningAnswerResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningQuestionResult;
 import com.cobaltplatform.api.model.service.ScreeningSessionResult.ScreeningSessionScreeningResult;
+import com.cobaltplatform.api.util.AppointmentStartTimeAlignment;
 import com.cobaltplatform.api.util.Formatter;
 import com.cobaltplatform.api.util.JsonMapper;
 import com.cobaltplatform.api.util.Normalizer;
@@ -771,6 +773,28 @@ public class AppointmentService {
 		return getDatabase().queryForList("SELECT app_type.* FROM provider_appointment_type pat, v_appointment_type app_type " +
 				"WHERE pat.provider_id=? AND pat.appointment_type_id=app_type.appointment_type_id " +
 				"ORDER BY pat.display_order", AppointmentType.class, providerId);
+	}
+
+	/**
+	 * Returns provider-specific appointment type settings, separate from the shared appointment type.
+	 */
+	@Nonnull
+	public List<ProviderAppointmentType> findProviderAppointmentTypesByProviderId(@Nullable UUID providerId) {
+		if (providerId == null)
+			return Collections.emptyList();
+
+		return getDatabase().queryForList("SELECT * FROM provider_appointment_type WHERE provider_id=? ORDER BY display_order",
+				ProviderAppointmentType.class, providerId);
+	}
+
+	@Nonnull
+	public Optional<ProviderAppointmentType> findProviderAppointmentType(@Nullable UUID providerId,
+																																	 @Nullable UUID appointmentTypeId) {
+		if (providerId == null || appointmentTypeId == null)
+			return Optional.empty();
+
+		return getDatabase().queryForObject("SELECT * FROM provider_appointment_type WHERE provider_id=? AND appointment_type_id=?",
+				ProviderAppointmentType.class, providerId, appointmentTypeId);
 	}
 
 	@Nonnull
@@ -1523,6 +1547,17 @@ public class AppointmentService {
 
 		if (validationException.hasErrors())
 			throw validationException;
+
+		// Check the current pair configuration before account changes, meeting creation, or Epic calls.
+		// This also covers rescheduling, which uses this same appointment creation path.
+		if (provider.getSchedulingSystemId() == SchedulingSystemId.EPIC
+				&& appointmentType.getSchedulingSystemId() == SchedulingSystemId.EPIC) {
+			ProviderAppointmentType providerAppointmentType = findProviderAppointmentType(providerId, appointmentTypeId).orElse(null);
+
+			if (providerAppointmentType == null || !AppointmentStartTimeAlignment.isAllowed(time,
+					providerAppointmentType.getSchedulingStartTimeIntervalInMinutes()))
+				throw appointmentTimeslotUnavailableValidationException();
+		}
 
 		EnterprisePlugin enterprisePlugin = getEnterprisePluginProvider().enterprisePluginForInstitutionId(institution.getInstitutionId());
 
@@ -2943,11 +2978,22 @@ public class AppointmentService {
 						"name=?, description=?, duration_in_minutes=?, scheduling_system_id=?, hex_color=?, screening_flow_id=? WHERE appointment_type_id=?", visitTypeId, name,
 				description, durationInMinutes, schedulingSystemId, normalizedHexColor, appointmentTypeScreeningFlowId, appointmentTypeId);
 
-		getDatabase().execute("DELETE FROM provider_appointment_type WHERE provider_id=? AND appointment_type_id=?", providerId, appointmentTypeId);
+		// Preserve provider-specific scheduling settings and the association ID on ordinary edits.
+		// Keep the existing behavior of moving an edited appointment type to the end of the list.
+		long updatedProviderAppointmentTypes = getDatabase().execute("""
+				UPDATE provider_appointment_type
+				SET display_order=(
+					SELECT COALESCE(MAX(display_order) + 1, 1)
+					FROM provider_appointment_type
+					WHERE provider_id=? AND appointment_type_id<>?
+				)
+				WHERE provider_id=? AND appointment_type_id=?
+				""", providerId, appointmentTypeId, providerId, appointmentTypeId);
 
-		getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
-						"SELECT ?,?, COALESCE(MAX(display_order) + 1, 1) FROM provider_appointment_type WHERE provider_id=?",
-				providerId, appointmentTypeId, providerId);
+		if (updatedProviderAppointmentTypes == 0)
+			getDatabase().execute("INSERT INTO provider_appointment_type (provider_id, appointment_type_id, display_order) " +
+							"SELECT ?,?, COALESCE(MAX(display_order) + 1, 1) FROM provider_appointment_type WHERE provider_id=?",
+					providerId, appointmentTypeId, providerId);
 
 		boolean hasInlineAssessmentQuestions = patientIntakeQuestions.size() > 0 || screeningQuestions.size() > 0;
 		boolean replaceLegacyAssessment = hasInlineAssessmentQuestions

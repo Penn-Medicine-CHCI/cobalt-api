@@ -36,12 +36,14 @@ import com.cobaltplatform.api.model.db.EpicAppointmentFilter.EpicAppointmentFilt
 import com.cobaltplatform.api.model.db.EpicDepartment;
 import com.cobaltplatform.api.model.db.Institution;
 import com.cobaltplatform.api.model.db.Provider;
+import com.cobaltplatform.api.model.db.ProviderAppointmentType;
 import com.cobaltplatform.api.model.db.SchedulingSystem.SchedulingSystemId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.service.AppointmentService;
 import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.ProviderService;
 import com.cobaltplatform.api.service.SystemService;
+import com.cobaltplatform.api.util.AppointmentStartTimeAlignment;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -77,6 +79,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -427,6 +430,10 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 				.filter(appointmentType -> appointmentType.getSchedulingSystemId().equals(SchedulingSystemId.EPIC) && provider.getActive())
 				.collect(Collectors.toList());
 
+		Map<UUID, ProviderAppointmentType> providerAppointmentTypesByAppointmentTypeId =
+				getAppointmentService().findProviderAppointmentTypesByProviderId(provider.getProviderId()).stream()
+						.collect(Collectors.toMap(ProviderAppointmentType::getAppointmentTypeId, Function.identity()));
+
 		if (appointmentTypes.size() > 1 && provider.getEpicAppointmentFilterId().equals(EpicAppointmentFilterId.MANUAL_VISIT_TYPE))
 			throw new IllegalStateException(format("Provider ID %s has more than 1 visit type, which is incompatible with %s.%s",
 					provider.getProviderId(), EpicAppointmentFilterId.class.getSimpleName(), EpicAppointmentFilterId.MANUAL_VISIT_TYPE.name()));
@@ -499,6 +506,13 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 					// Now that we know what slots are blocked off as unbookable, figure out what actually is bookable
 					for (ScheduleSlot scheduleSlot : scheduleSlots) {
 						LocalTime startTime = epicClient.parseTimeAmPm(scheduleSlot.getStartTime());
+						ProviderAppointmentType providerAppointmentType = providerAppointmentTypesByAppointmentTypeId.get(appointmentType.getAppointmentTypeId());
+
+						// Filter candidate starts only after retaining every held/unavailable range above.
+						if (!AppointmentStartTimeAlignment.isAllowed(startTime, providerAppointmentType == null
+								? null : providerAppointmentType.getSchedulingStartTimeIntervalInMinutes()))
+							continue;
+
 						Integer availableOpenings = Integer.valueOf(scheduleSlot.getAvailableOpenings());
 						LocalDateTime dateTime = LocalDateTime.of(date, startTime);
 
@@ -582,6 +596,12 @@ public class EpicSyncManager implements ProviderAvailabilitySyncManager, AutoClo
 
 						if (!held && !unavailable) {
 							for (AppointmentType currentAppointmentType : currentAppointmentTypes) {
+								ProviderAppointmentType providerAppointmentType = providerAppointmentTypesByAppointmentTypeId.get(currentAppointmentType.getAppointmentTypeId());
+
+								if (!AppointmentStartTimeAlignment.isAllowed(startTime, providerAppointmentType == null
+										? null : providerAppointmentType.getSchedulingStartTimeIntervalInMinutes()))
+									continue;
+
 								ProviderAvailabilityDateInsertRow row = new ProviderAvailabilityDateInsertRow();
 								row.setAppointmentTypeId(currentAppointmentType.getAppointmentTypeId());
 								row.setDateTime(dateTime);

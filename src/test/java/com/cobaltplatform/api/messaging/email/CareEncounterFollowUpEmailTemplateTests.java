@@ -57,6 +57,9 @@ public class CareEncounterFollowUpEmailTemplateTests {
 		Assert.assertTrue(body.contains("Jordan &lt;Lee&gt;"));
 		Assert.assertFalse(body.contains("Jordan <Lee>"));
 		Assert.assertTrue(body.contains(customEmailText));
+		Assert.assertFalse(body.contains("Thank you for attending"));
+		Assert.assertFalse(body.contains("Sep 9, 2026"));
+		Assert.assertTrue(body.contains("schedule a Care Navigator call through Cobalt"));
 		Assert.assertTrue(body.contains("href=\"https://example.com/providers?featureId=RESOURCE_NAVIGATOR\""));
 		Assert.assertTrue(body.contains("Please do not reply to this email. This mailbox is not monitored."));
 		Assert.assertTrue(body.contains("href=\"https://example.com/privacy\""));
