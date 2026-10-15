@@ -95,6 +95,8 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final Boolean featuresEnabled;
 	@Nonnull
+	private final Boolean pageDirectoriesEnabled;
+	@Nonnull
 	private final Boolean bookingV2Enabled;
 	@Nonnull
 	private final Boolean recommendedContentEnabled;
@@ -334,6 +336,7 @@ public class InstitutionApiResponse {
 		this.immediateAccessEnabled = institution.getImmediateAccessEnabled();
 		this.contactUsEnabled = institution.getContactUsEnabled();
 		this.featuresEnabled = institution.getFeaturesEnabled();
+		this.pageDirectoriesEnabled = Boolean.TRUE.equals(institution.getPageDirectoriesEnabled());
 		this.bookingV2Enabled = institutionService.isBookingV2Enabled(institution);
 		this.recommendedContentEnabled = institution.getRecommendedContentEnabled();
 		this.userSubmittedContentEnabled = institution.getUserSubmittedContentEnabled();
@@ -535,6 +538,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public Boolean getFeaturesEnabled() {
 		return this.featuresEnabled;
+	}
+
+	@Nonnull
+	public Boolean getPageDirectoriesEnabled() {
+		return this.pageDirectoriesEnabled;
 	}
 
 	@Nonnull

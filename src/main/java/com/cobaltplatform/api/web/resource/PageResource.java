@@ -92,6 +92,7 @@ import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.PageSiteLocation;
 import com.cobaltplatform.api.model.service.PageUrlValidationResult;
 import com.cobaltplatform.api.service.AuthorizationService;
+import com.cobaltplatform.api.service.InstitutionService;
 import com.cobaltplatform.api.service.MailingListService;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
@@ -180,6 +181,8 @@ public class PageResource {
 	@Nonnull
 	private final PageService pageService;
 	@Nonnull
+	private final InstitutionService institutionService;
+	@Nonnull
 	private final MailingListService mailingListService;
 	@Nonnull
 	private final Formatter formatter;
@@ -192,6 +195,7 @@ public class PageResource {
 	public PageResource(@Nonnull RequestBodyParser requestBodyParser,
 											@Nonnull Provider<CurrentContext> currentContextProvider,
 											@Nonnull PageService pageService,
+											@Nonnull InstitutionService institutionService,
 											@Nonnull MailingListService mailingListService,
 											@Nonnull PageApiResponseFactory pageApiResponseFactory,
 											@Nonnull PageSectionApiResponseFactory pageSectionApiResponseFactory,
@@ -215,6 +219,7 @@ public class PageResource {
 		requireNonNull(requestBodyParser);
 		requireNonNull(currentContextProvider);
 		requireNonNull(pageService);
+		requireNonNull(institutionService);
 		requireNonNull(mailingListService);
 		requireNonNull(pageApiResponseFactory);
 		requireNonNull(pageSectionApiResponseFactory);
@@ -239,6 +244,7 @@ public class PageResource {
 		this.requestBodyParser = requestBodyParser;
 		this.currentContextProvider = currentContextProvider;
 		this.pageService = pageService;
+		this.institutionService = institutionService;
 		this.mailingListService = mailingListService;
 		this.pageApiResponseFactory = pageApiResponseFactory;
 		this.pageSectionApiResponseFactory = pageSectionApiResponseFactory;
@@ -374,6 +380,9 @@ public class PageResource {
 		requireNonNull(pageNumber);
 		requireNonNull(pageSize);
 		Account account = getCurrentContext().getAccount().get();
+		if (!this.institutionService.isPageDirectoriesEnabled(account.getInstitutionId()))
+			throw new NotFoundException();
+
 		FindPublishedPagesRequest request = new FindPublishedPagesRequest();
 		request.setInstitutionId(account.getInstitutionId());
 		request.setPageLocationId(pageLocationId.orElse(null));

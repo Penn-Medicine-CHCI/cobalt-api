@@ -244,13 +244,18 @@ public class PageService {
 		requireNonNull(institutionId);
 
 		return getDatabase().queryForObject("""
-				SELECT *
-				FROM v_page
-				WHERE parent_page_id = ?
-				AND created_by_account_id = ?
-				AND institution_id = ?
-				AND page_status_id = ?
-				ORDER BY last_updated DESC, created DESC, page_id
+				SELECT editing.*
+				FROM v_page editing
+				JOIN v_page published ON published.page_id = editing.parent_page_id
+				  AND published.institution_id = editing.institution_id
+				  AND published.page_group_id = editing.page_group_id
+				  AND published.page_status_id = 'LIVE'
+				  AND published.published_date = editing.published_date
+				WHERE editing.parent_page_id = ?
+				AND editing.created_by_account_id = ?
+				AND editing.institution_id = ?
+				AND editing.page_status_id = ?
+				ORDER BY editing.last_updated DESC, editing.created DESC, editing.page_id
 				LIMIT 1
 				""", Page.class, parentPageId, createdByAccountId, institutionId, PageStatusId.COPY_FOR_EDITING);
 	}
@@ -688,6 +693,7 @@ public class PageService {
 		requireNonNull(pageId);
 		requireNonNull(institutionId);
 
+		lockPageForPublicationChange(pageId, institutionId);
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 		ValidationException validationException = new ValidationException();
 
@@ -707,6 +713,10 @@ public class PageService {
 				validationException.add(new FieldError("page", getStrings().get(
 						format("Could not publish this page because there is a more recent version of this page published by %s on %s. Please close this window and re-edit the page.", account.get().getDisplayName(),
 								formatter.formatTimestampDescription(livePage.get().getLastUpdated())))));
+			} else if (page.get().getPageStatusId() == PageStatusId.COPY_FOR_EDITING
+					&& !isCurrentPageEditingCopy(pageId, institutionId)) {
+				validationException.add(new FieldError("page", getStrings().get(
+						"Could not publish this page because its published version has changed. Please close this window and re-edit the page.")));
 			}
 		}
 
@@ -739,6 +749,7 @@ public class PageService {
 		requireNonNull(pageId);
 		requireNonNull(institutionId);
 
+		lockPageForPublicationChange(pageId, institutionId);
 		UUID pageIdToUpdate = pageId;
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 		ValidationException validationException = new ValidationException();
@@ -748,6 +759,10 @@ public class PageService {
 
 		if (!page.isPresent())
 			validationException.add(new FieldError("page", getStrings().get("Could not find published page to unpublish.")));
+		else if (page.get().getPageStatusId() == PageStatusId.COPY_FOR_EDITING
+				&& !isCurrentPageEditingCopy(pageId, institutionId))
+			validationException.add(new FieldError("page", getStrings().get(
+					"Could not unpublish this page because its published version has changed. Please close this window and re-edit the page.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -763,7 +778,43 @@ public class PageService {
 				AND institution_id = ?
 				""", PageStatusId.DRAFT, pageIdToUpdate, institutionId);
 
+		// Copies retain their saved content, but no longer belong to a current publication.
+		// Explicit invalidation also handles republishing within the same transaction, where NOW() is unchanged.
+		getDatabase().execute("""
+				UPDATE page SET published_date = NULL
+				WHERE parent_page_id = ? AND institution_id = ?
+				AND page_status_id = ? AND deleted_flag = FALSE
+				""", pageIdToUpdate, institutionId, PageStatusId.COPY_FOR_EDITING);
+
 		return pageId;
+	}
+
+	private void lockPageForPublicationChange(@Nonnull UUID pageId, @Nonnull InstitutionId institutionId) {
+		// Use the same parent lock as editing-copy creation and live settings saves.
+		getDatabase().queryForObject("""
+				SELECT page_id FROM page
+				WHERE page_id = (
+				  SELECT CASE WHEN page_status_id = 'COPY_FOR_EDITING' THEN parent_page_id ELSE page_id END
+				  FROM page WHERE page_id = ? AND institution_id = ? AND deleted_flag = FALSE
+				) AND institution_id = ?
+				FOR UPDATE
+				""", UUID.class, pageId, institutionId, institutionId);
+	}
+
+	private boolean isCurrentPageEditingCopy(@Nonnull UUID pageId, @Nonnull InstitutionId institutionId) {
+		// Compare the full database timestamps; Page exposes only the calendar date.
+		return getDatabase().queryForObject("""
+				SELECT EXISTS (
+				  SELECT 1 FROM v_page editing
+				  JOIN v_page published ON published.page_id = editing.parent_page_id
+				    AND published.institution_id = editing.institution_id
+				    AND published.page_group_id = editing.page_group_id
+				    AND published.page_status_id = 'LIVE'
+				    AND published.published_date = editing.published_date
+				  WHERE editing.page_id = ? AND editing.institution_id = ?
+				    AND editing.page_status_id = 'COPY_FOR_EDITING'
+				)
+				""", Boolean.class, pageId, institutionId).orElse(false);
 	}
 
 	@Nonnull
@@ -3177,6 +3228,9 @@ public class PageService {
 
 		if (!page.isPresent())
 			validationException.add(new FieldError("pageId", getStrings().get("Could not find page.")));
+		else if (copyForEditing && page.get().getPageStatusId() != PageStatusId.LIVE)
+			validationException.add(new FieldError("pageId", getStrings().get(
+					"Could not edit this page because its published version has changed. Please close this window and re-edit the page.")));
 
 		if (!copyForEditing) {
 			if (name == null)

@@ -198,6 +198,24 @@ public class AnalyticsNativeEventType {
 		//   FEATURED_TOPIC
 		//   COMMUNITY
 		PAGE_VIEW_PAGE,
+		// On the web, when the Featured Topics directory results are displayed.
+		// Fired again after a search or pagination change produces a displayed result set.
+		// Additional data:
+		// * pageLocationId (String, always FEATURED_TOPIC)
+		// * searchQuery (String, optional normalized search query)
+		// * pageNumber (Integer, the displayed results page, 0-indexed)
+		// * pageSize (Integer, the maximum number of results visible per page)
+		// * totalCount (Integer, the number of matching results across all pages)
+		PAGE_VIEW_FEATURED_TOPICS,
+		// On the web, when the Communities directory results are displayed.
+		// Fired again after a search or pagination change produces a displayed result set.
+		// Additional data:
+		// * pageLocationId (String, always COMMUNITY)
+		// * searchQuery (String, optional normalized search query)
+		// * pageNumber (Integer, the displayed results page, 0-indexed)
+		// * pageSize (Integer, the maximum number of results visible per page)
+		// * totalCount (Integer, the number of matching results across all pages)
+		PAGE_VIEW_COMMUNITIES,
 		// On the web, when the toplevel Resource Library page is rendered.
 		// * mode: (String, one of DEFAULT, FILTERED, or RECOMMENDED based on how page is displayed)
 		// * searchQuery: (String, if in FILTERED mode, when the page is filtered by a search query)
@@ -385,7 +403,19 @@ public class AnalyticsNativeEventType {
 		//    HOME_FEATURE: When clicked through from the homepage in one of the featured areas
 		//    NAV_FEATURE: When clicked through from the navigation featured area
 		//    NAV: When clicked through from the navigation (not in the featured area)
+		//    DIRECTORY: When clicked through from the Featured Topics or Communities directory
+		// For DIRECTORY clickthroughs, siteLocationId identifies the directory context,
+		// independently of any scheduled homepage/navigation placement. Also includes:
+		// * pageLocationId (String, FEATURED_TOPIC or COMMUNITY)
+		// * searchQuery (String, optional normalized search query)
+		// * pageNumber (Integer, the displayed results page, 0-indexed)
+		// * pageSize (Integer, the maximum number of results visible per page)
 		CLICKTHROUGH_PAGE,
+		// When a navigation click opens a published page directory.
+		// Additional data:
+		// * pageLocationId (String, FEATURED_TOPIC or COMMUNITY)
+		// * source (String, always NAV)
+		CLICKTHROUGH_PAGE_DIRECTORY,
 		// When a piece of content is explicitly viewed (clickthrough on CTA or play button pressed for embedded media).
 		// Additional data:
 		// * contentId (UUID)

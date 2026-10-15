@@ -232,6 +232,8 @@ public class PageDirectoryTests {
 			topicCenterService = app.getInjector().getInstance(TopicCenterService.class);
 			resource = app.getInjector().getInstance(PageResource.class);
 			mapper = app.getInjector().getInstance(JsonMapper.class);
+			// Directory tests opt in explicitly; production and local institutions default to disabled.
+			database.execute("UPDATE institution SET page_directories_enabled=TRUE WHERE institution_id='COBALT'");
 			UUID accountId = database.queryForObject("SELECT account_id FROM account WHERE institution_id='COBALT' ORDER BY created LIMIT 1", UUID.class).orElseThrow();
 			account = app.getInjector().getInstance(AccountService.class).findAccountById(accountId).orElseThrow();
 			account.setRoleId(RoleId.ADMINISTRATOR);

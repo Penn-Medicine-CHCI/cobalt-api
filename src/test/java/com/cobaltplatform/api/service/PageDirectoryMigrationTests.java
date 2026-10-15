@@ -18,8 +18,10 @@ public class PageDirectoryMigrationTests {
 			try (Statement statement = database.createStatement()) {
 				createLegacySchema(statement);
 				// Migration text is executed as input; assertions inspect only database results.
+				statement.execute("SELECT _v.register_patch('190-analytics',NULL,NULL)");
 				statement.execute("SELECT _v.register_patch('215-page-group',NULL,NULL)");
 				statement.execute(Files.readString(Paths.get("sql/updates/291-page-directory-locations.sql")));
+				assertDirectoryAnalyticsEvents(statement);
 				try (ResultSet result = statement.executeQuery("SELECT page_location_id FROM page ORDER BY page_id")) {
 					for (String expected : new String[]{"FEATURED_TOPIC","COMMUNITY","UNCATEGORIZED","UNCATEGORIZED","COMMUNITY","UNCATEGORIZED"}) {
 						assertTrue(result.next());
@@ -55,12 +57,16 @@ public class PageDirectoryMigrationTests {
 		DisposablePostgresTestExecutor.run(database -> {
 			try (Statement statement = database.createStatement()) {
 				createLegacySchema(statement);
+				statement.execute("SELECT _v.register_patch('190-analytics',NULL,NULL)");
 				statement.execute("SELECT _v.register_patch('215-page-group',NULL,NULL)");
+				// A local additive seed may have registered a directory event before migration.
+				statement.execute("INSERT INTO analytics_native_event_type VALUES ('PAGE_VIEW_COMMUNITIES','Page View (Communities)')");
 				statement.execute("UPDATE page SET published_date=NULL WHERE url_name='page-2'");
 				statement.execute("UPDATE page SET page_status_id='DRAFT',published_date=NULL WHERE url_name IN ('page-3','page-5')");
 				statement.execute("UPDATE page SET page_status_id='DRAFT' WHERE url_name='page-4'");
 				statement.execute("CREATE TEMP TABLE expected_page_history AS SELECT * FROM page");
 				statement.execute(Files.readString(Paths.get("sql/updates/291-page-directory-locations.sql")));
+				assertDirectoryAnalyticsEvents(statement);
 				try (ResultSet result = statement.executeQuery("SELECT has_been_published FROM page ORDER BY page_id")) {
 					for (boolean expected : new boolean[]{true,true,false,true,false,true}) {
 						assertTrue(result.next());
@@ -89,8 +95,37 @@ public class PageDirectoryMigrationTests {
 		});
 	}
 
+	@Test
+	public void migrationDisablesDirectoriesForExistingAndNewInstitutionsAndAllowsIndependentToggling() throws Exception {
+		DisposablePostgresTestExecutor.run(database -> {
+			try (Statement statement = database.createStatement()) {
+				createLegacySchema(statement);
+				statement.execute("SELECT _v.register_patch('190-analytics',NULL,NULL)");
+				statement.execute("SELECT _v.register_patch('215-page-group',NULL,NULL)");
+				statement.execute(Files.readString(Paths.get("sql/updates/291-page-directory-locations.sql")));
+				assertEquals(3, count(statement, "SELECT COUNT(*) FROM institution WHERE page_directories_enabled=FALSE"));
+				assertEquals(0, count(statement, "SELECT COUNT(*) FROM institution WHERE created<>'2020-01-01' OR last_updated<>'2020-02-01'"));
+				statement.execute("UPDATE institution SET page_directories_enabled=TRUE WHERE institution_id='PENN'");
+				assertEquals(1, count(statement, "SELECT COUNT(*) FROM institution WHERE page_directories_enabled=TRUE AND institution_id='PENN'"));
+				assertEquals(2, count(statement, "SELECT COUNT(*) FROM institution WHERE page_directories_enabled=FALSE"));
+				statement.execute("UPDATE institution SET page_directories_enabled=FALSE WHERE institution_id='PENN'");
+				assertEquals(0, count(statement, "SELECT COUNT(*) FROM institution WHERE page_directories_enabled=TRUE"));
+				statement.execute("INSERT INTO institution (institution_id) VALUES ('NEW_INSTITUTION')");
+				assertEquals(1, count(statement, "SELECT COUNT(*) FROM institution WHERE institution_id='NEW_INSTITUTION' AND page_directories_enabled=FALSE"));
+				assertThrows(SQLException.class, () -> statement.execute("UPDATE institution SET page_directories_enabled=NULL WHERE institution_id='PENN'"));
+			}
+		});
+	}
+
 	private static void createLegacySchema(Statement statement) throws SQLException {
 		statement.execute("""
+				CREATE TABLE institution (
+				  institution_id TEXT PRIMARY KEY,
+				  created TIMESTAMPTZ NOT NULL DEFAULT '2020-01-01',
+				  last_updated TIMESTAMPTZ NOT NULL DEFAULT '2020-02-01'
+				);
+				INSERT INTO institution (institution_id) VALUES ('PENN'),('COBALT'),('COBALT_IC');
+				CREATE TABLE analytics_native_event_type (analytics_native_event_type_id TEXT PRIMARY KEY, description TEXT NOT NULL);
 				CREATE TABLE page_status (page_status_id TEXT PRIMARY KEY, description TEXT NOT NULL);
 				INSERT INTO page_status VALUES ('DRAFT','Draft'),('LIVE','Live'),('COPY_FOR_EDITING','Copy for Editing');
 				CREATE TABLE file_upload (file_upload_id UUID PRIMARY KEY, url TEXT NOT NULL);
@@ -127,6 +162,20 @@ public class PageDirectoryMigrationTests {
 				CREATE TRIGGER set_last_updated BEFORE INSERT OR UPDATE ON page
 				FOR EACH ROW EXECUTE FUNCTION set_last_updated();
 				""");
+	}
+
+	private static void assertDirectoryAnalyticsEvents(Statement statement) throws SQLException {
+		try (ResultSet result = statement.executeQuery("SELECT analytics_native_event_type_id,description FROM analytics_native_event_type ORDER BY analytics_native_event_type_id")) {
+			for (String[] expected : new String[][]{
+					{"CLICKTHROUGH_PAGE_DIRECTORY", "Clickthrough (Page Directory)"},
+					{"PAGE_VIEW_COMMUNITIES", "Page View (Communities)"},
+					{"PAGE_VIEW_FEATURED_TOPICS", "Page View (Featured Topics)"}}) {
+				assertTrue(result.next());
+				assertEquals(expected[0], result.getString(1));
+				assertEquals(expected[1], result.getString(2));
+			}
+			assertFalse(result.next());
+		}
 	}
 
 	private static int count(Statement statement, String query) throws SQLException {

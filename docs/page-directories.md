@@ -4,6 +4,37 @@ Directory membership belongs to each page version. It is separate from scheduled
 `page_site_location` placements used for homepage spotlights and curated navigation.
 All endpoints below require authentication and use the current account's institution.
 
+## Institution rollout switch
+
+`institution.page_directories_enabled` controls the two directory screens and is
+returned to clients as `pageDirectoriesEnabled`. Migration 291 defaults it to
+false for every institution, including Penn; new institutions also default to
+false. Missing flags in older API responses are treated as disabled by the web
+client.
+
+To enable the directories, update the intended institution's configuration.
+For example, for the local `COBALT` institution:
+
+```sql
+UPDATE institution SET page_directories_enabled = TRUE WHERE institution_id = 'COBALT';
+```
+
+Use Penn's configured institution ID when enabling it in that environment.
+For a quick shutdown, set that value back to `FALSE`. The directory-listing API
+checks the flag using the default database routing on every request and returns 404
+when disabled. The frontend uses the institution configuration already loaded
+by the app for both header links and directory screens. Directory loading adds
+no extra configuration request for navigation, searches, or pagination. An
+already-open browser picks up configuration changes when the app reloads its
+institution configuration, while API requests enforce the current flag.
+Disabling removes the Featured Topics directory link,
+All communities footer, and the Community shortcut used when there are no curated
+links. Existing curated community links and Monthly Spotlight remain available.
+
+The switch does not unpublish individual pages or delete any content or category
+data. Page management, category options, and individual published-page URLs
+continue to work while directories are disabled.
+
 ## Locations and settings
 
 `GET /page-locations` returns options in this order:
@@ -75,6 +106,13 @@ change on the Published page are preserved. The Unpublished menu exposes
 Delete, while the Published menu exposes View on Cobalt and Unpublish. These workflows retain
 page-management authorization and institution boundaries.
 
+Unpublishing invalidates every admin's saved editing copies for that publication
+while retaining their content. After editing and republishing the Unpublished
+page, Edit creates a copy of the latest publication. An older editing copy cannot
+publish or unpublish the page; the administrator must close it and re-edit the
+current page. Publication timestamps are compared at full database precision so
+copies from an earlier publication on the same day are also rejected.
+
 Subscriber responses include only active subscriptions; the admin subscriber
 count excludes unsubscribed entries. CSV downloads retain their gzip attachment
 response and Mailing List, Type, and Value columns. The optional
@@ -145,17 +183,40 @@ order, routes, and analytics, and uses `nav_description` for `shortDescription`.
 Release this additive API response change before the consuming frontend. No new
 migration or example Community selections are needed.
 
+## Analytics
+
+The frontend records `PAGE_VIEW_FEATURED_TOPICS` and `PAGE_VIEW_COMMUNITIES` after
+directory results are displayed, including after a search or pagination change.
+Both events include `pageLocationId`, zero-based `pageNumber`, `pageSize`, and
+`totalCount` for the complete matching result set. A normalized `searchQuery` is
+included only when a search is active. Failed or aborted requests do not emit
+directory views.
+
+Navigation links that open a directory record `CLICKTHROUGH_PAGE_DIRECTORY` with
+`source = NAV` and the destination `pageLocationId`. Directory cards use the
+existing `CLICKTHROUGH_PAGE` event with `source = DIRECTORY`, the destination
+`pageId`, directory `pageLocationId`, optional `searchQuery`, `pageNumber`, and
+`pageSize`. Their `siteLocationId` identifies the Featured Topic or Community
+directory context, independently of scheduled homepage/navigation placements.
+Existing page-detail views and content interactions retain their events.
+
+Migration 291 registers all three new event types. Native dwell-time reporting
+already includes all `PAGE_VIEW_*` events, so these views need no reporting
+allowlist update.
+
 ## Migration and rollout
 
 1. Apply the single feature migration, `sql/updates/291-page-directory-locations.sql`,
    before releasing this API.
 2. Release the API, then the frontend consuming these contracts.
-3. Verify authenticated directory searches, settings saves, and publication in
-   the deployed environment. Keep existing curated community selections until
-   the organization administrator supplies replacements.
+3. Leave directories disabled until an institution is approved for rollout.
+   After opting that institution in, verify authenticated directory searches,
+   settings saves, and publication. Keep existing curated community selections
+   until the organization administrator supplies replacements.
 
-Migration 291 adds the lookup, defaulted page category, durable publication history,
-view metadata, directory index, and status descriptions in one transaction.
+Migration 291 adds the default-off institution switch, lookup, defaulted page
+category, durable publication history, view metadata, directory index, status
+descriptions, and directory analytics event types in one transaction.
 Its category backfill uses existing Featured Topic and
 Community placements: exactly one distinct placement category determines the
 category; both or neither becomes Uncategorized. Resource placements are ignored.
@@ -166,10 +227,24 @@ Published/editing-copy statuses without changing existing timestamps.
 Historical publication of old Unpublished pages cannot be recovered if all
 evidence was already cleared before this migration.
 
+If migration 291 was already applied locally before the rollout switch or
+analytics registrations were added, apply only these missing additive changes
+to that database; the schema migration must not be rerun:
+
+```sql
+ALTER TABLE institution ADD COLUMN IF NOT EXISTS page_directories_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES
+  ('PAGE_VIEW_FEATURED_TOPICS', 'Page View (Featured Topics)'),
+  ('PAGE_VIEW_COMMUNITIES', 'Page View (Communities)'),
+  ('CLICKTHROUGH_PAGE_DIRECTORY', 'Clickthrough (Page Directory)')
+ON CONFLICT (analytics_native_event_type_id) DO NOTHING;
+```
+
 Focused behavioral checks:
 
 ```shell
-mvn -Dtest=PageDirectoryMigrationTests,PageDirectoryRequestTests,PageDirectoryTests,PageAdminActionsTests test
+mvn -Dtest=PageDirectoryMigrationTests,PageDirectoryRequestTests,PageDirectoryFeatureFlagTests,PageDirectoryAnalyticsTests,PageDirectoryTests,PageAdminActionsTests test
 ```
 
 Run `mvn test` with the local dependencies available for the complete backend

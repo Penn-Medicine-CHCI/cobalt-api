@@ -128,6 +128,8 @@ public class Institution {
 	@Nullable
 	private Boolean featuresEnabled;
 	@Nullable
+	private Boolean pageDirectoriesEnabled;
+	@Nullable
 	@DatabaseColumn("booking_v2_enabled")
 	private Boolean bookingV2Enabled;
 	@Nullable
@@ -907,6 +909,15 @@ public class Institution {
 
 	public void setFeaturesEnabled(@Nullable Boolean featuresEnabled) {
 		this.featuresEnabled = featuresEnabled;
+	}
+
+	@Nullable
+	public Boolean getPageDirectoriesEnabled() {
+		return this.pageDirectoriesEnabled;
+	}
+
+	public void setPageDirectoriesEnabled(@Nullable Boolean pageDirectoriesEnabled) {
+		this.pageDirectoriesEnabled = pageDirectoriesEnabled;
 	}
 
 	@Nullable

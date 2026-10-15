@@ -226,6 +226,123 @@ public class PageAdminActionsTests {
 	}
 
 	@Test
+	public void republishingAfterDraftEditsInvalidatesEveryAdminsEarlierEditingCopy() {
+		PageDirectoryTests.run(f -> {
+			UUID publishedId = f.create("Republished page", PageLocationId.FEATURED_TOPIC);
+			PageApiResponse published = value(f.resource.publishPage(publishedId), "page");
+			UUID firstEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			String savedHeadline = "Earlier saved content " + f.prefix;
+			f.resource.updatePageHero(f.mapper.toJson(Map.of(
+					"headline", savedHeadline, "description", published.getDescription(),
+					"imageFileUploadId", f.imageId, "imageAltText", published.getImageAltText())), firstEditId);
+			UUID firstAccountId = f.account.getAccountId();
+			CreateAccountRequest accountRequest = new CreateAccountRequest();
+			accountRequest.setAccountSourceId(AccountSourceId.ANONYMOUS);
+			accountRequest.setInstitutionId(InstitutionId.COBALT);
+			f.account.setAccountId(f.service.getAccountService().createAccount(accountRequest));
+			UUID secondEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			f.account.setAccountId(firstAccountId);
+
+			f.resource.unpublishPage(publishedId);
+			assertEquals(publishedId, value(f.resource.editPage(publishedId.toString()), "pageId"));
+			String latestHeadline = "Latest republished content " + f.prefix;
+			String latestName = f.prefix + " Latest republished name";
+			String latestUrlName = f.prefix + "-latest-republished-url";
+			f.resource.updatePageHero(f.mapper.toJson(Map.of(
+					"headline", latestHeadline, "description", published.getDescription(),
+					"imageFileUploadId", f.imageId, "imageAltText", published.getImageAltText())), publishedId);
+			f.resource.updatePageSettings(f.mapper.toJson(Map.of(
+					"name", latestName, "urlName", latestUrlName, "pageLocationId", "COMMUNITY")), publishedId);
+			f.resource.publishPage(publishedId);
+
+			UUID freshEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			assertNotEquals(firstEditId, freshEditId);
+			assertNotEquals(secondEditId, freshEditId);
+			assertEquals(freshEditId, value(f.resource.editPage(latestUrlName), "pageId"));
+			PageApiResponse fresh = value(f.resource.page(freshEditId.toString()), "page");
+			assertEquals(latestHeadline, fresh.getHeadline());
+			assertEquals(latestName, fresh.getName());
+			assertEquals(latestUrlName, fresh.getUrlName());
+			assertEquals(PageLocationId.COMMUNITY, fresh.getPageLocationId());
+			for (UUID staleId : List.of(firstEditId, secondEditId)) {
+				PageApiResponse saved = value(f.resource.page(staleId.toString()), "page");
+				assertEquals(PageStatusId.COPY_FOR_EDITING, saved.getPageStatusId());
+				assertNull(saved.getPublishedDate());
+				assertThrows(ValidationException.class, () -> f.resource.publishPage(staleId));
+				assertThrows(ValidationException.class, () -> f.resource.unpublishPage(staleId));
+			}
+			assertEquals(savedHeadline, f.page(firstEditId).getHeadline());
+			PageApiResponse live = value(f.resource.publishedPage(latestUrlName), "page");
+			assertEquals(publishedId, live.getPageId());
+			assertEquals(latestHeadline, live.getHeadline());
+			assertEquals(latestName, live.getName());
+			assertEquals(PageLocationId.COMMUNITY, live.getPageLocationId());
+			assertThrows(NotFoundException.class, () -> f.resource.publishedPage(published.getUrlName()));
+		});
+	}
+
+	@Test
+	public void unpublishingThroughEditingCopyPreservesResponseAndInvalidatesItAfterRepublishing() {
+		PageDirectoryTests.run(f -> {
+			UUID publishedId = f.create("Unpublished through copy", PageLocationId.COMMUNITY);
+			PageApiResponse published = value(f.resource.publishPage(publishedId), "page");
+			UUID editId = value(f.resource.editPage(publishedId.toString()), "pageId");
+
+			PageApiResponse unpublishedCopy = value(f.resource.unpublishPage(editId), "page");
+			assertEquals(editId, unpublishedCopy.getPageId());
+			assertEquals(PageStatusId.COPY_FOR_EDITING, unpublishedCopy.getPageStatusId());
+			assertNull(unpublishedCopy.getPublishedDate());
+			assertEquals(PageStatusId.DRAFT, f.page(publishedId).getPageStatusId());
+			assertNull(f.page(publishedId).getPublishedDate());
+			assertThrows(ValidationException.class, () -> f.duplicate(publishedId, true));
+			assertThrows(NotFoundException.class, () -> f.resource.publishedPage(published.getUrlName()));
+			assertThrows(ValidationException.class, () -> f.resource.publishPage(editId));
+			assertEquals(publishedId, value(f.resource.editPage(publishedId.toString()), "pageId"));
+
+			String latestHeadline = "Content saved after unpublishing " + f.prefix;
+			f.resource.updatePageHero(f.mapper.toJson(Map.of(
+					"headline", latestHeadline, "description", published.getDescription(),
+					"imageFileUploadId", f.imageId, "imageAltText", published.getImageAltText())), publishedId);
+			f.resource.publishPage(publishedId);
+			UUID freshEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			assertNotEquals(editId, freshEditId);
+			assertEquals(latestHeadline, f.page(freshEditId).getHeadline());
+			assertThrows(ValidationException.class, () -> f.resource.publishPage(editId));
+			assertThrows(ValidationException.class, () -> f.resource.unpublishPage(editId));
+			PageApiResponse live = value(f.resource.publishedPage(published.getUrlName()), "page");
+			assertEquals(publishedId, live.getPageId());
+			assertEquals(latestHeadline, live.getHeadline());
+		});
+	}
+
+	@Test
+	public void preexistingCopiesFromEarlierPublicationOnSameDayCannotResumeOrPublish() {
+		PageDirectoryTests.run(f -> {
+			UUID publishedId = f.create("Historical editing copy", PageLocationId.FEATURED_TOPIC);
+			PageApiResponse published = value(f.resource.publishPage(publishedId), "page");
+			UUID oldEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			f.resource.unpublishPage(publishedId);
+			f.resource.publishPage(publishedId);
+			// Represent a saved copy created before deployment, from an earlier publication on the same day.
+			f.database.execute("UPDATE page SET published_date=TIMESTAMPTZ '2026-10-15 12:00:00.123456+00' WHERE page_id=?", publishedId);
+			f.database.execute("UPDATE page SET published_date=TIMESTAMPTZ '2026-10-15 12:00:00.123455+00' WHERE page_id=?", oldEditId);
+			assertEquals(f.page(publishedId).getPublishedDate(), f.page(oldEditId).getPublishedDate());
+
+			UUID freshEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			assertNotEquals(oldEditId, freshEditId);
+			assertEquals(freshEditId, value(f.resource.editPage(publishedId.toString()), "pageId"));
+			assertThrows(ValidationException.class, () -> f.resource.publishPage(oldEditId));
+			assertThrows(ValidationException.class, () -> f.resource.unpublishPage(oldEditId));
+			PageApiResponse live = value(f.resource.publishedPage(published.getUrlName()), "page");
+			assertEquals(publishedId, live.getPageId());
+			assertEquals(published.getHeadline(), live.getHeadline());
+			f.resource.publishPage(freshEditId);
+			live = value(f.resource.publishedPage(published.getUrlName()), "page");
+			assertEquals(freshEditId, live.getPageId());
+		});
+	}
+
+	@Test
 	public void creationSettingsAndDuplicationExposePublicationHistoryAndValidateRequiredFields() {
 		PageDirectoryTests.run(f -> {
 			assertThrows(ValidationException.class, () -> f.resource.createPage("{}"));

@@ -1,5 +1,8 @@
 BEGIN;
-SELECT _v.register_patch('291-page-directory-locations', ARRAY['215-page-group'], NULL);
+SELECT _v.register_patch('291-page-directory-locations', ARRAY['190-analytics', '215-page-group'], NULL);
+
+-- Opt in each institution separately; disabling directories does not unpublish pages.
+ALTER TABLE institution ADD COLUMN page_directories_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Directory membership is independent of scheduled homepage and navigation placements.
 CREATE TABLE page_location (
@@ -74,5 +77,15 @@ WHERE p.deleted_flag = FALSE;
 CREATE INDEX page_published_directory_name_idx
 ON page (institution_id, page_location_id, LOWER(name), page_id)
 WHERE deleted_flag = FALSE AND page_status_id = 'LIVE';
+
+-- Directory views include pageLocationId, optional normalized searchQuery,
+-- zero-based pageNumber, pageSize, and totalCount. Navigation clickthroughs
+-- include pageLocationId and source=NAV. Result-card clicks use the existing
+-- CLICKTHROUGH_PAGE event with source=DIRECTORY and the directory context.
+INSERT INTO analytics_native_event_type (analytics_native_event_type_id, description) VALUES
+  ('PAGE_VIEW_FEATURED_TOPICS', 'Page View (Featured Topics)'),
+  ('PAGE_VIEW_COMMUNITIES', 'Page View (Communities)'),
+  ('CLICKTHROUGH_PAGE_DIRECTORY', 'Clickthrough (Page Directory)')
+ON CONFLICT (analytics_native_event_type_id) DO NOTHING;
 
 COMMIT;
