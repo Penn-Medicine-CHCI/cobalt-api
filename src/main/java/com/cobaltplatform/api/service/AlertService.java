@@ -235,15 +235,23 @@ public class AlertService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		getDatabase().execute("""
+		long inserted = getDatabase().execute("""
 				INSERT INTO alert_dismissal (
 				alert_dismissal_id,
 				account_id,
 				alert_id
 				) VALUES (?,?,?)
+				ON CONFLICT (alert_id, account_id) DO NOTHING
 				""", alertDismissalId, accountId, alertId);
 
-		return alertDismissalId;
+		if (inserted > 0)
+			return alertDismissalId;
+
+		return getDatabase().queryForObject("""
+				SELECT alert_dismissal_id
+				FROM alert_dismissal
+				WHERE alert_id=? AND account_id=?
+				""", UUID.class, alertId, accountId).get();
 	}
 
 	@Nonnull
