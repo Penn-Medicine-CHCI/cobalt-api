@@ -36,6 +36,7 @@ import com.cobaltplatform.api.model.api.request.CreatePageRowTagRequest;
 import com.cobaltplatform.api.model.api.request.CreatePageSectionRequest;
 import com.cobaltplatform.api.model.api.request.DuplicatePageRequest;
 import com.cobaltplatform.api.model.api.request.FindPagesRequest;
+import com.cobaltplatform.api.model.api.request.FindPublishedPagesRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageHeroRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowCallToActionRequest;
 import com.cobaltplatform.api.model.api.request.UpdatePageRowColumnRequest;
@@ -76,6 +77,8 @@ import com.cobaltplatform.api.model.db.PageRowTag;
 import com.cobaltplatform.api.model.db.PageRowTagGroup;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
+import com.cobaltplatform.api.model.db.PageLocation;
+import com.cobaltplatform.api.model.db.PageLocation.PageLocationId;
 import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.model.db.SiteLocation.SiteLocationId;
 import com.cobaltplatform.api.model.db.TagGroup;
@@ -111,6 +114,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
@@ -230,6 +234,30 @@ public class PageService {
 			return Optional.empty();
 
 		return Optional.of(page);
+	}
+
+	@Nonnull
+	public Optional<Page> findPageEditingCopy(@Nonnull UUID parentPageId,
+			@Nonnull UUID createdByAccountId, @Nonnull InstitutionId institutionId) {
+		requireNonNull(parentPageId);
+		requireNonNull(createdByAccountId);
+		requireNonNull(institutionId);
+
+		return getDatabase().queryForObject("""
+				SELECT editing.*
+				FROM v_page editing
+				JOIN v_page published ON published.page_id = editing.parent_page_id
+				  AND published.institution_id = editing.institution_id
+				  AND published.page_group_id = editing.page_group_id
+				  AND published.page_status_id = 'LIVE'
+				  AND published.published_date = editing.published_date
+				WHERE editing.parent_page_id = ?
+				AND editing.created_by_account_id = ?
+				AND editing.institution_id = ?
+				AND editing.page_status_id = ?
+				ORDER BY editing.last_updated DESC, editing.created DESC, editing.page_id
+				LIMIT 1
+				""", Page.class, parentPageId, createdByAccountId, institutionId, PageStatusId.COPY_FOR_EDITING);
 	}
 
 	@Nonnull
@@ -564,7 +592,7 @@ public class PageService {
 		requireNonNull(request);
 
 		String name = trimToNull(request.getName());
-		String urlName = request.getUrlName() == null ? null : WebUtility.normalizeUrlName(request.getUrlName().toLowerCase()).orElse(null);
+		String urlName = trimToNull(WebUtility.normalizeUrlName(request.getUrlName()).orElse(null));
 		String headline = trimToNull(request.getHeadline());
 		String description = trimToNull(request.getDescription());
 		UUID imageFileUploadId = request.getImageFileUploadId();
@@ -573,6 +601,7 @@ public class PageService {
 		UUID createdByAccountId = request.getCreatedByAccountId();
 		InstitutionId institutionId = request.getInstitutionId();
 		Instant publishedDate = null;
+		PageLocationId pageLocationId = request.getPageLocationId() == null ? PageLocationId.UNCATEGORIZED : request.getPageLocationId();
 		ValidationException validationException = new ValidationException();
 
 		if (name == null)
@@ -585,7 +614,7 @@ public class PageService {
 
 		if (urlName == null)
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
-		else if (!isValidUrlSubdirectory(urlName))
+		else if (WebUtility.urlNameContainsIllegalCharacters(urlName) || !isValidUrlSubdirectory(urlName))
 			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
 		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
@@ -599,11 +628,11 @@ public class PageService {
 		getDatabase().execute("""
 						INSERT INTO page
 						  (page_id, name, url_name, page_status_id, headline, description, image_file_upload_id, image_alt_text, 
-						  published_date, institution_id, created_by_account_id, page_group_id)
+						  published_date, institution_id, created_by_account_id, page_group_id, page_location_id)
 						VALUES
-						  (?,?,?,?,?,?,?,?,?,?,?,?)   
+						  (?,?,?,?,?,?,?,?,?,?,?,?,?)
 						""", pageId, name, urlName, PageStatusId.DRAFT, headline, description, imageFileUploadId, imageAltText,
-				publishedDate, institutionId, createdByAccountId, pageGroupId);
+				publishedDate, institutionId, createdByAccountId, pageGroupId, pageLocationId);
 
 		createDefaultPageSection(pageId, createdByAccountId);
 
@@ -664,6 +693,7 @@ public class PageService {
 		requireNonNull(pageId);
 		requireNonNull(institutionId);
 
+		lockPageForPublicationChange(pageId, institutionId);
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 		ValidationException validationException = new ValidationException();
 
@@ -683,6 +713,10 @@ public class PageService {
 				validationException.add(new FieldError("page", getStrings().get(
 						format("Could not publish this page because there is a more recent version of this page published by %s on %s. Please close this window and re-edit the page.", account.get().getDisplayName(),
 								formatter.formatTimestampDescription(livePage.get().getLastUpdated())))));
+			} else if (page.get().getPageStatusId() == PageStatusId.COPY_FOR_EDITING
+					&& !isCurrentPageEditingCopy(pageId, institutionId)) {
+				validationException.add(new FieldError("page", getStrings().get(
+						"Could not publish this page because its published version has changed. Please close this window and re-edit the page.")));
 			}
 		}
 
@@ -701,7 +735,7 @@ public class PageService {
 
 		getDatabase().execute("""
 				UPDATE page SET
-				page_status_id=?, published_date=NOW()
+				page_status_id=?, published_date=NOW(), has_been_published=TRUE
 				WHERE page_id = ?
 				AND institution_id = ?
 				""", PageStatusId.LIVE, pageId, institutionId);
@@ -715,6 +749,7 @@ public class PageService {
 		requireNonNull(pageId);
 		requireNonNull(institutionId);
 
+		lockPageForPublicationChange(pageId, institutionId);
 		UUID pageIdToUpdate = pageId;
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 		ValidationException validationException = new ValidationException();
@@ -724,6 +759,10 @@ public class PageService {
 
 		if (!page.isPresent())
 			validationException.add(new FieldError("page", getStrings().get("Could not find published page to unpublish.")));
+		else if (page.get().getPageStatusId() == PageStatusId.COPY_FOR_EDITING
+				&& !isCurrentPageEditingCopy(pageId, institutionId))
+			validationException.add(new FieldError("page", getStrings().get(
+					"Could not unpublish this page because its published version has changed. Please close this window and re-edit the page.")));
 
 		if (validationException.hasErrors())
 			throw validationException;
@@ -739,7 +778,43 @@ public class PageService {
 				AND institution_id = ?
 				""", PageStatusId.DRAFT, pageIdToUpdate, institutionId);
 
+		// Copies retain their saved content, but no longer belong to a current publication.
+		// Explicit invalidation also handles republishing within the same transaction, where NOW() is unchanged.
+		getDatabase().execute("""
+				UPDATE page SET published_date = NULL
+				WHERE parent_page_id = ? AND institution_id = ?
+				AND page_status_id = ? AND deleted_flag = FALSE
+				""", pageIdToUpdate, institutionId, PageStatusId.COPY_FOR_EDITING);
+
 		return pageId;
+	}
+
+	private void lockPageForPublicationChange(@Nonnull UUID pageId, @Nonnull InstitutionId institutionId) {
+		// Use the same parent lock as editing-copy creation and live settings saves.
+		getDatabase().queryForObject("""
+				SELECT page_id FROM page
+				WHERE page_id = (
+				  SELECT CASE WHEN page_status_id = 'COPY_FOR_EDITING' THEN parent_page_id ELSE page_id END
+				  FROM page WHERE page_id = ? AND institution_id = ? AND deleted_flag = FALSE
+				) AND institution_id = ?
+				FOR UPDATE
+				""", UUID.class, pageId, institutionId, institutionId);
+	}
+
+	private boolean isCurrentPageEditingCopy(@Nonnull UUID pageId, @Nonnull InstitutionId institutionId) {
+		// Compare the full database timestamps; Page exposes only the calendar date.
+		return getDatabase().queryForObject("""
+				SELECT EXISTS (
+				  SELECT 1 FROM v_page editing
+				  JOIN v_page published ON published.page_id = editing.parent_page_id
+				    AND published.institution_id = editing.institution_id
+				    AND published.page_group_id = editing.page_group_id
+				    AND published.page_status_id = 'LIVE'
+				    AND published.published_date = editing.published_date
+				  WHERE editing.page_id = ? AND editing.institution_id = ?
+				    AND editing.page_status_id = 'COPY_FOR_EDITING'
+				)
+				""", Boolean.class, pageId, institutionId).orElse(false);
 	}
 
 	@Nonnull
@@ -865,7 +940,7 @@ public class PageService {
 			validationException.add(new FieldError("page", getStrings().get("You do not have permission to update this page.")));
 		if (urlName == null)
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
-		else if (!isValidUrlSubdirectory(urlName))
+		else if (WebUtility.urlNameContainsIllegalCharacters(urlName) || !isValidUrlSubdirectory(urlName))
 			validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
 		else if (urlNameExistsForInstitutionId(urlName, institutionId, pageId))
 			validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
@@ -873,14 +948,55 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		getDatabase().execute("""
-				UPDATE page SET
-				name=?, url_name=?
-				WHERE page_id=?	
-				AND institution_id = ?				   
-				""", name, urlName.toLowerCase(), pageId, institutionId);
+		String normalizedUrlName = urlName.toLowerCase(Locale.ROOT);
+		Supplier<UUID> updateSettings = () -> {
+			Page page = getDatabase().queryForObject("""
+					SELECT * FROM page
+					WHERE page_id = ? AND institution_id = ? AND deleted_flag = FALSE
+					FOR UPDATE
+					""", Page.class, pageId, institutionId).orElseThrow(() -> new ValidationException(
+					new FieldError("page", getStrings().get("You do not have permission to update this page."))));
 
-		return pageId;
+			getDatabase().execute("""
+					UPDATE page SET
+					name=?, url_name=?, page_location_id=COALESCE(?, page_location_id)
+					WHERE page_id=? AND institution_id = ?
+					""", name, normalizedUrlName, request.getPageLocationId(), pageId, institutionId);
+
+			if (page.getPageStatusId() == PageStatusId.LIVE) {
+				List<String> changedSettings = new ArrayList<>();
+				List<Object> parameters = new ArrayList<>();
+				if (!Objects.equals(name, page.getName())) {
+					changedSettings.add("name = ?");
+					parameters.add(name);
+				}
+				if (!Objects.equals(normalizedUrlName, page.getUrlName())) {
+					changedSettings.add("url_name = ?");
+					parameters.add(normalizedUrlName);
+				}
+				if (request.getPageLocationId() != null && request.getPageLocationId() != page.getPageLocationId()) {
+					changedSettings.add("page_location_id = ?");
+					parameters.add(request.getPageLocationId());
+				}
+
+				// Keep saved builder content and copy-only settings while carrying live settings changes forward.
+				if (!changedSettings.isEmpty()) {
+					parameters.add(pageId);
+					parameters.add(institutionId);
+					parameters.add(PageStatusId.COPY_FOR_EDITING);
+					getDatabase().execute("UPDATE page SET " + String.join(", ", changedSettings) + """
+							 WHERE parent_page_id = ? AND institution_id = ?
+							 AND page_status_id = ? AND deleted_flag = FALSE
+							""", parameters.toArray());
+				}
+			}
+
+			return pageId;
+		};
+
+		return getDatabase().currentTransaction().isPresent()
+				? updateSettings.get()
+				: getDatabase().transaction(updateSettings::get);
 	}
 
 	@Nonnull
@@ -2786,6 +2902,47 @@ public class PageService {
 	}
 
 	@Nonnull
+	public List<PageLocation> findPageLocations() {
+		return getDatabase().queryForList("SELECT * FROM page_location ORDER BY display_order", PageLocation.class);
+	}
+
+	@Nonnull
+	public FindResult<Page> findPublishedPages(@Nonnull FindPublishedPagesRequest request) {
+		requireNonNull(request);
+		ValidationException validationException = new ValidationException();
+		if (request.getInstitutionId() == null)
+			validationException.add(new FieldError("institutionId", getStrings().get("Institution is required.")));
+		if (request.getPageLocationId() == null)
+			validationException.add(new FieldError("pageLocationId", getStrings().get("Page location is required.")));
+		if (validationException.hasErrors())
+			throw validationException;
+
+		int pageNumber = request.getPageNumber() == null ? 0 : Math.max(0, request.getPageNumber());
+		int pageSize = request.getPageSize() == null || request.getPageSize() <= 0 ? 25 : Math.min(100, request.getPageSize());
+		long offset = (long) pageNumber * pageSize;
+		String searchQuery = trimToNull(request.getSearchQuery());
+		List<Object> parameters = new ArrayList<>();
+		parameters.add(request.getInstitutionId());
+		parameters.add(PageStatusId.LIVE);
+		parameters.add(request.getPageLocationId());
+		StringBuilder predicate = new StringBuilder("WHERE institution_id = ? AND page_status_id = ? AND page_location_id = ? ");
+		if (searchQuery != null) {
+			predicate.append("AND (name ILIKE ? OR headline ILIKE ? OR url_name ILIKE ?) ");
+			for (int i = 0; i < 3; i++)
+				parameters.add(format("%%%s%%", searchQuery));
+		}
+
+		// A separate count keeps totals correct even beyond the final result page.
+		Integer totalCount = getDatabase().queryForObject("SELECT COUNT(*) FROM v_page " + predicate, Integer.class,
+				parameters.toArray()).orElse(0);
+		parameters.add(pageSize);
+		parameters.add(offset);
+		List<Page> pages = getDatabase().queryForList("SELECT * FROM v_page " + predicate
+				+ "ORDER BY LOWER(name), page_id LIMIT ? OFFSET ?", Page.class, parameters.toArray());
+		return new FindResult<>(pages, totalCount);
+	}
+
+	@Nonnull
 	public List<PageSiteLocation> findAllPageSiteLocations(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return List.of();
@@ -2852,7 +3009,8 @@ public class PageService {
 					  ifu.url AS image_url,
 					  p.name,
 					  p.page_id,
-					  p.url_name AS page_url_name
+					  p.url_name AS page_url_name,
+					  psl.short_description
 					FROM
 					  page p, page_site_location psl, file_upload ifu
 					WHERE
@@ -2909,6 +3067,7 @@ public class PageService {
 						  FROM page_ml pml
 						  JOIN mailing_list_entry mle
 						    ON mle.mailing_list_id = pml.mailing_list_id
+						   AND mle.mailing_list_entry_status_id = 'SUBSCRIBED'
 						  GROUP BY pml.page_id
 						)
 						SELECT
@@ -3057,10 +3216,21 @@ public class PageService {
 		PageStatusId pageStatusId = request.getPageStatusId();
 		ValidationException validationException = new ValidationException();
 
+		if (copyForEditing)
+			// Serialize copying with live settings saves before reading the metadata to copy.
+			getDatabase().queryForObject("""
+					SELECT page_id FROM page
+					WHERE page_id = ? AND institution_id = ? AND deleted_flag = FALSE
+					FOR UPDATE
+					""", UUID.class, pageId, institutionId);
+
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 
 		if (!page.isPresent())
 			validationException.add(new FieldError("pageId", getStrings().get("Could not find page.")));
+		else if (copyForEditing && page.get().getPageStatusId() != PageStatusId.LIVE)
+			validationException.add(new FieldError("pageId", getStrings().get(
+					"Could not edit this page because its published version has changed. Please close this window and re-edit the page.")));
 
 		if (!copyForEditing) {
 			if (name == null)
@@ -3070,7 +3240,7 @@ public class PageService {
 
 			if (urlName == null)
 				validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is required.")));
-			else if (!isValidUrlSubdirectory(urlName))
+			else if (WebUtility.urlNameContainsIllegalCharacters(urlName) || !isValidUrlSubdirectory(urlName))
 				validationException.add(new FieldError("urlName", getStrings().get("Not a valid Friendly URL")));
 			else if (urlNameExistsForInstitutionId(urlName, institutionId, null))
 				validationException.add(new FieldError("urlName", getStrings().get("Friendly URL name is already in use.")));
@@ -3095,12 +3265,13 @@ public class PageService {
 		getDatabase().execute("""
 				INSERT INTO page
 				(page_id,name,url_name,page_status_id,headline,description,image_file_upload_id,
-				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id, page_group_id)
+				 image_alt_text,published_date,deleted_flag,institution_id,created_by_account_id, parent_page_id, page_group_id, page_location_id, has_been_published)
 				SELECT ?,?,?,?,headline,description,image_file_upload_id,
-				       image_alt_text,published_date,deleted_flag,institution_id,?,?, ?
+				       image_alt_text,CASE WHEN ? THEN published_date ELSE NULL END,deleted_flag,institution_id,?,?, ?,page_location_id,
+				       CASE WHEN ? THEN has_been_published ELSE FALSE END
 				FROM page
 				WHERE page_id=?
-				""", newPageId, name, urlName, pageStatusId, accountId, parentPageId, pageGroupId, pageId);
+				""", newPageId, name, urlName.toLowerCase(Locale.ROOT), pageStatusId, copyForEditing, accountId, parentPageId, pageGroupId, copyForEditing, pageId);
 
 		List<PageSection> pageSections = findPageSectionsByPageId(pageId, institutionId);
 		List<PageRow> pageRows;

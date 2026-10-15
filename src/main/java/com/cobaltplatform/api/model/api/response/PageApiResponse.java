@@ -24,6 +24,7 @@ import com.cobaltplatform.api.model.api.response.PageSectionApiResponse.PageSect
 import com.cobaltplatform.api.model.api.response.PageSiteLocationApiResponse.PageSiteLocationApiResponseFactory;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
+import com.cobaltplatform.api.model.db.PageLocation.PageLocationId;
 import com.cobaltplatform.api.service.PageService;
 import com.cobaltplatform.api.util.Formatter;
 import com.google.inject.assistedinject.Assisted;
@@ -60,6 +61,14 @@ public class PageApiResponse {
 	private final String relativeUrl;
 	@Nullable
 	private final PageStatusId pageStatusId;
+	@Nullable
+	private final PageLocationId pageLocationId;
+	@Nullable
+	private final String pageLocationDescription;
+	@Nullable
+	private final String pageStatusDescription;
+	@Nonnull
+	private final Boolean hasBeenPublished;
 	@Nullable
 	private final String headline;
 	@Nullable
@@ -123,6 +132,10 @@ public class PageApiResponse {
 		this.urlName = page.getUrlName();
 		this.relativeUrl = format("/%s/%s", "pages", page.getUrlName());
 		this.pageStatusId = page.getPageStatusId();
+		this.pageLocationId = page.getPageLocationId();
+		this.pageLocationDescription = page.getPageLocationDescription();
+		this.pageStatusDescription = page.getPageStatusDescription();
+		this.hasBeenPublished = Boolean.TRUE.equals(page.getHasBeenPublished());
 		this.headline = page.getHeadline();
 		this.description = page.getDescription();
 		this.imageFileUploadId = page.getImageFileUploadId();
@@ -174,6 +187,26 @@ public class PageApiResponse {
 	@Nullable
 	public PageStatusId getPageStatusId() {
 		return pageStatusId;
+	}
+
+	@Nullable
+	public PageLocationId getPageLocationId() {
+		return this.pageLocationId;
+	}
+
+	@Nullable
+	public String getPageLocationDescription() {
+		return this.pageLocationDescription;
+	}
+
+	@Nullable
+	public String getPageStatusDescription() {
+		return this.pageStatusDescription;
+	}
+
+	@Nonnull
+	public Boolean getHasBeenPublished() {
+		return this.hasBeenPublished;
 	}
 
 	@Nullable
@@ -261,4 +294,3 @@ public class PageApiResponse {
 		return Optional.ofNullable(this.mailingListEntryCountDescription);
 	}
 }
-

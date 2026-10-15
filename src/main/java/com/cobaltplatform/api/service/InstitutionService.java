@@ -145,6 +145,16 @@ public class InstitutionService {
 	}
 
 	@Nonnull
+	public Boolean isPageDirectoriesEnabled(@Nullable InstitutionId institutionId) {
+		if (institutionId == null)
+			return false;
+
+		return getDatabase().queryForObject("""
+				SELECT page_directories_enabled FROM institution WHERE institution_id=?
+				""", Boolean.class, institutionId).orElse(false);
+	}
+
+	@Nonnull
 	public Boolean isBookingV2Enabled(@Nullable InstitutionId institutionId) {
 		if (institutionId == null)
 			return false;
