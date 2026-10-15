@@ -18,7 +18,7 @@ All endpoints below require authentication and use the current account's institu
     },
     {
       "pageLocationId": "COMMUNITY",
-      "description": "Penn Communities",
+      "description": "Communities",
       "directoryRelativeUrl": "/communities"
     },
     {
@@ -68,8 +68,11 @@ creates an Unpublished page in a separate page group; editing a Published page
 resumes the current admin's most recently saved, non-deleted editing copy for
 that published version, or creates one if none exists. Other admins keep
 separate editing copies. Publishing a new version starts a fresh editing copy
-on the next edit. The Unpublished menu exposes Delete, while the
-Published menu exposes View on Cobalt and Unpublish. These workflows retain
+on the next edit. Changes to a Published page's name, URL, or category also
+update those fields in all saved editing copies for that published version.
+Saved builder content and any editing-copy settings on fields that did not
+change on the Published page are preserved. The Unpublished menu exposes
+Delete, while the Published menu exposes View on Cobalt and Unpublish. These workflows retain
 page-management authorization and institution boundaries.
 
 Subscriber responses include only active subscriptions; the admin subscriber
@@ -144,14 +147,14 @@ migration or example Community selections are needed.
 
 ## Migration and rollout
 
-1. Apply the single feature migration, `sql/updates/289-page-directory-locations.sql`,
+1. Apply the single feature migration, `sql/updates/291-page-directory-locations.sql`,
    before releasing this API.
 2. Release the API, then the frontend consuming these contracts.
 3. Verify authenticated directory searches, settings saves, and publication in
    the deployed environment. Keep existing curated community selections until
    the organization administrator supplies replacements.
 
-Migration 289 adds the lookup, defaulted page category, durable publication history,
+Migration 291 adds the lookup, defaulted page category, durable publication history,
 view metadata, directory index, and status descriptions in one transaction.
 Its category backfill uses existing Featured Topic and
 Community placements: exactly one distinct placement category determines the

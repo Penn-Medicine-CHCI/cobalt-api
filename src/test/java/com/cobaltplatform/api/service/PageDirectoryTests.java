@@ -47,7 +47,7 @@ public class PageDirectoryTests {
 			List<PageLocationApiResponse> locations = value(f.resource.pageLocations(), "pageLocations");
 			assertEquals(List.of(PageLocationId.FEATURED_TOPIC, PageLocationId.COMMUNITY, PageLocationId.UNCATEGORIZED),
 					locations.stream().map(PageLocationApiResponse::getPageLocationId).toList());
-			assertEquals(List.of("Featured Topics","Penn Communities","Uncategorized"), locations.stream().map(PageLocationApiResponse::getDescription).toList());
+			assertEquals(List.of("Featured Topics","Communities","Uncategorized"), locations.stream().map(PageLocationApiResponse::getDescription).toList());
 			assertEquals("/featured-topics", locations.get(0).getDirectoryRelativeUrl().orElseThrow());
 			assertEquals("/communities", locations.get(1).getDirectoryRelativeUrl().orElseThrow());
 			assertFalse(f.mapper.toMap(locations.get(2)).containsKey("directoryRelativeUrl"));
@@ -72,7 +72,7 @@ public class PageDirectoryTests {
 			assertEquals(placementUpdated, f.database.queryForObject("SELECT last_updated FROM page_site_location WHERE page_id=?", Instant.class, pageId).orElseThrow());
 			assertEquals(Integer.valueOf(42), f.database.queryForObject("SELECT display_order FROM page_site_location WHERE page_id=?", Integer.class, pageId).orElseThrow());
 			List<PageApiResponse> adminPages = value(f.resource.pages(Optional.empty(), Optional.empty(), Optional.of(f.prefix), Optional.empty()), "pages");
-			assertEquals("Penn Communities", adminPages.stream().filter(p -> p.getPageId().equals(pageId)).findFirst().orElseThrow().getPageLocationDescription());
+			assertEquals("Communities", adminPages.stream().filter(p -> p.getPageId().equals(pageId)).findFirst().orElseThrow().getPageLocationDescription());
 			assertTrue(f.directory(PageLocationId.COMMUNITY, 0, 25).getResults().isEmpty());
 			UUID published = f.create("Patient-readable community", PageLocationId.COMMUNITY);
 			f.service.publishPage(published, InstitutionId.COBALT);

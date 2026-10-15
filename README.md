@@ -62,14 +62,6 @@ Most database-backed service and resource tests are not assigned JUnit
 categories, so the complete suite is the authoritative verification command.
 Use Maven's `-Dtest=ClassName` option for a focused local run.
 
-Migration tests create a disposable PostgreSQL database, apply the migration SQL,
-query its resulting state, and drop the database when finished. They use the
-Docker Compose administrator defaults (`localhost:5501/postgres`, user
-`postgres`, password `password`). For another local database, override
-`cobalt.test.postgres.adminUrl`, `cobalt.test.postgres.adminUsername`, and
-`cobalt.test.postgres.adminPassword` with Maven system properties. The selected
-administrator must be able to create and drop databases.
-
 ## Development
 
 If you're using [IntelliJ IDEA](https://www.jetbrains.com/idea/), please import the [Formatting Scheme File](misc/intellij-codestyle.xml) in `Editor → Code Style → Java` to keep your code formatted consistently so diffs are easy to read.

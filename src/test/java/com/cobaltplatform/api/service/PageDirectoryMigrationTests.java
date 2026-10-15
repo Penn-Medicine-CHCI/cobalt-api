@@ -19,7 +19,7 @@ public class PageDirectoryMigrationTests {
 				createLegacySchema(statement);
 				// Migration text is executed as input; assertions inspect only database results.
 				statement.execute("SELECT _v.register_patch('215-page-group',NULL,NULL)");
-				statement.execute(Files.readString(Paths.get("sql/updates/289-page-directory-locations.sql")));
+				statement.execute(Files.readString(Paths.get("sql/updates/291-page-directory-locations.sql")));
 				try (ResultSet result = statement.executeQuery("SELECT page_location_id FROM page ORDER BY page_id")) {
 					for (String expected : new String[]{"FEATURED_TOPIC","COMMUNITY","UNCATEGORIZED","UNCATEGORIZED","COMMUNITY","UNCATEGORIZED"}) {
 						assertTrue(result.next());
@@ -32,10 +32,10 @@ public class PageDirectoryMigrationTests {
 				assertEquals(5, count(statement, "SELECT COUNT(*) FROM v_page"));
 				assertEquals(4, count(statement, "SELECT COUNT(*) FROM v_page WHERE page_status_description='Published'"));
 				assertEquals(1, count(statement, "SELECT COUNT(*) FROM v_page WHERE page_status_description='Copy for Editing'"));
-				assertEquals(1, count(statement, "SELECT COUNT(*) FROM v_page WHERE page_location_description='Penn Communities'"));
+				assertEquals(1, count(statement, "SELECT COUNT(*) FROM v_page WHERE page_location_description='Communities'"));
 				assertEquals(5, count(statement, "SELECT COUNT(*) FROM v_page WHERE original_create_date='2020-01-01'"));
 				assertEquals(5, count(statement, "SELECT COUNT(*) FROM v_page WHERE has_been_published=TRUE"));
-				assertEquals(1, count(statement, "SELECT COUNT(*) FROM _v.patches WHERE patch_name='289-page-directory-locations'"));
+				assertEquals(1, count(statement, "SELECT COUNT(*) FROM _v.patches WHERE patch_name='291-page-directory-locations'"));
 				assertThrows(SQLException.class, () -> statement.execute("UPDATE page SET page_location_id='INVALID'"));
 				assertThrows(SQLException.class, () -> statement.execute("UPDATE page SET page_location_id=NULL"));
 				statement.execute("UPDATE page SET name='Updated' WHERE url_name='page-1'");
@@ -60,7 +60,7 @@ public class PageDirectoryMigrationTests {
 				statement.execute("UPDATE page SET page_status_id='DRAFT',published_date=NULL WHERE url_name IN ('page-3','page-5')");
 				statement.execute("UPDATE page SET page_status_id='DRAFT' WHERE url_name='page-4'");
 				statement.execute("CREATE TEMP TABLE expected_page_history AS SELECT * FROM page");
-				statement.execute(Files.readString(Paths.get("sql/updates/289-page-directory-locations.sql")));
+				statement.execute(Files.readString(Paths.get("sql/updates/291-page-directory-locations.sql")));
 				try (ResultSet result = statement.executeQuery("SELECT has_been_published FROM page ORDER BY page_id")) {
 					for (boolean expected : new boolean[]{true,true,false,true,false,true}) {
 						assertTrue(result.next());
@@ -75,7 +75,7 @@ public class PageDirectoryMigrationTests {
 						"""));
 				assertEquals(4, count(statement, "SELECT COUNT(*) FROM v_page WHERE has_been_published=TRUE"));
 				assertEquals(7, count(statement, "SELECT COUNT(*) FROM page_site_location"));
-				assertEquals(1, count(statement, "SELECT COUNT(*) FROM _v.patches WHERE patch_name='289-page-directory-locations'"));
+				assertEquals(1, count(statement, "SELECT COUNT(*) FROM _v.patches WHERE patch_name='291-page-directory-locations'"));
 				assertThrows(SQLException.class, () -> statement.execute("UPDATE page SET has_been_published=NULL"));
 				statement.execute("""
 						INSERT INTO page (page_id,name,url_name,page_status_id,institution_id,created_by_account_id,created,last_updated,page_group_id)

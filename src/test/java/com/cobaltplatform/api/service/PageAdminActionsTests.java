@@ -75,6 +75,125 @@ public class PageAdminActionsTests {
 	}
 
 	@Test
+	public void liveSettingsCarryForwardToAllAdminsSavedEditingCopiesAndPublication() {
+		PageDirectoryTests.run(f -> {
+			UUID publishedId = f.create("Live settings", PageLocationId.FEATURED_TOPIC);
+			PageApiResponse published = value(f.resource.publishPage(publishedId), "page");
+			UUID firstEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			String savedHeadline = "Saved builder content " + f.prefix;
+			f.resource.updatePageHero(f.mapper.toJson(Map.of(
+					"headline", savedHeadline, "description", published.getDescription(),
+					"imageFileUploadId", f.imageId, "imageAltText", published.getImageAltText())), firstEditId);
+			f.resource.updatePageSettings(f.mapper.toJson(Map.of(
+					"name", f.prefix + " Pending name", "urlName", f.prefix + "-pending",
+					"pageLocationId", "UNCATEGORIZED")), firstEditId);
+			assertEquals(published.getName(), f.page(publishedId).getName());
+			assertEquals(published.getUrlName(), f.page(publishedId).getUrlName());
+			assertEquals(PageLocationId.FEATURED_TOPIC, f.page(publishedId).getPageLocationId());
+
+			UUID firstAccountId = f.account.getAccountId();
+			CreateAccountRequest accountRequest = new CreateAccountRequest();
+			accountRequest.setAccountSourceId(AccountSourceId.ANONYMOUS);
+			accountRequest.setInstitutionId(InstitutionId.COBALT);
+			f.account.setAccountId(f.service.getAccountService().createAccount(accountRequest));
+			UUID secondEditId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			f.account.setAccountId(firstAccountId);
+
+			String latestName = f.prefix + " Latest live name";
+			String latestUrlName = f.prefix + "-latest-live-url";
+			f.resource.updatePageSettings(f.mapper.toJson(Map.of(
+					"name", latestName, "urlName", latestUrlName, "pageLocationId", "COMMUNITY")), publishedId);
+			for (UUID editingId : List.of(firstEditId, secondEditId)) {
+				PageApiResponse editing = value(f.resource.page(editingId.toString()), "page");
+				assertEquals(latestName, editing.getName());
+				assertEquals(latestUrlName, editing.getUrlName());
+				assertEquals(PageLocationId.COMMUNITY, editing.getPageLocationId());
+			}
+			assertEquals(firstEditId, value(f.resource.editPage(publishedId.toString()), "pageId"));
+			assertEquals(firstEditId, value(f.resource.editPage(latestUrlName), "pageId"));
+			assertEquals(savedHeadline, f.page(firstEditId).getHeadline());
+			assertEquals(published.getHeadline(), f.page(publishedId).getHeadline());
+
+			f.resource.publishPage(firstEditId);
+			PageApiResponse live = value(f.resource.publishedPage(latestUrlName), "page");
+			assertEquals(firstEditId, live.getPageId());
+			assertEquals(latestName, live.getName());
+			assertEquals(PageLocationId.COMMUNITY, live.getPageLocationId());
+			assertEquals(savedHeadline, live.getHeadline());
+			assertThrows(NotFoundException.class, () -> f.resource.publishedPage(published.getUrlName()));
+		});
+	}
+
+	@Test
+	public void liveSettingsSavesPreserveCopyOnlySettingsOnFieldsThatDidNotChange() {
+		PageDirectoryTests.run(f -> {
+			UUID publishedId = f.create("Partial settings", PageLocationId.FEATURED_TOPIC);
+			PageApiResponse published = value(f.resource.publishPage(publishedId), "page");
+			UUID editId = value(f.resource.editPage(publishedId.toString()), "pageId");
+			String pendingName = f.prefix + " Pending name";
+			String pendingUrlName = f.prefix + "-pending-url";
+			f.resource.updatePageSettings(f.mapper.toJson(Map.of(
+					"name", pendingName, "urlName", pendingUrlName, "pageLocationId", "COMMUNITY")), editId);
+
+			f.resource.updatePageSettings(f.mapper.toJson(Map.of(
+					"name", published.getName(), "urlName", published.getUrlName(),
+					"pageLocationId", "FEATURED_TOPIC")), publishedId);
+			PageApiResponse editing = value(f.resource.page(editId.toString()), "page");
+			assertEquals(pendingName, editing.getName());
+			assertEquals(pendingUrlName, editing.getUrlName());
+			assertEquals(PageLocationId.COMMUNITY, editing.getPageLocationId());
+
+			String latestName = f.prefix + " Latest name only";
+			f.resource.updatePageSettings(f.mapper.toJson(Map.of(
+					"name", latestName, "urlName", published.getUrlName())), publishedId);
+			editing = value(f.resource.page(editId.toString()), "page");
+			assertEquals(latestName, editing.getName());
+			assertEquals(pendingUrlName, editing.getUrlName());
+			assertEquals(PageLocationId.COMMUNITY, editing.getPageLocationId());
+			PageApiResponse live = value(f.resource.publishedPage(published.getUrlName()), "page");
+			assertEquals(latestName, live.getName());
+			assertEquals(PageLocationId.FEATURED_TOPIC, live.getPageLocationId());
+
+			f.resource.publishPage(editId);
+			live = value(f.resource.publishedPage(pendingUrlName), "page");
+			assertEquals(latestName, live.getName());
+			assertEquals(PageLocationId.COMMUNITY, live.getPageLocationId());
+		});
+	}
+
+	@Test
+	public void liveSettingsSynchronizationRespectsEditingStatusDeletionParentAndInstitution() {
+		PageDirectoryTests.run(f -> {
+			UUID publishedId = f.create("Scoped settings", PageLocationId.FEATURED_TOPIC);
+			PageApiResponse published = value(f.resource.publishPage(publishedId), "page");
+			UUID deletedCopy = f.duplicate(publishedId, true);
+			f.resource.deletePage(deletedCopy);
+			UUID foreignCopy = f.duplicate(publishedId, true);
+			f.database.execute("UPDATE page SET institution_id='COBALT_IC' WHERE page_id=?", foreignCopy);
+			UUID draftCopy = f.duplicate(publishedId, true);
+			f.database.execute("UPDATE page SET page_status_id='DRAFT' WHERE page_id=?", draftCopy);
+			UUID otherParent = f.create("Other parent", PageLocationId.FEATURED_TOPIC);
+			f.resource.publishPage(otherParent);
+			UUID unrelatedCopy = value(f.resource.editPage(otherParent.toString()), "pageId");
+			String unrelatedName = f.page(unrelatedCopy).getName();
+
+			f.resource.updatePageSettings(f.mapper.toJson(Map.of(
+					"name", f.prefix + " Updated scoped settings", "urlName", f.prefix + "-updated-scoped-settings",
+					"pageLocationId", "COMMUNITY")), publishedId);
+			for (UUID excludedId : List.of(deletedCopy, foreignCopy, draftCopy)) {
+				assertEquals(published.getName(), f.database.queryForObject(
+						"SELECT name FROM page WHERE page_id=?", String.class, excludedId).orElseThrow());
+				assertEquals(published.getUrlName(), f.database.queryForObject(
+						"SELECT url_name FROM page WHERE page_id=?", String.class, excludedId).orElseThrow());
+				assertEquals(PageLocationId.FEATURED_TOPIC.name(), f.database.queryForObject(
+						"SELECT page_location_id FROM page WHERE page_id=?", String.class, excludedId).orElseThrow());
+			}
+			assertEquals(unrelatedName, f.page(unrelatedCopy).getName());
+			assertEquals(PageLocationId.FEATURED_TOPIC, f.page(unrelatedCopy).getPageLocationId());
+		});
+	}
+
+	@Test
 	public void editingResumesOnlyTheCurrentAdminsCopyAndReplacesDeletedCopies() {
 		PageDirectoryTests.run(f -> {
 			UUID publishedId = f.create("Separate edits", PageLocationId.COMMUNITY);

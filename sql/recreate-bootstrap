@@ -293,6 +293,7 @@ PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < updates/288-provider-eligibility-pools.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < updates/289-care-encounter-follow-up-without-attendance.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < updates/290-provider-appointment-start-time-alignment.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h postgres-cobalt -p 5432 < updates/291-page-directory-locations.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/263-care-navigator-seed.sql
 PGPASSWORD=password psql -U cobalt -h postgres-cobalt -p 5432 < local/264-cobalt-employer-onboarding.sql
 

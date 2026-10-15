@@ -1,5 +1,5 @@
 BEGIN;
-SELECT _v.register_patch('289-page-directory-locations', ARRAY['215-page-group'], NULL);
+SELECT _v.register_patch('291-page-directory-locations', ARRAY['215-page-group'], NULL);
 
 -- Directory membership is independent of scheduled homepage and navigation placements.
 CREATE TABLE page_location (
@@ -12,7 +12,7 @@ CREATE TABLE page_location (
 INSERT INTO page_location (page_location_id, description, directory_relative_url, display_order)
 VALUES
   ('FEATURED_TOPIC', 'Featured Topics', '/featured-topics', 0),
-  ('COMMUNITY', 'Penn Communities', '/communities', 1),
+  ('COMMUNITY', 'Communities', '/communities', 1),
   ('UNCATEGORIZED', 'Uncategorized', NULL, 2);
 
 ALTER TABLE page ADD COLUMN page_location_id TEXT NOT NULL DEFAULT 'UNCATEGORIZED' REFERENCES page_location;

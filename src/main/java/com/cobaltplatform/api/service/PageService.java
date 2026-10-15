@@ -897,14 +897,55 @@ public class PageService {
 		if (validationException.hasErrors())
 			throw validationException;
 
-		getDatabase().execute("""
-				UPDATE page SET
-				name=?, url_name=?, page_location_id=COALESCE(?, page_location_id)
-				WHERE page_id=?	
-				AND institution_id = ?				   
-			""", name, urlName.toLowerCase(Locale.ROOT), request.getPageLocationId(), pageId, institutionId);
+		String normalizedUrlName = urlName.toLowerCase(Locale.ROOT);
+		Supplier<UUID> updateSettings = () -> {
+			Page page = getDatabase().queryForObject("""
+					SELECT * FROM page
+					WHERE page_id = ? AND institution_id = ? AND deleted_flag = FALSE
+					FOR UPDATE
+					""", Page.class, pageId, institutionId).orElseThrow(() -> new ValidationException(
+					new FieldError("page", getStrings().get("You do not have permission to update this page."))));
 
-		return pageId;
+			getDatabase().execute("""
+					UPDATE page SET
+					name=?, url_name=?, page_location_id=COALESCE(?, page_location_id)
+					WHERE page_id=? AND institution_id = ?
+					""", name, normalizedUrlName, request.getPageLocationId(), pageId, institutionId);
+
+			if (page.getPageStatusId() == PageStatusId.LIVE) {
+				List<String> changedSettings = new ArrayList<>();
+				List<Object> parameters = new ArrayList<>();
+				if (!Objects.equals(name, page.getName())) {
+					changedSettings.add("name = ?");
+					parameters.add(name);
+				}
+				if (!Objects.equals(normalizedUrlName, page.getUrlName())) {
+					changedSettings.add("url_name = ?");
+					parameters.add(normalizedUrlName);
+				}
+				if (request.getPageLocationId() != null && request.getPageLocationId() != page.getPageLocationId()) {
+					changedSettings.add("page_location_id = ?");
+					parameters.add(request.getPageLocationId());
+				}
+
+				// Keep saved builder content and copy-only settings while carrying live settings changes forward.
+				if (!changedSettings.isEmpty()) {
+					parameters.add(pageId);
+					parameters.add(institutionId);
+					parameters.add(PageStatusId.COPY_FOR_EDITING);
+					getDatabase().execute("UPDATE page SET " + String.join(", ", changedSettings) + """
+							 WHERE parent_page_id = ? AND institution_id = ?
+							 AND page_status_id = ? AND deleted_flag = FALSE
+							""", parameters.toArray());
+				}
+			}
+
+			return pageId;
+		};
+
+		return getDatabase().currentTransaction().isPresent()
+				? updateSettings.get()
+				: getDatabase().transaction(updateSettings::get);
 	}
 
 	@Nonnull
@@ -3123,6 +3164,14 @@ public class PageService {
 		Boolean copyForEditing = Boolean.TRUE.equals(request.getCopyForEditing());
 		PageStatusId pageStatusId = request.getPageStatusId();
 		ValidationException validationException = new ValidationException();
+
+		if (copyForEditing)
+			// Serialize copying with live settings saves before reading the metadata to copy.
+			getDatabase().queryForObject("""
+					SELECT page_id FROM page
+					WHERE page_id = ? AND institution_id = ? AND deleted_flag = FALSE
+					FOR UPDATE
+					""", UUID.class, pageId, institutionId);
 
 		Optional<Page> page = findPageById(pageId, institutionId, true);
 
