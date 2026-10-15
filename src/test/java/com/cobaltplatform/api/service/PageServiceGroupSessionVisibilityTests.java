@@ -39,6 +39,7 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.Page;
 import com.cobaltplatform.api.model.db.PageSection;
 import com.cobaltplatform.api.model.db.PageStatus.PageStatusId;
+import com.cobaltplatform.api.model.db.RowType.RowTypeId;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.pyranid.Database;
 import org.junit.Assert;
@@ -59,7 +60,7 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class PageServiceGroupSessionVisibilityTests {
 	@Test
-	public void publishedPageResponseIncludesOnlyUpcomingGroupSessions() {
+	public void publishedPageResponseRetainsEmptyRowsAndIncludesOnlyVisibleGroupSessions() {
 		IntegrationTestExecutor.runTransactionallyAndForceRollback((app) -> {
 			Database database = app.getInjector().getInstance(DatabaseProvider.class).getWritableMasterDatabase();
 			AccountService accountService = app.getInjector().getInstance(AccountService.class);
@@ -83,6 +84,7 @@ public class PageServiceGroupSessionVisibilityTests {
 				UUID pastGroupSessionId = createGroupSession(groupSessionService, account, "past");
 				UUID futureGroupSessionId = createGroupSession(groupSessionService, account, "future");
 				UUID unscheduledGroupSessionId = createGroupSession(groupSessionService, account, "unscheduled");
+				UUID hiddenGroupSessionId = createGroupSession(groupSessionService, account, "hidden");
 
 				database.execute("""
 						UPDATE group_session
@@ -99,26 +101,40 @@ public class PageServiceGroupSessionVisibilityTests {
 						SET group_session_status_id = ?, start_date_time = NULL
 						WHERE group_session_id = ?
 						""", GroupSessionStatusId.ADDED, unscheduledGroupSessionId);
+				database.execute("""
+						UPDATE group_session
+						SET group_session_status_id = ?
+						WHERE group_session_id = ?
+						""", GroupSessionStatusId.ARCHIVED, hiddenGroupSessionId);
 
 				UUID pastOnlyPageId = createPageWithGroupSessions(pageService, account, List.of(pastGroupSessionId), "past-only");
+				UUID emptyPageId = createPageWithGroupSessions(pageService, account, List.of(), "empty");
+				UUID hiddenOnlyPageId = createPageWithGroupSessions(pageService, account, List.of(hiddenGroupSessionId), "hidden-only");
 				UUID mixedPageId = createPageWithGroupSessions(pageService, account,
-						List.of(pastGroupSessionId, futureGroupSessionId, unscheduledGroupSessionId), "mixed");
+						List.of(pastGroupSessionId, futureGroupSessionId, unscheduledGroupSessionId, hiddenGroupSessionId), "mixed");
 
 				PageApiResponse draftPageResponse = pageResponse(pageService, pageApiResponseFactory, mixedPageId,
 						account.getInstitutionId());
 				Assert.assertEquals(1, draftPageResponse.getPageSections().size());
 				Assert.assertEquals(1, draftPageResponse.getPageSections().get(0).getPageRows().size());
-				Assert.assertEquals(3, draftPageResponse.getPageSections().get(0).getPageRows().get(0).getGroupSessions().size());
+				Assert.assertEquals(4, draftPageResponse.getPageSections().get(0).getPageRows().get(0).getGroupSessions().size());
 
 				database.execute("""
 						UPDATE page
 						SET page_status_id = ?
-						WHERE page_id IN (?, ?)
-						""", PageStatusId.LIVE, pastOnlyPageId, mixedPageId);
+						WHERE page_id IN (?, ?, ?, ?)
+						""", PageStatusId.LIVE, pastOnlyPageId, emptyPageId, hiddenOnlyPageId, mixedPageId);
 
-				PageApiResponse pastOnlyPageResponse = pageResponse(pageService, pageApiResponseFactory, pastOnlyPageId,
-						account.getInstitutionId());
-				Assert.assertTrue(pastOnlyPageResponse.getPageSections().isEmpty());
+				for (UUID pageId : List.of(pastOnlyPageId, emptyPageId, hiddenOnlyPageId)) {
+					PageApiResponse emptyPageResponse = pageResponse(pageService, pageApiResponseFactory, pageId,
+							account.getInstitutionId());
+					Assert.assertEquals(1, emptyPageResponse.getPageSections().size());
+					Assert.assertEquals(1, emptyPageResponse.getPageSections().get(0).getPageRows().size());
+					PageRowApiResponse emptyRow = emptyPageResponse.getPageSections().get(0).getPageRows().get(0);
+					Assert.assertEquals(RowTypeId.GROUP_SESSIONS, emptyRow.getRowTypeId());
+					Assert.assertTrue(emptyRow.getDisplayRow());
+					Assert.assertTrue(emptyRow.getGroupSessions().isEmpty());
+				}
 
 				PageApiResponse mixedPageResponse = pageResponse(pageService, pageApiResponseFactory, mixedPageId,
 						account.getInstitutionId());

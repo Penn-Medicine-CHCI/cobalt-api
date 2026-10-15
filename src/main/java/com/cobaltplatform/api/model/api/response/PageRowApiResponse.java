@@ -180,8 +180,6 @@ public class PageRowApiResponse {
 			//If this page is published only show ADDED group sessions
 			this.groupSessions = pageService.findGroupSessionsByPageRowId(pageRow.getPageRowId(), page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) ? true : false).stream()
 					.map(groupSession -> groupSessionApiResponseFactory.create(groupSession)).collect(Collectors.toList());
-			if (page.getPageStatusId().equals(PageStatus.PageStatusId.LIVE) && this.groupSessions.size() == 0)
-				displayRow = false;
 		} else if (this.rowTypeId.equals(RowTypeId.TAG_GROUP))
 			this.tagGroup = tagGroupApiResponseFactory.create(pageService.findTagGroupByRowId(pageRow.getPageRowId()).orElse(null));
 		else if (this.rowTypeId.equals(RowTypeId.TAG)) {
