@@ -95,7 +95,7 @@ public class Hl7ExtendedCompositeIdNumberAndNameForPersons extends Hl7Object {
 				|| trimToNull(xcn.getPrefixEgDR().getValueOrEmpty()) != null
 				|| trimToNull(xcn.getDegreeEgMD().getValueOrEmpty()) != null
 				|| trimToNull(xcn.getSourceTable().getValueOrEmpty()) != null
-				|| Hl7HierarchicDesignator.isPresent(xcn.getAssigningAuthority()) != null
+				|| Hl7HierarchicDesignator.isPresent(xcn.getAssigningAuthority())
 				|| trimToNull(xcn.getNameTypeCode().getValueOrEmpty()) != null
 				|| trimToNull(xcn.getIdentifierCheckDigit().getValueOrEmpty()) != null
 				|| trimToNull(xcn.getCheckDigitScheme().getValueOrEmpty()) != null

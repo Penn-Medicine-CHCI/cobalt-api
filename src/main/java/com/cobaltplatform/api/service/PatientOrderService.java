@@ -178,6 +178,7 @@ import com.cobaltplatform.api.model.service.Encounter;
 import com.cobaltplatform.api.model.service.EpicDepartmentPatientOrderImportDisabledException;
 import com.cobaltplatform.api.model.service.FindResult;
 import com.cobaltplatform.api.model.service.IcTestPatientEmailAddress;
+import com.cobaltplatform.api.model.service.PatientOrderAlreadyOpenException;
 import com.cobaltplatform.api.model.service.PatientOrderAssignmentStatusId;
 import com.cobaltplatform.api.model.service.PatientOrderAutocompleteResult;
 import com.cobaltplatform.api.model.service.PatientOrderContactTypeId;
@@ -6711,13 +6712,16 @@ public class PatientOrderService implements AutoCloseable {
 
 			List<Hl7ExtendedCompositeIdNumberAndNameForPersons> orderingProviders = order.getOrderDetail().getOrderDetailSegment().getObservationRequest().getOrderingProvider();
 
+			// ORC-12 and OBR-16 both identify the ordering provider. Preserve OBR-16 precedence.
 			if (orderingProviders == null || orderingProviders.size() == 0)
-				throw new ValidationException(getStrings().get("Unable to find ordering provider in HL7 message"));
+				orderingProviders = order.getCommonOrder().getOrderingProvider();
 
-			Hl7ExtendedCompositeIdNumberAndNameForPersons orderingProvider = orderingProviders.get(0);
-			patientOrderRequest.setOrderingProviderLastName(orderingProvider.getFamilyName().getSurname());
-			patientOrderRequest.setOrderingProviderFirstName(orderingProvider.getGivenName());
-			patientOrderRequest.setOrderingProviderMiddleName(orderingProvider.getSecondAndFurtherGivenNamesOrInitialsThereof());
+			if (orderingProviders != null && orderingProviders.size() > 0) {
+				Hl7ExtendedCompositeIdNumberAndNameForPersons orderingProvider = orderingProviders.get(0);
+				patientOrderRequest.setOrderingProviderLastName(orderingProvider.getFamilyName() == null ? null : orderingProvider.getFamilyName().getSurname());
+				patientOrderRequest.setOrderingProviderFirstName(orderingProvider.getGivenName());
+				patientOrderRequest.setOrderingProviderMiddleName(orderingProvider.getSecondAndFurtherGivenNamesOrInitialsThereof());
+			}
 
 			// TODO: determine where Billing Provider data is
 			Hl7ExtendedCompositeIdNumberAndNameForPersons billingProvider = null;
@@ -7555,8 +7559,13 @@ public class PatientOrderService implements AutoCloseable {
 						Map.of("encounterDepartmentId", encounterDepartmentId)));
 		}
 
-		if (validationException.hasErrors())
+		if (validationException.hasErrors()) {
+			// Only an otherwise valid order should be classified as an expected open-order rejection.
+			if (openPatientOrder != null && validationException.getGlobalErrors().size() == 1 && validationException.getFieldErrors().isEmpty())
+				throw new PatientOrderAlreadyOpenException(validationException.getGlobalErrors().get(0));
+
 			throw validationException;
+		}
 
 		UUID patientAccountId = null;
 

@@ -33,7 +33,9 @@ import com.cobaltplatform.api.model.db.Institution.InstitutionId;
 import com.cobaltplatform.api.model.db.PatientOrderImportType.PatientOrderImportTypeId;
 import com.cobaltplatform.api.model.service.AdvisoryLock;
 import com.cobaltplatform.api.model.service.EpicDepartmentPatientOrderImportDisabledException;
+import com.cobaltplatform.api.model.service.PatientOrderAlreadyOpenException;
 import com.cobaltplatform.api.util.Holder;
+import com.cobaltplatform.api.util.ValidationException;
 import com.cobaltplatform.api.util.db.DatabaseProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lokalized.Strings;
@@ -288,6 +290,15 @@ public class PatientOrderSyncService implements AutoCloseable {
 						} catch (EpicDepartmentPatientOrderImportDisabledException e) {
 							resultHolder.setValue(PatientOrderImportResult.IGNORED);
 							getLogger().info(format("Ignoring HL7 import for message:\n%s", generalOrderHl7AsString), e);
+						} catch (PatientOrderAlreadyOpenException e) {
+							resultHolder.setValue(PatientOrderImportResult.FAILED);
+							getLogger().info("Not importing HL7 order from {} because the patient already has an open order.", objectPath);
+						} catch (ValidationException e) {
+							resultHolder.setValue(PatientOrderImportResult.FAILED);
+							getLogger().warn(format("HL7 order import failed validation for %s", objectPath), e);
+							// Reporting a ValidationException as a throwable only logs it locally.
+							getErrorReporter().report(format("HL7 order import failed validation. Institution ID: %s, source: %s. %s",
+									institution.getInstitutionId(), objectPath, e.getMessage()));
 						} catch (Exception e) {
 							resultHolder.setValue(PatientOrderImportResult.FAILED);
 							getLogger().error(format("Unable to perform HL7 import for message:\n%s", generalOrderHl7AsString), e);
