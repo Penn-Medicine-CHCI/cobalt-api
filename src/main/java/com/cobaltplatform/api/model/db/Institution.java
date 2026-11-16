@@ -229,6 +229,8 @@ public class Institution {
 	@Nullable
 	private String integratedCarePhoneNumber;
 	@Nullable
+	private String integratedCareContactName;
+	@Nullable
 	private String integratedCareAvailabilityDescription;
 	@Nullable
 	private String integratedCareProgramName;
@@ -1298,6 +1300,15 @@ public class Institution {
 
 	public void setIntegratedCarePhoneNumber(@Nullable String integratedCarePhoneNumber) {
 		this.integratedCarePhoneNumber = integratedCarePhoneNumber;
+	}
+
+	@Nullable
+	public String getIntegratedCareContactName() {
+		return this.integratedCareContactName;
+	}
+
+	public void setIntegratedCareContactName(@Nullable String integratedCareContactName) {
+		this.integratedCareContactName = integratedCareContactName;
 	}
 
 	@Nullable
