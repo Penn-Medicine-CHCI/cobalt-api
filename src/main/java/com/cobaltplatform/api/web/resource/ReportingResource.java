@@ -227,6 +227,12 @@ public class ReportingResource {
 				getReportingService().runCourseFeedbackReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.COURSE_MCB_DOWNLOAD)
 				getReportingService().runMcbDownloadReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.COURSE_PARENTING_TEENS_WRAP_UP)
+				getReportingService().runParentingTeensWrapUpReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.COURSE_UNDERSTANDING_TRAUMA_WRAP_UP)
+				getReportingService().runUnderstandingTraumaWrapUpReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
+			else if (reportTypeId == ReportTypeId.COURSE_BUILDING_HEALTHY_SLEEP_WRAP_UP)
+				getReportingService().runBuildingHealthySleepWrapUpReportCsv(account.getInstitutionId(), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else if (reportTypeId == ReportTypeId.ACCOUNT_TIMELINE)
 				getReportingService().runAccountTimelineReportCsv(account.getInstitutionId(), accountId.orElseThrow(IllegalArgumentException::new), startDateTime, endDateTime, reportTimeZone, reportLocale, printWriter);
 			else

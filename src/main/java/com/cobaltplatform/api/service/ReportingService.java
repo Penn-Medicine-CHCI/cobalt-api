@@ -228,7 +228,10 @@ public class ReportingService {
 					if (reportType.getReportTypeId() == ReportTypeId.COURSE_FEEDBACK)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
-					if (reportType.getReportTypeId() == ReportTypeId.COURSE_MCB_DOWNLOAD)
+					if (reportType.getReportTypeId() == ReportTypeId.COURSE_MCB_DOWNLOAD
+							|| reportType.getReportTypeId() == ReportTypeId.COURSE_PARENTING_TEENS_WRAP_UP
+							|| reportType.getReportTypeId() == ReportTypeId.COURSE_UNDERSTANDING_TRAUMA_WRAP_UP
+							|| reportType.getReportTypeId() == ReportTypeId.COURSE_BUILDING_HEALTHY_SLEEP_WRAP_UP)
 						return accountCapabilityFlags.isCanViewAnalytics();
 
 					if (reportType.getReportTypeId() == ReportTypeId.ACCOUNT_TIMELINE)
@@ -2315,6 +2318,13 @@ public class ReportingService {
 	private static final String METRIC_VISIT_COLUMN_SUFFIX = "_visit";
 
 	@Nonnull
+	private static final List<String> PARENTING_TEENS_WRAP_UP_HEADER_COLUMNS = List.of("accountId", "Course Session ID", "bb_teens_postcourse_needs", "bb_teens_postcourse_match", "bb_teens_postcourse_confidence", "bb_teens_postcourse_apply", "bb_teens_postcourse_navigate", "bb_teens_postcourse_likes", "bb_teens_postcourse_likesopen", "bb_teens_postcourse_goal", "bb_teens_postcourse_recommend", "Feedback Submitted At (America/New_York)");
+	@Nonnull
+	private static final List<String> UNDERSTANDING_TRAUMA_WRAP_UP_HEADER_COLUMNS = List.of("accountId", "Course Session ID", "bb_trauma_postcourse_needs", "bb_trauma_postcourse_match", "bb_trauma_postcourse_confidence", "bb_trauma_postcourse_apply", "bb_trauma_postcourse_actions", "bb_trauma_postcourse_actionsopen", "bb_trauma_postcourse_navigate", "bb_trauma_postcourse_likes", "bb_trauma_postcourse_likesopen", "bb_trauma_postcourse_goal", "bb_trauma_postcourse_recommend", "Feedback Submitted At (America/New_York)");
+	@Nonnull
+	private static final List<String> BUILDING_HEALTHY_SLEEP_WRAP_UP_HEADER_COLUMNS = List.of("accountId", "Course Session ID", "bb_sleep_postcourse_needs", "bb_sleep_postcourse_match", "bb_sleep_postcourse_confidence", "bb_sleep_postcourse_apply", "bb_sleep_postcourse_navigate", "bb_sleep_postcourse_likes", "bb_sleep_postcourse_likesopen", "bb_sleep_postcourse_goal", "bb_sleep_postcourse_recommend", "Feedback Submitted At (America/New_York)");
+
+	@Nonnull
 	private static final List<String> COURSE_MCB_DOWNLOAD_HEADER_COLUMNS = List.of(
 			"recordID",
 			"email",
@@ -2332,6 +2342,8 @@ public class ReportingService {
 			"bb_onboarding_6",
 			"bb_onboarding_7",
 			"bb_onboarding_8",
+			"bb_onboarding_reasons",
+			"bb_onboarding_reasonsopen",
 			"bb_n_sitevisit",
 			"bb_tot_time",
 			"bb_sleep_complete",
@@ -3080,6 +3092,140 @@ public class ReportingService {
 				COURSE_MCB_DOWNLOAD_HEADER_COLUMNS);
 	}
 
+	public void runParentingTeensWrapUpReportCsv(@Nonnull InstitutionId institutionId, @Nonnull LocalDateTime startDateTime, @Nonnull LocalDateTime endDateTime, @Nonnull ZoneId reportTimeZone, @Nonnull Locale reportLocale, @Nonnull Writer writer) {
+		runWrapUpEvaluationReportCsv(institutionId, startDateTime, endDateTime, reportTimeZone, writer, "Parenting Teens Wrap Up", "bb_teens_postcourse_", PARENTING_TEENS_WRAP_UP_HEADER_COLUMNS);
+	}
+
+	public void runUnderstandingTraumaWrapUpReportCsv(@Nonnull InstitutionId institutionId, @Nonnull LocalDateTime startDateTime, @Nonnull LocalDateTime endDateTime, @Nonnull ZoneId reportTimeZone, @Nonnull Locale reportLocale, @Nonnull Writer writer) {
+		runWrapUpEvaluationReportCsv(institutionId, startDateTime, endDateTime, reportTimeZone, writer, "Understanding Trauma Wrap Up", "bb_trauma_postcourse_", UNDERSTANDING_TRAUMA_WRAP_UP_HEADER_COLUMNS);
+	}
+
+	public void runBuildingHealthySleepWrapUpReportCsv(@Nonnull InstitutionId institutionId, @Nonnull LocalDateTime startDateTime, @Nonnull LocalDateTime endDateTime, @Nonnull ZoneId reportTimeZone, @Nonnull Locale reportLocale, @Nonnull Writer writer) {
+		runWrapUpEvaluationReportCsv(institutionId, startDateTime, endDateTime, reportTimeZone, writer, "Building Healthy Sleep Wrap Up", "bb_sleep_postcourse_", BUILDING_HEALTHY_SLEEP_WRAP_UP_HEADER_COLUMNS);
+	}
+
+	private void runWrapUpEvaluationReportCsv(InstitutionId institutionId, LocalDateTime startDateTime, LocalDateTime endDateTime, ZoneId reportTimeZone, Writer writer, String screeningName, String keyPrefix, List<String> headers) {
+		ZoneId timeZone = getInstitutionService().findInstitutionById(institutionId).get().getTimeZone();
+		if (timeZone == null)
+			timeZone = reportTimeZone;
+
+		Instant start = startDateTime.atZone(timeZone).toInstant();
+		Instant end = endDateTime.atZone(timeZone).toInstant();
+
+		List<WrapUpEvaluationReportRecord> records = getDatabase().queryForList("""
+				WITH report_window AS (
+					SELECT ?::TIMESTAMPTZ AS report_start_at, ?::TIMESTAMPTZ AS report_end_at
+				),
+				screening_question_answers AS (
+					SELECT
+						a.account_id,
+						ss.screening_session_id,
+						ss.course_session_id,
+						ss.created AS screening_session_created_at,
+						sa.created AS answer_created_at,
+						answer_values.reporting_key,
+						answer_values.reporting_value,
+						sa.answer_order
+					FROM account a
+					JOIN screening_session ss ON ss.target_account_id = a.account_id
+					JOIN v_screening_session_screening sss ON sss.screening_session_id = ss.screening_session_id
+					JOIN screening_version sv ON sv.screening_version_id = sss.screening_version_id
+					JOIN screening s ON s.screening_id = sv.screening_id
+					CROSS JOIN report_window rw
+					JOIN v_screening_session_answered_screening_question ssasq
+						ON ssasq.screening_session_screening_id = sss.screening_session_screening_id
+					JOIN screening_question sq
+						ON sq.screening_question_id = ssasq.screening_question_id
+						AND sq.screening_version_id = sss.screening_version_id
+					JOIN v_screening_answer sa
+						ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
+					LEFT JOIN screening_answer_option sao
+						ON sao.screening_answer_option_id = sa.screening_answer_option_id
+					CROSS JOIN LATERAL (
+						VALUES
+							(
+								NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), ''),
+								CASE
+									WHEN NULLIF(sq.metadata->'reporting'->>'openTextKey', '') IS NOT NULL AND sao.freeform_supplement
+										THEN COALESCE(NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT)
+									ELSE COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT)
+								END
+							),
+							(
+								NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'openTextKey', '\\s+', '', 'g'), ''),
+								CASE WHEN sao.freeform_supplement THEN NULLIF(sa.text, '') END
+							)
+						) AS answer_values(reporting_key, reporting_value)
+					WHERE a.institution_id = ?
+						AND a.role_id = ?
+						AND a.test_account = FALSE
+						AND s.name = ?
+						AND sa.created >= rw.report_start_at
+						AND sa.created <= rw.report_end_at
+						AND LEFT(answer_values.reporting_key, CHAR_LENGTH(?)) = ?
+						AND answer_values.reporting_value IS NOT NULL
+				),
+				screening_session_activity AS (
+					SELECT account_id, screening_session_id, course_session_id, screening_session_created_at,
+						MAX(answer_created_at) AS feedback_submitted_at
+					FROM screening_question_answers
+					GROUP BY account_id, screening_session_id, course_session_id, screening_session_created_at
+				),
+			latest_screening_session AS (
+				SELECT DISTINCT ON (account_id) account_id, screening_session_id, course_session_id, feedback_submitted_at
+				FROM screening_session_activity
+				ORDER BY account_id, screening_session_created_at DESC, feedback_submitted_at DESC, screening_session_id DESC
+			),
+			session_values AS (
+				SELECT answers.account_id, answers.reporting_key,
+					STRING_AGG(answers.reporting_value, ',' ORDER BY answers.answer_order) AS reporting_value
+				FROM screening_question_answers answers
+				JOIN latest_screening_session latest
+					ON latest.account_id = answers.account_id
+					AND latest.screening_session_id = answers.screening_session_id
+				GROUP BY answers.account_id, answers.reporting_key
+			),
+			screening_values AS (
+				SELECT account_id, JSONB_OBJECT_AGG(reporting_key, reporting_value)::TEXT AS screening_values_json
+				FROM session_values
+				GROUP BY account_id
+			)
+			SELECT
+				latest.account_id,
+				latest.course_session_id,
+				TO_CHAR(latest.feedback_submitted_at AT TIME ZONE 'America/New_York', 'YYYY-MM-DD HH24:MI:SS') AS feedback_submitted_at,
+				sv.screening_values_json
+			FROM latest_screening_session latest
+			LEFT JOIN screening_values sv ON sv.account_id = latest.account_id
+			ORDER BY latest.account_id
+			""", WrapUpEvaluationReportRecord.class,
+				start, end, institutionId, RoleId.PATIENT, screeningName, keyPrefix, keyPrefix);
+
+		try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headers.toArray(new String[0])))) {
+			for (WrapUpEvaluationReportRecord record : records) {
+				Map<String, String> values = parseJsonObjectAsStringMap(record.getScreeningValuesJson());
+				List<String> row = new ArrayList<>(headers.size());
+
+				for (String header : headers) {
+					if ("accountId".equals(header))
+						row.add(record.getAccountId() == null ? "" : record.getAccountId().toString());
+					else if ("Course Session ID".equals(header))
+						row.add(record.getCourseSessionId() == null ? "" : record.getCourseSessionId().toString());
+					else if ("Feedback Submitted At (America/New_York)".equals(header))
+						row.add(record.getFeedbackSubmittedAt() == null ? "" : record.getFeedbackSubmittedAt());
+					else
+						row.add(formatCourseMcbDownloadScreeningValue(header, values.get(header)));
+				}
+
+				printer.printRecord(row);
+			}
+
+			printer.flush();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
 	public void runAccountOnboardingCompleteV2ReportCsv(@Nonnull InstitutionId institutionId,
 																											@Nonnull LocalDateTime startDateTime,
 																											@Nonnull LocalDateTime endDateTime,
@@ -3216,11 +3362,11 @@ public class ReportingService {
 						screening_question_answers AS (
 							SELECT
 								ss.target_account_id AS account_id,
-								NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
+								answer_values.reporting_key,
 								ssasq.screening_session_answered_screening_question_id,
 								COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
 								STRING_AGG(
-									COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
+									answer_values.reporting_value,
 									',' ORDER BY sa.answer_order
 								) AS reporting_value
 							FROM screening_session ss
@@ -3243,10 +3389,26 @@ public class ReportingService {
 								ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
 							LEFT JOIN screening_answer_option sao
 								ON sao.screening_answer_option_id = sa.screening_answer_option_id
+							CROSS JOIN LATERAL (
+								VALUES
+									(
+										NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), ''),
+										CASE
+											WHEN NULLIF(sq.metadata->'reporting'->>'openTextKey', '') IS NOT NULL AND sao.freeform_supplement
+												THEN COALESCE(NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT)
+											ELSE COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT)
+										END
+									),
+									(
+										NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'openTextKey', '\\s+', '', 'g'), ''),
+										CASE WHEN sao.freeform_supplement THEN NULLIF(sa.text, '') END
+									)
+								) AS answer_values(reporting_key, reporting_value)
 							WHERE sq.metadata IS NOT NULL
 								AND ss.created >= ra.account_created_at
 								AND ss.created <= rw.report_end_at
-								AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') LIKE 'bb_onboarding_%'
+								AND answer_values.reporting_key LIKE 'bb_onboarding_%'
+								AND answer_values.reporting_value IS NOT NULL
 							GROUP BY 1, 2, 3
 						),
 						latest_screening_values AS (
@@ -3848,11 +4010,11 @@ public class ReportingService {
 							screening_question_answers AS (
 								SELECT
 									ss.target_account_id AS account_id,
-									NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') AS reporting_key,
+									answer_values.reporting_key,
 									ssasq.screening_session_answered_screening_question_id,
 									COALESCE(MAX(sa.created), MAX(ss.created)) AS answered_at,
 									STRING_AGG(
-										COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT),
+										answer_values.reporting_value,
 										',' ORDER BY sa.answer_order
 									) AS reporting_value
 								FROM screening_session ss
@@ -3870,10 +4032,26 @@ public class ReportingService {
 								ON sa.screening_session_answered_screening_question_id = ssasq.screening_session_answered_screening_question_id
 								LEFT JOIN screening_answer_option sao
 									ON sao.screening_answer_option_id = sa.screening_answer_option_id
+								CROSS JOIN LATERAL (
+									VALUES
+										(
+											NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), ''),
+											CASE
+												WHEN NULLIF(sq.metadata->'reporting'->>'openTextKey', '') IS NOT NULL AND sao.freeform_supplement
+													THEN COALESCE(NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT)
+												ELSE COALESCE(NULLIF(sa.text, ''), NULLIF(sao.answer_option_text, ''), sao.display_order::TEXT, sao.score::TEXT)
+											END
+										),
+										(
+											NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'openTextKey', '\\s+', '', 'g'), ''),
+											CASE WHEN sao.freeform_supplement THEN NULLIF(sa.text, '') END
+										)
+									) AS answer_values(reporting_key, reporting_value)
 								WHERE sq.metadata IS NOT NULL
 									AND ss.created >= ra.account_created_at
 									AND ss.created <= rw.report_end_at
-									AND NULLIF(REGEXP_REPLACE(sq.metadata->'reporting'->>'key', '\\s+', '', 'g'), '') IS NOT NULL
+									AND answer_values.reporting_key IS NOT NULL
+									AND answer_values.reporting_value IS NOT NULL
 								GROUP BY 1, 2, 3
 							),
 						latest_screening_values AS (
@@ -4042,6 +4220,7 @@ public class ReportingService {
 		}
 
 		String screeningValue = screeningValues.get(normalizedHeaderColumn);
+
 		return formatCourseMcbDownloadScreeningValue(normalizedHeaderColumn, screeningValue);
 	}
 
@@ -5392,6 +5571,22 @@ public class ReportingService {
 		public void setFeedbackSubmittedAt(@Nullable Instant feedbackSubmittedAt) {
 			this.feedbackSubmittedAt = feedbackSubmittedAt;
 		}
+	}
+
+	@NotThreadSafe
+	protected static class WrapUpEvaluationReportRecord {
+		@Nullable private UUID accountId;
+		@Nullable private UUID courseSessionId;
+		@Nullable private String feedbackSubmittedAt;
+		@Nullable private String screeningValuesJson;
+		@Nullable public UUID getAccountId() { return accountId; }
+		public void setAccountId(@Nullable UUID accountId) { this.accountId = accountId; }
+		@Nullable public UUID getCourseSessionId() { return courseSessionId; }
+		public void setCourseSessionId(@Nullable UUID courseSessionId) { this.courseSessionId = courseSessionId; }
+		@Nullable public String getFeedbackSubmittedAt() { return feedbackSubmittedAt; }
+		public void setFeedbackSubmittedAt(@Nullable String feedbackSubmittedAt) { this.feedbackSubmittedAt = feedbackSubmittedAt; }
+		@Nullable public String getScreeningValuesJson() { return screeningValuesJson; }
+		public void setScreeningValuesJson(@Nullable String screeningValuesJson) { this.screeningValuesJson = screeningValuesJson; }
 	}
 
 	@NotThreadSafe
