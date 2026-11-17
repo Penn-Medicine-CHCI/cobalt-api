@@ -119,6 +119,8 @@ public class InstitutionApiResponse {
 	@Nullable
 	private final String integratedCarePhoneNumberDescription;
 	@Nullable
+	private final String integratedCareContactName;
+	@Nullable
 	private final String integratedCareAvailabilityDescription;
 	@Nullable
 	private final String integratedCareProgramName;
@@ -368,6 +370,7 @@ public class InstitutionApiResponse {
 
 		this.integratedCarePhoneNumber = institution.getIntegratedCarePhoneNumber();
 		this.integratedCarePhoneNumberDescription = institution.getIntegratedCarePhoneNumber() == null ? null : formatter.formatPhoneNumber(institution.getIntegratedCarePhoneNumber());
+		this.integratedCareContactName = institution.getIntegratedCareContactName();
 		this.integratedCareAvailabilityDescription = institution.getIntegratedCareAvailabilityDescription();
 		this.integratedCareProgramName = institution.getIntegratedCareProgramName();
 		this.integratedCarePrimaryCareName = institution.getIntegratedCarePrimaryCareName();
@@ -638,6 +641,11 @@ public class InstitutionApiResponse {
 	@Nullable
 	public String getIntegratedCarePhoneNumberDescription() {
 		return this.integratedCarePhoneNumberDescription;
+	}
+
+	@Nullable
+	public String getIntegratedCareContactName() {
+		return this.integratedCareContactName;
 	}
 
 	@Nullable

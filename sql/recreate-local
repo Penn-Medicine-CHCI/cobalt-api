@@ -295,12 +295,6 @@ if [ -f "initial/bootstrap.sql" ]; then
   PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/274-behavior-bridge-onboarding-reasons.sql
 fi
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/288-provider-eligibility-pools.sql
-if [ -f "initial/bootstrap.sql" ]; then
-  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/292-behavior-bridge-wrap-up-screenings.sql
-  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/293-behavior-bridge-wrap-up-evaluation-reports.sql
-  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/294-behavior-bridge-sleep-wrap-up-screening.sql
-  PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/295-behavior-bridge-sleep-wrap-up-evaluation-report.sql
-fi
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/289-care-encounter-follow-up-without-attendance.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/290-provider-appointment-start-time-alignment.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/291-page-directory-locations.sql
