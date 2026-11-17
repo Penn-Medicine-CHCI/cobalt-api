@@ -295,6 +295,8 @@ PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < upd
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/289-care-encounter-follow-up-without-attendance.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/290-provider-appointment-start-time-alignment.sql
 PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/291-page-directory-locations.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/292-institution-integrated-care-contact-name-column.sql
+PGPASSWORD=password psql -v ON_ERROR_STOP=1 -U cobalt -h localhost -p 5501 < updates/293-behavior-bridge-wrap-up-evaluation-reports.sql
 
 # When the private production-derived bundle is available in the shared Cobalt
 # workspace, mirror the active PENN providers into local COBALT on every rebuild.
